@@ -1,0 +1,193 @@
+-- 1. Tài khoản & Phân quyền
+
+CREATE TABLE KhoaPhong (
+    Id INT IDENTITY(1,1) CONSTRAINT PK_KhoaPhong PRIMARY KEY,
+    IdCongKhai UNIQUEIDENTIFIER CONSTRAINT DF_KhoaPhong_IdCongKhai DEFAULT NEWSEQUENTIALID() NOT NULL,
+    TenKhoaPhong NVARCHAR(255) NOT NULL,
+    MaKhoaPhong VARCHAR(50) NOT NULL,
+    DaXoa BIT CONSTRAINT DF_KhoaPhong_DaXoa DEFAULT 0,
+    CONSTRAINT UQ_KhoaPhong_IdCongKhai UNIQUE (IdCongKhai),
+    CONSTRAINT UQ_KhoaPhong_MaKhoaPhong UNIQUE (MaKhoaPhong)
+);
+
+CREATE TABLE NguoiDung (
+    Id INT IDENTITY(1,1) CONSTRAINT PK_NguoiDung PRIMARY KEY,
+    IdCongKhai UNIQUEIDENTIFIER CONSTRAINT DF_NguoiDung_IdCongKhai DEFAULT NEWSEQUENTIALID() NOT NULL,
+    TenDangNhap VARCHAR(100) NOT NULL,
+    MatKhauHash VARCHAR(255) NOT NULL,
+    HoTen NVARCHAR(255) NOT NULL,
+    Email VARCHAR(100) NOT NULL,
+    TrangThaiHoatDong BIT CONSTRAINT DF_NguoiDung_TrangThai DEFAULT 1,
+    NgayTao DATETIME2(3) CONSTRAINT DF_NguoiDung_NgayTao DEFAULT GETDATE(),
+    CONSTRAINT UQ_NguoiDung_IdCongKhai UNIQUE (IdCongKhai),
+    CONSTRAINT UQ_NguoiDung_TenDangNhap UNIQUE (TenDangNhap),
+    CONSTRAINT UQ_NguoiDung_Email UNIQUE (Email)
+);
+
+CREATE TABLE VaiTro (
+    Id INT IDENTITY(1,1) CONSTRAINT PK_VaiTro PRIMARY KEY,
+    TenVaiTro VARCHAR(100) NOT NULL,
+    MoTa NVARCHAR(MAX),
+    DaXoa BIT CONSTRAINT DF_VaiTro_DaXoa DEFAULT 0,
+    CONSTRAINT UQ_VaiTro_TenVaiTro UNIQUE (TenVaiTro)
+);
+
+CREATE TABLE Quyen (
+    Id INT IDENTITY(1,1) CONSTRAINT PK_Quyen PRIMARY KEY,
+    MaQuyen VARCHAR(100) NOT NULL,
+    TenQuyen NVARCHAR(255) NOT NULL,
+    DaXoa BIT CONSTRAINT DF_Quyen_DaXoa DEFAULT 0,
+    CONSTRAINT UQ_Quyen_MaQuyen UNIQUE (MaQuyen)
+);
+
+CREATE TABLE VaiTro_Quyen (
+    VaiTroId INT CONSTRAINT FK_VatTroQuyen_VaiTro FOREIGN KEY REFERENCES VaiTro(id),
+    QuyenId INT CONSTRAINT FK_VatTroQuyen_Quyen FOREIGN KEY REFERENCES Quyen(id),
+    CONSTRAINT PK_VaiTro_Quyen PRIMARY KEY (VaiTroId, QuyenId)
+);
+
+CREATE TABLE NguoiDung_KhoaPhong_VaiTro (
+    Id INT IDENTITY(1,1) CONSTRAINT PK_NguoiDung_KhoaPhong_VaiTro PRIMARY KEY,
+    NguoiDungId INT CONSTRAINT FK_Nduong_KP_VT_NguoiDung FOREIGN KEY REFERENCES NguoiDung(id),
+    KhoaPhongId INT CONSTRAINT FK_Nduong_KP_VT_KhoaPhong FOREIGN KEY REFERENCES KhoaPhong(id),
+    VaiTroId INT CONSTRAINT FK_Nduong_KP_VT_VaiTro FOREIGN KEY REFERENCES VaiTro(id),
+    LaChinh BIT CONSTRAINT DF_Nduong_KP_VT_LaChinh DEFAULT 1,
+    CONSTRAINT UQ_NguoiDung_KhoaPhong_VaiTro_DuyNhat UNIQUE (NguoiDungId, KhoaPhongId, VaiTroId)
+);
+
+-- 2. Danh mục & Quy trình
+
+CREATE TABLE HinhThucDauThau (
+    Id INT IDENTITY(1,1) CONSTRAINT PK_HinhThucDauThau PRIMARY KEY,
+    MaHinhThuc VARCHAR(50) NOT NULL,
+    TenHinhThuc NVARCHAR(255) NOT NULL,
+    HanMucToiDa DECIMAL(18,0) NULL,
+    TrangThaiHoatDong BIT CONSTRAINT DF_HinhThuc_TrangThai DEFAULT 1,
+    CONSTRAINT UQ_HinhThuc_MaHinhThuc UNIQUE (MaHinhThuc)
+);
+
+CREATE TABLE BuocQuyTrinh (
+    Id INT IDENTITY(1,1) CONSTRAINT PK_BuocQuyTrinh PRIMARY KEY,
+    HinhThucId INT CONSTRAINT FK_BuocQuyTrinh_HinhThuc FOREIGN KEY REFERENCES HinhThucDauThau(id),
+    MaBuoc VARCHAR(50) NOT NULL,
+    TenBuoc NVARCHAR(255) NOT NULL,
+    SoThuTu INT NOT NULL,
+    SoNgaySLA INT CONSTRAINT DF_BuocQuyTrinh_SLA DEFAULT 0,
+    CONSTRAINT UQ_BuocQuyTrinh_MaBuocDuyNhat UNIQUE (HinhThucId, MaBuoc)
+);
+
+-- 3. Nghiệp vụ Gói thầu
+
+CREATE TABLE GioThau (
+    Id BIGINT IDENTITY(1,1) CONSTRAINT PK_GioThau PRIMARY KEY,
+    IdCongKhai UNIQUEIDENTIFIER CONSTRAINT DF_GioThau_IdCongKhai DEFAULT NEWSEQUENTIALID() NOT NULL,
+    MaGoiThau VARCHAR(50) NOT NULL,
+    TenGoiThau NVARCHAR(500) NOT NULL,
+    KhoaPhongId INT CONSTRAINT FK_GioThau_KhoaPhong FOREIGN KEY REFERENCES KhoaPhong(id),
+    NguoiTaoId INT CONSTRAINT FK_GioThau_NguoiDung FOREIGN KEY REFERENCES NguoiDung(id),
+    HinhThucId INT CONSTRAINT FK_GioThau_HinhThuc FOREIGN KEY REFERENCES HinhThucDauThau(id),
+    NganSach DECIMAL(18,0) NOT NULL,
+    TrangThai VARCHAR(50) CONSTRAINT DF_GioThau_TrangThai DEFAULT 'DRAFT' NOT NULL,
+    MaBuocHienTai VARCHAR(50) NULL,
+    NgayTao DATETIME2(3) CONSTRAINT DF_GioThau_NgayTao DEFAULT GETDATE(),
+    NgayCapNhat DATETIME2(3) CONSTRAINT DF_GioThau_NgayCapNhat DEFAULT GETDATE(),
+    CONSTRAINT UQ_GioThau_MaGoiThau UNIQUE (MaGoiThau),
+    CONSTRAINT UQ_GioThau_IdCongKhai UNIQUE (IdCongKhai),
+    CONSTRAINT CHK_GioThau_NganSach CHECK (NganSach > 0),
+    CONSTRAINT CHK_GioThau_TrangThai CHECK (TrangThai IN ('DRAFT', 'SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'IN_PROGRESS', 'AWARDED', 'CONTRACTED', 'COMPLETED', 'REJECTED', 'CANCELLED'))
+);
+
+CREATE TABLE ChiTietGoiThau (
+    Id BIGINT IDENTITY(1,1) CONSTRAINT PK_ChiTietGoiThau PRIMARY KEY,
+    GioThauId BIGINT CONSTRAINT FK_ChiTietGoiThau_GoiThau FOREIGN KEY REFERENCES GioThau(id) ON DELETE CASCADE,
+    MaVatTu VARCHAR(50) NOT NULL,
+    TenVatTu NVARCHAR(255) NOT NULL,
+    SoLuong DECIMAL(18,2) NOT NULL,
+    DonGiaDuToan DECIMAL(18,0) NOT NULL,
+    CONSTRAINT CHK_ChiTietGoiThau_SoLuong CHECK (SoLuong > 0),
+    CONSTRAINT CHK_ChiTietGoiThau_Gia CHECK (DonGiaDuToan >= 0)
+);
+
+-- 4. Tài liệu & Theo dõi quy trình
+
+CREATE TABLE TaiLieuHoSo (
+    Id BIGINT IDENTITY(1,1) CONSTRAINT PK_TaiLieuHoSo PRIMARY KEY,
+    IdCongKhai UNIQUEIDENTIFIER CONSTRAINT DF_TaiLieuHoSo_IdCongKhai DEFAULT NEWSEQUENTIALID() NOT NULL,
+    GioThauId BIGINT CONSTRAINT FK_TaiLieuHoSo_GoiThau FOREIGN KEY REFERENCES GioThau(id) ON DELETE CASCADE,
+    LoaiTaiLieu VARCHAR(50) NOT NULL, 
+    TenFile NVARCHAR(255) NOT NULL,
+    DuongDanFile VARCHAR(1000) NOT NULL,
+    DungLuongFile BIGINT NOT NULL, 
+    MaCheckSum VARCHAR(64) NULL, 
+    PhienBan INT CONSTRAINT DF_TaiLieuHoSo_PhienBan DEFAULT 1,
+    NguoiTaiUpId INT CONSTRAINT FK_TaiLieuHoSo_NguoiDung FOREIGN KEY REFERENCES NguoiDung(id),
+    NgayTaiUp DATETIME2(3) CONSTRAINT DF_TaiLieuHoSo_NgayTaiUp DEFAULT GETDATE(),
+    CONSTRAINT CHK_TaiLieuHoSo_DungLuong CHECK (DungLuongFile <= 104857600),
+    CONSTRAINT UQ_TaiLieuHoSo_PhienBanGoiThau UNIQUE (GioThauId, LoaiTaiLieu, PhienBan)
+);
+
+CREATE TABLE TheoDoiQuyTrinh (
+    Id BIGINT IDENTITY(1,1) CONSTRAINT PK_TheoDoiQuyTrinh PRIMARY KEY,
+    GioThauId BIGINT CONSTRAINT FK_TheoDoiQuyTrinh_GoiThau FOREIGN KEY REFERENCES GioThau(id) ON DELETE CASCADE,
+    BuocQuyTrinhId INT CONSTRAINT FK_TheoDoiQuyTrinh_BuocQuyTrinh FOREIGN KEY REFERENCES BuocQuyTrinh(id),
+    NguoiXuLyId INT NULL CONSTRAINT FK_TheoDoiQuyTrinh_NguoiDung FOREIGN KEY REFERENCES NguoiDung(id),
+    TrangThaiBuoc VARCHAR(50) CONSTRAINT DF_TheoDoiQuyTrinh_TrangThai DEFAULT 'PENDING' NOT NULL,
+    NgayBatDau DATETIME(3) NULL,
+    NgayHoanThanh DATETIME(3) NULL,
+    CONSTRAINT CHK_TheoDoiQuyTrinh_TrangThai CHECK (TrangThaiBuoc IN ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'OVERDUE', 'SKIPPED'))
+);
+
+-- 5. Nhà thầu, Hợp đồng & Nhật ký kiểm toán
+
+CREATE TABLE NhaThau (
+    Id INT IDENTITY(1,1) CONSTRAINT PK_NhaThau PRIMARY KEY,
+    MaSoThue VARCHAR(20) NOT NULL,
+    TenCongTy NVARCHAR(255) NOT NULL,
+    DiaChi NVARCHAR(MAX) NULL,
+    NguoiDaiDien NVARCHAR(100) NULL,
+    TrangThaiHoatDong BIT CONSTRAINT DF_NhaThau_TrangThai DEFAULT 1,
+    CONSTRAINT UQ_NhaThau_MaSoThue UNIQUE (MaSoThue)
+);
+
+CREATE TABLE HopDong (
+    Id BIGINT IDENTITY(1,1) CONSTRAINT PK_HopDong PRIMARY KEY,
+    IdCongKhai UNIQUEIDENTIFIER CONSTRAINT DF_HopDong_IdCongKhai DEFAULT NEWSEQUENTIALID() NOT NULL,
+    GioThauId BIGINT CONSTRAINT FK_HopDong_GoiThau FOREIGN KEY REFERENCES GioThau(id),
+    NhaThauId INT CONSTRAINT FK_HopDong_NhaThau FOREIGN KEY REFERENCES NhaThau(id),
+    SoHopDong VARCHAR(100) NOT NULL,
+    TongGiaTri DECIMAL(18,0) NOT NULL,
+    NgayKy DATE NULL,
+    TrangThaiHopDong VARCHAR(50) CONSTRAINT DF_HopDong_TrangThai DEFAULT 'ACTIVE',
+    CONSTRAINT UQ_HopDong_SoHopDong UNIQUE (SoHopDong)
+);
+
+CREATE TABLE NhatKyKiemToan (
+    Id BIGINT IDENTITY(1,1) CONSTRAINT PK_NhatKyKiemToan PRIMARY KEY,
+    GioThauId BIGINT CONSTRAINT FK_NhatKyKiemToan_GoiThau FOREIGN KEY REFERENCES GioThau(id) ON DELETE CASCADE,
+    HanhDong VARCHAR(100) NOT NULL,
+    MoTaChiTiet NVARCHAR(MAX) NOT NULL,
+    NguoiThucHienId INT CONSTRAINT FK_NhatKyKiemToan_NguoiDung FOREIGN KEY REFERENCES NguoiDung(id),
+    ThoiGianThucHien DATETIME2(3) CONSTRAINT DF_NhatKyKiemToan_ThoiGian DEFAULT GETDATE()
+);
+GO
+
+-- Trigger chống sửa/xóa audit trail
+CREATE TRIGGER TRG_Chan_CapNhat_Xoa_NhatKy
+ON NhatKyKiemToan
+INSTEAD OF UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    THROW 51000, N'Audit trail bất biến, không sửa/xóa được!', 1;
+END;
+GO
+
+-- 6. Index tối ưu
+
+CREATE NONCLUSTERED INDEX IX_NguoiDung_DangHoatDong ON NguoiDung(TenDangNhap) WHERE TrangThaiHoatDong = 1;
+CREATE NONCLUSTERED INDEX IX_KhoaPhong_ChuaXoa ON KhoaPhong(MaKhoaPhong) WHERE DaXoa = 0;
+CREATE NONCLUSTERED INDEX IX_GioThau_BoLocDanhSach ON GioThau(KhoaPhongId, TrangThai);
+CREATE NONCLUSTERED INDEX IX_GioThau_IdCongKhai ON GioThau(IdCongKhai);
+CREATE NONCLUSTERED INDEX IX_TaiLieuHoSo_IdCongKhai ON TaiLieuHoSo(IdCongKhai);
+CREATE NONCLUSTERED INDEX IX_TheoDoiQuyTrinh_GioThauId ON TheoDoiQuyTrinh(GioThauId);
+CREATE NONCLUSTERED INDEX IX_NhatKyKiemToan_GioThauId ON NhatKyKiemToan(GioThauId);

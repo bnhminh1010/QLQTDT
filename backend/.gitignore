@@ -1,0 +1,21 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Build outputs
+publish/
+*.nupkg
+
+## IDE
+.vs/
+.vscode/
+*.swp
+*.swo
+
+## Environment
+appsettings.Development.json
+.env

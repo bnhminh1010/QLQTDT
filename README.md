@@ -1,9 +1,10 @@
 # QLQTDT — Quản Lý Quy Trình Đấu Thầu
 
 ![.NET](https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
-![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white)
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Redux](https://img.shields.io/badge/Redux-764ABC?style=for-the-badge&logo=redux&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
 ## Tổng quan
 
@@ -45,25 +46,109 @@ Hệ thống hỗ trợ 10 hình thức, mỗi hình thức có workflow riêng:
 
 ## Kiến trúc
 
-- Backend: .NET MVC (C#) — mô hình Model-View-Controller
-- Frontend: HTML + CSS thuần, không JS framework
-- Workflow động: mỗi hình thức mua sắm là một state machine riêng
-- Phân quyền: role-based (khoa/phòng sử dụng, mua sắm, lãnh đạo, tổ chuyên gia, nhà thầu...)
-- Chứng từ: quản lý file đính kèm theo từng bước quy trình
+- **Backend:** ASP.NET Core 10 Web API (C#) — RESTful API
+- **Frontend:** React + Vite + TypeScript — SPA
+- **UI:** Ant Design
+- **State:** Redux Toolkit
+- **Database:** SQL Server (remote)
+- **ORM:** Entity Framework Core 10
+- **File Storage:** FTP (passive mode)
+- **Auth:** JWT trong HttpOnly Cookie
+- **API Docs:** Swagger / OpenAPI
+- **Workflow động:** mỗi hình thức mua sắm là một state machine riêng
+- **Phân quyền:** role-based (khoa/phòng sử dụng, mua sắm, lãnh đạo, tổ chuyên gia, nhà thầu...)
+- **Chứng từ:** quản lý file đính kèm theo từng bước quy trình
 
 ## Tech stack
 
 | Layer | Công nghệ |
 |-------|-----------|
-| Backend | .NET MVC (C#) |
-| Frontend | HTML5, CSS3 |
+| Backend | ASP.NET Core 10 Web API (C#) |
+| Frontend | React + Vite + TypeScript |
+| UI | Ant Design |
+| State Management | Redux Toolkit |
+| API Docs | Swagger / OpenAPI |
 | Database | SQL Server |
-| CI/CD | GitHub Actions |
+| ORM | Entity Framework Core |
+| File Storage | FTP (passive mode) |
 
-## CI/CD
+## Cấu trúc thư mục
 
-Pipeline tự động gồm: build .NET + SHA256 checksums, CodeQL,
-Gitleaks (quét secret), SonarQube (quét CVE và chất lượng code).
+```
+QLQTDT/
+├── backend/                # ASP.NET Core Web API
+│   ├── Controllers/        # REST endpoints
+│   ├── Services/           # Business logic
+│   ├── Models/
+│   │   ├── Entities/       # DB entities
+│   │   └── DTOs/           # Request/Response DTOs
+│   ├── Data/               # EF Core DbContext
+│   ├── Config/             # JWT, FTP config
+│   ├── Program.cs
+│   └── QLQTDT.Api.csproj
+├── frontend/               # React SPA
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/       # API calls
+│   │   └── store/          # Redux slices
+│   └── package.json
+├── docs/                   # DB schema, SRS
+└── .env                    # Connection strings (gitignore)
+```
+
+## Cài đặt & Chạy local
+
+### Yêu cầu
+- .NET SDK 10.0+
+- Node.js 18+
+- npm hoặc yarn
+
+### Backend
+
+```bash
+cd backend
+dotnet build
+dotnet run
+```
+
+API chạy tại `http://localhost:5xxx` (hoặc port cấu hình).
+Swagger UI: `http://localhost:5xxx/swagger`
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend chạy tại `http://localhost:5173`.
+
+### Environment
+
+Tạo file `.env` tại thư mục root với nội dung:
+
+```env
+DB_SERVER=your_server
+DB_USER=your_user
+DB_PASSWORD=your_password
+DB_NAME=your_database
+
+FTP_SERVER=your_ftp_server
+FTP_PORT=21
+FTP_USER=your_ftp_user
+FTP_PASSWORD=your_ftp_password
+FTP_MODE=passive
+```
+
+### Database Migration
+
+```bash
+cd backend
+dotnet ef migrations add <MigrationName>
+dotnet ef database update
+```
 
 ## Giấy phép
 
