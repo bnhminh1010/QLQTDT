@@ -1,9 +1,13 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QLQTDT.Api.Config;
 using QLQTDT.Api.Data;
+using QLQTDT.Api.Middlewares;
+using QLQTDT.Api.Services;
 using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,8 +31,11 @@ var dbUser = Environment.GetEnvironmentVariable("DB_USER");
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 var dbName = Environment.GetEnvironmentVariable("DB_NAME");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer($"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;"));
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer($"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;"));
+}
 
 // JWT
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "DefaultSecretKeyForDevOnly123!@#";
@@ -77,6 +84,12 @@ builder.Services.Configure<FtpConfig>(options =>
     options.UsePassive = true;
 });
 
+// Google Auth
+builder.Services.Configure<GoogleAuthConfig>(options =>
+{
+    options.ClientId = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID") ?? "";
+});
+
 // CORS
 builder.Services.AddCors(options =>
 {
@@ -89,8 +102,25 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Controllers
-builder.Services.AddControllers();
+// MemoryCache (cho LoginAttemptGuard và rate limiting)
+builder.Services.AddMemoryCache();
+
+// DI — Auth Services
+builder.Services.AddSingleton<LoginAttemptGuard>();
+builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+// FluentValidation — đăng ký tất cả validators từ assembly
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+// Controllers với JSON camelCase
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    });
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -100,6 +130,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// Exception Handling Middleware — phải đặt đầu tiên
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -113,3 +146,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Cần public partial class cho integration test WebApplicationFactory
+public partial class Program { }
