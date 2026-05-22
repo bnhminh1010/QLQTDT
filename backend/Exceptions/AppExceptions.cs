@@ -36,3 +36,8 @@ public class BadRequestException : AppException
 {
     public BadRequestException(string message) : base(400, "Bad Request", message) { }
 }
+
+public class NotFoundException : AppException
+{
+    public NotFoundException(string message) : base(404, "Not Found", message) { }
+}

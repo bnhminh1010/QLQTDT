@@ -111,6 +111,7 @@ builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 // FluentValidation — đăng ký tất cả validators từ assembly
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -144,6 +145,12 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Seed dữ liệu mặc định (vai trò + tài khoản admin gốc)
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    await QLQTDT.Api.Data.DbInitializer.SeedAsync(app.Services);
+}
 
 app.Run();
 
