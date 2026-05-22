@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QLQTDT.Api.Config;
 using QLQTDT.Api.Data;
+using QLQTDT.Api.Middleware;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,14 +22,19 @@ if (File.Exists(envPath))
     }
 }
 
-// Database
+// Database + Audit interceptor
 var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
 var dbUser = Environment.GetEnvironmentVariable("DB_USER");
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 var dbName = Environment.GetEnvironmentVariable("DB_NAME");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer($"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;"));
+builder.Services.AddSingleton<AuditInterceptor>();
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
+    var interceptor = sp.GetRequiredService<AuditInterceptor>();
+    options.UseSqlServer($"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;")
+           .AddInterceptors(interceptor);
+});
 
 // JWT
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "DefaultSecretKeyForDevOnly123!@#";
@@ -89,6 +95,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// HTTP context accessor (needed by AuditInterceptor)
+builder.Services.AddHttpContextAccessor();
+
 // Controllers
 builder.Services.AddControllers();
 
@@ -100,6 +109,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// Exception middleware
+app.UseMiddleware<ExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
