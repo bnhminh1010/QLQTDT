@@ -57,14 +57,14 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
-      - name: Build for analysis
-        run: dotnet build ${{ env.PROJECT_PATH }} --no-restore --configuration Release
-
-      # CodeQL
+      # CodeQL — init trước, autobuild sau (production-standard)
       - name: Initialize CodeQL
         uses: github/codeql-action/init@4d6150cc15f4cf6b68f0c4cff5ec0f020ad4bf5b # v3.28.14
         with:
           languages: csharp
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@4d6150cc15f4cf6b68f0c4cff5ec0f020ad4bf5b # v3.28.14
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@4d6150cc15f4cf6b68f0c4cff5ec0f020ad4bf5b # v3.28.14
