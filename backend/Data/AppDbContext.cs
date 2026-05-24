@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<NguoiDungKhoaPhongVaiTro> NguoiDungKhoaPhongVaiTros => Set<NguoiDungKhoaPhongVaiTro>();
     public DbSet<NhaThau> NhaThaus => Set<NhaThau>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -118,6 +119,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
             entity.HasIndex(e => e.Token).IsUnique();
             entity.HasOne(e => e.NguoiDung).WithMany(n => n.PasswordResetTokens).HasForeignKey(e => e.NguoiDungId);
+        });
+
+        // LoginLockout — Persistent brute-force tracking
+        modelBuilder.Entity<LoginLockout>(entity =>
+        {
+            entity.ToTable("LoginLockout");
+            entity.HasKey(e => e.Identifier);
+            entity.Property(e => e.Identifier).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.FailedAttempts).IsRequired();
+            entity.Property(e => e.LockoutEnd).HasColumnType("datetime2(3)");
+            entity.Property(e => e.LastFailedAttempt).HasColumnType("datetime2(3)").IsRequired();
         });
     }
 }

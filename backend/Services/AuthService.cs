@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models.DTOs.Auth;
 using QLQTDT.Api.Models.Entities;
 
@@ -55,7 +56,7 @@ public class AuthService : IAuthService
         {
             TenDangNhap = normalizedUsername,
             MatKhauHash = BCrypt.Net.BCrypt.HashPassword(dto.MatKhau),
-            HoTen = dto.HoTen.Trim(),
+            HoTen = InputSanitizer.Sanitize(dto.HoTen),
             Email = normalizedEmail,
             TrangThaiHoatDong = false,
             NgayTao = DateTime.UtcNow
@@ -67,9 +68,9 @@ public class AuthService : IAuthService
         var nhaThau = new NhaThau
         {
             MaSoThue = dto.MaSoThue,
-            TenCongTy = dto.TenCongTy.Trim(),
-            DiaChi = dto.DiaChi?.Trim(),
-            NguoiDaiDien = dto.NguoiDaiDien?.Trim(),
+            TenCongTy = InputSanitizer.Sanitize(dto.TenCongTy),
+            DiaChi = dto.DiaChi != null ? InputSanitizer.Sanitize(dto.DiaChi) : null,
+            NguoiDaiDien = dto.NguoiDaiDien != null ? InputSanitizer.Sanitize(dto.NguoiDaiDien) : null,
             TrangThaiHoatDong = true,
             NguoiDungId = nguoiDung.Id
         };
@@ -109,9 +110,10 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp)
     {
-        var lockoutKey = $"{clientIp}:{dto.TenDangNhap}";
+        // Normalize: lowercase + trim tránh bypass bằng cách đổi casing username
+        var lockoutKey = $"{clientIp}:{dto.TenDangNhap.Trim().ToLowerInvariant()}";
 
-        if (_loginGuard.IsLockedOut(lockoutKey))
+        if (await _loginGuard.IsLockedOutAsync(lockoutKey))
             throw new TooManyRequestsException("Đăng nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.");
 
         var user = await _context.NguoiDungs
@@ -119,14 +121,14 @@ public class AuthService : IAuthService
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.MatKhau, user.MatKhauHash))
         {
-            _loginGuard.RecordFailedAttempt(lockoutKey);
+            await _loginGuard.RecordFailedAttemptAsync(lockoutKey);
             throw new UnauthorizedException("Tên đăng nhập hoặc mật khẩu không chính xác.");
         }
 
         if (!user.TrangThaiHoatDong)
             throw new ForbiddenException("Tài khoản đang chờ quản trị viên phê duyệt hoặc đã bị khóa.");
 
-        _loginGuard.ResetAttempts(lockoutKey);
+        await _loginGuard.ResetAttemptsAsync(lockoutKey);
 
         // Lấy danh sách roles
         var userRoles = await GetUserRoles(user.Id);

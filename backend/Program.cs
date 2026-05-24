@@ -106,7 +106,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddMemoryCache();
 
 // DI — Auth Services
-builder.Services.AddSingleton<LoginAttemptGuard>();
+builder.Services.AddScoped<LoginAttemptGuard>();
+builder.Services.AddHostedService<LockoutCleanupService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();

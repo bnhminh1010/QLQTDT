@@ -1,4 +1,5 @@
 using FluentValidation;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models.DTOs.Auth;
 
 namespace QLQTDT.Api.Validators;
@@ -23,7 +24,8 @@ public class RegisterContractorValidator : AbstractValidator<RegisterContractorD
             .MinimumLength(8).WithMessage("Mật khẩu phải có ít nhất 8 ký tự")
             .Matches(@"[A-Z]").WithMessage("Mật khẩu phải có ít nhất 1 chữ hoa")
             .Matches(@"[a-z]").WithMessage("Mật khẩu phải có ít nhất 1 chữ thường")
-            .Matches(@"[0-9]").WithMessage("Mật khẩu phải có ít nhất 1 chữ số");
+            .Matches(@"[0-9]").WithMessage("Mật khẩu phải có ít nhất 1 chữ số")
+            .Matches(@"[!@#$%^&*()\-_=+\[\]{}|;:'"",.<>?/~\\]").WithMessage("Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)");
 
         RuleFor(x => x.ConfirmMatKhau)
             .NotEmpty().WithMessage("Xác nhận mật khẩu không được để trống")
@@ -31,7 +33,9 @@ public class RegisterContractorValidator : AbstractValidator<RegisterContractorD
 
         RuleFor(x => x.HoTen)
             .NotEmpty().WithMessage("Họ tên không được để trống")
-            .MaximumLength(255).WithMessage("Họ tên tối đa 255 ký tự");
+            .MaximumLength(255).WithMessage("Họ tên tối đa 255 ký tự")
+            .Must(v => !InputSanitizer.ContainsDangerousContent(v))
+                .WithMessage("Họ tên chứa ký tự không hợp lệ (HTML/script không được phép)");
 
         RuleFor(x => x.MaSoThue)
             .NotEmpty().WithMessage("Mã số thuế không được để trống")
@@ -39,14 +43,20 @@ public class RegisterContractorValidator : AbstractValidator<RegisterContractorD
 
         RuleFor(x => x.TenCongTy)
             .NotEmpty().WithMessage("Tên công ty không được để trống")
-            .MaximumLength(255).WithMessage("Tên công ty tối đa 255 ký tự");
+            .MaximumLength(255).WithMessage("Tên công ty tối đa 255 ký tự")
+            .Must(v => !InputSanitizer.ContainsDangerousContent(v))
+                .WithMessage("Tên công ty chứa ký tự không hợp lệ (HTML/script không được phép)");
 
         RuleFor(x => x.DiaChi)
             .MaximumLength(500).WithMessage("Địa chỉ tối đa 500 ký tự")
+            .Must(v => !InputSanitizer.ContainsDangerousContent(v))
+                .WithMessage("Địa chỉ chứa ký tự không hợp lệ (HTML/script không được phép)")
             .When(x => x.DiaChi != null);
 
         RuleFor(x => x.NguoiDaiDien)
             .MaximumLength(100).WithMessage("Người đại diện tối đa 100 ký tự")
+            .Must(v => !InputSanitizer.ContainsDangerousContent(v))
+                .WithMessage("Người đại diện chứa ký tự không hợp lệ (HTML/script không được phép)")
             .When(x => x.NguoiDaiDien != null);
     }
 }
@@ -81,7 +91,8 @@ public class ResetPasswordValidator : AbstractValidator<ResetPasswordDto>
             .MinimumLength(8).WithMessage("Mật khẩu mới phải có ít nhất 8 ký tự")
             .Matches(@"[A-Z]").WithMessage("Mật khẩu mới phải có ít nhất 1 chữ hoa")
             .Matches(@"[a-z]").WithMessage("Mật khẩu mới phải có ít nhất 1 chữ thường")
-            .Matches(@"[0-9]").WithMessage("Mật khẩu mới phải có ít nhất 1 chữ số");
+            .Matches(@"[0-9]").WithMessage("Mật khẩu mới phải có ít nhất 1 chữ số")
+            .Matches(@"[!@#$%^&*()\-_=+\[\]{}|;:'"",.<>?/~\\]").WithMessage("Mật khẩu mới phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)");
 
         RuleFor(x => x.ConfirmMatKhau)
             .NotEmpty().WithMessage("Xác nhận mật khẩu không được để trống")
@@ -101,6 +112,7 @@ public class UpdatePasswordValidator : AbstractValidator<UpdatePasswordDto>
             .Matches(@"[A-Z]").WithMessage("Mật khẩu mới phải có ít nhất 1 chữ hoa")
             .Matches(@"[a-z]").WithMessage("Mật khẩu mới phải có ít nhất 1 chữ thường")
             .Matches(@"[0-9]").WithMessage("Mật khẩu mới phải có ít nhất 1 chữ số")
+            .Matches(@"[!@#$%^&*()\-_=+\[\]{}|;:'"",.<>?/~\\]").WithMessage("Mật khẩu mới phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)")
             .NotEqual(x => x.MatKhauHienTai).WithMessage("Mật khẩu mới không được trùng với mật khẩu cũ");
 
         RuleFor(x => x.ConfirmMatKhau)
