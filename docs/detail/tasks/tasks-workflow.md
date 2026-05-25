@@ -46,7 +46,7 @@
    - Validate: không xoá bước đang được transition tham chiếu
 
 ### Phase 3: Workflow Engine Runtime ⭐
-5. Tạo `WorkflowEngine.cs` (state machine) — xem pseudocode trong `docs/tasks/workflow-engine-pseudocode.md`
+5. Tạo `WorkflowEngine.cs` (state machine) — xem pseudocode trong `docs/detail/tasks/workflow-engine-pseudocode.md`
 6. Tạo `WorkflowController.cs` + `IWorkflowService.cs` / `WorkflowService.cs`
 7. Implement StartWorkflow:
    - Tìm Workflow (tự động từ WorkflowRule hoặc manual)
@@ -84,4 +84,4 @@
 - Workflow Engine là **module core quan trọng nhất** của hệ thống
 - Thiết kế atomic: mỗi step xử lý phải là 1 transaction
 - Cần có optimistic locking cho WorkflowInstance (tránh xung đột)
-- Pseudocode chi tiết tại `docs/tasks/workflow-engine-pseudocode.md`
+- Pseudocode chi tiết tại `docs/detail/tasks/workflow-engine-pseudocode.md`
