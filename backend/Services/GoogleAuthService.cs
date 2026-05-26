@@ -82,7 +82,7 @@ public class GoogleAuthService : IGoogleAuthService
 
                 _context.NguoiDungs.Add(user);
                 await _context.SaveChangesAsync();
-                
+
                 // Ghi chú: Chưa gán vai trò gì cho user mới tạo từ Google (vai trò rỗng)
                 // Nếu muốn họ có vai trò KHACH mặc định, có thể xử lý ở đây.
             }
