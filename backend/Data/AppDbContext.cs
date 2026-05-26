@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.Entities;
 
 namespace QLQTDT.Api.Data;
@@ -16,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<NhaThau> NhaThaus => Set<NhaThau>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
+    public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -130,6 +132,16 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FailedAttempts).IsRequired();
             entity.Property(e => e.LockoutEnd).HasColumnType("datetime2(3)");
             entity.Property(e => e.LastFailedAttempt).HasColumnType("datetime2(3)").IsRequired();
+        });
+
+        // NhatKyKiemToan
+        modelBuilder.Entity<NhatKyKiemToan>(entity =>
+        {
+            entity.ToTable("NhatKyKiemToan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HanhDong).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.MoTaChiTiet).IsRequired();
+            entity.Property(e => e.ThoiGianThucHien).HasDefaultValueSql("GETDATE()");
         });
     }
 }

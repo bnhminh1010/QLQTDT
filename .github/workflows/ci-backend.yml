@@ -3,10 +3,10 @@ name: CI - Backend
 on:
   push:
     branches: [main, develop]
-    paths: ['backend/**']
+    paths: ['backend/**', '.github/workflows/**']
   pull_request:
     branches: [main, develop]
-    paths: ['backend/**']
+    paths: ['backend/**', '.github/workflows/**']
 
 env:
   DOTNET_VERSION: '10.0.x'
@@ -57,14 +57,12 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
 
-      - name: Build for analysis
-        run: dotnet build ${{ env.PROJECT_PATH }} --no-restore --configuration Release
-
-      # CodeQL
+      # CodeQL — buildless mode (workaround cho .NET 10 chưa support trên Linux)
       - name: Initialize CodeQL
         uses: github/codeql-action/init@4d6150cc15f4cf6b68f0c4cff5ec0f020ad4bf5b # v3.28.14
         with:
           languages: csharp
+          build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@4d6150cc15f4cf6b68f0c4cff5ec0f020ad4bf5b # v3.28.14
@@ -100,9 +98,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
-          args: >
+          args: |
             -Dsonar.projectKey=QLQTDT-Backend
-            -Dsonar.projectName=QLQTDT Backend
+            -Dsonar.projectName="QLQTDT Backend"
             -Dsonar.sources=backend/
             -Dsonar.exclusions=**/bin/**,**/obj/**,**/*.generated.cs
             -Dsonar.cs.file.suffixes=.cs

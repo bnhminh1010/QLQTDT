@@ -1,3 +1,4 @@
+```sql
 -- =====================================================
 -- HỆ THỐNG QUẢN LÝ ĐẤU THẦU BỆNH VIỆN
 -- Enterprise Workflow-Driven Database Design
@@ -138,6 +139,8 @@ CREATE TABLE ChiTietDeXuat (
         ON DELETE CASCADE
 );
 GO
+
+
 
 -- =====================================================
 -- 3. WORKFLOW ENGINE
@@ -695,3 +698,4 @@ GO
 CREATE INDEX IX_Audit_GoiThau
 ON NhatKyKiemToan(GoiThauId);
 GO
+```

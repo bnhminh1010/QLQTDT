@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QLQTDT.Api.Config;
 using QLQTDT.Api.Data;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Middlewares;
 using QLQTDT.Api.Services;
 using System.Text;
@@ -25,16 +26,21 @@ if (File.Exists(envPath))
     }
 }
 
-// Database
+// Database + Audit interceptor
 var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
 var dbUser = Environment.GetEnvironmentVariable("DB_USER");
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 var dbName = Environment.GetEnvironmentVariable("DB_NAME");
 
+builder.Services.AddSingleton<AuditInterceptor>();
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer($"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;"));
+    builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+    {
+        var interceptor = sp.GetRequiredService<AuditInterceptor>();
+        options.UseSqlServer($"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;")
+               .AddInterceptors(interceptor);
+    });
 }
 
 // JWT
@@ -102,6 +108,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// HTTP context accessor (needed by AuditInterceptor)
+builder.Services.AddHttpContextAccessor();
+
 // MemoryCache (cho LoginAttemptGuard và rate limiting)
 builder.Services.AddMemoryCache();
 
@@ -133,7 +142,8 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Exception Handling Middleware — phải đặt đầu tiên
+// Exception Handling Middleware
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
