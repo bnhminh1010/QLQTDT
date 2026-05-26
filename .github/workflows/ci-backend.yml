@@ -99,6 +99,7 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           args: |
+            -Dsonar.organization=bnhminh1010
             -Dsonar.projectKey=QLQTDT-Backend
             -Dsonar.projectName="QLQTDT Backend"
             -Dsonar.sources=backend/
