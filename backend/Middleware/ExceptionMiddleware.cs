@@ -35,7 +35,7 @@ public class ExceptionMiddleware
             context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
             await WriteErrorAsync(context, "FORBIDDEN", ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not QLQTDT.Api.Exceptions.AppException)
         {
             _logger.LogError(ex, "Unhandled exception");
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
