@@ -97,12 +97,4 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          args: >
-            -Dsonar.organization=bnhminh1010
-            -Dsonar.projectKey=QLQTDT-Backend
-            -Dsonar.projectName="QLQTDT Backend"
-            -Dsonar.sources=backend/
-            -Dsonar.exclusions=**/bin/**,**/obj/**,**/*.generated.cs
-            -Dsonar.cs.file.suffixes=.cs
-            -Dsonar.qualitygate.wait=false
+        with: {}
