@@ -1,6 +1,6 @@
 # API Reference — Hệ thống QLQTDT
 
-> **Tổng: 104 APIs · 15 Modules**
+> **Tổng: 106 APIs · 15 Modules**
 > Chi tiết từng module: `docs/detail/api/`
 
 ---
@@ -93,7 +93,7 @@
 
 ---
 
-## 5. Workflow Configuration (12 APIs)
+## 5. Workflow Configuration (14 APIs)
 
 > `detail/api/05-workflow-config.md`
 
@@ -101,6 +101,8 @@
 |--------|----------|-------|
 | GET | `/api/hinh-thuc-dau-thau` | Danh sách hình thức đấu thầu |
 | POST | `/api/hinh-thuc-dau-thau` | Tạo hình thức đấu thầu |
+| PUT | `/api/hinh-thuc-dau-thau/{id}` | Cập nhật hình thức đấu thầu |
+| DELETE | `/api/hinh-thuc-dau-thau/{id}` | Xoá hình thức đấu thầu |
 | GET | `/api/workflows` | Danh sách workflow template |
 | POST | `/api/workflows` | Tạo workflow |
 | PUT | `/api/workflows/{id}` | Cập nhật workflow |
@@ -266,7 +268,7 @@
 |-----|------|---------|
 | Dev #1 | 29 | Auth 6 + Users 9 + RBAC 12 + Audit 2 |
 | Dev #2 | 9 | Procurement 9 |
-| Dev #3 | 20 | Workflow Config 12 + Runtime 8 |
+| Dev #3 | 22 | Workflow Config 14 + Runtime 8 |
 | Dev #4 | 16 | Tender 8 + Document 4 + Dashboard 4 |
 | Dev #5 | 30 | Vendor 7 + Bidding 6 + Contract 11 + Notif 3 + Integration 3 |
-| **Tổng** | **104** | 15 Modules |
+| **Tổng** | **106** | 15 Modules |
