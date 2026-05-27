@@ -34,6 +34,9 @@ public class AuditInterceptor : SaveChangesInterceptor
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
 
         var userId = GetCurrentUserId();
+        if (userId == 0)
+            return await base.SavingChangesAsync(eventData, result, cancellationToken);
+
         var auditLogs = new List<NhatKyKiemToan>();
 
         foreach (var entry in entries)
