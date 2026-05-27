@@ -122,6 +122,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IVaiTroService, VaiTroService>();
 
 // FluentValidation — đăng ký tất cả validators từ assembly
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
