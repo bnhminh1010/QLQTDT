@@ -57,8 +57,26 @@ public static class DbInitializer
     {
         const string adminUsername = "admin";
         const string adminEmail = "admin@qlqtdt.local";
-        const string adminPassword = "Admin@123456";
         const string adminFullName = "Quản Trị Viên Hệ Thống";
+
+        // Lấy mật khẩu admin từ biến môi trường — không hardcode
+        var adminPassword = Environment.GetEnvironmentVariable("ADMIN_DEFAULT_PASSWORD");
+        if (string.IsNullOrWhiteSpace(adminPassword))
+        {
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (env != null && env != "Development")
+            {
+                logger.LogWarning(
+                    "Seed: Bỏ qua tạo admin — ADMIN_DEFAULT_PASSWORD chưa được cấu hình trong môi trường {Env}.",
+                    env);
+                return;
+            }
+
+            // Chỉ dùng mật khẩu mặc định trong Development
+            adminPassword = "Admin@123456";
+            logger.LogWarning("Seed: Đang dùng mật khẩu admin mặc định. " +
+                "Hãy set ADMIN_DEFAULT_PASSWORD trong môi trường production.");
+        }
 
         // Kiểm tra admin đã tồn tại chưa
         var adminExists = await context.NguoiDungs.AnyAsync(u => u.TenDangNhap == adminUsername);

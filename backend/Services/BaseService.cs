@@ -62,7 +62,12 @@ public class BaseService<T> : IBaseService<T> where T : class, IBaseEntity
 
     public virtual async Task<T?> GetByIdAsync(int id)
     {
-        return await _set.FindAsync(id);
+        var entity = await _set.FindAsync(id);
+        if (entity is ISoftDeletable softDeletable && softDeletable.DaXoa)
+        {
+            return null;
+        }
+        return entity;
     }
 
     public virtual async Task<T> CreateAsync(T entity)
@@ -102,6 +107,10 @@ public class BaseService<T> : IBaseService<T> where T : class, IBaseEntity
 
     public virtual async Task<bool> ExistsAsync(int id)
     {
+        if (typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
+        {
+            return await _set.AnyAsync(e => e.Id == id && !EF.Property<bool>(e, "DaXoa"));
+        }
         return await _set.AnyAsync(e => e.Id == id);
     }
 
