@@ -70,9 +70,9 @@ public static class PermissionSeeder
         ("TAILIEU.DELETE", "Xóa tài liệu")
     ];
 
-    
+
     public static async Task SeedPermissionsAsync(AppDbContext context, ILogger logger)
-    {   
+    {
         foreach (var (maQuyen, tenQuyen) in DefaultPermissions)
         {
             var exists = await context.Quyens.AnyAsync(q => q.MaQuyen == maQuyen);

@@ -32,7 +32,7 @@ public static class DbInitializer
 
         await SeedRolesAsync(context, logger);
         await SeedData.PermissionSeeder.SeedPermissionsAsync(context, logger);
-        await SeedAdminAccountAsync(context, logger);       
+        await SeedAdminAccountAsync(context, logger);
     }
 
     private static async Task SeedRolesAsync(AppDbContext context, ILogger logger)
