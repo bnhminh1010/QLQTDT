@@ -1,8 +1,11 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace QLQTDT.Api.Models.DTOs.Admin;
 
 public class GanQuyenRequest
 {
-    public List<int> PermissionIds { get; set; } = [];
+    [Required]
+    public List<int>? PermissionIds { get; set; }
 }
 
 public class QuyenDto

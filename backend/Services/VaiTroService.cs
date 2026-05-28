@@ -23,6 +23,9 @@ public class VaiTroService : IVaiTroService
             .FirstOrDefaultAsync(v => v.Id == vaiTroId && !v.DaXoa)
             ?? throw new NotFoundException($"Không tìm thấy vai trò với ID: {vaiTroId}");
 
+        if (permissionIds.Count == 0)
+            throw new BadRequestException("permissionIds không được rỗng.");
+
         // Validate tất cả permissionIds phải tồn tại và chưa bị xóa
         if (permissionIds.Count > 0)
         {

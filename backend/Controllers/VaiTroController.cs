@@ -27,7 +27,7 @@ public class VaiTroController : ControllerBase
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GanQuyen(int id, [FromBody] GanQuyenRequest request)
     {
-        await _vaiTroService.GanQuyenAsync(id, request.PermissionIds);
+        await _vaiTroService.GanQuyenAsync(id, request.PermissionIds!);
         return Ok(new MessageResponse { Message = "Gán quyền cho vai trò thành công." });
     }
 
