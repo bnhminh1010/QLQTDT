@@ -31,8 +31,10 @@ public static class DbInitializer
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
 
         await SeedRolesAsync(context, logger);
-        await SeedKhoaPhongAsync(context, logger);
+        await SeedData.PermissionSeeder.SeedPermissionsAsync(context, logger);
         await SeedAdminAccountAsync(context, logger);
+        await SeedKhoaPhongAsync(context, logger);
+
     }
 
     private static async Task SeedRolesAsync(AppDbContext context, ILogger logger)
