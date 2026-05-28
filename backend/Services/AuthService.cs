@@ -16,6 +16,7 @@ public class AuthService : IAuthService
     private readonly LoginAttemptGuard _loginGuard;
     private readonly IMemoryCache _cache;
     private readonly ILogger<AuthService> _logger;
+    private readonly IPermissionService _permissionService;
 
     private const int ForgotPasswordMaxRequests = 3;
     private static readonly TimeSpan ForgotPasswordWindow = TimeSpan.FromHours(1);
@@ -26,7 +27,8 @@ public class AuthService : IAuthService
         IEmailService emailService,
         LoginAttemptGuard loginGuard,
         IMemoryCache cache,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IPermissionService permissionService)
     {
         _context = context;
         _jwtService = jwtService;
@@ -34,6 +36,7 @@ public class AuthService : IAuthService
         _loginGuard = loginGuard;
         _cache = cache;
         _logger = logger;
+        _permissionService = permissionService;
     }
 
     public async Task<RegisterResponseDto> RegisterContractorAsync(RegisterContractorDto dto)
@@ -136,6 +139,11 @@ public class AuthService : IAuthService
 
         var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames);
 
+        // Lấy danh sách quyền (permissions) từ DB
+        var permissions = (await _permissionService.GetPermissionsAsync(user.Id))
+            .OrderBy(q => q)
+            .ToList();
+
         return new LoginResponseDto
         {
             Message = "Đăng nhập thành công",
@@ -149,7 +157,8 @@ public class AuthService : IAuthService
                 TrangThaiHoatDong = user.TrangThaiHoatDong,
                 NgayTao = user.NgayTao,
                 AvatarUrl = user.AvatarUrl,
-                Roles = userRoles
+                Roles = userRoles,
+                Quyen = permissions
             }
         };
     }
@@ -160,6 +169,9 @@ public class AuthService : IAuthService
             ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
 
         var userRoles = await GetUserRoles(user.Id);
+        var permissions = (await _permissionService.GetPermissionsAsync(user.Id))
+            .OrderBy(q => q)
+            .ToList();
 
         return new UserDto
         {
@@ -170,7 +182,8 @@ public class AuthService : IAuthService
             TrangThaiHoatDong = user.TrangThaiHoatDong,
             NgayTao = user.NgayTao,
             AvatarUrl = user.AvatarUrl,
-            Roles = userRoles
+            Roles = userRoles,
+            Quyen = permissions
         };
     }
 

@@ -15,17 +15,20 @@ public class GoogleAuthService : IGoogleAuthService
     private readonly JwtService _jwtService;
     private readonly GoogleAuthConfig _googleConfig;
     private readonly ILogger<GoogleAuthService> _logger;
+    private readonly IPermissionService _permissionService;
 
     public GoogleAuthService(
         AppDbContext context,
         JwtService jwtService,
         IOptions<GoogleAuthConfig> googleConfig,
-        ILogger<GoogleAuthService> logger)
+        ILogger<GoogleAuthService> logger,
+        IPermissionService permissionService)
     {
         _context = context;
         _jwtService = jwtService;
         _googleConfig = googleConfig.Value;
         _logger = logger;
+        _permissionService = permissionService;
     }
 
     public async Task<LoginResponseDto> GoogleLoginAsync(string idToken)
@@ -107,6 +110,11 @@ public class GoogleAuthService : IGoogleAuthService
         // Sinh JWT
         var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames);
 
+        // Lấy danh sách quyền (permissions) từ DB
+        var permissions = (await _permissionService.GetPermissionsAsync(user.Id))
+            .OrderBy(q => q)
+            .ToList();
+
         return new LoginResponseDto
         {
             Message = "Đăng nhập bằng Google thành công",
@@ -120,7 +128,8 @@ public class GoogleAuthService : IGoogleAuthService
                 TrangThaiHoatDong = user.TrangThaiHoatDong,
                 NgayTao = user.NgayTao,
                 AvatarUrl = user.AvatarUrl,
-                Roles = userRoles
+                Roles = userRoles,
+                Quyen = permissions
             }
         };
     }

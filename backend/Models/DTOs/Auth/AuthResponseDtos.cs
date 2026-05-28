@@ -10,6 +10,7 @@ public class UserDto
     public DateTime NgayTao { get; set; }
     public string? AvatarUrl { get; set; }
     public List<UserRoleDto> Roles { get; set; } = [];
+    public List<string> Quyen { get; set; } = [];
 }
 
 public class UserRoleDto
