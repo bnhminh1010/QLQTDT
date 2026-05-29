@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
-using QLQTDT.Api.Middleware;
+using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models;
 using System.Linq.Expressions;
 
@@ -35,6 +35,11 @@ public class BaseService<T> : IBaseService<T> where T : class, IBaseEntity
         Expression<Func<T, bool>>? filter = null,
         Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null)
     {
+        if (page < 1)
+            throw new BadRequestException("page phải lớn hơn hoặc bằng 1.");
+        if (pageSize < 1 || pageSize > 100)
+            throw new BadRequestException("pageSize phải từ 1 đến 100.");
+
         var query = _set.AsQueryable();
 
         if (filter is not null)

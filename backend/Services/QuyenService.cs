@@ -68,4 +68,29 @@ public class QuyenService : BaseService<Quyen>, IQuyenService
         await _db.SaveChangesAsync();
         return existing;
     }
+
+    /// <summary>
+    /// Xoá quyền — kiểm tra VaiTroQuyen trước khi soft-delete
+    /// Trả 409 Conflict nếu quyền đang được gán cho vai trò
+    /// </summary>
+    public override async Task DeleteAsync(int id)
+    {
+        var entity = await _set.FindAsync(id)
+            ?? throw new NotFoundException($"Không tìm thấy quyền với Id = {id}");
+
+        if (entity.DaXoa)
+            throw new NotFoundException($"Không tìm thấy quyền với Id = {id}");
+
+        // Kiểm tra có role nào đang dùng permission này không
+        var isInUse = await _db.VaiTroQuyens
+            .AnyAsync(vq => vq.QuyenId == id);
+
+        if (isInUse)
+            throw new ConflictException(
+                $"Không thể xóa quyền '{entity.MaQuyen}' vì đang được gán cho vai trò. " +
+                "Hãy gỡ quyền khỏi tất cả vai trò trước khi xóa.");
+
+        entity.DaXoa = true;
+        await _db.SaveChangesAsync();
+    }
 }
