@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 import { useShowPassword } from "@/util/showPassword";
+import {
+  resetPasswordSchema,
+  otpSchema,
+  forgotPasswordSchema,
+} from "@/util/validate";
 
 const LeftPanel = () => (
   <div
@@ -105,6 +112,32 @@ export default function ForgotPassword() {
   const [timeLeft, setTimeLeft] = useState(587);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const {
+    register: registerForgot,
+    handleSubmit: handleForgotSubmit,
+    formState: { errors: forgotErrors },
+  } = useForm<{ identifier: string }>({
+    resolver: yupResolver(forgotPasswordSchema),
+  });
+
+  const {
+    register: registerReset,
+    handleSubmit: handleResetSubmit,
+    formState: { errors: resetErrors },
+  } = useForm<{ newPassword: string; confirmPassword: string }>({
+    resolver: yupResolver(resetPasswordSchema),
+  });
+
+  const {
+    handleSubmit: handleOtpSubmit,
+    setValue: setOtpField,
+    register: registerOtp,
+    formState: { errors: otpErrors },
+  } = useForm<{ otp: string }>({ resolver: yupResolver(otpSchema) });
+
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
   useEffect(() => {
     if (view === 2) {
       setTimeLeft(587);
@@ -162,85 +195,89 @@ export default function ForgotPassword() {
                 </p>
               </div>
 
-              <div className="mb-5">
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Tên đăng nhập hoặc email
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
-                    <i className="fa-solid fa-user" />
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="username hoặc email@bvungbuou.vn"
-                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+              <form onSubmit={handleForgotSubmit(() => setView(2))}>
+                <div className="mb-5">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Tên đăng nhập hoặc email
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">
+                      <i className="fa-solid fa-user" />
+                    </span>
+                    <input
+                      {...registerForgot("identifier")}
+                      type="text"
+                      placeholder="username hoặc email@bvungbuou.vn"
+                      className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${forgotErrors.identifier ? "border-red-400" : "border-slate-200"}`}
+                    />
+                  </div>
+                  {forgotErrors.identifier && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {forgotErrors.identifier.message}
+                    </p>
+                  )}
                 </div>
-              </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Phương thức nhận mã
-                </label>
-                <div className="space-y-2">
-                  {[
-                    [
-                      "email",
-                      "fa-envelope",
-                      "blue",
-                      "Email công vụ",
-                      "Gửi OTP đến ••••@bvungbuou.vn",
-                    ],
-                    [
-                      "sms",
-                      "fa-phone",
-                      "green",
-                      "SMS nội bộ",
-                      "Gửi OTP đến SĐT ••• ••• 34",
-                    ],
-                  ].map(([val, icon, color, title, desc]) => (
-                    <label
-                      key={val}
-                      className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${method === val ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="method"
-                        value={val}
-                        checked={method === val}
-                        onChange={() => setMethod(val)}
-                        className="sr-only"
-                      />
-                      <div
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color === "blue" ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"}`}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Phương thức nhận mã
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      [
+                        "email",
+                        "fa-envelope",
+                        "blue",
+                        "Email công vụ",
+                        "Gửi OTP đến ••••@bvungbuou.vn",
+                      ],
+                      [
+                        "sms",
+                        "fa-phone",
+                        "green",
+                        "SMS nội bộ",
+                        "Gửi OTP đến SĐT ••• ••• 34",
+                      ],
+                    ].map(([val, icon, color, title, desc]) => (
+                      <label
+                        key={val}
+                        className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${method === val ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}
                       >
-                        <i className={`fa-solid ${icon} text-sm`} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-slate-800">
-                          {title}
+                        <input
+                          type="radio"
+                          name="method"
+                          value={val}
+                          checked={method === val}
+                          onChange={() => setMethod(val)}
+                          className="sr-only"
+                        />
+                        <div
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color === "blue" ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"}`}
+                        >
+                          <i className={`fa-solid ${icon} text-sm`} />
                         </div>
-                        <div className="text-xs text-slate-500">{desc}</div>
-                      </div>
-                      <div
-                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${method === val ? "border-blue-600" : "border-slate-300"}`}
-                      >
-                        {method === val && (
-                          <div className="w-2 h-2 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                    </label>
-                  ))}
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-slate-800">
+                            {title}
+                          </div>
+                          <div className="text-xs text-slate-500">{desc}</div>
+                        </div>
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${method === val ? "border-blue-600" : "border-slate-300"}`}
+                        >
+                          {method === val && (
+                            <div className="w-2 h-2 rounded-full bg-blue-600" />
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setView(2)}
-                className={btnPrimary}
-              >
-                <i className="fa-solid fa-paper-plane" /> Gửi mã xác minh
-              </button>
+                <button type="submit" className={btnPrimary}>
+                  <i className="fa-solid fa-paper-plane" /> Gửi mã xác minh
+                </button>
+              </form>
               <button type="button" className={`${btnGhost} mt-2`}>
                 <i className="fa-solid fa-headset" /> Liên hệ Phòng CNTT
               </button>
@@ -278,38 +315,89 @@ export default function ForgotPassword() {
                 </span>
               </div>
 
-              <div className="flex justify-center gap-2 mb-3">
-                {[1, 2, 3, 4, 5, 6].map((n) => (
-                  <input
-                    key={n}
-                    type="text"
-                    maxLength={1}
-                    className="w-11 h-12 text-center text-xl font-bold border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 bg-slate-50"
-                  />
-                ))}
-              </div>
+              <form onSubmit={handleOtpSubmit(() => setView(3))}>
+                {/* hidden field so RHF tracks the combined otp value */}
+                <input type="hidden" {...registerOtp("otp")} />
+                <div className="flex justify-center gap-2 mb-3">
+                  {otpDigits.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      ref={(el) => {
+                        otpRefs.current[idx] = el;
+                      }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => {
+                        const val = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 1);
+                        const next = otpDigits.map((d, i) =>
+                          i === idx ? val : d,
+                        );
+                        setOtpDigits(next);
+                        setOtpField("otp", next.join(""), {
+                          shouldValidate: true,
+                        });
+                        if (val) otpRefs.current[idx + 1]?.focus();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Backspace" && !digit) {
+                          otpRefs.current[idx - 1]?.focus();
+                        }
+                      }}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const pasted = e.clipboardData
+                          .getData("text")
+                          .replace(/\D/g, "")
+                          .slice(0, 6);
+                        if (!pasted) return;
+                        const next = [...otpDigits];
+                        for (let i = 0; i < pasted.length; i++) {
+                          if (idx + i < 6) next[idx + i] = pasted[i];
+                        }
+                        setOtpDigits(next);
+                        setOtpField("otp", next.join(""), {
+                          shouldValidate: true,
+                        });
+                        otpRefs.current[
+                          Math.min(idx + pasted.length, 5)
+                        ]?.focus();
+                      }}
+                      className={`w-11 h-12 text-center text-xl font-bold border-2 rounded-xl focus:outline-none bg-slate-50 ${otpErrors.otp ? "border-red-400 focus:border-red-500" : "border-slate-200 focus:border-blue-500"}`}
+                    />
+                  ))}
+                </div>
 
-              <div className="text-center text-sm text-slate-500 mb-1">
-                Mã hết hạn sau{" "}
-                <strong className="text-slate-800">{fmtTime(timeLeft)}</strong>
-              </div>
-              <div className="text-center text-sm text-slate-500 mb-5">
-                Chưa nhận được?{" "}
-                <button
-                  onClick={() => setTimeLeft(587)}
-                  className="text-blue-600 hover:underline"
-                >
-                  Gửi lại mã
+                {otpErrors.otp && (
+                  <p className="text-center text-xs text-red-500 mb-3">
+                    {otpErrors.otp.message}
+                  </p>
+                )}
+
+                <div className="text-center text-sm text-slate-500 mb-1">
+                  Mã hết hạn sau{" "}
+                  <strong className="text-slate-800">
+                    {fmtTime(timeLeft)}
+                  </strong>
+                </div>
+                <div className="text-center text-sm text-slate-500 mb-5">
+                  Chưa nhận được?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setTimeLeft(587)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Gửi lại mã
+                  </button>
+                </div>
+
+                <button type="submit" className={btnPrimary}>
+                  <i className="fa-solid fa-check" /> Xác nhận mã
                 </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setView(3)}
-                className={btnPrimary}
-              >
-                <i className="fa-solid fa-check" /> Xác nhận mã
-              </button>
+              </form>
               <button
                 type="button"
                 onClick={() => setView(1)}
@@ -336,7 +424,10 @@ export default function ForgotPassword() {
                 </p>
               </div>
 
-              <div className="space-y-4 mb-5">
+              <form
+                onSubmit={handleResetSubmit(() => setView(4))}
+                className="space-y-4 mb-5"
+              >
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Mật khẩu mới
@@ -346,6 +437,7 @@ export default function ForgotPassword() {
                       <i className="fa-solid fa-lock" />
                     </span>
                     <input
+                      {...registerReset("newPassword")}
                       type={showPwd ? "text" : "password"}
                       placeholder="Tối thiểu 8 ký tự"
                       className={inputCls}
@@ -360,6 +452,11 @@ export default function ForgotPassword() {
                       />
                     </button>
                   </div>
+                  {resetErrors.newPassword && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {resetErrors.newPassword.message}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -370,6 +467,7 @@ export default function ForgotPassword() {
                       <i className="fa-solid fa-lock" />
                     </span>
                     <input
+                      {...registerReset("confirmPassword")}
                       type={showConf ? "text" : "password"}
                       placeholder="Nhập lại mật khẩu"
                       className={inputCls}
@@ -384,16 +482,17 @@ export default function ForgotPassword() {
                       />
                     </button>
                   </div>
+                  {resetErrors.confirmPassword && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {resetErrors.confirmPassword.message}
+                    </p>
+                  )}
                 </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setView(4)}
-                className={btnPrimary}
-              >
-                <i className="fa-solid fa-rotate" /> Đặt lại mật khẩu
-              </button>
+                <button type="submit" className={btnPrimary}>
+                  <i className="fa-solid fa-rotate" /> Đặt lại mật khẩu
+                </button>
+              </form>
             </div>
           )}
 

@@ -6,6 +6,7 @@ import { useShowPassword } from "@/util/showPassword";
 import { registerSchema } from "@/util/validate";
 
 type RegisterFormData = {
+  username: string;
   ho: string;
   ten: string;
   email: string;
@@ -338,6 +339,20 @@ export default function Register() {
             </div>
 
             <Divider label="Thông tin đăng nhập" />
+
+            <InputField
+              label="Tên đăng nhập"
+              required
+              icon="fa-at"
+              error={errors.username?.message}
+            >
+              <input
+                {...register("username")}
+                type="text"
+                placeholder="vd: nguyen.van.a hoặc nva_01"
+                className={inputCls}
+              />
+            </InputField>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
