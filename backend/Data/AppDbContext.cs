@@ -18,6 +18,8 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
+    public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
+    public DbSet<QuyTrinh> QuyTrinhs => Set<QuyTrinh>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -143,5 +145,45 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MoTaChiTiet).IsRequired();
             entity.Property(e => e.ThoiGianThucHien).HasDefaultValueSql("GETDATE()");
         });
+
+        // HinhThucDauThau
+        modelBuilder.Entity<HinhThucDauThau>(entity =>
+        {
+            entity.ToTable("HinhThucDauThau");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaHinhThuc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenHinhThuc).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.HanMucToiDa).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.HasIndex(e => e.MaHinhThuc).IsUnique();
+        });
+
+        // QuyTrinh
+        modelBuilder.Entity<QuyTrinh>(entity =>
+        {
+            entity.ToTable("QuyTrinh");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaQuyTrinh).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenQuyTrinh).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.MoTa).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.Property(e => e.DaXoa).HasDefaultValue(false);
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)")
+                .HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)")
+                .HasDefaultValueSql("GETDATE()");
+            entity.HasIndex(e => e.MaQuyTrinh).IsUnique();
+            entity.HasIndex(e => new { e.TenQuyTrinh, e.HinhThucDauThauId }).IsUnique();
+            entity.HasOne(e => e.HinhThucDauThau)
+                .WithMany(h => h.QuyTrinhs)
+                .HasForeignKey(e => e.HinhThucDauThauId);
+            entity.HasOne(e => e.NguoiTao)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiTaoId);
+            entity.HasOne(e => e.NguoiCapNhat)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiCapNhatId);
+        });
+
     }
 }
