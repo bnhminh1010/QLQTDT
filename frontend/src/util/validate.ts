@@ -10,7 +10,7 @@ const usernameRules = yup
   .max(30, "Tên đăng nhập tối đa 30 ký tự")
   .matches(
     /^[a-zA-Z0-9_.]+$/,
-    "Tên đăng nhập chỉ được chứa chữ cái không dấu, số, dấu gạch dưới (_) và dấu chấm (.)",
+    "Tên đăng nhập chỉ gồm chữ không dấu, số, _ và .",
   );
 
 const passwordRules = yup
@@ -22,9 +22,15 @@ const passwordRules = yup
   .matches(/[0-9]/, "Mật khẩu phải có ít nhất 1 chữ số")
   .matches(/[^A-Za-z0-9]/, "Mật khẩu phải có ít nhất 1 ký tự đặc biệt");
 
+// loginSchema chỉ validate required — không tiết lộ password policy ở màn đăng nhập.
+// Kiểm tra đúng/sai credentials là việc của server (hoặc mock bên dưới).
 export const loginSchema = yup.object({
-  username: usernameRules,
-  password: passwordRules,
+  username: yup
+    .string()
+    .trim()
+    .required("Vui lòng nhập tên đăng nhập")
+    .matches(/^[a-zA-Z0-9_.]+$/, "Tên đăng nhập không hợp lệ"),
+  password: yup.string().required("Vui lòng nhập mật khẩu"),
   rememberMe: yup.boolean().default(false),
 });
 
@@ -49,17 +55,13 @@ export const registerSchema = yup.object({
   email: yup
     .string()
     .required("Vui lòng nhập email")
-    .email("Email không hợp lệ")
-    .matches(/@bvungbuou\.vn$/, "Phải dùng email công vụ @bvungbuou.vn"),
+    .email("Email không hợp lệ"),
   phone: yup
     .string()
     .default("")
     .when((val, schema) =>
       val && val[0]
-        ? schema.matches(
-            /^\d{1,6}$/,
-            "Số điện thoại nội bộ chỉ được chứa chữ số (tối đa 6 chữ số)",
-          )
+        ? schema.matches(/^\d{10,11}$/, "Số điện thoại phải từ 10-11 chữ số")
         : schema,
     ),
   maNhanVien: yup

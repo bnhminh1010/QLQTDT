@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
+import { toast } from "sonner";
 import { useShowPassword } from "@/util/showPassword";
 import { loginSchema } from "@/util/validate";
 
@@ -23,8 +24,19 @@ export default function Login() {
     defaultValues: { username: "", password: "", rememberMe: false },
   });
 
-  function onSubmit(_data: LoginFormData) {
-    navigate("/dashboard");
+  // TODO: thay bằng real API call khi có backend
+  // Mock account để tester có thể đăng nhập: admin / Admin@1234
+  async function onSubmit(data: LoginFormData) {
+    const MOCK_USER = { username: "admin", password: "Admin@1234" };
+    if (
+      data.username === MOCK_USER.username &&
+      data.password === MOCK_USER.password
+    ) {
+      toast.success("Đăng nhập thành công");
+      navigate("/dashboard");
+    } else {
+      toast.error("Tên đăng nhập hoặc mật khẩu không đúng");
+    }
   }
 
   return (
@@ -209,42 +221,6 @@ export default function Login() {
               <i className="fa-solid fa-right-to-bracket" /> Đăng nhập
             </button>
           </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-slate-400 text-xs">
-                hoặc đăng nhập qua
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="w-full flex items-center justify-center gap-2.5 border border-slate-200 rounded-xl py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors font-medium"
-          >
-            <svg width="18" height="18" viewBox="0 0 48 48">
-              <path
-                fill="#4285F4"
-                d="M44.5 20H24v8.5h11.8C34.7 33.9 29.8 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.6 20-21 0-1.3-.2-2.7-.5-4z"
-              />
-              <path
-                fill="#34A853"
-                d="M6.3 14.7l7 5.1C15 17.1 19.1 14 24 14c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 5.1 29.6 3 24 3c-7.7 0-14.4 4.4-17.7 10.7z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M24 45c5.5 0 10.5-1.9 14.4-5l-6.7-5.5C29.7 36.1 27 37 24 37c-5.8 0-10.7-3.9-12.3-9.3l-7 5.4C8.1 40.8 15.5 45 24 45z"
-              />
-              <path
-                fill="#EA4335"
-                d="M44.5 20H24v8.5h11.8c-.9 2.8-2.8 5.1-5.3 6.6l6.7 5.5c3.9-3.6 6.3-8.9 6.3-15.6 0-1.3-.2-2.7-.5-4z"
-              />
-            </svg>
-            Đăng nhập bằng Google Workspace
-          </button>
 
           <p className="text-center text-sm text-slate-500 mt-6">
             Chưa có tài khoản?{" "}

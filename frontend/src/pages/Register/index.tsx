@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
+import { toast } from "sonner";
 import { useShowPassword } from "@/util/showPassword";
 import { registerSchema } from "@/util/validate";
 
@@ -138,6 +139,7 @@ export default function Register() {
 
   function onSubmit(_data: RegisterFormData) {
     // TODO: gửi yêu cầu tạo tài khoản
+    toast.success("Yêu cầu tạo tài khoản đã được gửi");
   }
 
   const inputCls =
@@ -239,14 +241,14 @@ export default function Register() {
 
             <div className="grid grid-cols-2 gap-3">
               <InputField
-                label="Số điện thoại nội bộ"
+                label="Số điện thoại"
                 icon="fa-phone"
                 error={errors.phone?.message}
               >
                 <input
                   {...register("phone")}
                   type="text"
-                  placeholder="Ext. 1234"
+                  placeholder="0912345678"
                   className={inputCls}
                 />
               </InputField>
