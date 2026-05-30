@@ -125,8 +125,10 @@ public class WorkflowConfigService : IWorkflowConfigService
 		if (entity.DaXoa)
 			throw new NotFoundException($"Workflow not found: {id}");
 
-		if (entity.TrangThaiHoatDong)
-			throw new AppException(400, "HAS_INSTANCE", "Workflow dang hoat dong khong the xoa.");
+		var hasActiveInstance = await _context.WorkflowInstances
+			.AnyAsync(i => i.QuyTrinhId == id && i.TrangThaiBuoc == "ACTIVE");
+		if (hasActiveInstance || entity.TrangThaiHoatDong)
+			throw new AppException(400, "HAS_INSTANCE", "Workflow dang hoat dong hoac co instance active nen khong the xoa.");
 
 		entity.DaXoa = true;
 		entity.NgayCapNhat = DateTime.UtcNow;

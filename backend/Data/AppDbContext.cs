@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
     public DbSet<QuyTrinh> QuyTrinhs => Set<QuyTrinh>();
+    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -183,6 +184,20 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.NguoiCapNhat)
                 .WithMany()
                 .HasForeignKey(e => e.NguoiCapNhatId);
+        });
+
+        // WorkflowInstance
+        modelBuilder.Entity<WorkflowInstance>(entity =>
+        {
+            entity.ToTable("TheoDoiQuyTrinh");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.GioThauId).HasColumnName("GioThauId");
+            entity.Property(e => e.BuocQuyTrinhId).HasColumnName("BuocQuyTrinhId");
+            entity.Property(e => e.NguoiXuLyId).HasColumnName("NguoiXuLyId");
+            entity.Property(e => e.TrangThaiBuoc).HasColumnName("TrangThaiBuoc").HasMaxLength(50).IsRequired();
+            entity.Property(e => e.NgayBatDau).HasColumnName("NgayBatDau").HasColumnType("datetime2");
+            entity.Property(e => e.NgayHoanThanh).HasColumnName("NgayHoanThanh").HasColumnType("datetime2");
+            entity.Property(e => e.QuyTrinhId).HasColumnName("QuyTrinhId");
         });
 
     }
