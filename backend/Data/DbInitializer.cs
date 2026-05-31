@@ -34,7 +34,7 @@ public static class DbInitializer
         await SeedData.PermissionSeeder.SeedPermissionsAsync(context, logger);
         await SeedAdminAccountAsync(context, logger);
         await SeedKhoaPhongAsync(context, logger);
-
+        await SeedData.WorkflowTemplateSeeder.SeedAsync(context, logger);
     }
 
     private static async Task SeedRolesAsync(AppDbContext context, ILogger logger)

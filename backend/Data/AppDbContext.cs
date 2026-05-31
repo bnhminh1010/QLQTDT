@@ -18,6 +18,11 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
+    public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
+    public DbSet<Workflow> Workflows => Set<Workflow>();
+    public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
+    public DbSet<WorkflowRule> WorkflowRules => Set<WorkflowRule>();
+    public DbSet<ChuyenTiepWorkflow> ChuyenTiepWorkflows => Set<ChuyenTiepWorkflow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -132,6 +137,88 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FailedAttempts).IsRequired();
             entity.Property(e => e.LockoutEnd).HasColumnType("datetime2(3)");
             entity.Property(e => e.LastFailedAttempt).HasColumnType("datetime2(3)").IsRequired();
+        });
+
+        // HinhThucDauThau
+        modelBuilder.Entity<HinhThucDauThau>(entity =>
+        {
+            entity.ToTable("HinhThucDauThau");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaHinhThuc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenHinhThuc).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.HanMucToiDa).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.HasIndex(e => e.MaHinhThuc).IsUnique();
+        });
+
+        // Workflow
+        modelBuilder.Entity<Workflow>(entity =>
+        {
+            entity.ToTable("Workflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaWorkflow).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenWorkflow).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.HasIndex(e => e.MaWorkflow).IsUnique();
+            entity.HasOne(e => e.HinhThuc)
+                  .WithMany(h => h.Workflows)
+                  .HasForeignKey(e => e.HinhThucId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // BuocWorkflow
+        modelBuilder.Entity<BuocWorkflow>(entity =>
+        {
+            entity.ToTable("BuocWorkflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaBuoc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenBuoc).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.LoaiBuoc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.SoNgaySLA).HasDefaultValue(0);
+            entity.Property(e => e.ChoPhepTuChoi).HasDefaultValue(true);
+            entity.Property(e => e.ChoPhepBoQua).HasDefaultValue(false);
+            entity.Property(e => e.WorkflowDuocChonThuCong).HasDefaultValue(false);
+            entity.HasOne(e => e.Workflow)
+                  .WithMany(w => w.BuocWorkflows)
+                  .HasForeignKey(e => e.WorkflowId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.VaiTroXuLy)
+                  .WithMany()
+                  .HasForeignKey(e => e.VaiTroXuLyId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.KhoaPhongXuLy)
+                  .WithMany()
+                  .HasForeignKey(e => e.KhoaPhongXuLyId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // WorkflowRule
+        modelBuilder.Entity<WorkflowRule>(entity =>
+        {
+            entity.ToTable("WorkflowRule");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DoUuTien).HasDefaultValue(0);
+            entity.Property(e => e.ChoPhepTuChon).HasDefaultValue(true);
+            entity.HasOne(e => e.Workflow)
+                  .WithMany(w => w.WorkflowRules)
+                  .HasForeignKey(e => e.WorkflowId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ChuyenTiepWorkflow
+        modelBuilder.Entity<ChuyenTiepWorkflow>(entity =>
+        {
+            entity.ToTable("ChuyenTiepWorkflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HanhDong).HasMaxLength(50).IsRequired();
+            entity.HasOne(e => e.TuBuoc)
+                  .WithMany(b => b.ChuyenTiepTus)
+                  .HasForeignKey(e => e.TuBuocId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.DenBuoc)
+                  .WithMany(b => b.ChuyenTiepDens)
+                  .HasForeignKey(e => e.DenBuocId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // NhatKyKiemToan
