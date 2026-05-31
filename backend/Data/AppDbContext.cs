@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
+    public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -142,6 +143,18 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HanhDong).HasMaxLength(100).IsRequired();
             entity.Property(e => e.MoTaChiTiet).IsRequired();
             entity.Property(e => e.ThoiGianThucHien).HasDefaultValueSql("GETDATE()");
+        });
+
+        // HinhThucDauThau
+        modelBuilder.Entity<HinhThucDauThau>(entity =>
+        {
+            entity.ToTable("HinhThucDauThau");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaHinhThuc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenHinhThuc).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.HanMucToiDa).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.HasIndex(e => e.MaHinhThuc).IsUnique();
         });
     }
 }
