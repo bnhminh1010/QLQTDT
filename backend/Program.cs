@@ -90,7 +90,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 {
                     context.Token = token;
                 }
-                
+
                 return Task.CompletedTask;
             }
         };

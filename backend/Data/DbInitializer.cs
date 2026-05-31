@@ -118,11 +118,11 @@ public static class DbInitializer
     // Các permission đã đổi tên — seed sẽ tự rename trong DB khi khởi động
     private static readonly Dictionary<string, string> PermissionRenames = new()
     {
-        ["USER.EDIT"]     = "USER.UPDATE",
-        ["ROLE.EDIT"]     = "ROLE.UPDATE",
-        ["QUYEN.EDIT"]    = "QUYEN.UPDATE",
+        ["USER.EDIT"] = "USER.UPDATE",
+        ["ROLE.EDIT"] = "ROLE.UPDATE",
+        ["QUYEN.EDIT"] = "QUYEN.UPDATE",
         ["WORKFLOW.EDIT"] = "WORKFLOW.UPDATE",
-        ["DANHMUC.EDIT"]  = "DANHMUC.UPDATE",
+        ["DANHMUC.EDIT"] = "DANHMUC.UPDATE",
         ["TAILIEU.UPDATE_OLD"] = "TAILIEU.UPDATE", // placeholder nếu có tên cũ khác
     };
 
