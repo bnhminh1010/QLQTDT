@@ -19,8 +19,8 @@ public class AppDbContext : DbContext
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
-    public DbSet<QuyTrinh> QuyTrinhs => Set<QuyTrinh>();
-    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
+    public DbSet<Workflow> Workflows => Set<Workflow>();
+    public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -159,45 +159,40 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.MaHinhThuc).IsUnique();
         });
 
-        // QuyTrinh
-        modelBuilder.Entity<QuyTrinh>(entity =>
+        // Workflow
+        modelBuilder.Entity<Workflow>(entity =>
         {
-            entity.ToTable("QuyTrinh");
+            entity.ToTable("Workflow");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.MaQuyTrinh).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.TenQuyTrinh).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.MoTa).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.MaWorkflow).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenWorkflow).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
-            entity.Property(e => e.DaXoa).HasDefaultValue(false);
-            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)")
-                .HasDefaultValueSql("GETDATE()");
-            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)")
-                .HasDefaultValueSql("GETDATE()");
-            entity.HasIndex(e => e.MaQuyTrinh).IsUnique();
-            entity.HasIndex(e => new { e.TenQuyTrinh, e.HinhThucDauThauId }).IsUnique();
+            entity.HasIndex(e => e.MaWorkflow).IsUnique();
             entity.HasOne(e => e.HinhThucDauThau)
-                .WithMany(h => h.QuyTrinhs)
-                .HasForeignKey(e => e.HinhThucDauThauId);
-            entity.HasOne(e => e.NguoiTao)
-                .WithMany()
-                .HasForeignKey(e => e.NguoiTaoId);
-            entity.HasOne(e => e.NguoiCapNhat)
-                .WithMany()
-                .HasForeignKey(e => e.NguoiCapNhatId);
+                .WithMany(h => h.Workflows)
+                .HasForeignKey(e => e.HinhThucId);
         });
 
-        // WorkflowInstance
-        modelBuilder.Entity<WorkflowInstance>(entity =>
+        // BuocWorkflow
+        modelBuilder.Entity<BuocWorkflow>(entity =>
         {
-            entity.ToTable("TheoDoiQuyTrinh");
+            entity.ToTable("BuocWorkflow");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.GioThauId).HasColumnName("GioThauId");
-            entity.Property(e => e.BuocQuyTrinhId).HasColumnName("BuocQuyTrinhId");
-            entity.Property(e => e.NguoiXuLyId).HasColumnName("NguoiXuLyId");
-            entity.Property(e => e.TrangThaiBuoc).HasColumnName("TrangThaiBuoc").HasMaxLength(50).IsRequired();
-            entity.Property(e => e.NgayBatDau).HasColumnName("NgayBatDau").HasColumnType("datetime2");
-            entity.Property(e => e.NgayHoanThanh).HasColumnName("NgayHoanThanh").HasColumnType("datetime2");
-            entity.Property(e => e.QuyTrinhId).HasColumnName("QuyTrinhId");
+            entity.Property(e => e.MaBuoc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenBuoc).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.LoaiBuoc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.SoNgaySLA).HasDefaultValue(0);
+            entity.Property(e => e.ChoPhepTuChoi).HasDefaultValue(true);
+            entity.Property(e => e.ChoPhepBoQua).HasDefaultValue(false);
+            entity.HasOne(e => e.Workflow)
+                .WithMany(w => w.BuocWorkflows)
+                .HasForeignKey(e => e.WorkflowId);
+            entity.HasOne(e => e.VaiTroXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.VaiTroXuLyId);
+            entity.HasOne(e => e.KhoaPhongXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.KhoaPhongXuLyId);
         });
 
     }

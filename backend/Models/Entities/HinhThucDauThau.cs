@@ -8,5 +8,5 @@ public class HinhThucDauThau
     public decimal? HanMucToiDa { get; set; }
     public bool TrangThaiHoatDong { get; set; } = true;
 
-    public ICollection<QuyTrinh> QuyTrinhs { get; set; } = [];
+    public ICollection<Workflow> Workflows { get; set; } = [];
 }

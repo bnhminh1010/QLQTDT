@@ -8,7 +8,7 @@ namespace QLQTDT.Api.Services;
 
 public class WorkflowConfigService : IWorkflowConfigService
 {
-	private const int MaQuyTrinhSuffixLength = 3;
+	private const int MaWorkflowSuffixLength = 3;
 
 	private readonly AppDbContext _context;
 	private readonly ILogger<WorkflowConfigService> _logger;
@@ -21,15 +21,13 @@ public class WorkflowConfigService : IWorkflowConfigService
 
 	public async Task<List<WorkflowListItemDto>> GetWorkflowsAsync()
 	{
-		return await _context.QuyTrinhs
-			.Where(w => !w.DaXoa)
+		return await _context.Workflows
 			.OrderBy(w => w.Id)
 			.Select(w => new WorkflowListItemDto
 			{
 				Id = w.Id,
-				TenWorkflow = w.TenQuyTrinh,
-				MoTa = w.MoTa,
-				HinhThucDauThauId = w.HinhThucDauThauId,
+				TenWorkflow = w.TenWorkflow,
+				HinhThucId = w.HinhThucId,
 				TrangThaiHoatDong = w.TrangThaiHoatDong
 			})
 			.ToListAsync();
@@ -37,82 +35,68 @@ public class WorkflowConfigService : IWorkflowConfigService
 
 	public async Task<WorkflowCreateResponse> CreateWorkflowAsync(WorkflowCreateRequest request)
 	{
-		if (request.HinhThucDauThauId.HasValue)
-		{
-			var hinhThucExists = await _context.HinhThucDauThaus
-				.AnyAsync(h => h.Id == request.HinhThucDauThauId.Value);
-			if (!hinhThucExists)
-				throw new NotFoundException($"HinhThucDauThau not found: {request.HinhThucDauThauId.Value}");
-		}
+		var hinhThucExists = await _context.HinhThucDauThaus
+			.AnyAsync(h => h.Id == request.HinhThucId);
+		if (!hinhThucExists)
+			throw new NotFoundException($"HinhThucDauThau not found: {request.HinhThucId}");
 
 		var tenWorkflow = request.TenWorkflow.Trim();
-		var moTa = request.MoTa?.Trim();
 
-		var duplicate = await _context.QuyTrinhs.AnyAsync(w =>
-			w.TenQuyTrinh == tenWorkflow
-			&& w.HinhThucDauThauId == request.HinhThucDauThauId);
+		var duplicate = await _context.Workflows.AnyAsync(w =>
+			w.TenWorkflow == tenWorkflow
+			&& w.HinhThucId == request.HinhThucId);
 		if (duplicate)
 			throw new ConflictException("Workflow name already exists for the same bidding method.");
 
-		var entity = new QuyTrinh
+		var entity = new Workflow
 		{
-			MaQuyTrinh = await GenerateMaQuyTrinhAsync(),
-			TenQuyTrinh = tenWorkflow,
-			MoTa = moTa,
-			HinhThucDauThauId = request.HinhThucDauThauId,
-			TrangThaiHoatDong = true,
-			DaXoa = false,
-			NgayTao = DateTime.UtcNow,
-			NgayCapNhat = DateTime.UtcNow
+			MaWorkflow = await GenerateMaWorkflowAsync(),
+			TenWorkflow = tenWorkflow,
+			HinhThucId = request.HinhThucId,
+			TrangThaiHoatDong = true
 		};
 
-		_context.QuyTrinhs.Add(entity);
+		_context.Workflows.Add(entity);
 		await _context.SaveChangesAsync();
 
-		_logger.LogInformation("Created workflow: id={WorkflowId}, ma={MaQuyTrinh}", entity.Id, entity.MaQuyTrinh);
+		_logger.LogInformation("Created workflow: id={WorkflowId}, ma={MaWorkflow}", entity.Id, entity.MaWorkflow);
 
 		return new WorkflowCreateResponse
 		{
 			Id = entity.Id,
-			TenWorkflow = entity.TenQuyTrinh
+			TenWorkflow = entity.TenWorkflow
 		};
 	}
 
 	public async Task UpdateWorkflowAsync(int id, WorkflowUpdateRequest request)
 	{
-		var entity = await _context.QuyTrinhs.FindAsync(id)
+		var entity = await _context.Workflows.FindAsync(id)
 			?? throw new NotFoundException($"Workflow not found: {id}");
-		if (entity.DaXoa)
-			throw new NotFoundException($"Workflow not found: {id}");
 
-		if (request.HinhThucDauThauId.HasValue)
+		if (request.HinhThucId.HasValue)
 		{
 			var hinhThucExists = await _context.HinhThucDauThaus
-				.AnyAsync(h => h.Id == request.HinhThucDauThauId.Value);
+				.AnyAsync(h => h.Id == request.HinhThucId.Value);
 			if (!hinhThucExists)
-				throw new NotFoundException($"HinhThucDauThau not found: {request.HinhThucDauThauId.Value}");
+				throw new NotFoundException($"HinhThucDauThau not found: {request.HinhThucId.Value}");
 		}
 
 		if (request.TenWorkflow != null)
-			entity.TenQuyTrinh = request.TenWorkflow.Trim();
+			entity.TenWorkflow = request.TenWorkflow.Trim();
 
-		if (request.MoTa != null)
-			entity.MoTa = request.MoTa.Trim();
-
-		if (request.HinhThucDauThauId.HasValue)
-			entity.HinhThucDauThauId = request.HinhThucDauThauId.Value;
+		if (request.HinhThucId.HasValue)
+			entity.HinhThucId = request.HinhThucId.Value;
 
 		if (request.TrangThaiHoatDong.HasValue)
 			entity.TrangThaiHoatDong = request.TrangThaiHoatDong.Value;
 
-		var duplicate = await _context.QuyTrinhs.AnyAsync(w =>
+		var duplicate = await _context.Workflows.AnyAsync(w =>
 			w.Id != id
-			&& w.TenQuyTrinh == entity.TenQuyTrinh
-			&& w.HinhThucDauThauId == entity.HinhThucDauThauId);
+			&& w.TenWorkflow == entity.TenWorkflow
+			&& w.HinhThucId == entity.HinhThucId);
 		if (duplicate)
 			throw new ConflictException("Workflow name already exists for the same bidding method.");
 
-		entity.NgayCapNhat = DateTime.UtcNow;
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("Updated workflow: id={WorkflowId}", id);
@@ -120,31 +104,28 @@ public class WorkflowConfigService : IWorkflowConfigService
 
 	public async Task DeleteWorkflowAsync(int id)
 	{
-		var entity = await _context.QuyTrinhs.FindAsync(id)
+		var entity = await _context.Workflows.FindAsync(id)
 			?? throw new NotFoundException($"Workflow not found: {id}");
-		if (entity.DaXoa)
-			throw new NotFoundException($"Workflow not found: {id}");
 
-		var hasActiveInstance = await _context.WorkflowInstances
-			.AnyAsync(i => i.QuyTrinhId == id && i.TrangThaiBuoc == "ACTIVE");
-		if (hasActiveInstance || entity.TrangThaiHoatDong)
-			throw new AppException(400, "HAS_INSTANCE", "Workflow dang hoat dong hoac co instance active nen khong the xoa.");
+		var hasSteps = await _context.BuocWorkflows
+			.AnyAsync(b => b.WorkflowId == id);
+		if (hasSteps || entity.TrangThaiHoatDong)
+			throw new AppException(400, "HAS_INSTANCE", "Workflow dang hoat dong hoac co buoc workflow nen khong the xoa.");
 
-		entity.DaXoa = true;
-		entity.NgayCapNhat = DateTime.UtcNow;
+		_context.Workflows.Remove(entity);
 		await _context.SaveChangesAsync();
 
-		_logger.LogInformation("Soft-deleted workflow: id={WorkflowId}", id);
+		_logger.LogInformation("Deleted workflow: id={WorkflowId}", id);
 	}
 
-	private async Task<string> GenerateMaQuyTrinhAsync()
+	private async Task<string> GenerateMaWorkflowAsync()
 	{
 		var year = DateTime.UtcNow.Year;
 		var prefix = $"QT-{year}-";
 
-		var existingCodes = await _context.QuyTrinhs
-			.Where(w => w.MaQuyTrinh.StartsWith(prefix))
-			.Select(w => w.MaQuyTrinh)
+		var existingCodes = await _context.Workflows
+			.Where(w => w.MaWorkflow.StartsWith(prefix))
+			.Select(w => w.MaWorkflow)
 			.ToListAsync();
 
 		var maxNumber = existingCodes
@@ -154,7 +135,7 @@ public class WorkflowConfigService : IWorkflowConfigService
 			.Max();
 
 		var nextNumber = maxNumber + 1;
-		var formatted = nextNumber.ToString().PadLeft(MaQuyTrinhSuffixLength, '0');
+		var formatted = nextNumber.ToString().PadLeft(MaWorkflowSuffixLength, '0');
 		return $"{prefix}{formatted}";
 	}
 }

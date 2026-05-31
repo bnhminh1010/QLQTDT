@@ -1,5 +1,7 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
+using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Services;
 
@@ -24,16 +26,29 @@ public class WorkflowsController : ControllerBase
 	}
 
 	[HttpPost]
-	public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> Create([FromBody] WorkflowCreateRequest request)
+	[ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+	public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> Create(
+		[FromBody] WorkflowCreateRequest request,
+		[FromServices] IValidator<WorkflowCreateRequest> validator)
 	{
+		var validation = await validator.ValidateAsync(request);
+		if (!validation.IsValid) return BadRequest(ToValidationError(validation));
+
 		var created = await _workflowService.CreateWorkflowAsync(request);
 		return StatusCode(StatusCodes.Status201Created,
 			ApiResponse<WorkflowCreateResponse>.Ok(created, "Workflow created successfully"));
 	}
 
 	[HttpPut("{id}")]
-	public async Task<ActionResult<ApiResponse>> Update(int id, [FromBody] WorkflowUpdateRequest request)
+	[ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+	public async Task<ActionResult<ApiResponse>> Update(
+		int id,
+		[FromBody] WorkflowUpdateRequest request,
+		[FromServices] IValidator<WorkflowUpdateRequest> validator)
 	{
+		var validation = await validator.ValidateAsync(request);
+		if (!validation.IsValid) return BadRequest(ToValidationError(validation));
+
 		await _workflowService.UpdateWorkflowAsync(id, request);
 		return Ok(ApiResponse.Ok("Workflow updated successfully"));
 	}
@@ -44,4 +59,16 @@ public class WorkflowsController : ControllerBase
 		await _workflowService.DeleteWorkflowAsync(id);
 		return Ok(ApiResponse.Ok("Workflow deleted successfully"));
 	}
+
+	private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()
+	{
+		Timestamp = DateTime.UtcNow,
+		Status = 400,
+		Error = "Validation Failed",
+		Errors = result.Errors
+			.GroupBy(e => e.PropertyName)
+			.ToDictionary(
+				g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
+				g => g.First().ErrorMessage)
+	};
 }
