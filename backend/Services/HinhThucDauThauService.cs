@@ -28,6 +28,14 @@ public class HinhThucDauThauService : BaseService<HinhThucDauThau>, IHinhThucDau
             h => h.OrderBy(x => x.MaHinhThuc));
     }
 
+    public override async Task<HinhThucDauThau?> GetByIdAsync(int id)
+    {
+        var entity = await _set.FindAsync(id);
+        if (entity is null || !entity.TrangThaiHoatDong)
+            return null;
+        return entity;
+    }
+
     public async Task<HinhThucDauThau> CreateAsync(CreateHinhThucDauThauDto dto)
     {
         var exists = await _set.AnyAsync(h => h.MaHinhThuc == dto.MaHinhThuc);
