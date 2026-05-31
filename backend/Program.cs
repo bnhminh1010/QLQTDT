@@ -149,6 +149,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IQuyenService, QuyenService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();
 
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

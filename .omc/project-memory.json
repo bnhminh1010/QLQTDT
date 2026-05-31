@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1779889781229,
+  "lastScanned": 1780235319636,
   "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
   "techStack": {
     "languages": [],
@@ -38,7 +38,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 8,
-      "lastAccessed": 1779889781224,
+      "lastAccessed": 1780235319634,
       "keyFiles": [
         "Program.cs",
         "QLQTDT.Api.csproj",
@@ -51,7 +51,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 6,
-      "lastAccessed": 1779889781225,
+      "lastAccessed": 1780235319635,
       "keyFiles": [
         "API.md",
         "Dbschema.sql",
@@ -64,14 +64,14 @@
       "path": "frontend",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1779889781225,
+      "lastAccessed": 1780235319635,
       "keyFiles": []
     },
     "backend/Config": {
       "path": "backend/Config",
       "purpose": "Configuration files",
       "fileCount": 3,
-      "lastAccessed": 1779889781225,
+      "lastAccessed": 1780235319635,
       "keyFiles": [
         "FtpConfig.cs",
         "GoogleAuthConfig.cs",
@@ -81,8 +81,8 @@
     "backend/Controllers": {
       "path": "backend/Controllers",
       "purpose": "Controllers",
-      "fileCount": 4,
-      "lastAccessed": 1779889781225,
+      "fileCount": 6,
+      "lastAccessed": 1780235319635,
       "keyFiles": [
         "AdminController.cs",
         "AuthController.cs",
@@ -93,7 +93,7 @@
       "path": "backend/Data",
       "purpose": "Data files",
       "fileCount": 3,
-      "lastAccessed": 1779889781225,
+      "lastAccessed": 1780235319635,
       "keyFiles": [
         "AppDbContext.cs",
         "AuditInterceptor.cs",
@@ -103,17 +103,18 @@
     "backend/Helpers": {
       "path": "backend/Helpers",
       "purpose": "Helper functions",
-      "fileCount": 1,
-      "lastAccessed": 1779889781226,
+      "fileCount": 2,
+      "lastAccessed": 1780235319636,
       "keyFiles": [
-        "InputSanitizer.cs"
+        "InputSanitizer.cs",
+        "ValidationFilter.cs"
       ]
     },
     "backend/Middleware": {
       "path": "backend/Middleware",
       "purpose": "Middleware",
       "fileCount": 1,
-      "lastAccessed": 1779889781226,
+      "lastAccessed": 1780235319636,
       "keyFiles": [
         "ExceptionMiddleware.cs"
       ]
@@ -121,27 +122,40 @@
     "backend/Migrations": {
       "path": "backend/Migrations",
       "purpose": "Database migrations",
-      "fileCount": 5,
-      "lastAccessed": 1779889781226,
+      "fileCount": 7,
+      "lastAccessed": 1780235319636,
       "keyFiles": [
         "20260521135057_InitialAuthSchema.Designer.cs",
         "20260521135057_InitialAuthSchema.cs",
         "20260524165811_AddLoginLockoutTable.Designer.cs"
       ]
-    },
-    "backend/Models": {
-      "path": "backend/Models",
-      "purpose": "Data models",
-      "fileCount": 3,
-      "lastAccessed": 1779889781228,
-      "keyFiles": [
-        "ApiResponse.cs",
-        "Interfaces.cs",
-        "NhatKyKiemToan.cs"
-      ]
     }
   },
   "hotPaths": [
+    {
+      "path": "backend/Data/AppDbContext.cs",
+      "accessCount": 5,
+      "lastAccessed": 1780234866886,
+      "type": "file"
+    },
+    {
+      "path": "backend/Services/IQuyenService.cs",
+      "accessCount": 3,
+      "lastAccessed": 1780234811066,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/Interfaces.cs",
+      "accessCount": 3,
+      "lastAccessed": 1780234811118,
+      "type": "file"
+    },
+    {
+      "path": "backend/Services/HinhThucDauThauService.cs",
+      "accessCount": 3,
+      "lastAccessed": 1780234856102,
+      "type": "file"
+    },
     {
       "path": "backend/Controllers/UsersController.cs",
       "accessCount": 2,
@@ -152,6 +166,120 @@
       "path": "backend/Models/DTOs/Rbac/AssignRoleRequest.cs",
       "accessCount": 2,
       "lastAccessed": 1779889798415,
+      "type": "file"
+    },
+    {
+      "path": "backend/Services/BaseService.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780234635559,
+      "type": "file"
+    },
+    {
+      "path": "backend/Validators/QuyenValidators.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780234652857,
+      "type": "file"
+    },
+    {
+      "path": "backend/Data/SeedData/PermissionSeeder.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780234657698,
+      "type": "file"
+    },
+    {
+      "path": "backend/Data/DbInitializer.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780234879203,
+      "type": "file"
+    },
+    {
+      "path": "backend/Program.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780234889866,
+      "type": "file"
+    },
+    {
+      "path": "backend/Migrations/20260531134514_AddHinhThucDauThauIndex.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780235139157,
+      "type": "file"
+    },
+    {
+      "path": "backend/Migrations/20260531135005_AddHinhThucDauThauEntity.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780235424230,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/Entities/Quyen.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234598465,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/DTOs/Quyen/QuyenDtos.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234598475,
+      "type": "file"
+    },
+    {
+      "path": "backend/Controllers/QuyenController.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234598512,
+      "type": "file"
+    },
+    {
+      "path": "backend/Services/QuyenService.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234598530,
+      "type": "file"
+    },
+    {
+      "path": "docs/Dbschema.sql",
+      "accessCount": 1,
+      "lastAccessed": 1780234788597,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/Entities/HinhThucDauThau.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234836935,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/DTOs/HinhThucDauThau/HinhThucDauThauDtos.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234837388,
+      "type": "file"
+    },
+    {
+      "path": "backend/Validators/HinhThucDauThauValidators.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234837846,
+      "type": "file"
+    },
+    {
+      "path": "backend/Services/IHinhThucDauThauService.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234838309,
+      "type": "file"
+    },
+    {
+      "path": "backend/Controllers/HinhThucDauThauController.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234839229,
+      "type": "file"
+    },
+    {
+      "path": "backend/Data/SeedData/HinhThucDauThauSeeder.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780234839678,
+      "type": "file"
+    },
+    {
+      "path": "backend/Migrations/20260531134747_AddHinhThucDauThauEntity.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780235280768,
       "type": "file"
     }
   ],
