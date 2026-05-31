@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"python3 -c \\\"\\nimport docx\\ndoc = docx.Document('/home/binhminh/Developer/Interns/Quy Định  Hướng Dẫn Dành Cho Dev Team.docx')\\nfor para in doc.paragraphs:\\n    print(para.text)\\nfor table...",
-  "error": "Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 3, in <module>\n    doc = docx.Document('/home/binhminh/Developer/Interns/Quy Định  Hướng Dẫn Dành Cho Dev Team.docx')\n          ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/binhminh/.local/lib/python3.14/site-packages/docx/api.py\", line 27, in Document\n    document_part = cast(\"DocumentPart\", Package.open(docx).main_document_part)\n                                  ...",
-  "timestamp": "2026-05-27T13:39:54.781Z",
-  "retry_count": 1
-}
