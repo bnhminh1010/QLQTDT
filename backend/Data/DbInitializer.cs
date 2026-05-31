@@ -172,6 +172,8 @@ public static class DbInitializer
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
 
         await SeedRolesAsync(context, logger);
+        await SeedKhoaPhongAsync(context, logger);
+        await SeedData.PermissionSeeder.SeedPermissionsAsync(context, logger);
         await SeedAdminAccountAsync(context, logger);
         await RenamePermissionsAsync(context, logger);
         await SeedPermissionsAsync(context, logger);
@@ -192,13 +194,49 @@ public static class DbInitializer
         await context.SaveChangesAsync();
     }
 
+    private static async Task SeedKhoaPhongAsync(AppDbContext context, ILogger logger)
+    {
+        if (await context.KhoaPhongs.AnyAsync())
+        {
+            logger.LogInformation("Seed: Khoa/phòng đã tồn tại, bỏ qua.");
+            return;
+        }
+
+        context.KhoaPhongs.Add(new KhoaPhong
+        {
+            MaKhoaPhong = "KTTH",
+            TenKhoaPhong = "Phòng Kỹ thuật tổng hợp"
+        });
+        await context.SaveChangesAsync();
+        logger.LogInformation("Seed: Tạo khoa/phòng mặc định (MaKhoaPhong: KTTH)");
+    }
+
     private static async Task SeedAdminAccountAsync(AppDbContext context, ILogger logger)
     {
         const string adminUsername = "admin";
         const string adminEmail = "admin@qlqtdt.local";
-        const string adminPassword = "Admin@123456";
         const string adminFullName = "Quản Trị Viên Hệ Thống";
 
+        // Lấy mật khẩu admin từ biến môi trường — không hardcode
+        var adminPassword = Environment.GetEnvironmentVariable("ADMIN_DEFAULT_PASSWORD");
+        if (string.IsNullOrWhiteSpace(adminPassword))
+        {
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (env != null && env != "Development")
+            {
+                logger.LogWarning(
+                    "Seed: Bỏ qua tạo admin — ADMIN_DEFAULT_PASSWORD chưa được cấu hình trong môi trường {Env}.",
+                    env);
+                return;
+            }
+
+            // Chỉ dùng mật khẩu mặc định trong Development
+            adminPassword = "Admin@123456";
+            logger.LogWarning("Seed: Đang dùng mật khẩu admin mặc định. " +
+                "Hãy set ADMIN_DEFAULT_PASSWORD trong môi trường production.");
+        }
+
+        // Kiểm tra admin đã tồn tại chưa
         var adminExists = await context.NguoiDungs.AnyAsync(u => u.TenDangNhap == adminUsername);
         if (adminExists)
         {
@@ -206,6 +244,10 @@ public static class DbInitializer
             return;
         }
 
+        // Lấy KhoaPhong mặc định (đã được seed ở SeedKhoaPhongAsync)
+        var defaultKhoaPhong = await context.KhoaPhongs.FirstAsync();
+
+        // Tạo tài khoản admin
         var admin = new NguoiDung
         {
             TenDangNhap = adminUsername,
@@ -218,13 +260,14 @@ public static class DbInitializer
         context.NguoiDungs.Add(admin);
         await context.SaveChangesAsync();
 
+        // Gán vai trò ADMIN + KhoaPhong mặc định
         var adminRole = await context.VaiTros.FirstOrDefaultAsync(v => v.TenVaiTro == "ADMIN");
         if (adminRole != null)
         {
             context.NguoiDungKhoaPhongVaiTros.Add(new NguoiDungKhoaPhongVaiTro
             {
                 NguoiDungId = admin.Id,
-                KhoaPhongId = null,
+                KhoaPhongId = defaultKhoaPhong.Id,
                 VaiTroId = adminRole.Id,
                 LaChinh = true
             });

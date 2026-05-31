@@ -1,6 +1,6 @@
 namespace QLQTDT.Api.Models.Entities;
 
-public class Quyen
+public class Quyen : IBaseEntity, ISoftDeletable
 {
     public int Id { get; set; }
     public string MaQuyen { get; set; } = null!;
