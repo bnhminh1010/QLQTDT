@@ -117,3 +117,31 @@ export const resetPasswordSchema = yup.object({
     .required("Vui lòng xác nhận mật khẩu")
     .oneOf([yup.ref("newPassword")], "Mật khẩu không khớp"),
 });
+
+// ─── Tạo Gói Thầu ─────────────────────────────────────────────────────────────
+
+export const taoGoiThauSchema = yup.object({
+  ten: yup.string().trim().required("Vui lòng nhập tên gói thầu"),
+  hinhThuc: yup.string().required("Vui lòng chọn hình thức đấu thầu"),
+  giaTriStr: yup
+    .string()
+    .trim()
+    .required("Vui lòng nhập giá trị gói thầu")
+    .matches(/^[\d,]+$/, "Giá trị chỉ được chứa chữ số (VD: 320,000,000)"),
+  nguonVon: yup.string().required("Vui lòng chọn nguồn vốn"),
+  donVi: yup.string().required("Vui lòng chọn đơn vị đề xuất"),
+  ngayTao: yup.string().required("Vui lòng chọn ngày tạo"),
+  hanHT: yup
+    .string()
+    .required("Vui lòng chọn hạn hoàn thành")
+    .test(
+      "han-sau-ngay-tao",
+      "Hạn hoàn thành phải sau ngày tạo",
+      function (val) {
+        const { ngayTao } = this.parent as { ngayTao: string };
+        if (!ngayTao || !val) return true;
+        return val > ngayTao;
+      },
+    ),
+  ghiChu: yup.string().default(""),
+});

@@ -10,6 +10,8 @@ import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import Dashboard from "@/pages/Dashboard";
 import DanhSachGoiThau from "@/pages/DanhSachGoiThau";
+import TaoGoiThau from "@/pages/TaoGoiThau";
+import DanhMucThucHien from "@/pages/DanhMucThucHien";
 import BaoCao from "@/pages/BaoCao";
 
 function AppRoutes() {
@@ -26,6 +28,8 @@ function AppRoutes() {
       <Route element={<DefaultLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/danh-sach-goi-thau" element={<DanhSachGoiThau />} />
+        <Route path="/tao-goi-thau" element={<TaoGoiThau />} />
+        <Route path="/danh-muc-thuc-hien" element={<DanhMucThucHien />} />
         <Route path="/bao-cao" element={<BaoCao />} />
       </Route>
     </Routes>

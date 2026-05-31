@@ -52,22 +52,19 @@ export default function Sidebar() {
             </Link>
           </li>
           <li>
-            <a
-              href="#"
-              className="flex items-center gap-2.5 px-4 py-[9px] text-[13px] text-slate-400 hover:bg-white/[0.06] hover:text-slate-300 transition-colors"
-            >
+            <Link to="/tao-goi-thau" className={link("/tao-goi-thau")}>
               <i className="fa-solid fa-plus-circle w-4 text-center shrink-0" />
               <span>Tạo gói thầu</span>
-            </a>
+            </Link>
           </li>
           <li>
-            <a
-              href="#"
-              className="flex items-center gap-2.5 px-4 py-[9px] text-[13px] text-slate-400 hover:bg-white/[0.06] hover:text-slate-300 transition-colors"
+            <Link
+              to="/danh-muc-thuc-hien"
+              className={link("/danh-muc-thuc-hien")}
             >
               <i className="fa-solid fa-bars-staggered w-4 text-center shrink-0" />
               <span>Danh mục thực hiện</span>
-            </a>
+            </Link>
           </li>
           <li>
             <a
