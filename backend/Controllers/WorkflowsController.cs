@@ -11,64 +11,64 @@ namespace QLQTDT.Api.Controllers;
 [Route("api/workflows")]
 public class WorkflowsController : ControllerBase
 {
-	private readonly IWorkflowConfigService _workflowService;
+    private readonly IWorkflowConfigService _workflowService;
 
-	public WorkflowsController(IWorkflowConfigService workflowService)
-	{
-		_workflowService = workflowService;
-	}
+    public WorkflowsController(IWorkflowConfigService workflowService)
+    {
+        _workflowService = workflowService;
+    }
 
-	[HttpGet]
-	public async Task<ActionResult<ApiResponse<List<WorkflowListItemDto>>>> GetAll()
-	{
-		var items = await _workflowService.GetWorkflowsAsync();
-		return Ok(ApiResponse<List<WorkflowListItemDto>>.Ok(items));
-	}
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<List<WorkflowListItemDto>>>> GetAll()
+    {
+        var items = await _workflowService.GetWorkflowsAsync();
+        return Ok(ApiResponse<List<WorkflowListItemDto>>.Ok(items));
+    }
 
-	[HttpPost]
-	[ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
-	public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> Create(
-		[FromBody] WorkflowCreateRequest request,
-		[FromServices] IValidator<WorkflowCreateRequest> validator)
-	{
-		var validation = await validator.ValidateAsync(request);
-		if (!validation.IsValid) return BadRequest(ToValidationError(validation));
+    [HttpPost]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> Create(
+        [FromBody] WorkflowCreateRequest request,
+        [FromServices] IValidator<WorkflowCreateRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid) return BadRequest(ToValidationError(validation));
 
-		var created = await _workflowService.CreateWorkflowAsync(request);
-		return StatusCode(StatusCodes.Status201Created,
-			ApiResponse<WorkflowCreateResponse>.Ok(created, "Workflow created successfully"));
-	}
+        var created = await _workflowService.CreateWorkflowAsync(request);
+        return StatusCode(StatusCodes.Status201Created,
+            ApiResponse<WorkflowCreateResponse>.Ok(created, "Workflow created successfully"));
+    }
 
-	[HttpPut("{id}")]
-	[ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
-	public async Task<ActionResult<ApiResponse>> Update(
-		int id,
-		[FromBody] WorkflowUpdateRequest request,
-		[FromServices] IValidator<WorkflowUpdateRequest> validator)
-	{
-		var validation = await validator.ValidateAsync(request);
-		if (!validation.IsValid) return BadRequest(ToValidationError(validation));
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse>> Update(
+        int id,
+        [FromBody] WorkflowUpdateRequest request,
+        [FromServices] IValidator<WorkflowUpdateRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid) return BadRequest(ToValidationError(validation));
 
-		await _workflowService.UpdateWorkflowAsync(id, request);
-		return Ok(ApiResponse.Ok("Workflow updated successfully"));
-	}
+        await _workflowService.UpdateWorkflowAsync(id, request);
+        return Ok(ApiResponse.Ok("Workflow updated successfully"));
+    }
 
-	[HttpDelete("{id}")]
-	public async Task<ActionResult<ApiResponse>> Delete(int id)
-	{
-		await _workflowService.DeleteWorkflowAsync(id);
-		return Ok(ApiResponse.Ok("Workflow deleted successfully"));
-	}
+    [HttpDelete("{id}")]
+    public async Task<ActionResult<ApiResponse>> Delete(int id)
+    {
+        await _workflowService.DeleteWorkflowAsync(id);
+        return Ok(ApiResponse.Ok("Workflow deleted successfully"));
+    }
 
-	private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()
-	{
-		Timestamp = DateTime.UtcNow,
-		Status = 400,
-		Error = "Validation Failed",
-		Errors = result.Errors
-			.GroupBy(e => e.PropertyName)
-			.ToDictionary(
-				g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
-				g => g.First().ErrorMessage)
-	};
+    private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()
+    {
+        Timestamp = DateTime.UtcNow,
+        Status = 400,
+        Error = "Validation Failed",
+        Errors = result.Errors
+            .GroupBy(e => e.PropertyName)
+            .ToDictionary(
+                g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
+                g => g.First().ErrorMessage)
+    };
 }
