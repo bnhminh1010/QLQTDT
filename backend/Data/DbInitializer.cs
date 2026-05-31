@@ -32,6 +32,7 @@ public static class DbInitializer
 
         await SeedRolesAsync(context, logger);
         await SeedData.PermissionSeeder.SeedPermissionsAsync(context, logger);
+        await SeedData.HinhThucDauThauSeeder.SeedAsync(context, logger);
         await SeedAdminAccountAsync(context, logger);
         await SeedKhoaPhongAsync(context, logger);
 
