@@ -43,8 +43,22 @@ if (!builder.Environment.IsEnvironment("Testing"))
     });
 }
 
-// JWT
-var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "DefaultSecretKeyForDevOnly123!@#";
+// JWT — fail-fast nếu thiếu JWT_SECRET trong môi trường non-Development
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        jwtSecret = "DevOnlySecret_" + Guid.NewGuid().ToString("N");
+        Console.WriteLine("⚠️  WARNING: JWT_SECRET chưa được cấu hình. Đang dùng secret tạm cho Development.");
+    }
+    else
+    {
+        throw new InvalidOperationException(
+            "FATAL: JWT_SECRET chưa được cấu hình. " +
+            "Set biến môi trường JWT_SECRET trước khi chạy trong môi trường production/staging.");
+    }
+}
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "QLQTDT";
 var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "QLQTDT.Frontend";
 
@@ -65,7 +79,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
-                context.Token = context.Request.Cookies["AccessToken"];
+                // Ưu tiên đọc từ Header (giúp test Postman dễ dàng bằng Bearer token)
+                if (context.Request.Headers.ContainsKey("Authorization"))
+                {
+                    return Task.CompletedTask; // Middleware tự parse header
+                }
+
+                // Fallback sang Cookie nếu không có Header
+                if (context.Request.Cookies.TryGetValue("AccessToken", out var token))
+                {
+                    context.Token = token;
+                }
+                
                 return Task.CompletedTask;
             }
         };
@@ -122,13 +147,17 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IQuyenService, QuyenService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
-// FluentValidation — đăng ký tất cả validators từ assembly
+// FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-// Controllers với JSON camelCase
-builder.Services.AddControllers()
+// Controllers với JSON camelCase + ValidationFilter tự động
+builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add<QLQTDT.Api.Helpers.ValidationFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
