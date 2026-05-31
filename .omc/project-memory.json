@@ -143,6 +143,48 @@
   },
   "hotPaths": [
     {
+      "path": "backend/Data/AppDbContext.cs",
+      "accessCount": 6,
+      "lastAccessed": 1780237595562,
+      "type": "file"
+    },
+    {
+      "path": "backend/Services/IntegrationService.cs",
+      "accessCount": 6,
+      "lastAccessed": 1780237783648,
+      "type": "file"
+    },
+    {
+      "path": "backend/Services/IIntegrationService.cs",
+      "accessCount": 5,
+      "lastAccessed": 1780237636371,
+      "type": "file"
+    },
+    {
+      "path": "backend/Controllers/IntegrationController.cs",
+      "accessCount": 5,
+      "lastAccessed": 1780237823684,
+      "type": "file"
+    },
+    {
+      "path": "backend/Program.cs",
+      "accessCount": 3,
+      "lastAccessed": 1780237595599,
+      "type": "file"
+    },
+    {
+      "path": "backend/Migrations/20260531142444_AddIntegrationLogEntity.cs",
+      "accessCount": 3,
+      "lastAccessed": 1780237623443,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/DTOs/Integration/SyncRequest.cs",
+      "accessCount": 3,
+      "lastAccessed": 1780237773173,
+      "type": "file"
+    },
+    {
       "path": "backend/Controllers/UsersController.cs",
       "accessCount": 2,
       "lastAccessed": 1779889797696,
@@ -152,6 +194,78 @@
       "path": "backend/Models/DTOs/Rbac/AssignRoleRequest.cs",
       "accessCount": 2,
       "lastAccessed": 1779889798415,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/Entities/IntegrationLog.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780237623497,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/ApiResponse.cs",
+      "accessCount": 2,
+      "lastAccessed": 1780237788312,
+      "type": "file"
+    },
+    {
+      "path": "backend/Migrations/AppDbContextModelSnapshot.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237595545,
+      "type": "file"
+    },
+    {
+      "path": "backend/Migrations/20260531142444_AddIntegrationLogEntity.Designer.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237623390,
+      "type": "file"
+    },
+    {
+      "path": "backend/Services/BaseService.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237631786,
+      "type": "file"
+    },
+    {
+      "path": "backend/Exceptions/AppExceptions.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237631808,
+      "type": "file"
+    },
+    {
+      "path": "backend/Models/Interfaces.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237631858,
+      "type": "file"
+    },
+    {
+      "path": "backend/Middleware/ExceptionMiddleware.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237640912,
+      "type": "file"
+    },
+    {
+      "path": "backend/Middlewares/ExceptionHandlingMiddleware.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237640964,
+      "type": "file"
+    },
+    {
+      "path": "backend/Controllers/BaseController.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237713967,
+      "type": "file"
+    },
+    {
+      "path": "backend/Controllers/AdminController.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237713977,
+      "type": "file"
+    },
+    {
+      "path": "backend/Validators/SyncRequestValidator.cs",
+      "accessCount": 1,
+      "lastAccessed": 1780237783210,
       "type": "file"
     }
   ],

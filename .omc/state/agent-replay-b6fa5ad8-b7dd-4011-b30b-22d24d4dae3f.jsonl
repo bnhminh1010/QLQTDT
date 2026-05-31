@@ -6,3 +6,7 @@
 {"t":0,"agent":"system","event":"keyword_detected","keyword":"code-review"}
 {"t":0,"agent":"a299f17","agent_type":"unknown","event":"agent_stop","success":true}
 {"t":0,"agent":"a918643","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a9089a8","agent_type":"code-reviewer","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a2f8bcd","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a989dd8","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a9089a8","agent_type":"code-reviewer","event":"agent_stop","success":true,"duration_ms":201766}

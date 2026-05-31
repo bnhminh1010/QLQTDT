@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
+    public DbSet<IntegrationLog> IntegrationLogs => Set<IntegrationLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -142,6 +143,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HanhDong).HasMaxLength(100).IsRequired();
             entity.Property(e => e.MoTaChiTiet).IsRequired();
             entity.Property(e => e.ThoiGianThucHien).HasDefaultValueSql("GETDATE()");
+        });
+
+        // IntegrationLog
+        modelBuilder.Entity<IntegrationLog>(entity =>
+        {
+            entity.ToTable("IntegrationLog");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HeThong).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.LoaiDongBo).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ThoiGianDongBo).HasDefaultValueSql("GETDATE()");
         });
     }
 }
