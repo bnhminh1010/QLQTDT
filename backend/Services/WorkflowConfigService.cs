@@ -107,10 +107,10 @@ public class WorkflowConfigService : IWorkflowConfigService
         var entity = await _context.Workflows.FindAsync(id)
             ?? throw new NotFoundException($"Workflow not found: {id}");
 
-        var hasSteps = await _context.BuocWorkflows
-            .AnyAsync(b => b.WorkflowId == id);
-        if (hasSteps || entity.TrangThaiHoatDong)
-            throw new AppException(400, "HAS_INSTANCE", "Workflow dang hoat dong hoac co buoc workflow nen khong the xoa.");
+        var hasActiveInstance = await _context.WorkflowInstances
+            .AnyAsync(i => i.WorkflowId == id && i.TrangThai == "ACTIVE");
+        if (hasActiveInstance || entity.TrangThaiHoatDong)
+            throw new AppException(400, "HAS_INSTANCE", "Workflow dang hoat dong hoac co workflow instance active nen khong the xoa.");
 
         _context.Workflows.Remove(entity);
         await _context.SaveChangesAsync();

@@ -20,7 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
-    public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
+    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -173,26 +173,17 @@ public class AppDbContext : DbContext
                 .HasForeignKey(e => e.HinhThucId);
         });
 
-        // BuocWorkflow
-        modelBuilder.Entity<BuocWorkflow>(entity =>
+        // WorkflowInstance
+        modelBuilder.Entity<WorkflowInstance>(entity =>
         {
-            entity.ToTable("BuocWorkflow");
+            entity.ToTable("WorkflowInstance");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.MaBuoc).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.TenBuoc).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.LoaiBuoc).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.SoNgaySLA).HasDefaultValue(0);
-            entity.Property(e => e.ChoPhepTuChoi).HasDefaultValue(true);
-            entity.Property(e => e.ChoPhepBoQua).HasDefaultValue(false);
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.NgayBatDau).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayHoanThanh).HasColumnType("datetime2");
             entity.HasOne(e => e.Workflow)
-                .WithMany(w => w.BuocWorkflows)
+                .WithMany()
                 .HasForeignKey(e => e.WorkflowId);
-            entity.HasOne(e => e.VaiTroXuLy)
-                .WithMany()
-                .HasForeignKey(e => e.VaiTroXuLyId);
-            entity.HasOne(e => e.KhoaPhongXuLy)
-                .WithMany()
-                .HasForeignKey(e => e.KhoaPhongXuLyId);
         });
 
     }
