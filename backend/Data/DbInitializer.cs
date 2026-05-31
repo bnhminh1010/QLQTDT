@@ -31,7 +31,10 @@ public static class DbInitializer
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
 
         await SeedRolesAsync(context, logger);
+        await SeedData.PermissionSeeder.SeedPermissionsAsync(context, logger);
         await SeedAdminAccountAsync(context, logger);
+        await SeedKhoaPhongAsync(context, logger);
+
     }
 
     private static async Task SeedRolesAsync(AppDbContext context, ILogger logger)
@@ -51,6 +54,23 @@ public static class DbInitializer
             }
         }
         await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedKhoaPhongAsync(AppDbContext context, ILogger logger)
+    {
+        if (await context.KhoaPhongs.AnyAsync())
+        {
+            logger.LogInformation("Seed: Khoa/phòng đã tồn tại, bỏ qua.");
+            return;
+        }
+
+        context.KhoaPhongs.Add(new KhoaPhong
+        {
+            MaKhoaPhong = "KTTH",
+            TenKhoaPhong = "Phòng Kỹ thuật tổng hợp"
+        });
+        await context.SaveChangesAsync();
+        logger.LogInformation("Seed: Tạo khoa/phòng mặc định (MaKhoaPhong: KTTH)");
     }
 
     private static async Task SeedAdminAccountAsync(AppDbContext context, ILogger logger)
@@ -86,6 +106,9 @@ public static class DbInitializer
             return;
         }
 
+        // Lấy KhoaPhong mặc định (đã được seed ở SeedKhoaPhongAsync)
+        var defaultKhoaPhong = await context.KhoaPhongs.FirstAsync();
+
         // Tạo tài khoản admin
         var admin = new NguoiDung
         {
@@ -99,14 +122,14 @@ public static class DbInitializer
         context.NguoiDungs.Add(admin);
         await context.SaveChangesAsync();
 
-        // Gán vai trò ADMIN
+        // Gán vai trò ADMIN + KhoaPhong mặc định
         var adminRole = await context.VaiTros.FirstOrDefaultAsync(v => v.TenVaiTro == "ADMIN");
         if (adminRole != null)
         {
             context.NguoiDungKhoaPhongVaiTros.Add(new NguoiDungKhoaPhongVaiTro
             {
                 NguoiDungId = admin.Id,
-                KhoaPhongId = null, // Admin không thuộc khoa/phòng cụ thể
+                KhoaPhongId = defaultKhoaPhong.Id,
                 VaiTroId = adminRole.Id,
                 LaChinh = true
             });
