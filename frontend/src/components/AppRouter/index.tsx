@@ -12,6 +12,8 @@ import Dashboard from "@/pages/Dashboard";
 import DanhSachGoiThau from "@/pages/DanhSachGoiThau";
 import TaoGoiThau from "@/pages/TaoGoiThau";
 import DanhMucThucHien from "@/pages/DanhMucThucHien";
+import KhoaPhong from "@/pages/KhoaPhong";
+import NguoiDung from "@/pages/NguoiDung";
 import BaoCao from "@/pages/BaoCao";
 
 function AppRoutes() {
@@ -30,6 +32,8 @@ function AppRoutes() {
         <Route path="/danh-sach-goi-thau" element={<DanhSachGoiThau />} />
         <Route path="/tao-goi-thau" element={<TaoGoiThau />} />
         <Route path="/danh-muc-thuc-hien" element={<DanhMucThucHien />} />
+        <Route path="/khoa-phong" element={<KhoaPhong />} />
+        <Route path="/nguoi-dung" element={<NguoiDung />} />
         <Route path="/bao-cao" element={<BaoCao />} />
       </Route>
     </Routes>

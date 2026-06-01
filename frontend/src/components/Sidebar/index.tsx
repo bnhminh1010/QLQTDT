@@ -88,22 +88,16 @@ export default function Sidebar() {
             </Link>
           </li>
           <li>
-            <a
-              href="#"
-              className="flex items-center gap-2.5 px-4 py-[9px] text-[13px] text-slate-400 hover:bg-white/[0.06] hover:text-slate-300 transition-colors"
-            >
+            <Link to="/khoa-phong" className={link("/khoa-phong")}>
               <i className="fa-solid fa-building w-4 text-center shrink-0" />
               <span>Khoa/phòng</span>
-            </a>
+            </Link>
           </li>
           <li>
-            <a
-              href="#"
-              className="flex items-center gap-2.5 px-4 py-[9px] text-[13px] text-slate-400 hover:bg-white/[0.06] hover:text-slate-300 transition-colors"
-            >
+            <Link to="/nguoi-dung" className={link("/nguoi-dung")}>
               <i className="fa-solid fa-user w-4 text-center shrink-0" />
               <span>Người dùng</span>
-            </a>
+            </Link>
           </li>
           <li>
             <a
