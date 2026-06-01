@@ -19,6 +19,8 @@ public class AppDbContext : DbContext
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
+    public DbSet<Workflow> Workflows => Set<Workflow>();
+    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -156,5 +158,33 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.HasIndex(e => e.MaHinhThuc).IsUnique();
         });
+
+        // Workflow
+        modelBuilder.Entity<Workflow>(entity =>
+        {
+            entity.ToTable("Workflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaWorkflow).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenWorkflow).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.HasIndex(e => e.MaWorkflow).IsUnique();
+            entity.HasOne(e => e.HinhThucDauThau)
+                .WithMany(h => h.Workflows)
+                .HasForeignKey(e => e.HinhThucId);
+        });
+
+        // WorkflowInstance
+        modelBuilder.Entity<WorkflowInstance>(entity =>
+        {
+            entity.ToTable("WorkflowInstance");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.NgayBatDau).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayHoanThanh).HasColumnType("datetime2");
+            entity.HasOne(e => e.Workflow)
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowId);
+        });
+
     }
 }
