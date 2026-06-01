@@ -7,4 +7,6 @@ public class FtpConfig
     public string User { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public bool UsePassive { get; set; } = true;
+    public string BasePath { get; set; } = "/qlqtdt/uploads";
+    public string EncryptionMode { get; set; } = "None";
 }

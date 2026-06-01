@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"find /home/binhminh/Developer/Interns/QLQTDT -type f -name \\\"*.cs\\\" | grep -v node_modules | grep -v '.omc/' | grep -v obj | grep -v bin | xargs grep -l -i -E \\\"IntegrationLog|IntegrationS...",
-  "error": "Exit code 123",
-  "timestamp": "2026-05-31T14:26:53.720Z",
-  "retry_count": 1
-}
