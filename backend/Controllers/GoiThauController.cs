@@ -23,9 +23,9 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<GoiThauDto>>>> Search(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? trangThai = null)
     {
-        var trangThai = HttpContext.Request.Query["trangThai"].FirstOrDefault();
         var result = await _service.SearchAsync(page, pageSize, trangThai);
         return Ok(ApiResponse<PagedResult<GoiThauDto>>.Ok(result));
     }

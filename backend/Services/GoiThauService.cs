@@ -98,8 +98,8 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
                 return await base.CreateAsync(entity);
             }
-            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
-                when (attempt < 3 && ex.InnerException?.Message.Contains("MaGoiThau") == true)
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+                when (attempt < 3)
             {
                 // Race condition: 2 request đồng thời sinh cùng mã → thử lại
             }
@@ -149,16 +149,21 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         var year = DateTime.UtcNow.Year;
         var prefix = $"GT-{year}-";
 
-        // Lấy max seq theo giá trị số, tránh lỗi string sort khi seq > 999
-        var maxSeq = await _set
+        // Lấy record có Id cao nhất trong năm (Id auto-increment = tạo sau cùng = seq cao nhất)
+        // Chỉ load 1 record thay vì toàn bộ, bao gồm cả soft-deleted để không tái sử dụng mã
+        var lastCode = await _set
             .Where(g => g.MaGoiThau.StartsWith(prefix))
-            .Select(g => g.MaGoiThau.Substring(prefix.Length))
-            .ToListAsync();
+            .OrderByDescending(g => g.Id)
+            .Select(g => g.MaGoiThau)
+            .FirstOrDefaultAsync();
 
-        var seq = maxSeq
-            .Select(s => int.TryParse(s, out var n) ? n : 0)
-            .DefaultIfEmpty(0)
-            .Max() + 1;
+        var seq = 1;
+        if (lastCode is not null)
+        {
+            var seqPart = lastCode[prefix.Length..];
+            if (int.TryParse(seqPart, out var lastSeq))
+                seq = lastSeq + 1;
+        }
 
         return $"{prefix}{seq:D3}";
     }
