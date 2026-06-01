@@ -63,5 +63,9 @@ public class ChuyenTiepWorkflowCreateRequestValidator : AbstractValidator<Chuyen
         RuleFor(x => x.HanhDong)
             .NotEmpty().WithMessage("HanhDong khong duoc de trong")
             .MaximumLength(50).WithMessage("HanhDong toi da 50 ky tu");
+
+        RuleFor(x => x)
+            .Must(x => x.TuBuocId != x.DenBuocId)
+            .WithMessage("TuBuocId va DenBuocId phai khac nhau");
     }
 }

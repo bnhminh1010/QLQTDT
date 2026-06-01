@@ -34,6 +34,7 @@ public class BuocWorkflowService : IBuocWorkflowService
                 TenBuoc = b.TenBuoc,
                 LoaiBuoc = b.LoaiBuoc,
                 VaiTroXuLyId = b.VaiTroXuLyId,
+                KhoaPhongXuLyId = b.KhoaPhongXuLyId,
                 ChoPhepBoQua = b.ChoPhepBoQua,
                 SoNgaySLA = b.SoNgaySLA
             })
@@ -66,7 +67,8 @@ public class BuocWorkflowService : IBuocWorkflowService
             LoaiBuoc = request.LoaiBuoc,
             VaiTroXuLyId = request.VaiTroXuLyId,
             ChoPhepBoQua = request.ChoPhepBoQua,
-            SoNgaySLA = request.SoNgaySLA
+            SoNgaySLA = request.SoNgaySLA,
+            KhoaPhongXuLyId = request.KhoaPhongXuLyId
         };
 
         _context.BuocWorkflows.Add(entity);
@@ -83,7 +85,8 @@ public class BuocWorkflowService : IBuocWorkflowService
             LoaiBuoc = entity.LoaiBuoc,
             VaiTroXuLyId = entity.VaiTroXuLyId,
             ChoPhepBoQua = entity.ChoPhepBoQua,
-            SoNgaySLA = entity.SoNgaySLA
+            SoNgaySLA = entity.SoNgaySLA,
+            KhoaPhongXuLyId = entity.KhoaPhongXuLyId
         };
     }
 
@@ -100,10 +103,17 @@ public class BuocWorkflowService : IBuocWorkflowService
 
         if (request.VaiTroXuLyId.HasValue)
         {
-            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyId.Value);
-            if (!roleExists)
-                throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyId.Value}");
-            entity.VaiTroXuLyId = request.VaiTroXuLyId;
+            if (request.VaiTroXuLyId.Value == 0)
+            {
+                entity.VaiTroXuLyId = null;
+            }
+            else
+            {
+                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyId.Value);
+                if (!roleExists)
+                    throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyId.Value}");
+                entity.VaiTroXuLyId = request.VaiTroXuLyId;
+            }
         }
 
         if (request.ChoPhepBoQua.HasValue)
@@ -111,6 +121,14 @@ public class BuocWorkflowService : IBuocWorkflowService
 
         if (request.SoNgaySLA.HasValue)
             entity.SoNgaySLA = request.SoNgaySLA.Value;
+
+        if (request.KhoaPhongXuLyId.HasValue)
+        {
+            if (request.KhoaPhongXuLyId.Value == 0)
+                entity.KhoaPhongXuLyId = null;
+            else
+                entity.KhoaPhongXuLyId = request.KhoaPhongXuLyId.Value;
+        }
 
         await _context.SaveChangesAsync();
 
@@ -121,6 +139,11 @@ public class BuocWorkflowService : IBuocWorkflowService
     {
         var entity = await _context.BuocWorkflows.FindAsync(id)
             ?? throw new NotFoundException($"BuocWorkflow not found: {id}");
+
+        var workflowActive = await _context.Workflows.AnyAsync(w => w.Id == entity.WorkflowId && w.TrangThaiHoatDong);
+        if (workflowActive)
+            throw new AppException(400, "WORKFLOW_ACTIVE",
+                "Cannot delete step when its workflow template is active. Deactivate the workflow first.");
 
         var hasTransitions = await _context.ChuyenTiepWorkflows.AnyAsync(
             t => t.TuBuocId == id || t.DenBuocId == id);

@@ -8,39 +8,39 @@ using QLQTDT.Api.Services;
 namespace QLQTDT.Api.Controllers;
 
 [ApiController]
-[Route("api/workflows/{workflowId}/steps")]
-public class WorkflowStepsController : ControllerBase
+[Route("api/workflows/{workflowId}/transitions")]
+public class WorkflowTransitionsController : ControllerBase
 {
     private readonly IBuocWorkflowService _buocWorkflowService;
 
-    public WorkflowStepsController(IBuocWorkflowService buocWorkflowService)
+    public WorkflowTransitionsController(IBuocWorkflowService buocWorkflowService)
     {
         _buocWorkflowService = buocWorkflowService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<BuocWorkflowListItemDto>>>> GetAll(int workflowId)
+    public async Task<ActionResult<ApiResponse<List<ChuyenTiepWorkflowListItemDto>>>> GetAll(int workflowId)
     {
-        var items = await _buocWorkflowService.GetStepsByWorkflowIdAsync(workflowId);
-        return Ok(ApiResponse<List<BuocWorkflowListItemDto>>.Ok(items));
+        var items = await _buocWorkflowService.GetTransitionsByWorkflowIdAsync(workflowId);
+        return Ok(ApiResponse<List<ChuyenTiepWorkflowListItemDto>>.Ok(items));
     }
 
     [HttpPost]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<ApiResponse<BuocWorkflowListItemDto>>> Create(
+    public async Task<ActionResult<ApiResponse<ChuyenTiepWorkflowListItemDto>>> Create(
         int workflowId,
-        [FromBody] BuocWorkflowCreateRequest request,
-        [FromServices] IValidator<BuocWorkflowCreateRequest> validator)
+        [FromBody] ChuyenTiepWorkflowCreateRequest request,
+        [FromServices] IValidator<ChuyenTiepWorkflowCreateRequest> validator)
     {
         var validation = await validator.ValidateAsync(request);
         if (!validation.IsValid)
             return BadRequest(ToValidationError(validation));
 
-        var created = await _buocWorkflowService.CreateStepAsync(workflowId, request);
+        var created = await _buocWorkflowService.CreateTransitionAsync(workflowId, request);
         return StatusCode(StatusCodes.Status201Created,
-            ApiResponse<BuocWorkflowListItemDto>.Ok(created, "Step created successfully"));
+            ApiResponse<ChuyenTiepWorkflowListItemDto>.Ok(created, "Transition created successfully"));
     }
 
     private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()

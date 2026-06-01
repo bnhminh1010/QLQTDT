@@ -8,39 +8,39 @@ using QLQTDT.Api.Services;
 namespace QLQTDT.Api.Controllers;
 
 [ApiController]
-[Route("api/workflows/{workflowId}/steps")]
-public class WorkflowStepsController : ControllerBase
+[Route("api/workflows/steps")]
+public class WorkflowStepItemController : ControllerBase
 {
     private readonly IBuocWorkflowService _buocWorkflowService;
 
-    public WorkflowStepsController(IBuocWorkflowService buocWorkflowService)
+    public WorkflowStepItemController(IBuocWorkflowService buocWorkflowService)
     {
         _buocWorkflowService = buocWorkflowService;
     }
 
-    [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<BuocWorkflowListItemDto>>>> GetAll(int workflowId)
-    {
-        var items = await _buocWorkflowService.GetStepsByWorkflowIdAsync(workflowId);
-        return Ok(ApiResponse<List<BuocWorkflowListItemDto>>.Ok(items));
-    }
-
-    [HttpPost]
+    [HttpPut("{id}")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<ApiResponse<BuocWorkflowListItemDto>>> Create(
-        int workflowId,
-        [FromBody] BuocWorkflowCreateRequest request,
-        [FromServices] IValidator<BuocWorkflowCreateRequest> validator)
+    public async Task<ActionResult<ApiResponse>> Update(
+        int id,
+        [FromBody] BuocWorkflowUpdateRequest request,
+        [FromServices] IValidator<BuocWorkflowUpdateRequest> validator)
     {
         var validation = await validator.ValidateAsync(request);
         if (!validation.IsValid)
             return BadRequest(ToValidationError(validation));
 
-        var created = await _buocWorkflowService.CreateStepAsync(workflowId, request);
-        return StatusCode(StatusCodes.Status201Created,
-            ApiResponse<BuocWorkflowListItemDto>.Ok(created, "Step created successfully"));
+        await _buocWorkflowService.UpdateStepAsync(id, request);
+        return Ok(ApiResponse.Ok("Step updated successfully"));
+    }
+
+    [HttpDelete("{id}")]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse>> Delete(int id)
+    {
+        await _buocWorkflowService.DeleteStepAsync(id);
+        return Ok(ApiResponse.Ok("Step deleted successfully"));
     }
 
     private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()

@@ -223,6 +223,7 @@ public class AppDbContext : DbContext
                 .WithMany(b => b.ChuyenTiepDen)
                 .HasForeignKey(e => e.DenBuocId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(t => new { t.TuBuocId, t.HanhDong }).IsUnique();
         });
 
         // WorkflowInstance
