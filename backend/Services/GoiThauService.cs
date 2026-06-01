@@ -16,13 +16,15 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         if (page < 1) throw new BadRequestException("page phải lớn hơn hoặc bằng 1.");
         if (pageSize < 1 || pageSize > 100) throw new BadRequestException("pageSize phải từ 1 đến 100.");
 
-        if (!string.IsNullOrWhiteSpace(trangThai) && !GoiThauTrangThai.All.Contains(trangThai))
+        var normalizedTrangThai = trangThai?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedTrangThai) && !GoiThauTrangThai.All.Contains(normalizedTrangThai))
             throw new BadRequestException($"trangThai không hợp lệ. Giá trị hợp lệ: {string.Join(", ", GoiThauTrangThai.All)}");
 
         var query = _set.Where(g => g.TrangThaiHoatDong);
 
-        if (!string.IsNullOrWhiteSpace(trangThai))
-            query = query.Where(g => g.TrangThai == trangThai);
+        if (!string.IsNullOrWhiteSpace(normalizedTrangThai))
+            query = query.Where(g => g.TrangThai == normalizedTrangThai);
 
         var total = await query.CountAsync();
         var items = await query
@@ -99,13 +101,15 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 return await base.CreateAsync(entity);
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException)
-                when (attempt < 3)
             {
                 // Race condition: 2 request đồng thời sinh cùng mã → thử lại
+                if (attempt == 3)
+                    throw new ConflictException("Không thể tạo mã gói thầu do xung đột đồng thời. Vui lòng thử lại.");
             }
         }
 
-        throw new ConflictException("Không thể tạo mã gói thầu do xung đột đồng thời. Vui lòng thử lại.");
+        // Không bao giờ tới đây nhưng compiler cần return path
+        throw new ConflictException("Không thể tạo mã gói thầu. Vui lòng thử lại.");
     }
 
     public async Task<GoiThau> UpdateAsync(int id, UpdateGoiThauDto dto)
