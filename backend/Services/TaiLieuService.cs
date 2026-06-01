@@ -61,7 +61,7 @@ public partial class TaiLieuService : ITaiLieuService
                 entities.Add(new TaiLieuHoSo
                 {
                     GoiThauId = goiThauId,
-                    TenFile = file.FileName,
+                    TenFile = Path.GetFileName(file.FileName), // tránh lưu full path từ client
                     DuongDanFtp = ftpPath,
                     KichThuoc = file.Length,
                     LoaiTaiLieu = normalizedLoai,
@@ -79,9 +79,10 @@ public partial class TaiLieuService : ITaiLieuService
         catch
         {
             // Dọn FTP nếu DB save thất bại hoặc upload trung gian lỗi
+            // Dùng CancellationToken.None để cleanup chạy dù request đã bị cancel
             foreach (var path in uploadedPaths)
             {
-                try { await _ftp.DeleteAsync(path, ct); }
+                try { await _ftp.DeleteAsync(path, CancellationToken.None); }
                 catch { /* best effort */ }
             }
             throw;
