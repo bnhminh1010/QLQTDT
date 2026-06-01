@@ -100,9 +100,11 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
                 return await base.CreateAsync(entity);
             }
-            catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+                when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx
+                      && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
             {
-                // Race condition: 2 request đồng thời sinh cùng mã → thử lại
+                // Race condition: unique constraint trên MaGoiThau → thử lại
                 if (attempt == 3)
                     throw new ConflictException("Không thể tạo mã gói thầu do xung đột đồng thời. Vui lòng thử lại.");
             }
