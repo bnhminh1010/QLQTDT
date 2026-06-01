@@ -105,6 +105,8 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.MaSoThue).HasMaxLength(20).IsRequired();
             entity.Property(e => e.TenCongTy).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(100);
+            entity.Property(e => e.SoDienThoai).HasMaxLength(20);
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.HasIndex(e => e.MaSoThue).IsUnique();
             entity.HasOne(e => e.NguoiDung).WithMany().HasForeignKey(e => e.NguoiDungId);
