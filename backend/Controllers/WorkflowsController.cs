@@ -19,10 +19,17 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<WorkflowListItemDto>>>> GetAll()
+    public async Task<ActionResult<ApiResponse<PagedResult<WorkflowListItemDto>>>> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        var items = await _workflowService.GetWorkflowsAsync();
-        return Ok(ApiResponse<List<WorkflowListItemDto>>.Ok(items));
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+        if (pageSize > 100) pageSize = 100;
+
+        var items = await _workflowService.GetWorkflowsAsync(search, page, pageSize);
+        return Ok(ApiResponse<PagedResult<WorkflowListItemDto>>.Ok(items));
     }
 
     [HttpPost]

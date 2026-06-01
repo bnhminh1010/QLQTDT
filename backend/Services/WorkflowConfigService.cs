@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
 
@@ -19,10 +20,22 @@ public class WorkflowConfigService : IWorkflowConfigService
         _logger = logger;
     }
 
-    public async Task<List<WorkflowListItemDto>> GetWorkflowsAsync()
+    public async Task<PagedResult<WorkflowListItemDto>> GetWorkflowsAsync(string? search, int page, int pageSize)
     {
-        return await _context.Workflows
+        var query = _context.Workflows.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var keyword = search.Trim();
+            query = query.Where(w => w.TenWorkflow.Contains(keyword) || w.MaWorkflow.Contains(keyword));
+        }
+
+        var total = await query.CountAsync();
+
+        var items = await query
             .OrderBy(w => w.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(w => new WorkflowListItemDto
             {
                 Id = w.Id,
@@ -31,6 +44,14 @@ public class WorkflowConfigService : IWorkflowConfigService
                 TrangThaiHoatDong = w.TrangThaiHoatDong
             })
             .ToListAsync();
+
+        return new PagedResult<WorkflowListItemDto>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<WorkflowCreateResponse> CreateWorkflowAsync(WorkflowCreateRequest request)
