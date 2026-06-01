@@ -5,7 +5,7 @@ namespace QLQTDT.Api.Services;
 public interface ITaiLieuService
 {
     Task<List<TaiLieuUploadResultDto>> UploadAsync(
-        IFormFileCollection files, int? goiThauId, string? loaiTaiLieu, CancellationToken ct = default);
+        List<IFormFile>? files, int? goiThauId, string? loaiTaiLieu, CancellationToken ct = default);
 
     Task<(Stream stream, string fileName, string contentType)> DownloadAsync(
         int id, CancellationToken ct = default);

@@ -19,15 +19,13 @@ public class FilesController : ControllerBase
     }
 
     [HttpPost("upload")]
-    [RequestSizeLimit(104_857_600)]             // 100MB tổng request
+    [RequestSizeLimit(104_857_600)]
     [RequestFormLimits(MultipartBodyLengthLimit = 104_857_600)]
     public async Task<ActionResult<ApiResponse<List<TaiLieuUploadResultDto>>>> Upload(
-        [FromForm] IFormFileCollection files,
-        [FromForm] int? goiThauId,
-        [FromForm] string? loaiTaiLieu,
+        [FromForm] UploadFormModel model,
         CancellationToken ct)
     {
-        var results = await _service.UploadAsync(files, goiThauId, loaiTaiLieu, ct);
+        var results = await _service.UploadAsync(model.Files, model.GoiThauId, model.LoaiTaiLieu, ct);
         return Ok(ApiResponse<List<TaiLieuUploadResultDto>>.Ok(
             results, $"Upload {results.Count} file thành công"));
     }

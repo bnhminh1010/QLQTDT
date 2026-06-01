@@ -25,7 +25,7 @@ public partial class TaiLieuService : ITaiLieuService
     }
 
     public async Task<List<TaiLieuUploadResultDto>> UploadAsync(
-        IFormFileCollection files, int? goiThauId, string? loaiTaiLieu, CancellationToken ct = default)
+        List<IFormFile>? files, int? goiThauId, string? loaiTaiLieu, CancellationToken ct = default)
     {
         if (files == null || files.Count == 0)
             throw new BadRequestException("Không có file nào được upload.");
