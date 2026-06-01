@@ -15,6 +15,7 @@ public class BuocWorkflow : IBaseEntity
 
     public Workflow? Workflow { get; set; }
     public VaiTro? VaiTroXuLy { get; set; }
+    public KhoaPhong? KhoaPhongXuLy { get; set; }
     public ICollection<ChuyenTiepWorkflow> ChuyenTiepDi { get; set; } = [];
     public ICollection<ChuyenTiepWorkflow> ChuyenTiepDen { get; set; } = [];
 }

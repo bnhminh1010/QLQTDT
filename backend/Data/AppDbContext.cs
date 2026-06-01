@@ -206,6 +206,10 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.VaiTroXuLyId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.KhoaPhongXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.KhoaPhongXuLyId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => new { e.WorkflowId, e.MaBuoc }).IsUnique();
         });
 

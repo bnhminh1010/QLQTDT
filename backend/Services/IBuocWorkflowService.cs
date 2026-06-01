@@ -11,4 +11,5 @@ public interface IBuocWorkflowService
     Task DeleteStepAsync(int id);
     Task<List<ChuyenTiepWorkflowListItemDto>> GetTransitionsByWorkflowIdAsync(int workflowId);
     Task<ChuyenTiepWorkflowListItemDto> CreateTransitionAsync(int workflowId, ChuyenTiepWorkflowCreateRequest request);
+    Task DeleteTransitionAsync(int id);
 }
