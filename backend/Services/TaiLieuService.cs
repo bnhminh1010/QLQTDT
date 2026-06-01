@@ -39,10 +39,11 @@ public partial class TaiLieuService : ITaiLieuService
 
         foreach (var file in files)
         {
+            var displayName = Path.GetFileName(file.FileName);
             if (file.Length == 0)
-                throw new BadRequestException($"File '{file.FileName}' trống.");
+                throw new BadRequestException($"File '{displayName}' trống.");
             if (file.Length > MaxFileSizeBytes)
-                throw new BadRequestException($"File '{file.FileName}' vượt quá giới hạn 50MB.");
+                throw new BadRequestException($"File '{displayName}' vượt quá giới hạn 50MB.");
         }
 
         var userId = GetCurrentUserId();
