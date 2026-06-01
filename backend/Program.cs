@@ -185,6 +185,7 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IVaiTroService, VaiTroService>();
 builder.Services.AddScoped<IQuyenService, QuyenService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IIntegrationService, IntegrationService>();
 builder.Services.AddScoped<IWorkflowConfigService, WorkflowConfigService>();
 
 
