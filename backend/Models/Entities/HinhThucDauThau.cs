@@ -7,4 +7,6 @@ public class HinhThucDauThau : IBaseEntity
     public string TenHinhThuc { get; set; } = null!;
     public decimal? HanMucToiDa { get; set; }
     public bool TrangThaiHoatDong { get; set; } = true;
+
+    public ICollection<Workflow> Workflows { get; set; } = [];
 }

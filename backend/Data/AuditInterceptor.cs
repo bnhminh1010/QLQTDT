@@ -34,6 +34,8 @@ public class AuditInterceptor : SaveChangesInterceptor
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
 
         var userId = GetCurrentUserId();
+
+        // Không audit khi không có user đăng nhập (ví dụ: seed data khi khởi động)
         if (userId == 0)
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
 
