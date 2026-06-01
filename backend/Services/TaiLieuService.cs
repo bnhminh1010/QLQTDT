@@ -129,7 +129,8 @@ public partial class TaiLieuService : ITaiLieuService
         }
 
         entity.DaXoa = true;
-        await _db.SaveChangesAsync(ct);
+        // Dùng None để DB luôn được cập nhật dù request bị cancel sau khi FTP đã xóa
+        await _db.SaveChangesAsync(CancellationToken.None);
     }
 
     public async Task<List<TaiLieuDto>> GetListAsync(int? goiThauId, string? loaiTaiLieu)
@@ -169,7 +170,7 @@ public partial class TaiLieuService : ITaiLieuService
         var month = DateTime.UtcNow.Month.ToString("D2");
         var goiThauFolder = goiThauId.HasValue ? $"gt{goiThauId}" : "general";
 
-        var ext = Path.GetExtension(originalFileName).TrimStart('.');
+        var ext = Path.GetExtension(originalFileName).TrimStart('.').ToLowerInvariant();
         ext = ExtSanitizeRegex().Replace(ext, "");
         if (ext.Length > 10) ext = ext[..10];
         if (string.IsNullOrEmpty(ext)) ext = "bin";
