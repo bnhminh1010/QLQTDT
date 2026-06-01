@@ -19,8 +19,8 @@ public class FilesController : ControllerBase
     }
 
     [HttpPost("upload")]
-    [RequestSizeLimit(104_857_600)]
-    [RequestFormLimits(MultipartBodyLengthLimit = 104_857_600)]
+    [RequestSizeLimit(524_288_000)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 524_288_000)]
     public async Task<ActionResult<ApiResponse<List<TaiLieuUploadResultDto>>>> Upload(
         [FromForm] UploadFormModel model,
         CancellationToken ct)
