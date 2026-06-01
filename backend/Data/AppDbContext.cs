@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
     public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
+    public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -196,6 +197,22 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Workflow)
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowId);
+        });
+
+        // GoiThau
+        modelBuilder.Entity<GoiThau>(entity =>
+        {
+            entity.ToTable("GoiThau");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaGoiThau).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.TenGoiThau).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.MoTa).HasMaxLength(1000);
+            entity.Property(e => e.GiaGoiThau).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired().HasDefaultValue("DU_THAO");
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.HasIndex(e => e.MaGoiThau).IsUnique();
         });
     }
 }
