@@ -14,8 +14,14 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
 {
     public GoiThauController(IGoiThauService service) : base(service) { }
 
+    [NonAction]
+    public override Task<ActionResult<ApiResponse<PagedResult<GoiThau>>>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+        => throw new NotSupportedException();
+
     [HttpGet]
-    public override async Task<ActionResult<ApiResponse<PagedResult<GoiThau>>>> GetAll(
+    public async Task<ActionResult<ApiResponse<PagedResult<GoiThauDto>>>> Search(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {

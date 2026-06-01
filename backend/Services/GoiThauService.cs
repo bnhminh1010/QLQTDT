@@ -16,7 +16,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         if (page < 1) throw new BadRequestException("page phải lớn hơn hoặc bằng 1.");
         if (pageSize < 1 || pageSize > 100) throw new BadRequestException("pageSize phải từ 1 đến 100.");
 
-        if (trangThai is not null && !GoiThauTrangThai.All.Contains(trangThai))
+        if (!string.IsNullOrWhiteSpace(trangThai) && !GoiThauTrangThai.All.Contains(trangThai))
             throw new BadRequestException($"trangThai không hợp lệ. Giá trị hợp lệ: {string.Join(", ", GoiThauTrangThai.All)}");
 
         var query = _set.Where(g => g.TrangThaiHoatDong);
@@ -78,21 +78,34 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
     public async Task<GoiThau> CreateAsync(CreateGoiThauDto dto)
     {
-        var maGoiThau = await GenerateMaGoiThauAsync();
-
-        var entity = new GoiThau
+        for (var attempt = 1; attempt <= 3; attempt++)
         {
-            MaGoiThau = maGoiThau,
-            TenGoiThau = dto.TenGoiThau,
-            MoTa = dto.MoTa,
-            DeXuatId = dto.DeXuatId,
-            GiaGoiThau = dto.GiaGoiThau,
-            TrangThai = GoiThauTrangThai.DU_THAO,
-            TrangThaiHoatDong = true,
-            NgayTao = DateTime.UtcNow
-        };
+            try
+            {
+                var maGoiThau = await GenerateMaGoiThauAsync();
 
-        return await base.CreateAsync(entity);
+                var entity = new GoiThau
+                {
+                    MaGoiThau = maGoiThau,
+                    TenGoiThau = dto.TenGoiThau,
+                    MoTa = dto.MoTa,
+                    DeXuatId = dto.DeXuatId,
+                    GiaGoiThau = dto.GiaGoiThau,
+                    TrangThai = GoiThauTrangThai.DU_THAO,
+                    TrangThaiHoatDong = true,
+                    NgayTao = DateTime.UtcNow
+                };
+
+                return await base.CreateAsync(entity);
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+                when (attempt < 3 && ex.InnerException?.Message.Contains("MaGoiThau") == true)
+            {
+                // Race condition: 2 request đồng thời sinh cùng mã → thử lại
+            }
+        }
+
+        throw new ConflictException("Không thể tạo mã gói thầu do xung đột đồng thời. Vui lòng thử lại.");
     }
 
     public async Task<GoiThau> UpdateAsync(int id, UpdateGoiThauDto dto)
@@ -136,19 +149,16 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         var year = DateTime.UtcNow.Year;
         var prefix = $"GT-{year}-";
 
-        var lastCode = await _set
+        // Lấy max seq theo giá trị số, tránh lỗi string sort khi seq > 999
+        var maxSeq = await _set
             .Where(g => g.MaGoiThau.StartsWith(prefix))
-            .OrderByDescending(g => g.MaGoiThau)
-            .Select(g => g.MaGoiThau)
-            .FirstOrDefaultAsync();
+            .Select(g => g.MaGoiThau.Substring(prefix.Length))
+            .ToListAsync();
 
-        var seq = 1;
-        if (lastCode is not null)
-        {
-            var seqPart = lastCode[prefix.Length..];
-            if (int.TryParse(seqPart, out var lastSeq))
-                seq = lastSeq + 1;
-        }
+        var seq = maxSeq
+            .Select(s => int.TryParse(s, out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
 
         return $"{prefix}{seq:D3}";
     }
