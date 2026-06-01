@@ -1,6 +1,6 @@
 namespace QLQTDT.Api.Models.Entities;
 
-public class HinhThucDauThau
+public class HinhThucDauThau : IBaseEntity
 {
     public int Id { get; set; }
     public string MaHinhThuc { get; set; } = null!;
