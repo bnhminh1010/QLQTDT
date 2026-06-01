@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
     public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
+    public DbSet<TaiLieuHoSo> TaiLieuHoSos => Set<TaiLieuHoSo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -196,6 +197,20 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Workflow)
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowId);
+        });
+
+        // TaiLieuHoSo
+        modelBuilder.Entity<TaiLieuHoSo>(entity =>
+        {
+            entity.ToTable("TaiLieuHoSo");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenFile).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.DuongDanFtp).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.LoaiTaiLieu).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ContentType).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.KichThuoc).IsRequired();
+            entity.Property(e => e.DaXoa).HasDefaultValue(false);
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
         });
     }
 }
