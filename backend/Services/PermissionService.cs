@@ -12,10 +12,10 @@ namespace QLQTDT.Api.Services;
 /// </summary>
 public class PermissionService : IPermissionService
 {
-    private const string CacheKeyPrefix = "UserPermissions:";
-
     private readonly AppDbContext _context;
     private readonly IHttpContextAccessor _httpContextAccessor;
+
+    private const string CacheKeyPrefix = "UserPermissions:";
 
     public PermissionService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
     {
@@ -44,35 +44,31 @@ public class PermissionService : IPermissionService
         }
 
         // 2. Kiểm tra user còn active không — lớp bảo vệ runtime
+        //    khi token JWT vẫn còn sống nhưng user đã bị khóa
         var isActive = await _context.NguoiDungs
-            .AnyAsync(user => user.Id == userId && user.TrangThaiHoatDong);
+            .AnyAsync(u => u.Id == userId && u.TrangThaiHoatDong);
 
         if (!isActive)
         {
-            var empty = (IReadOnlySet<string>)new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (httpContext != null)
-            {
-                httpContext.Items[cacheKey] = empty;
-            }
+            var empty = (IReadOnlySet<string>)new HashSet<string>();
+            httpContext?.Items[cacheKey] = empty;
             return empty;
         }
 
         // 3. Query chuỗi: User → UserRoles → Roles → RolePermissions → Permissions
         //    Filter: VaiTro.DaXoa == false, Quyen.DaXoa == false
         var permissions = await _context.NguoiDungKhoaPhongVaiTros
-            .Where(userRole => userRole.NguoiDungId == userId)
-            .Select(userRole => userRole.VaiTro)
-            .Where(role => !role.DaXoa)
-            .SelectMany(role => role.VaiTroQuyens)
-            .Select(rolePermission => rolePermission.Quyen)
-            .Where(permission => !permission.DaXoa)
-            .Select(permission => permission.MaQuyen)
+            .Where(nkv => nkv.NguoiDungId == userId)
+            .Select(nkv => nkv.VaiTro)
+            .Where(vt => !vt.DaXoa)
+            .SelectMany(vt => vt.VaiTroQuyens)
+            .Select(vtq => vtq.Quyen)
+            .Where(q => !q.DaXoa)
+            .Select(q => q.MaQuyen)
             .Distinct()
             .ToListAsync();
 
-        var result = (IReadOnlySet<string>)new HashSet<string>(
-            permissions,
-            StringComparer.OrdinalIgnoreCase);
+        var result = (IReadOnlySet<string>)new HashSet<string>(permissions, StringComparer.OrdinalIgnoreCase);
 
         // 4. Cache vào HttpContext.Items (chỉ sống trong request hiện tại)
         if (httpContext != null)

@@ -106,15 +106,13 @@ public class GoogleAuthService : IGoogleAuthService
         // Lấy roles và permissions
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
-        var permissions = await _permissionService.GetPermissionsAsync(user.Id);
+        var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
         // Sinh JWT
-        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissions);
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
 
-        // Lấy danh sách quyền (permissions) từ DB
-        var permissions = (await _permissionService.GetPermissionsAsync(user.Id))
-            .OrderBy(q => q)
-            .ToList();
+        // Chuyển thành List<string> đã sort cho response
+        var permissionList = permissionSet.OrderBy(q => q).ToList();
 
         return new LoginResponseDto
         {
@@ -130,7 +128,7 @@ public class GoogleAuthService : IGoogleAuthService
                 NgayTao = user.NgayTao,
                 AvatarUrl = user.AvatarUrl,
                 Roles = userRoles,
-                Quyen = permissions
+                Quyen = permissionList
             }
         };
     }
