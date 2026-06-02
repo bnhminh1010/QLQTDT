@@ -67,13 +67,13 @@ export default function Sidebar() {
             </Link>
           </li>
           <li>
-            <a
-              href="#"
-              className="flex items-center gap-2.5 px-4 py-[9px] text-[13px] text-slate-400 hover:bg-white/[0.06] hover:text-slate-300 transition-colors"
+            <Link
+              to="/lap-quy-trinh"
+              className={link("/lap-quy-trinh")}
             >
               <i className="fa-solid fa-diagram-project w-4 text-center shrink-0" />
               <span>Lập quy trình</span>
-            </a>
+            </Link>
           </li>
         </ul>
 
