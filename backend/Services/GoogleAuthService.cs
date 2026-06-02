@@ -15,17 +15,20 @@ public class GoogleAuthService : IGoogleAuthService
     private readonly JwtService _jwtService;
     private readonly GoogleAuthConfig _googleConfig;
     private readonly ILogger<GoogleAuthService> _logger;
+    private readonly IPermissionService _permissionService;
 
     public GoogleAuthService(
         AppDbContext context,
         JwtService jwtService,
         IOptions<GoogleAuthConfig> googleConfig,
-        ILogger<GoogleAuthService> logger)
+        ILogger<GoogleAuthService> logger,
+        IPermissionService permissionService)
     {
         _context = context;
         _jwtService = jwtService;
         _googleConfig = googleConfig.Value;
         _logger = logger;
+        _permissionService = permissionService;
     }
 
     public async Task<LoginResponseDto> GoogleLoginAsync(string idToken)
@@ -100,12 +103,13 @@ public class GoogleAuthService : IGoogleAuthService
         if (!user.TrangThaiHoatDong)
             throw new ForbiddenException("Tài khoản đang chờ quản trị viên phê duyệt hoặc đã bị khóa.");
 
-        // Lấy roles
+        // Lấy roles và permissions
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var permissions = await _permissionService.GetPermissionsAsync(user.Id);
 
         // Sinh JWT
-        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames);
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissions);
 
         return new LoginResponseDto
         {
