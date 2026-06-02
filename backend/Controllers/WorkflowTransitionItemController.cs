@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
@@ -6,6 +7,7 @@ using QLQTDT.Api.Services;
 namespace QLQTDT.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = "ADMIN,PHONG_QLDT")]
 [Route("api/workflows/transitions")]
 public class WorkflowTransitionItemController : ControllerBase
 {

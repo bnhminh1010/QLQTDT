@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
@@ -8,6 +9,7 @@ using QLQTDT.Api.Services;
 namespace QLQTDT.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/workflows/{workflowId}/steps")]
 public class WorkflowStepsController : ControllerBase
 {
@@ -26,6 +28,7 @@ public class WorkflowStepsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "ADMIN,PHONG_QLDT")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
