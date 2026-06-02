@@ -103,12 +103,13 @@ public class GoogleAuthService : IGoogleAuthService
         if (!user.TrangThaiHoatDong)
             throw new ForbiddenException("Tài khoản đang chờ quản trị viên phê duyệt hoặc đã bị khóa.");
 
-        // Lấy roles
+        // Lấy roles và permissions
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var permissions = await _permissionService.GetPermissionsAsync(user.Id);
 
         // Sinh JWT
-        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames);
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissions);
 
         // Lấy danh sách quyền (permissions) từ DB
         var permissions = (await _permissionService.GetPermissionsAsync(user.Id))
