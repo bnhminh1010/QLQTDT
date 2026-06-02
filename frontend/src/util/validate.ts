@@ -121,13 +121,23 @@ export const resetPasswordSchema = yup.object({
 // ─── Tạo Gói Thầu ─────────────────────────────────────────────────────────────
 
 export const taoGoiThauSchema = yup.object({
-  ten: yup.string().trim().required("Vui lòng nhập tên gói thầu"),
+  ten: yup
+    .string()
+    .trim()
+    .required("Vui lòng nhập tên gói thầu")
+    .min(5, "Tên gói thầu phải có ít nhất 5 ký tự")
+    .max(255, "Tên gói thầu không được vượt quá 255 ký tự"),
   hinhThuc: yup.string().required("Vui lòng chọn hình thức đấu thầu"),
   giaTriStr: yup
     .string()
     .trim()
     .required("Vui lòng nhập giá trị gói thầu")
-    .matches(/^[\d,]+$/, "Giá trị chỉ được chứa chữ số (VD: 320,000,000)"),
+    .matches(/^[\d,]+$/, "Giá trị chỉ được chứa chữ số (VD: 320,000,000)")
+    .test(
+      "greater-than-zero",
+      "Giá trị gói thầu phải lớn hơn 0",
+      (val) => Number((val ?? "").replace(/,/g, "")) > 0,
+    ),
   nguonVon: yup.string().required("Vui lòng chọn nguồn vốn"),
   donVi: yup.string().required("Vui lòng chọn đơn vị đề xuất"),
   ngayTao: yup.string().required("Vui lòng chọn ngày tạo"),

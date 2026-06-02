@@ -27,17 +27,75 @@ type User = {
 };
 
 const DATA: User[] = [
-  { id: "U001", hoTen: "Nguyễn Văn Admin", username: "admin", email: "admin@bvungbuou.vn", phong: "Ban Giám đốc", vaiTro: "Admin", trangThai: "Hoạt động", ngayTao: "01/01/2025" },
-  { id: "U002", hoTen: "Trần Thị Bình", username: "ttbinh", email: "ttbinh@bvungbuou.vn", phong: "P.Kế hoạch", vaiTro: "Quản lý", trangThai: "Hoạt động", ngayTao: "05/01/2025" },
-  { id: "U003", hoTen: "Lê Văn Cường", username: "lvcuong", email: "lvcuong@bvungbuou.vn", phong: "Khoa Dược", vaiTro: "Nhân viên", trangThai: "Hoạt động", ngayTao: "10/01/2025" },
-  { id: "U004", hoTen: "Phạm Thị Dung", username: "ptdung", email: "ptdung@bvungbuou.vn", phong: "Khoa Xét nghiệm", vaiTro: "Nhân viên", trangThai: "Chờ duyệt", ngayTao: "15/02/2025" },
-  { id: "U005", hoTen: "Hoàng Văn Em", username: "hvem", email: "hvem@bvungbuou.vn", phong: "P.HCQT", vaiTro: "Quản lý", trangThai: "Hoạt động", ngayTao: "20/02/2025" },
-  { id: "U006", hoTen: "Ngô Thị Phương", username: "ntphuong", email: "ntphuong@bvungbuou.vn", phong: "Khoa Nội", vaiTro: "Nhân viên", trangThai: "Bị khóa", ngayTao: "01/03/2025" },
+  {
+    id: "U001",
+    hoTen: "Nguyễn Văn Admin",
+    username: "admin",
+    email: "admin@bvungbuou.vn",
+    phong: "Ban Giám đốc",
+    vaiTro: "Admin",
+    trangThai: "Hoạt động",
+    ngayTao: "01/01/2025",
+  },
+  {
+    id: "U002",
+    hoTen: "Trần Thị Bình",
+    username: "ttbinh",
+    email: "ttbinh@bvungbuou.vn",
+    phong: "P.Kế hoạch",
+    vaiTro: "Quản lý",
+    trangThai: "Hoạt động",
+    ngayTao: "05/01/2025",
+  },
+  {
+    id: "U003",
+    hoTen: "Lê Văn Cường",
+    username: "lvcuong",
+    email: "lvcuong@bvungbuou.vn",
+    phong: "Khoa Dược",
+    vaiTro: "Nhân viên",
+    trangThai: "Hoạt động",
+    ngayTao: "10/01/2025",
+  },
+  {
+    id: "U004",
+    hoTen: "Phạm Thị Dung",
+    username: "ptdung",
+    email: "ptdung@bvungbuou.vn",
+    phong: "Khoa Xét nghiệm",
+    vaiTro: "Nhân viên",
+    trangThai: "Chờ duyệt",
+    ngayTao: "15/02/2025",
+  },
+  {
+    id: "U005",
+    hoTen: "Hoàng Văn Em",
+    username: "hvem",
+    email: "hvem@bvungbuou.vn",
+    phong: "P.HCQT",
+    vaiTro: "Quản lý",
+    trangThai: "Hoạt động",
+    ngayTao: "20/02/2025",
+  },
+  {
+    id: "U006",
+    hoTen: "Ngô Thị Phương",
+    username: "ntphuong",
+    email: "ntphuong@bvungbuou.vn",
+    phong: "Khoa Nội",
+    vaiTro: "Nhân viên",
+    trangThai: "Bị khóa",
+    ngayTao: "01/03/2025",
+  },
 ];
 
 const AVATAR_COLORS = [
-  "bg-blue-500", "bg-purple-500", "bg-emerald-500",
-  "bg-amber-500", "bg-red-500", "bg-indigo-500",
+  "bg-blue-500",
+  "bg-purple-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-red-500",
+  "bg-indigo-500",
 ];
 
 function getInitials(name: string) {
@@ -83,18 +141,59 @@ export default function NguoiDung() {
           {/* KPI */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             {[
-              ["fa-users", "blue", "TỔNG NGƯỜI DÙNG", DATA.length.toString(), "tài khoản", "text-blue-600"],
-              ["fa-circle-check", "green", "HOẠT ĐỘNG", DATA.filter(d => d.trangThai === "Hoạt động").length.toString(), "người", "text-emerald-600"],
-              ["fa-hourglass-half", "amber", "CHỜ DUYỆT", DATA.filter(d => d.trangThai === "Chờ duyệt").length.toString(), "yêu cầu", "text-amber-600"],
-              ["fa-lock", "red", "BỊ KHÓA", DATA.filter(d => d.trangThai === "Bị khóa").length.toString(), "tài khoản", "text-red-500"],
+              [
+                "fa-users",
+                "blue",
+                "TỔNG NGƯỜI DÙNG",
+                DATA.length.toString(),
+                "tài khoản",
+                "text-blue-600",
+              ],
+              [
+                "fa-circle-check",
+                "green",
+                "HOẠT ĐỘNG",
+                DATA.filter(
+                  (d) => d.trangThai === "Hoạt động",
+                ).length.toString(),
+                "người",
+                "text-emerald-600",
+              ],
+              [
+                "fa-hourglass-half",
+                "amber",
+                "CHỜ DUYỆT",
+                DATA.filter(
+                  (d) => d.trangThai === "Chờ duyệt",
+                ).length.toString(),
+                "yêu cầu",
+                "text-amber-600",
+              ],
+              [
+                "fa-lock",
+                "red",
+                "BỊ KHÓA",
+                DATA.filter((d) => d.trangThai === "Bị khóa").length.toString(),
+                "tài khoản",
+                "text-red-500",
+              ],
             ].map(([icon, color, lbl, val, sub, valCls]) => (
-              <div key={lbl} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg ${color === "blue" ? "bg-blue-100 text-blue-600" : color === "green" ? "bg-emerald-100 text-emerald-600" : color === "amber" ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-500"}`}>
+              <div
+                key={lbl}
+                className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4"
+              >
+                <div
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg ${color === "blue" ? "bg-blue-100 text-blue-600" : color === "green" ? "bg-emerald-100 text-emerald-600" : color === "amber" ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-500"}`}
+                >
                   <i className={`fa-solid ${icon}`} />
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold text-slate-400 tracking-wide">{lbl}</div>
-                  <div className={`text-2xl font-extrabold ${valCls}`}>{val}</div>
+                  <div className="text-[10px] font-bold text-slate-400 tracking-wide">
+                    {lbl}
+                  </div>
+                  <div className={`text-2xl font-extrabold ${valCls}`}>
+                    {val}
+                  </div>
                   <div className="text-xs text-slate-400">{sub}</div>
                 </div>
               </div>
@@ -104,7 +203,9 @@ export default function NguoiDung() {
           {/* FILTER + TABLE */}
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center gap-3">
-              <span className="font-semibold text-slate-800 text-sm flex-1">Danh sách tài khoản</span>
+              <span className="font-semibold text-slate-800 text-sm flex-1">
+                Danh sách tài khoản
+              </span>
               <div className="relative">
                 <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
                 <input
@@ -156,27 +257,39 @@ export default function NguoiDung() {
                     >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-bold ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}>
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-bold ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}
+                          >
                             {getInitials(u.hoTen)}
                           </div>
                           <div>
-                            <div className="font-medium text-slate-800">{u.hoTen}</div>
-                            <div className="text-xs text-slate-400">@{u.username}</div>
+                            <div className="font-medium text-slate-800">
+                              {u.hoTen}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              @{u.username}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-3 text-slate-500">{u.phong}</td>
                       <td className="px-5 py-3">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${VAI_TRO_BADGE[u.vaiTro]}`}>
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${VAI_TRO_BADGE[u.vaiTro]}`}
+                        >
                           {u.vaiTro}
                         </span>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${TT_BADGE[u.trangThai]}`}>
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${TT_BADGE[u.trangThai]}`}
+                        >
                           {u.trangThai}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-slate-400 text-xs">{u.ngayTao}</td>
+                      <td className="px-5 py-3 text-slate-400 text-xs">
+                        {u.ngayTao}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -188,19 +301,29 @@ export default function NguoiDung() {
         {/* DETAIL PANEL */}
         <aside className="w-[272px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden xl:block">
           {(() => {
-            const i = DATA.findIndex(u => u.id === selected.id);
+            const i = DATA.findIndex((u) => u.id === selected.id);
             return (
               <>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold mb-3 ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}>
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold mb-3 ${AVATAR_COLORS[i % AVATAR_COLORS.length]}`}
+                >
                   {getInitials(selected.hoTen)}
                 </div>
-                <div className="text-sm font-bold text-slate-900 mb-0.5">{selected.hoTen}</div>
-                <div className="text-xs text-slate-400 mb-3">@{selected.username}</div>
+                <div className="text-sm font-bold text-slate-900 mb-0.5">
+                  {selected.hoTen}
+                </div>
+                <div className="text-xs text-slate-400 mb-3">
+                  @{selected.username}
+                </div>
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${VAI_TRO_BADGE[selected.vaiTro]}`}>
+                  <span
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${VAI_TRO_BADGE[selected.vaiTro]}`}
+                  >
                     {selected.vaiTro}
                   </span>
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${TT_BADGE[selected.trangThai]}`}>
+                  <span
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${TT_BADGE[selected.trangThai]}`}
+                  >
                     {selected.trangThai}
                   </span>
                 </div>
@@ -225,7 +348,8 @@ export default function NguoiDung() {
                   </button>
                   {selected.trangThai === "Chờ duyệt" && (
                     <button className="w-full flex items-center justify-center gap-2 text-sm text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-xl py-2.5 transition-colors">
-                      <i className="fa-solid fa-check text-xs" /> Duyệt tài khoản
+                      <i className="fa-solid fa-check text-xs" /> Duyệt tài
+                      khoản
                     </button>
                   )}
                   {selected.trangThai === "Hoạt động" && (

@@ -4,6 +4,8 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
 import { taoGoiThauSchema } from "@/util/validate";
 import type { InferType } from "yup";
+import { useFileAttachment } from "@/hooks/useFileAttachment";
+import { formatBytes, fileIcon, openFile, downloadFile } from "@/util/fileAttachment";
 
 type HinhThuc =
   | "Chỉ định thầu rút gọn"
@@ -47,6 +49,8 @@ type FormData = InferType<typeof taoGoiThauSchema>;
 
 export default function TaoGoiThau() {
   const navigate = useNavigate();
+  const { attachments, getRootProps, getInputProps, isDragActive, removeFile } = useFileAttachment();
+
   const {
     register,
     handleSubmit,
@@ -61,8 +65,14 @@ export default function TaoGoiThau() {
   const hasPreview = !!(watched.ten?.trim() || watched.hinhThuc);
 
   function onSubmit(_data: FormData) {
-    // TODO: gọi API tạo gói thầu
-    toast.success("Gói thầu đã được tạo và đang chờ duyệt");
+    // TODO: gọi API tạo gói thầu (trạng thái: Chờ duyệt)
+    toast.success("Gói thầu đã được gửi đề xuất và đang chờ duyệt");
+    navigate("/danh-sach-goi-thau");
+  }
+
+  function saveDraft() {
+    // TODO: gọi API lưu nháp (trạng thái: Draft)
+    toast.success("Gói thầu đã được lưu nháp");
     navigate("/danh-sach-goi-thau");
   }
 
@@ -255,21 +265,116 @@ export default function TaoGoiThau() {
                 />
               </div>
 
+              {/* TÀI LIỆU ĐÍNH KÈM */}
+              <div>
+                <label className={labelCls}>
+                  Tài liệu đính kèm{" "}
+                  <span className="text-slate-400 font-normal">(PDF, DOCX, XLSX, hình ảnh — tối đa 20 MB/file)</span>
+                </label>
+
+                {/* Drop zone */}
+                <div
+                  {...getRootProps()}
+                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
+                    isDragActive
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-slate-200 hover:border-blue-400 hover:bg-blue-50/40"
+                  }`}
+                >
+                  <input {...getInputProps()} />
+                  <i className={`fa-solid fa-cloud-arrow-up text-2xl mb-2 block ${
+                    isDragActive ? "text-blue-400" : "text-slate-300"
+                  }`} />
+                  <p className="text-xs text-slate-500 font-medium">
+                    {isDragActive ? "Thả file vào đây..." : "Kéo thả hoặc nhấn để chọn file"}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    PDF · DOCX · XLSX · PNG · JPG — tối đa 20 MB/file
+                  </p>
+                </div>
+
+                {/* Danh sách file */}
+                {attachments.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {attachments.map((file, idx) => {
+                      const { icon, color } = fileIcon(file.name);
+                      return (
+                        <li
+                          key={`${file.name}-${idx}`}
+                          className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5"
+                        >
+                          <i className={`fa-solid ${icon} ${color} text-lg shrink-0`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-slate-800 truncate">
+                              {file.name}
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              {formatBytes(file.size)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              title="Xem file"
+                              onClick={() => openFile(file)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            >
+                              <i className="fa-solid fa-eye text-xs" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Tải xuống"
+                              onClick={() => downloadFile(file)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            >
+                              <i className="fa-solid fa-download text-xs" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Xóa file"
+                              onClick={() => removeFile(idx)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            >
+                              <i className="fa-solid fa-xmark text-xs" />
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {attachments.length > 0 && (
+                  <p className="text-[11px] text-slate-400 mt-1.5 text-right">
+                    {attachments.length} file ·{" "}
+                    {formatBytes(attachments.reduce((s, f) => s + f.size, 0))} tổng
+                  </p>
+                )}
+              </div>
+
               {/* ACTIONS */}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate("/danh-sach-goi-thau")}
                   className="px-5 py-2.5 text-sm font-medium border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors"
                 >
                   Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 text-sm font-medium border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 disabled:opacity-60"
+                >
+                  <i className="fa-regular fa-floppy-disk text-xs" /> Lưu nháp
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-60"
                 >
-                  <i className="fa-solid fa-plus text-xs" /> Tạo gói thầu
+                  <i className="fa-solid fa-paper-plane text-xs" /> Gửi đề xuất
                 </button>
               </div>
             </form>

@@ -1,6 +1,18 @@
 import { useState } from "react";
+import { AddModal } from "./AddModal";
+import { EditModal } from "./EditModal";
+import { DeleteModal } from "./DeleteModal";
 
 type DotState = "done" | "warn" | "idle";
+type StepRow = { state: DotState; ten: string; donVi: string; thoiHan: string };
+type DanhMuc = {
+  id: string;
+  hinhThuc: string;
+  badge: string;
+  soGoi: number;
+  active: boolean;
+  steps: StepRow[];
+};
 
 const DOT_CLS: Record<DotState, string> = {
   done: "bg-emerald-500 text-white",
@@ -8,21 +20,13 @@ const DOT_CLS: Record<DotState, string> = {
   idle: "bg-slate-200",
 };
 
-type StepRow = { state: DotState; ten: string; donVi: string; thoiHan: string };
-type DanhMuc = {
-  id: string;
-  hinhThuc: string;
-  badge: string;
-  soGoi: number;
-  steps: StepRow[];
-};
-
-const DANH_MUC: DanhMuc[] = [
+const INIT_DATA: DanhMuc[] = [
   {
     id: "CDT-RG",
     hinhThuc: "Chỉ định thầu rút gọn",
     badge: "bg-blue-100 text-blue-700",
     soGoi: 7,
+    active: true,
     steps: [
       {
         state: "done",
@@ -73,6 +77,7 @@ const DANH_MUC: DanhMuc[] = [
     hinhThuc: "Chỉ định thầu tự quyết định",
     badge: "bg-emerald-100 text-emerald-700",
     soGoi: 4,
+    active: true,
     steps: [
       {
         state: "done",
@@ -111,6 +116,7 @@ const DANH_MUC: DanhMuc[] = [
     hinhThuc: "Chào hàng cạnh tranh",
     badge: "bg-amber-100 text-amber-700",
     soGoi: 8,
+    active: true,
     steps: [
       {
         state: "done",
@@ -203,6 +209,7 @@ const DANH_MUC: DanhMuc[] = [
     hinhThuc: "Đấu thầu rộng rãi",
     badge: "bg-purple-100 text-purple-700",
     soGoi: 5,
+    active: true,
     steps: [
       {
         state: "done",
@@ -321,16 +328,70 @@ function Dot({ state }: { state: DotState }) {
   );
 }
 
-export default function DanhMucThucHien() {
-  const [selected, setSelected] = useState<DanhMuc>(DANH_MUC[0]);
-  const [search, setSearch] = useState("");
+let nextId = 100;
 
-  const filtered = DANH_MUC.filter((d) =>
+export default function DanhMucThucHien() {
+  const [items, setItems] = useState<DanhMuc[]>(INIT_DATA);
+  const [selected, setSelected] = useState<DanhMuc>(INIT_DATA[0]);
+  const [search, setSearch] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<DanhMuc | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DanhMuc | null>(null);
+
+  const filtered = items.filter((d) =>
     d.hinhThuc.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const doneCount = selected.steps.filter((s) => s.state === "done").length;
-  const pct = Math.round((doneCount / selected.steps.length) * 100);
+  const selItem = items.find((d) => d.id === selected.id) ?? items[0];
+  const doneCount = selItem.steps.filter((s) => s.state === "done").length;
+  const pct =
+    selItem.steps.length > 0
+      ? Math.round((doneCount / selItem.steps.length) * 100)
+      : 0;
+
+  function onAdd(values: { hinhThuc: string; badge: string }) {
+    const newItem: DanhMuc = {
+      id: `DM-${++nextId}`,
+      hinhThuc: values.hinhThuc.trim(),
+      badge: values.badge,
+      soGoi: 0,
+      active: true,
+      steps: [],
+    };
+    setItems((prev) => [...prev, newItem]);
+    setAddOpen(false);
+  }
+
+  function onEdit(values: { hinhThuc: string; badge: string }) {
+    if (!editTarget) return;
+    setItems((prev) =>
+      prev.map((d) =>
+        d.id === editTarget.id
+          ? { ...d, hinhThuc: values.hinhThuc.trim(), badge: values.badge }
+          : d,
+      ),
+    );
+    if (selected.id === editTarget.id)
+      setSelected((s) => ({ ...s, hinhThuc: values.hinhThuc.trim(), badge: values.badge }));
+    setEditTarget(null);
+  }
+
+  function toggleActive(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setItems((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, active: !d.active } : d)),
+    );
+  }
+
+  function doDelete() {
+    if (!deleteTarget) return;
+    setItems((prev) => {
+      const next = prev.filter((d) => d.id !== deleteTarget.id);
+      if (selected.id === deleteTarget.id && next.length > 0) setSelected(next[0]);
+      return next;
+    });
+    setDeleteTarget(null);
+  }
 
   return (
     <>
@@ -346,6 +407,12 @@ export default function DanhMucThucHien() {
               5
             </span>
           </button>
+          <button
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            <i className="fa-solid fa-plus text-xs" /> Thêm mới
+          </button>
         </div>
       </header>
 
@@ -354,15 +421,15 @@ export default function DanhMucThucHien() {
         <main className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* SUMMARY CARDS */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-            {DANH_MUC.map((d) => (
+            {items.map((d) => (
               <button
                 key={d.id}
                 onClick={() => setSelected(d)}
                 className={`bg-white rounded-2xl border p-4 text-left transition-all ${
-                  selected.id === d.id
+                  selItem.id === d.id
                     ? "border-blue-400 ring-1 ring-blue-300"
                     : "border-slate-200 hover:border-slate-300"
-                }`}
+                } ${!d.active ? "opacity-50" : ""}`}
               >
                 <span
                   className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium mb-2 ${d.badge}`}
@@ -406,6 +473,7 @@ export default function DanhMucThucHien() {
                       Số gói đang thực hiện
                     </th>
                     <th className="px-5 py-3 text-left">Trạng thái</th>
+                    <th className="px-5 py-3 text-center">Hành động</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -414,14 +482,12 @@ export default function DanhMucThucHien() {
                       key={d.id}
                       onClick={() => setSelected(d)}
                       className={`cursor-pointer transition-colors ${
-                        selected.id === d.id
-                          ? "bg-blue-50"
-                          : "hover:bg-slate-50"
+                        selItem.id === d.id ? "bg-blue-50" : "hover:bg-slate-50"
                       }`}
                     >
                       <td className="px-5 py-3">
                         <span
-                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${d.badge}`}
+                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${d.badge} ${!d.active ? "opacity-50" : ""}`}
                         >
                           {d.hinhThuc}
                         </span>
@@ -435,10 +501,47 @@ export default function DanhMucThucHien() {
                         </span>
                       </td>
                       <td className="px-5 py-3">
-                        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                          <i className="fa-solid fa-circle-check" /> Đang hoạt
-                          động
-                        </span>
+                        {d.active ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+                            <i className="fa-solid fa-circle-check" /> Đang hoạt
+                            động
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                            <i className="fa-solid fa-eye-slash" /> Đã ẩn
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            title="Chỉnh sửa"
+                            onClick={(e) => { e.stopPropagation(); setEditTarget(d); }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          >
+                            <i className="fa-solid fa-pen text-xs" />
+                          </button>
+                          <button
+                            title={d.active ? "Ẩn danh mục" : "Hiện danh mục"}
+                            onClick={(e) => toggleActive(d.id, e)}
+                            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
+                              d.active
+                                ? "text-slate-400 hover:text-amber-500 hover:bg-amber-50"
+                                : "text-amber-500 hover:text-slate-400 hover:bg-slate-100"
+                            }`}
+                          >
+                            <i
+                              className={`fa-solid ${d.active ? "fa-eye-slash" : "fa-eye"} text-xs`}
+                            />
+                          </button>
+                          <button
+                            title="Xóa danh mục"
+                            onClick={(e) => { e.stopPropagation(); setDeleteTarget(d); }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <i className="fa-solid fa-trash text-xs" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -450,19 +553,27 @@ export default function DanhMucThucHien() {
 
         {/* DETAIL PANEL */}
         <aside className="w-[288px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden xl:block">
-          <span
-            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium mb-2 ${selected.badge}`}
-          >
-            {selected.hinhThuc}
-          </span>
+          <div className="flex items-start justify-between mb-2">
+            <span
+              className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${selItem.badge}`}
+            >
+              {selItem.hinhThuc}
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setEditTarget(selItem); }}
+              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+            >
+              <i className="fa-solid fa-pen text-[10px]" /> Sửa
+            </button>
+          </div>
           <div className="text-xs text-slate-400 mb-1">
-            {selected.steps.length} bước quy trình
+            {selItem.steps.length} bước quy trình
           </div>
 
           <div className="flex justify-between text-xs text-slate-600 mb-1.5 mt-3">
             <span>Hoàn thành mẫu</span>
             <span>
-              {doneCount}/{selected.steps.length} bước ({pct}%)
+              {doneCount}/{selItem.steps.length} bước ({pct}%)
             </span>
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
@@ -476,7 +587,7 @@ export default function DanhMucThucHien() {
             CÁC BƯỚC QUY TRÌNH
           </div>
           <div className="space-y-3">
-            {selected.steps.map((s) => (
+            {selItem.steps.map((s) => (
               <div key={s.ten} className="flex items-start gap-2.5">
                 <Dot state={s.state} />
                 <div className="flex-1 min-w-0">
@@ -495,9 +606,35 @@ export default function DanhMucThucHien() {
                 </div>
               </div>
             ))}
+            {selItem.steps.length === 0 && (
+              <p className="text-xs text-slate-400 italic">Chưa có bước nào.</p>
+            )}
           </div>
         </aside>
       </div>
+
+      {/* MODAL THÊM */}
+      {addOpen && (
+        <AddModal onSave={onAdd} onClose={() => setAddOpen(false)} />
+      )}
+
+      {/* MODAL CHỈNH SỬA */}
+      {editTarget && (
+        <EditModal
+          defaultValues={{ hinhThuc: editTarget.hinhThuc, badge: editTarget.badge }}
+          onSave={onEdit}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {/* MODAL XÁC NHẬN XÓA */}
+      {deleteTarget && (
+        <DeleteModal
+          tenDanhMuc={deleteTarget.hinhThuc}
+          onConfirm={doDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
     </>
   );
 }

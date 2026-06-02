@@ -20,12 +20,66 @@ type Phong = {
 };
 
 const DATA: Phong[] = [
-  { id: "KN", ten: "Khoa Nội", loai: "Khoa lâm sàng", truongKhoa: "BS. Nguyễn Văn An", soNhanVien: 24, soGoiThau: 5, email: "khoanoi@bvungbuou.vn", sdt: "028 3812 1234" },
-  { id: "KNG", ten: "Khoa Ngoại", loai: "Khoa lâm sàng", truongKhoa: "BS. Trần Thị Bình", soNhanVien: 18, soGoiThau: 3, email: "khoangoa@bvungbuou.vn", sdt: "028 3812 1235" },
-  { id: "KD", ten: "Khoa Dược", loai: "Khoa cận lâm sàng", truongKhoa: "DS. Lê Văn Cường", soNhanVien: 12, soGoiThau: 8, email: "khoaduoc@bvungbuou.vn", sdt: "028 3812 1236" },
-  { id: "KXN", ten: "Khoa Xét nghiệm", loai: "Khoa cận lâm sàng", truongKhoa: "BS. Phạm Thị Dung", soNhanVien: 15, soGoiThau: 2, email: "khoaxn@bvungbuou.vn", sdt: "028 3812 1237" },
-  { id: "PHCQT", ten: "P.Hành chính quản trị", loai: "Phòng chức năng", truongKhoa: "Ông Hoàng Văn Em", soNhanVien: 10, soGoiThau: 6, email: "phcqt@bvungbuou.vn", sdt: "028 3812 1238" },
-  { id: "PKH", ten: "P.Kế hoạch", loai: "Phòng chức năng", truongKhoa: "Bà Ngô Thị Phương", soNhanVien: 8, soGoiThau: 4, email: "pkh@bvungbuou.vn", sdt: "028 3812 1239" },
+  {
+    id: "KN",
+    ten: "Khoa Nội",
+    loai: "Khoa lâm sàng",
+    truongKhoa: "BS. Nguyễn Văn An",
+    soNhanVien: 24,
+    soGoiThau: 5,
+    email: "khoanoi@bvungbuou.vn",
+    sdt: "028 3812 1234",
+  },
+  {
+    id: "KNG",
+    ten: "Khoa Ngoại",
+    loai: "Khoa lâm sàng",
+    truongKhoa: "BS. Trần Thị Bình",
+    soNhanVien: 18,
+    soGoiThau: 3,
+    email: "khoangoa@bvungbuou.vn",
+    sdt: "028 3812 1235",
+  },
+  {
+    id: "KD",
+    ten: "Khoa Dược",
+    loai: "Khoa cận lâm sàng",
+    truongKhoa: "DS. Lê Văn Cường",
+    soNhanVien: 12,
+    soGoiThau: 8,
+    email: "khoaduoc@bvungbuou.vn",
+    sdt: "028 3812 1236",
+  },
+  {
+    id: "KXN",
+    ten: "Khoa Xét nghiệm",
+    loai: "Khoa cận lâm sàng",
+    truongKhoa: "BS. Phạm Thị Dung",
+    soNhanVien: 15,
+    soGoiThau: 2,
+    email: "khoaxn@bvungbuou.vn",
+    sdt: "028 3812 1237",
+  },
+  {
+    id: "PHCQT",
+    ten: "P.Hành chính quản trị",
+    loai: "Phòng chức năng",
+    truongKhoa: "Ông Hoàng Văn Em",
+    soNhanVien: 10,
+    soGoiThau: 6,
+    email: "phcqt@bvungbuou.vn",
+    sdt: "028 3812 1238",
+  },
+  {
+    id: "PKH",
+    ten: "P.Kế hoạch",
+    loai: "Phòng chức năng",
+    truongKhoa: "Bà Ngô Thị Phương",
+    soNhanVien: 8,
+    soGoiThau: 4,
+    email: "pkh@bvungbuou.vn",
+    sdt: "028 3812 1239",
+  },
 ];
 
 export default function KhoaPhong() {
@@ -63,17 +117,51 @@ export default function KhoaPhong() {
           {/* KPI */}
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
             {[
-              ["fa-building", "blue", "TỔNG KHOA/PHÒNG", DATA.length.toString(), "đơn vị", "text-blue-600"],
-              ["fa-stethoscope", "purple", "KHOA LÂM SÀNG", DATA.filter(d => d.loai === "Khoa lâm sàng").length.toString(), "khoa", "text-purple-600"],
-              ["fa-gear", "gray", "PHÒNG CHỨC NĂNG", DATA.filter(d => d.loai === "Phòng chức năng").length.toString(), "phòng", "text-slate-600"],
+              [
+                "fa-building",
+                "blue",
+                "TỔNG KHOA/PHÒNG",
+                DATA.length.toString(),
+                "đơn vị",
+                "text-blue-600",
+              ],
+              [
+                "fa-stethoscope",
+                "purple",
+                "KHOA LÂM SÀNG",
+                DATA.filter(
+                  (d) => d.loai === "Khoa lâm sàng",
+                ).length.toString(),
+                "khoa",
+                "text-purple-600",
+              ],
+              [
+                "fa-gear",
+                "gray",
+                "PHÒNG CHỨC NĂNG",
+                DATA.filter(
+                  (d) => d.loai === "Phòng chức năng",
+                ).length.toString(),
+                "phòng",
+                "text-slate-600",
+              ],
             ].map(([icon, color, lbl, val, sub, valCls]) => (
-              <div key={lbl} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg ${color === "blue" ? "bg-blue-100 text-blue-600" : color === "purple" ? "bg-purple-100 text-purple-600" : "bg-slate-100 text-slate-500"}`}>
+              <div
+                key={lbl}
+                className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4"
+              >
+                <div
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg ${color === "blue" ? "bg-blue-100 text-blue-600" : color === "purple" ? "bg-purple-100 text-purple-600" : "bg-slate-100 text-slate-500"}`}
+                >
                   <i className={`fa-solid ${icon}`} />
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold text-slate-400 tracking-wide">{lbl}</div>
-                  <div className={`text-2xl font-extrabold ${valCls}`}>{val}</div>
+                  <div className="text-[10px] font-bold text-slate-400 tracking-wide">
+                    {lbl}
+                  </div>
+                  <div className={`text-2xl font-extrabold ${valCls}`}>
+                    {val}
+                  </div>
                   <div className="text-xs text-slate-400">{sub}</div>
                 </div>
               </div>
@@ -83,7 +171,9 @@ export default function KhoaPhong() {
           {/* FILTER + TABLE */}
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center gap-3">
-              <span className="font-semibold text-slate-800 text-sm flex-1">Danh sách khoa/phòng</span>
+              <span className="font-semibold text-slate-800 text-sm flex-1">
+                Danh sách khoa/phòng
+              </span>
               <div className="relative">
                 <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
                 <input
@@ -129,20 +219,30 @@ export default function KhoaPhong() {
                             <i className="fa-solid fa-building text-slate-400 text-sm" />
                           </div>
                           <div>
-                            <div className="font-medium text-slate-800">{p.ten}</div>
+                            <div className="font-medium text-slate-800">
+                              {p.ten}
+                            </div>
                             <div className="text-xs text-slate-400">{p.id}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[p.loai]}`}>
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[p.loai]}`}
+                        >
                           {p.loai}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-slate-600">{p.truongKhoa}</td>
-                      <td className="px-5 py-3 text-center font-semibold text-slate-700">{p.soNhanVien}</td>
+                      <td className="px-5 py-3 text-slate-600">
+                        {p.truongKhoa}
+                      </td>
+                      <td className="px-5 py-3 text-center font-semibold text-slate-700">
+                        {p.soNhanVien}
+                      </td>
                       <td className="px-5 py-3 text-center">
-                        <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">{p.soGoiThau}</span>
+                        <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          {p.soGoiThau}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -157,8 +257,12 @@ export default function KhoaPhong() {
           <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center mb-3">
             <i className="fa-solid fa-building text-blue-600 text-xl" />
           </div>
-          <div className="text-sm font-bold text-slate-900 mb-0.5">{selected.ten}</div>
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium mb-4 ${LOAI_BADGE[selected.loai]}`}>
+          <div className="text-sm font-bold text-slate-900 mb-0.5">
+            {selected.ten}
+          </div>
+          <span
+            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium mb-4 ${LOAI_BADGE[selected.loai]}`}
+          >
             {selected.loai}
           </span>
 
@@ -178,12 +282,24 @@ export default function KhoaPhong() {
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              ["fa-users", "Nhân viên", selected.soNhanVien.toString(), "bg-slate-50"],
-              ["fa-box-archive", "Gói thầu", selected.soGoiThau.toString(), "bg-blue-50"],
+              [
+                "fa-users",
+                "Nhân viên",
+                selected.soNhanVien.toString(),
+                "bg-slate-50",
+              ],
+              [
+                "fa-box-archive",
+                "Gói thầu",
+                selected.soGoiThau.toString(),
+                "bg-blue-50",
+              ],
             ].map(([icon, lbl, val, bg]) => (
               <div key={lbl} className={`${bg} rounded-xl p-3 text-center`}>
                 <i className={`fa-solid ${icon} text-slate-400 mb-1`} />
-                <div className="text-xl font-extrabold text-slate-800">{val}</div>
+                <div className="text-xl font-extrabold text-slate-800">
+                  {val}
+                </div>
                 <div className="text-[11px] text-slate-400">{lbl}</div>
               </div>
             ))}
