@@ -269,4 +269,17 @@ public class AuthService : IAuthService
             })
             .ToListAsync();
     }
+
+    private async Task<List<string>> GetUserPermissions(int userId)
+    {
+        return await (
+                from nguoiDungVaiTro in _context.NguoiDungKhoaPhongVaiTros
+                join vaiTroQuyen in _context.VaiTroQuyens on nguoiDungVaiTro.VaiTroId equals vaiTroQuyen.VaiTroId
+                join quyen in _context.Quyens on vaiTroQuyen.QuyenId equals quyen.Id
+                where nguoiDungVaiTro.NguoiDungId == userId
+                select quyen.MaQuyen)
+            .Distinct()
+            .OrderBy(maQuyen => maQuyen)
+            .ToListAsync();
+    }
 }

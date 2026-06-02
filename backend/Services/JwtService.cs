@@ -18,12 +18,18 @@ public class JwtService
 
     public string GenerateToken(int userId, string email, string fullName, List<string> roles, IEnumerable<string> permissions)
     {
+        return GenerateToken(userId, email, fullName, roles, string.Empty);
+    }
+
+    public string GenerateToken(int userId, string email, string fullName, List<string> roles, string permissions)
+    {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Email, email),
             new(JwtRegisteredClaimNames.Name, fullName),

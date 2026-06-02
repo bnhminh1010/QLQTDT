@@ -1,0 +1,2 @@
+# Hide Claude Code internal state files from GitHub PR diffs
+.omc/** linguist-generated=true
