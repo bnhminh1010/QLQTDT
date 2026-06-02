@@ -49,9 +49,9 @@ public class NhaThauService : BaseService<NhaThau>, INhaThauService
         var entity = new NhaThau
         {
             MaSoThue = dto.MaSoThue,
-            TenCongTy = InputSanitizer.Sanitize(dto.TenCongTy),
-            DiaChi = dto.DiaChi != null ? InputSanitizer.Sanitize(dto.DiaChi) : null,
-            NguoiDaiDien = dto.NguoiDaiDien != null ? InputSanitizer.Sanitize(dto.NguoiDaiDien) : null,
+            TenCongTy = dto.TenCongTy,
+            DiaChi = dto.DiaChi != null ? dto.DiaChi : null,
+            NguoiDaiDien = dto.NguoiDaiDien != null ? dto.NguoiDaiDien : null,
             Email = dto.Email,
             SoDienThoai = dto.SoDienThoai,
             TrangThaiHoatDong = dto.TrangThaiHoatDong ?? true,
