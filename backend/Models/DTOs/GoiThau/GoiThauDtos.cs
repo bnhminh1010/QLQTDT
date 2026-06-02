@@ -1,8 +1,11 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace QLQTDT.Api.Models.DTOs.GoiThau;
 
 public class CreateGoiThauDto
 {
     public string TenGoiThau { get; set; } = null!;
+    [MaxLength(1000)]
     public string? MoTa { get; set; }
     public int? DeXuatId { get; set; }
     public decimal? GiaGoiThau { get; set; }
@@ -11,6 +14,7 @@ public class CreateGoiThauDto
 public class UpdateGoiThauDto
 {
     public string TenGoiThau { get; set; } = null!;
+    [MaxLength(1000)]
     public string? MoTa { get; set; }
     public decimal? GiaGoiThau { get; set; }
 }
