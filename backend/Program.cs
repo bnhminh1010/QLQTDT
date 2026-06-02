@@ -191,6 +191,7 @@ builder.Services.AddScoped<IWorkflowConfigService, WorkflowConfigService>();
 
 builder.Services.AddScoped<IFtpService, FtpService>();
 builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();
+builder.Services.AddScoped<IGoiThauService, GoiThauService>();
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
