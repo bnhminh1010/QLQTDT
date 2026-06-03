@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { toast } from "sonner";
+import { ThemKhoaPhongModal } from "./ThemKhoaPhongModal";
 
 type LoaiPhong = "Khoa lâm sàng" | "Khoa cận lâm sàng" | "Phòng chức năng";
 
@@ -86,8 +88,10 @@ export default function KhoaPhong() {
   const [selected, setSelected] = useState<Phong>(DATA[0]);
   const [search, setSearch] = useState("");
   const [filterLoai, setFilterLoai] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [data, setData] = useState<Phong[]>(DATA);
 
-  const filtered = DATA.filter(
+  const filtered = data.filter(
     (p) =>
       p.ten.toLowerCase().includes(search.toLowerCase()) &&
       (filterLoai === "" || p.loai === filterLoai),
@@ -105,7 +109,10 @@ export default function KhoaPhong() {
               5
             </span>
           </button>
-          <button className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+          <button
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
             <i className="fa-solid fa-plus text-xs" /> Thêm khoa/phòng
           </button>
         </div>
@@ -310,6 +317,27 @@ export default function KhoaPhong() {
           </button>
         </aside>
       </div>
+
+      {addOpen && (
+        <ThemKhoaPhongModal
+          onSave={(values) => {
+            const newPhong: Phong = {
+              id: data.length + 1,
+              ten: values.ten,
+              loai: values.loai,
+              truongKhoa: values.truongKhoa,
+              soNhanVien: values.soNhanVien,
+              soGoiThau: 0,
+              email: values.email,
+              sdt: values.sdt,
+            };
+            setData((prev) => [...prev, newPhong]);
+            toast.success(`Đã thêm "${values.ten}"`);
+            setAddOpen(false);
+          }}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
     </>
   );
 }

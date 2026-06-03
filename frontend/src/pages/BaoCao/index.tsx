@@ -1,3 +1,7 @@
+import { useState } from "react";
+import { toast } from "sonner";
+import { TaoBaoCaoModal } from "./TaoBaoCaoModal";
+
 const KPI = [
   {
     icon: "fa-sack-dollar",
@@ -98,6 +102,8 @@ const MONTHS = [
 const CHART_DATA = [3, 5, 2, 4, 6, 3, 0, 0, 0, 0, 0, 0];
 
 export default function BaoCao() {
+  const [modalOpen, setModalOpen] = useState(false);
+
   return (
     <>
       {/* TOPBAR */}
@@ -112,7 +118,10 @@ export default function BaoCao() {
               9
             </span>
           </button>
-          <button className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
             <i className="fa-solid fa-plus text-xs" /> Tạo báo cáo
           </button>
         </div>
@@ -285,6 +294,16 @@ export default function BaoCao() {
           <p>Chọn một gói thầu từ bảng để xem biểu đồ chi tiết</p>
         </aside>
       </div>
+
+      {modalOpen && (
+        <TaoBaoCaoModal
+          onSave={(values) => {
+            toast.success(`Đã tạo báo cáo "${values.tenBaoCao}"`);
+            setModalOpen(false);
+          }}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </>
   );
 }
