@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
     public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
+    public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
+    public DbSet<ChuyenTiepWorkflow> ChuyenTiepWorkflows => Set<ChuyenTiepWorkflow>();
     public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -184,6 +186,49 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.HinhThucDauThau)
                 .WithMany(h => h.Workflows)
                 .HasForeignKey(e => e.HinhThucId);
+        });
+
+        // BuocWorkflow
+        modelBuilder.Entity<BuocWorkflow>(entity =>
+        {
+            entity.ToTable("BuocWorkflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaBuoc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenBuoc).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.LoaiBuoc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ChoPhepTuChoi).HasDefaultValue(true);
+            entity.Property(e => e.ChoPhepBoQua).HasDefaultValue(false);
+            entity.Property(e => e.SoNgaySLA).HasDefaultValue(0);
+            entity.HasOne(e => e.Workflow)
+                .WithMany(w => w.BuocWorkflows)
+                .HasForeignKey(e => e.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.VaiTroXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.VaiTroXuLyId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.KhoaPhongXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.KhoaPhongXuLyId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => new { e.WorkflowId, e.MaBuoc }).IsUnique();
+        });
+
+        // ChuyenTiepWorkflow
+        modelBuilder.Entity<ChuyenTiepWorkflow>(entity =>
+        {
+            entity.ToTable("ChuyenTiepWorkflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HanhDong).HasMaxLength(50).IsRequired();
+            entity.HasOne(e => e.TuBuoc)
+                .WithMany(b => b.ChuyenTiepDi)
+                .HasForeignKey(e => e.TuBuocId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.DenBuoc)
+                .WithMany(b => b.ChuyenTiepDen)
+                .HasForeignKey(e => e.DenBuocId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(t => new { t.TuBuocId, t.HanhDong }).IsUnique();
         });
 
         // WorkflowInstance
