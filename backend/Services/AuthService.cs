@@ -16,6 +16,7 @@ public class AuthService : IAuthService
     private readonly LoginAttemptGuard _loginGuard;
     private readonly IMemoryCache _cache;
     private readonly ILogger<AuthService> _logger;
+    private readonly IPermissionService _permissionService;
 
     private const int ForgotPasswordMaxRequests = 3;
     private static readonly TimeSpan ForgotPasswordWindow = TimeSpan.FromHours(1);
@@ -26,7 +27,8 @@ public class AuthService : IAuthService
         IEmailService emailService,
         LoginAttemptGuard loginGuard,
         IMemoryCache cache,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IPermissionService permissionService)
     {
         _context = context;
         _jwtService = jwtService;
@@ -34,6 +36,7 @@ public class AuthService : IAuthService
         _loginGuard = loginGuard;
         _cache = cache;
         _logger = logger;
+        _permissionService = permissionService;
     }
 
     public async Task<RegisterResponseDto> RegisterContractorAsync(RegisterContractorDto dto)
@@ -130,13 +133,12 @@ public class AuthService : IAuthService
 
         await _loginGuard.ResetAttemptsAsync(lockoutKey);
 
-        // Lấy danh sách roles
+        // Lấy danh sách roles và permissions
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var permissions = await _permissionService.GetPermissionsAsync(user.Id);
 
-        var permissions = await GetUserPermissions(user.Id);
-        var permissionsClaim = string.Join(',', permissions);
-        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionsClaim);
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissions);
 
         return new LoginResponseDto
         {
