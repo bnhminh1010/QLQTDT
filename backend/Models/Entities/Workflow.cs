@@ -1,6 +1,6 @@
 namespace QLQTDT.Api.Models.Entities;
 
-public class Workflow
+public class Workflow : IBaseEntity
 {
     public int Id { get; set; }
     public string MaWorkflow { get; set; } = null!;
