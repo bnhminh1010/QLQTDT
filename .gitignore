@@ -58,3 +58,6 @@ Quy Định & Hướng Dẫn Dành Cho Dev Team.md
 TestResult.xml
 nunit-*.xml
 .ast-graph/
+
+# Claude Code internal state
+.omc/

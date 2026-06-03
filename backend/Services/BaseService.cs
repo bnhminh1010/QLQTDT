@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
-using QLQTDT.Api.Middleware;
+using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models;
 using System.Linq.Expressions;
 
@@ -35,6 +35,11 @@ public class BaseService<T> : IBaseService<T> where T : class, IBaseEntity
         Expression<Func<T, bool>>? filter = null,
         Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null)
     {
+        if (page < 1)
+            throw new BadRequestException("page phải lớn hơn hoặc bằng 1.");
+        if (pageSize < 1 || pageSize > 100)
+            throw new BadRequestException("pageSize phải từ 1 đến 100.");
+
         var query = _set.AsQueryable();
 
         if (filter is not null)
@@ -62,7 +67,12 @@ public class BaseService<T> : IBaseService<T> where T : class, IBaseEntity
 
     public virtual async Task<T?> GetByIdAsync(int id)
     {
-        return await _set.FindAsync(id);
+        var entity = await _set.FindAsync(id);
+        if (entity is ISoftDeletable softDeletable && softDeletable.DaXoa)
+        {
+            return null;
+        }
+        return entity;
     }
 
     public virtual async Task<T> CreateAsync(T entity)
@@ -102,6 +112,10 @@ public class BaseService<T> : IBaseService<T> where T : class, IBaseEntity
 
     public virtual async Task<bool> ExistsAsync(int id)
     {
+        if (typeof(ISoftDeletable).IsAssignableFrom(typeof(T)))
+        {
+            return await _set.AnyAsync(e => e.Id == id && !EF.Property<bool>(e, "DaXoa"));
+        }
         return await _set.AnyAsync(e => e.Id == id);
     }
 
