@@ -134,7 +134,9 @@ public class AuthService : IAuthService
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
 
-        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames);
+        var permissions = await GetUserPermissions(user.Id);
+        var permissionsClaim = string.Join(',', permissions);
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionsClaim);
 
         return new LoginResponseDto
         {
@@ -263,6 +265,19 @@ public class AuthService : IAuthService
                 TenVaiTro = r.VaiTro.TenVaiTro,
                 LaChinh = r.LaChinh
             })
+            .ToListAsync();
+    }
+
+    private async Task<List<string>> GetUserPermissions(int userId)
+    {
+        return await (
+                from nguoiDungVaiTro in _context.NguoiDungKhoaPhongVaiTros
+                join vaiTroQuyen in _context.VaiTroQuyens on nguoiDungVaiTro.VaiTroId equals vaiTroQuyen.VaiTroId
+                join quyen in _context.Quyens on vaiTroQuyen.QuyenId equals quyen.Id
+                where nguoiDungVaiTro.NguoiDungId == userId
+                select quyen.MaQuyen)
+            .Distinct()
+            .OrderBy(maQuyen => maQuyen)
             .ToListAsync();
     }
 }

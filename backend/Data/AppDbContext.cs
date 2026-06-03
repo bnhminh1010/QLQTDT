@@ -18,6 +18,11 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
+    public DbSet<IntegrationLog> IntegrationLogs => Set<IntegrationLog>();
+    public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
+    public DbSet<Workflow> Workflows => Set<Workflow>();
+    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
+    public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -144,6 +149,72 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HanhDong).HasMaxLength(100).IsRequired();
             entity.Property(e => e.MoTaChiTiet).IsRequired();
             entity.Property(e => e.ThoiGianThucHien).HasDefaultValueSql("GETDATE()");
+        });
+
+        // IntegrationLog
+        modelBuilder.Entity<IntegrationLog>(entity =>
+        {
+            entity.ToTable("IntegrationLog");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HeThong).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.LoaiDongBo).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ThoiGianDongBo).HasDefaultValueSql("GETDATE()");
+        });
+
+        // HinhThucDauThau
+        modelBuilder.Entity<HinhThucDauThau>(entity =>
+        {
+            entity.ToTable("HinhThucDauThau");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaHinhThuc).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenHinhThuc).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.HanMucToiDa).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.HasIndex(e => e.MaHinhThuc).IsUnique();
+        });
+
+        // Workflow
+        modelBuilder.Entity<Workflow>(entity =>
+        {
+            entity.ToTable("Workflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaWorkflow).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenWorkflow).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.HasIndex(e => e.MaWorkflow).IsUnique();
+            entity.HasOne(e => e.HinhThucDauThau)
+                .WithMany(h => h.Workflows)
+                .HasForeignKey(e => e.HinhThucId);
+        });
+
+        // WorkflowInstance
+        modelBuilder.Entity<WorkflowInstance>(entity =>
+        {
+            entity.ToTable("WorkflowInstance");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.NgayBatDau).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayHoanThanh).HasColumnType("datetime2");
+            entity.HasOne(e => e.Workflow)
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowId);
+        });
+
+        // GoiThau
+        modelBuilder.Entity<GoiThau>(entity =>
+        {
+            entity.ToTable("GoiThau");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaGoiThau).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.TenGoiThau).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.MoTa).HasMaxLength(1000);
+            entity.Property(e => e.GiaGoiThau).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired().HasDefaultValue("DU_THAO");
+            entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.HasIndex(e => e.MaGoiThau).IsUnique();
         });
     }
 }

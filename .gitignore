@@ -56,3 +56,6 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 .ast-graph/
+
+# Claude Code internal state
+.omc/
