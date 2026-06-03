@@ -136,9 +136,12 @@ public class AuthService : IAuthService
         // Lấy danh sách roles và permissions
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
-        var permissions = await _permissionService.GetPermissionsAsync(user.Id);
+        var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
-        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissions);
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
+
+        // Chuyển thành List<string> đã sort cho response
+        var permissionList = permissionSet.OrderBy(q => q).ToList();
 
         return new LoginResponseDto
         {
@@ -153,7 +156,8 @@ public class AuthService : IAuthService
                 TrangThaiHoatDong = user.TrangThaiHoatDong,
                 NgayTao = user.NgayTao,
                 AvatarUrl = user.AvatarUrl,
-                Roles = userRoles
+                Roles = userRoles,
+                Quyen = permissionList
             }
         };
     }
@@ -164,6 +168,9 @@ public class AuthService : IAuthService
             ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
 
         var userRoles = await GetUserRoles(user.Id);
+        var permissions = (await _permissionService.GetPermissionsAsync(user.Id))
+            .OrderBy(q => q)
+            .ToList();
 
         return new UserDto
         {
@@ -174,7 +181,8 @@ public class AuthService : IAuthService
             TrangThaiHoatDong = user.TrangThaiHoatDong,
             NgayTao = user.NgayTao,
             AvatarUrl = user.AvatarUrl,
-            Roles = userRoles
+            Roles = userRoles,
+            Quyen = permissions
         };
     }
 
