@@ -10,5 +10,4 @@ public class Workflow : IBaseEntity
     public bool TrangThaiHoatDong { get; set; }
 
     public ICollection<BuocWorkflow> BuocWorkflows { get; set; } = [];
-    public ICollection<WorkflowRule> WorkflowRules { get; set; } = [];
 }

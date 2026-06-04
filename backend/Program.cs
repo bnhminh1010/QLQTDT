@@ -185,12 +185,14 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IVaiTroService, VaiTroService>();
 builder.Services.AddScoped<IQuyenService, QuyenService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IIntegrationService, IntegrationService>();
 builder.Services.AddScoped<IWorkflowConfigService, WorkflowConfigService>();
 
 builder.Services.AddScoped<IFtpService, FtpService>();
 builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();
+builder.Services.AddScoped<IBuocWorkflowService, BuocWorkflowService>();
 builder.Services.AddScoped<IGoiThauService, GoiThauService>();
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

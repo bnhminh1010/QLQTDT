@@ -173,7 +173,6 @@ public static class WorkflowTemplateSeeder
                         SoNgaySLA = sla,
                         ChoPhepTuChoi = choPhepTuChoi,
                         ChoPhepBoQua = choPhepBoQua,
-                        WorkflowDuocChonThuCong = false,
                     };
                     context.BuocWorkflows.Add(buoc);
                 }

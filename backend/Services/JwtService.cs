@@ -16,7 +16,7 @@ public class JwtService
         _config = config.Value;
     }
 
-    public string GenerateToken(int userId, string email, string fullName, List<string> roles)
+    public string GenerateToken(int userId, string email, string fullName, List<string> roles, IEnumerable<string> permissions)
     {
         return GenerateToken(userId, email, fullName, roles, string.Empty);
     }
@@ -34,7 +34,7 @@ public class JwtService
             new(JwtRegisteredClaimNames.Email, email),
             new(JwtRegisteredClaimNames.Name, fullName),
             new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            new("permissions", permissions ?? string.Empty)
+            new("permissions", string.Join(",", permissions))
         };
 
         // Thêm từng role vào claims
