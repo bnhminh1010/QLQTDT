@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using QLQTDT.Api.Data;
 
@@ -11,9 +12,11 @@ using QLQTDT.Api.Data;
 namespace QLQTDT.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260601151202_AddGoiThauEntity")]
+    partial class AddGoiThauEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,94 +24,6 @@ namespace QLQTDT.Api.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.BuocWorkflow", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("ChoPhepBoQua")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<bool>("ChoPhepTuChoi")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<int?>("KhoaPhongXuLyId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("LoaiBuoc")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("MaBuoc")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("SoNgaySLA")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("TenBuoc")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<int?>("VaiTroXuLyId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("WorkflowId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VaiTroXuLyId");
-
-                    b.HasIndex("WorkflowId", "MaBuoc")
-                        .IsUnique();
-
-                    b.ToTable("BuocWorkflow", (string)null);
-                });
-
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.ChuyenTiepWorkflow", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("DenBuocId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("DieuKien")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("HanhDong")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("TuBuocId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DenBuocId");
-
-                    b.HasIndex("TuBuocId");
-
-                    b.ToTable("ChuyenTiepWorkflow", (string)null);
-                });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.GoiThau", b =>
                 {
@@ -514,58 +429,6 @@ namespace QLQTDT.Api.Migrations
                     b.ToTable("Quyen", (string)null);
                 });
 
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.TaiLieuHoSo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("DaXoa")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("DuongDanFtp")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int?>("GoiThauId")
-                        .HasColumnType("int");
-
-                    b.Property<long>("KichThuoc")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("LoaiTaiLieu")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("NgayTao")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2(3)")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.Property<int?>("NguoiUploadId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TenFile")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TaiLieuHoSo", (string)null);
-                });
-
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.VaiTro", b =>
                 {
                     b.Property<int>("Id")
@@ -716,43 +579,6 @@ namespace QLQTDT.Api.Migrations
                     b.ToTable("NhatKyKiemToan", (string)null);
                 });
 
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.BuocWorkflow", b =>
-                {
-                    b.HasOne("QLQTDT.Api.Models.Entities.VaiTro", "VaiTroXuLy")
-                        .WithMany()
-                        .HasForeignKey("VaiTroXuLyId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("QLQTDT.Api.Models.Entities.Workflow", "Workflow")
-                        .WithMany("BuocWorkflows")
-                        .HasForeignKey("WorkflowId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("VaiTroXuLy");
-
-                    b.Navigation("Workflow");
-                });
-
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.ChuyenTiepWorkflow", b =>
-                {
-                    b.HasOne("QLQTDT.Api.Models.Entities.BuocWorkflow", "DenBuoc")
-                        .WithMany("ChuyenTiepDen")
-                        .HasForeignKey("DenBuocId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("QLQTDT.Api.Models.Entities.BuocWorkflow", "TuBuoc")
-                        .WithMany("ChuyenTiepDi")
-                        .HasForeignKey("TuBuocId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DenBuoc");
-
-                    b.Navigation("TuBuoc");
-                });
-
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.NguoiDungKhoaPhongVaiTro", b =>
                 {
                     b.HasOne("QLQTDT.Api.Models.Entities.KhoaPhong", "KhoaPhong")
@@ -839,13 +665,6 @@ namespace QLQTDT.Api.Migrations
                     b.Navigation("Workflow");
                 });
 
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.BuocWorkflow", b =>
-                {
-                    b.Navigation("ChuyenTiepDen");
-
-                    b.Navigation("ChuyenTiepDi");
-                });
-
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.HinhThucDauThau", b =>
                 {
                     b.Navigation("Workflows");
@@ -873,11 +692,6 @@ namespace QLQTDT.Api.Migrations
                     b.Navigation("NguoiDungKhoaPhongVaiTros");
 
                     b.Navigation("VaiTroQuyens");
-                });
-
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.Workflow", b =>
-                {
-                    b.Navigation("BuocWorkflows");
                 });
 #pragma warning restore 612, 618
         }
