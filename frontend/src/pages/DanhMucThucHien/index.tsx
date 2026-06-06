@@ -372,7 +372,11 @@ export default function DanhMucThucHien() {
       ),
     );
     if (selected.id === editTarget.id)
-      setSelected((s) => ({ ...s, hinhThuc: values.hinhThuc.trim(), badge: values.badge }));
+      setSelected((s) => ({
+        ...s,
+        hinhThuc: values.hinhThuc.trim(),
+        badge: values.badge,
+      }));
     setEditTarget(null);
   }
 
@@ -387,7 +391,8 @@ export default function DanhMucThucHien() {
     if (!deleteTarget) return;
     setItems((prev) => {
       const next = prev.filter((d) => d.id !== deleteTarget.id);
-      if (selected.id === deleteTarget.id && next.length > 0) setSelected(next[0]);
+      if (selected.id === deleteTarget.id && next.length > 0)
+        setSelected(next[0]);
       return next;
     });
     setDeleteTarget(null);
@@ -516,7 +521,10 @@ export default function DanhMucThucHien() {
                         <div className="flex items-center justify-center gap-1">
                           <button
                             title="Chỉnh sửa"
-                            onClick={(e) => { e.stopPropagation(); setEditTarget(d); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditTarget(d);
+                            }}
                             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                           >
                             <i className="fa-solid fa-pen text-xs" />
@@ -536,7 +544,10 @@ export default function DanhMucThucHien() {
                           </button>
                           <button
                             title="Xóa danh mục"
-                            onClick={(e) => { e.stopPropagation(); setDeleteTarget(d); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(d);
+                            }}
                             className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                           >
                             <i className="fa-solid fa-trash text-xs" />
@@ -560,7 +571,10 @@ export default function DanhMucThucHien() {
               {selItem.hinhThuc}
             </span>
             <button
-              onClick={(e) => { e.stopPropagation(); setEditTarget(selItem); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditTarget(selItem);
+              }}
               className="text-xs text-blue-600 hover:underline flex items-center gap-1"
             >
               <i className="fa-solid fa-pen text-[10px]" /> Sửa
@@ -614,14 +628,15 @@ export default function DanhMucThucHien() {
       </div>
 
       {/* MODAL THÊM */}
-      {addOpen && (
-        <AddModal onSave={onAdd} onClose={() => setAddOpen(false)} />
-      )}
+      {addOpen && <AddModal onSave={onAdd} onClose={() => setAddOpen(false)} />}
 
       {/* MODAL CHỈNH SỬA */}
       {editTarget && (
         <EditModal
-          defaultValues={{ hinhThuc: editTarget.hinhThuc, badge: editTarget.badge }}
+          defaultValues={{
+            hinhThuc: editTarget.hinhThuc,
+            badge: editTarget.badge,
+          }}
           onSave={onEdit}
           onClose={() => setEditTarget(null)}
         />

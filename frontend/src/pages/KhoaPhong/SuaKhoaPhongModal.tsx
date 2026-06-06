@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import type { LoaiPhong, PhongFormValues } from "./types";
+import type { Phong, LoaiPhong, TrangThai, PhongFormValues } from "./types";
 
 /* ─── Constants ─────────────────────────────────────── */
 const LOAI_OPTIONS: LoaiPhong[] = [
@@ -9,7 +9,8 @@ const LOAI_OPTIONS: LoaiPhong[] = [
 ];
 
 type Props = {
-  existingIds: string[];
+  phong: Phong;
+  existingIds: string[]; // excludes current phong.id — passed from parent
   onSave: (values: PhongFormValues) => void;
   onClose: () => void;
 };
@@ -21,23 +22,28 @@ const inputErrCls =
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
 /* ─── Component ─────────────────────────────────────── */
-export function ThemKhoaPhongModal({ existingIds, onSave, onClose }: Props) {
+export function SuaKhoaPhongModal({
+  phong,
+  existingIds,
+  onSave,
+  onClose,
+}: Props) {
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PhongFormValues>({
     defaultValues: {
-      ma: "",
-      ten: "",
-      loai: "Khoa lâm sàng",
-      truongKhoa: "",
-      soNhanVien: 1,
-      email: "",
-      sdt: "",
-      trangThai: "Đang hoạt động",
-      donViCha: "",
-      moTa: "",
+      ma: phong.id,
+      ten: phong.ten,
+      loai: phong.loai,
+      truongKhoa: phong.truongKhoa,
+      soNhanVien: phong.soNhanVien,
+      email: phong.email,
+      sdt: phong.sdt,
+      trangThai: phong.trangThai,
+      donViCha: phong.donViCha,
+      moTa: phong.moTa,
     },
   });
 
@@ -47,8 +53,8 @@ export function ThemKhoaPhongModal({ existingIds, onSave, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <i className="fa-solid fa-building text-blue-500" />
-            Thêm khoa / phòng mới
+            <i className="fa-solid fa-pen-to-square text-amber-500" />
+            Chỉnh sửa: {phong.ten}
           </h3>
           <button
             type="button"
@@ -231,7 +237,7 @@ export function ThemKhoaPhongModal({ existingIds, onSave, onClose }: Props) {
           <div>
             <label className={labelCls}>Đơn vị cha</label>
             <input
-              className={inputCls}
+              className={errors.donViCha ? inputErrCls : inputCls}
               placeholder="Để trống nếu không có đơn vị cha"
               {...register("donViCha", {
                 maxLength: { value: 100, message: "Tối đa 100 ký tự" },
@@ -313,10 +319,10 @@ export function ThemKhoaPhongModal({ existingIds, onSave, onClose }: Props) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-9 px-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors"
+              className="h-9 px-5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors"
             >
-              <i className="fa-solid fa-plus text-xs" />
-              Thêm khoa/phòng
+              <i className="fa-solid fa-floppy-disk text-xs" />
+              Lưu thay đổi
             </button>
           </div>
         </form>

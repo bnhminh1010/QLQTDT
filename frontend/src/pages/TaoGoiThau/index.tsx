@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -5,14 +6,14 @@ import { toast } from "sonner";
 import { taoGoiThauSchema } from "@/util/validate";
 import type { InferType } from "yup";
 import { useFileAttachment } from "@/hooks/useFileAttachment";
-import { formatBytes, fileIcon, openFile, downloadFile } from "@/util/fileAttachment";
-
-type HinhThuc =
-  | "Chỉ định thầu rút gọn"
-  | "Chỉ định thầu tự quyết định"
-  | "Chỉ định thầu thông thường"
-  | "Chào hàng cạnh tranh"
-  | "Đấu thầu rộng rãi";
+import {
+  formatBytes,
+  fileIcon,
+  openFile,
+  downloadFile,
+} from "@/util/fileAttachment";
+import { addGoiThau, generateGoiThauId, formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
+import type { HinhThuc } from "@/pages/DanhSachGoiThau/goiThauService";
 
 const HT_BADGE: Record<HinhThuc, string> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
@@ -49,7 +50,9 @@ type FormData = InferType<typeof taoGoiThauSchema>;
 
 export default function TaoGoiThau() {
   const navigate = useNavigate();
-  const { attachments, getRootProps, getInputProps, isDragActive, removeFile } = useFileAttachment();
+  const [savingDraft, setSavingDraft] = useState(false);
+  const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
+    useFileAttachment();
 
   const {
     register,
@@ -63,16 +66,58 @@ export default function TaoGoiThau() {
 
   const watched = watch();
   const hasPreview = !!(watched.ten?.trim() || watched.hinhThuc);
+  const ghiChuLen = watched.ghiChu?.length ?? 0;
 
-  function onSubmit(_data: FormData) {
-    // TODO: gọi API tạo gói thầu (trạng thái: Chờ duyệt)
+  /* ─ Gửi đề xuất ─ */
+  function onSubmit(data: FormData) {
+    const num = parseInt(data.giaTriStr.replace(/[^\d]/g, ""), 10) || 0;
+    addGoiThau({
+      id: generateGoiThauId(),
+      ten: data.ten.trim(),
+      hinhThuc: data.hinhThuc as HinhThuc,
+      giaTriStr: formatVND(data.giaTriStr),
+      giaTriNum: num,
+      donVi: data.donVi,
+      trangThai: "Chờ duyệt",
+      detail: {
+        nguonVon: data.nguonVon,
+        ngayTao: data.ngayTao,
+        hanHT: data.hanHT,
+        pct: "0%",
+        buoc: "1/14",
+      },
+    });
     toast.success("Gói thầu đã được gửi đề xuất và đang chờ duyệt");
     navigate("/danh-sach-goi-thau");
   }
 
+  /* ─ Lưu nháp ─ */
   function saveDraft() {
-    // TODO: gọi API lưu nháp (trạng thái: Draft)
-    toast.success("Gói thầu đã được lưu nháp");
+    const values = watch();
+    if (!values.ten?.trim()) {
+      toast.error("Vui lòng nhập tên gói thầu trước khi lưu nháp");
+      return;
+    }
+    setSavingDraft(true);
+    const num =
+      parseInt((values.giaTriStr ?? "").replace(/[^\d]/g, ""), 10) || 0;
+    addGoiThau({
+      id: generateGoiThauId(),
+      ten: values.ten.trim(),
+      hinhThuc: (values.hinhThuc || "Chỉ định thầu rút gọn") as HinhThuc,
+      giaTriStr: values.giaTriStr ? formatVND(values.giaTriStr) : "0",
+      giaTriNum: num,
+      donVi: values.donVi || "—",
+      trangThai: "Nháp",
+      detail: {
+        nguonVon: values.nguonVon || "—",
+        ngayTao: values.ngayTao || "—",
+        hanHT: values.hanHT || "—",
+        pct: "0%",
+        buoc: "0/14",
+      },
+    });
+    toast.success("Gói thầu đã được lưu nháp thành công");
     navigate("/danh-sach-goi-thau");
   }
 
@@ -261,15 +306,37 @@ export default function TaoGoiThau() {
                   rows={3}
                   placeholder="Mô tả nhu cầu mua sắm, lý do cần thiết..."
                   {...register("ghiChu")}
-                  className={`${inputCls} resize-none`}
+                  className={`${
+                    errors.ghiChu ? inputErrCls : inputCls
+                  } resize-none`}
                 />
+                <div className="flex items-center justify-between mt-1">
+                  {errors.ghiChu ? (
+                    <p className="text-xs text-red-500">
+                      {errors.ghiChu.message}
+                    </p>
+                  ) : (
+                    <span />
+                  )}
+                  <span
+                    className={`text-[11px] ml-auto ${
+                      ghiChuLen > 1000
+                        ? "text-red-500 font-semibold"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    {ghiChuLen}/1000
+                  </span>
+                </div>
               </div>
 
               {/* TÀI LIỆU ĐÍNH KÈM */}
               <div>
                 <label className={labelCls}>
                   Tài liệu đính kèm{" "}
-                  <span className="text-slate-400 font-normal">(PDF, DOCX, XLSX, hình ảnh — tối đa 20 MB/file)</span>
+                  <span className="text-slate-400 font-normal">
+                    (PDF, DOCX, XLSX, hình ảnh — tối đa 20 MB/file)
+                  </span>
                 </label>
 
                 {/* Drop zone */}
@@ -282,11 +349,15 @@ export default function TaoGoiThau() {
                   }`}
                 >
                   <input {...getInputProps()} />
-                  <i className={`fa-solid fa-cloud-arrow-up text-2xl mb-2 block ${
-                    isDragActive ? "text-blue-400" : "text-slate-300"
-                  }`} />
+                  <i
+                    className={`fa-solid fa-cloud-arrow-up text-2xl mb-2 block ${
+                      isDragActive ? "text-blue-400" : "text-slate-300"
+                    }`}
+                  />
                   <p className="text-xs text-slate-500 font-medium">
-                    {isDragActive ? "Thả file vào đây..." : "Kéo thả hoặc nhấn để chọn file"}
+                    {isDragActive
+                      ? "Thả file vào đây..."
+                      : "Kéo thả hoặc nhấn để chọn file"}
                   </p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     PDF · DOCX · XLSX · PNG · JPG — tối đa 20 MB/file
@@ -303,7 +374,9 @@ export default function TaoGoiThau() {
                           key={`${file.name}-${idx}`}
                           className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5"
                         >
-                          <i className={`fa-solid ${icon} ${color} text-lg shrink-0`} />
+                          <i
+                            className={`fa-solid ${icon} ${color} text-lg shrink-0`}
+                          />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium text-slate-800 truncate">
                               {file.name}
@@ -347,7 +420,8 @@ export default function TaoGoiThau() {
                 {attachments.length > 0 && (
                   <p className="text-[11px] text-slate-400 mt-1.5 text-right">
                     {attachments.length} file ·{" "}
-                    {formatBytes(attachments.reduce((s, f) => s + f.size, 0))} tổng
+                    {formatBytes(attachments.reduce((s, f) => s + f.size, 0))}{" "}
+                    tổng
                   </p>
                 )}
               </div>
@@ -364,17 +438,27 @@ export default function TaoGoiThau() {
                 <button
                   type="button"
                   onClick={saveDraft}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || savingDraft}
                   className="px-5 py-2.5 text-sm font-medium border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 disabled:opacity-60"
                 >
-                  <i className="fa-regular fa-floppy-disk text-xs" /> Lưu nháp
+                  {savingDraft ? (
+                    <i className="fa-solid fa-circle-notch fa-spin text-xs" />
+                  ) : (
+                    <i className="fa-regular fa-floppy-disk text-xs" />
+                  )}{" "}
+                  Lưu nháp
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || savingDraft}
                   className="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-60"
                 >
-                  <i className="fa-solid fa-paper-plane text-xs" /> Gửi đề xuất
+                  {isSubmitting ? (
+                    <i className="fa-solid fa-circle-notch fa-spin text-xs" />
+                  ) : (
+                    <i className="fa-solid fa-paper-plane text-xs" />
+                  )}{" "}
+                  Gửi đề xuất
                 </button>
               </div>
             </form>
@@ -405,7 +489,7 @@ export default function TaoGoiThau() {
                 {[
                   [
                     "Giá trị",
-                    watched.giaTriStr ? `${watched.giaTriStr} đ` : "—",
+                    watched.giaTriStr ? `${formatVND(watched.giaTriStr)} đ` : "—",
                   ],
                   ["Nguồn vốn", watched.nguonVon || "—"],
                   ["Đơn vị", watched.donVi || "—"],

@@ -132,7 +132,7 @@ export const taoGoiThauSchema = yup.object({
     .string()
     .trim()
     .required("Vui lòng nhập giá trị gói thầu")
-    .matches(/^[\d,]+$/, "Giá trị chỉ được chứa chữ số (VD: 320,000,000)")
+    .matches(/^-?[\d,]+$/, "Giá trị không đúng định dạng (VD: 320,000,000)")
     .test(
       "greater-than-zero",
       "Giá trị gói thầu phải lớn hơn 0",
@@ -153,5 +153,8 @@ export const taoGoiThauSchema = yup.object({
         return val > ngayTao;
       },
     ),
-  ghiChu: yup.string().default(""),
+  ghiChu: yup
+    .string()
+    .default("")
+    .max(1000, "Ghi chú không được vượt quá 1000 ký tự"),
 });

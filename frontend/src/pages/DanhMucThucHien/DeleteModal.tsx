@@ -15,9 +15,8 @@ export function DeleteModal({ tenDanhMuc, onConfirm, onClose }: Props) {
           <div>
             <h2 className="text-sm font-bold text-slate-900">Xác nhận xóa</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Danh mục{" "}
-              <span className="font-semibold">"{tenDanhMuc}"</span>{" "}
-              sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+              Danh mục <span className="font-semibold">"{tenDanhMuc}"</span> sẽ
+              bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
             </p>
           </div>
         </div>

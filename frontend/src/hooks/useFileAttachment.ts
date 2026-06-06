@@ -10,9 +10,12 @@ export function useFileAttachment() {
     accept: {
       "application/pdf": [".pdf"],
       "application/msword": [".doc"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        [".docx"],
       "application/vnd.ms-excel": [".xls"],
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+        ".xlsx",
+      ],
       "image/png": [".png"],
       "image/jpeg": [".jpg", ".jpeg"],
     },
@@ -24,8 +27,7 @@ export function useFileAttachment() {
       );
       if (unique.length < files.length)
         toast.error("Một số file đã được thêm trước đó");
-      if (unique.length > 0)
-        setAttachments((prev) => [...prev, ...unique]);
+      if (unique.length > 0) setAttachments((prev) => [...prev, ...unique]);
     },
     onDropRejected(rejections) {
       rejections.forEach((r) => {

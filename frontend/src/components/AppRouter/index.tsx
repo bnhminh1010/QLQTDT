@@ -6,7 +6,6 @@ import AuthLayout from "@/layouts/AuthLayout";
 
 // Pages
 import Login from "@/pages/Login";
-import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import Dashboard from "@/pages/Dashboard";
 import DanhSachGoiThau from "@/pages/DanhSachGoiThau";
@@ -16,6 +15,7 @@ import KhoaPhong from "@/pages/KhoaPhong";
 import NguoiDung from "@/pages/NguoiDung";
 import BaoCao from "@/pages/BaoCao";
 import LapQuyTrinh from "@/pages/LapQuyTrinh";
+import DanhSachQuyTrinh from "@/pages/DanhSachQuyTrinh";
 
 function AppRoutes() {
   return (
@@ -24,7 +24,6 @@ function AppRoutes() {
       {/* AuthLayout — login / register / forgot password */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
       </Route>
       {/* DefaultLayout — các trang sau đăng nhập */}
@@ -34,6 +33,7 @@ function AppRoutes() {
         <Route path="/tao-goi-thau" element={<TaoGoiThau />} />
         <Route path="/danh-muc-thuc-hien" element={<DanhMucThucHien />} />
         <Route path="/lap-quy-trinh" element={<LapQuyTrinh />} />
+        <Route path="/danh-sach-quy-trinh" element={<DanhSachQuyTrinh />} />
         <Route path="/khoa-phong" element={<KhoaPhong />} />
         <Route path="/nguoi-dung" element={<NguoiDung />} />
         <Route path="/bao-cao" element={<BaoCao />} />

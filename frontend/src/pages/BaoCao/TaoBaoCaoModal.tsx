@@ -30,7 +30,20 @@ const LOAI_OPTIONS: LoaiBaoCao[] = [
 ];
 
 const NAM_OPTIONS = ["2023", "2024", "2025", "2026"];
-const THANG_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const THANG_OPTIONS = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "11",
+  "12",
+];
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
@@ -88,13 +101,19 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
               placeholder="Ví dụ: Báo cáo tổng hợp mua sắm Q1/2025"
               {...register("tenBaoCao", {
                 required: "Vui lòng nhập tên báo cáo",
-                validate: (v) => v.trim().length > 0 || "Tên không được chỉ là khoảng trắng",
+                validate: (v) =>
+                  v.trim().length > 0 || "Tên không được chỉ là khoảng trắng",
                 minLength: { value: 5, message: "Tên phải có ít nhất 5 ký tự" },
-                maxLength: { value: 150, message: "Tên không được vượt quá 150 ký tự" },
+                maxLength: {
+                  value: 150,
+                  message: "Tên không được vượt quá 150 ký tự",
+                },
               })}
             />
             {errors.tenBaoCao && (
-              <p className="text-xs text-red-500 mt-1">{errors.tenBaoCao.message}</p>
+              <p className="text-xs text-red-500 mt-1">
+                {errors.tenBaoCao.message}
+              </p>
             )}
           </div>
 
@@ -108,7 +127,9 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
               {...register("loai", { required: "Vui lòng chọn loại báo cáo" })}
             >
               {LOAI_OPTIONS.map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l}>
+                  {l}
+                </option>
               ))}
             </select>
             {errors.loai && (
@@ -119,28 +140,33 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
           {/* Năm + khoảng tháng */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className={labelCls}>Năm <span className="text-red-500">*</span></label>
+              <label className={labelCls}>
+                Năm <span className="text-red-500">*</span>
+              </label>
               <select
                 className={errors.nam ? inputErrCls : inputCls}
                 {...register("nam", { required: "Chọn năm" })}
               >
                 {NAM_OPTIONS.map((n) => (
-                  <option key={n} value={n}>{n}</option>
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
                 ))}
               </select>
               {errors.nam && (
-                <p className="text-xs text-red-500 mt-1">{errors.nam.message}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.nam.message}
+                </p>
               )}
             </div>
 
             <div>
               <label className={labelCls}>Từ tháng</label>
-              <select
-                className={inputCls}
-                {...register("tuThang")}
-              >
+              <select className={inputCls} {...register("tuThang")}>
                 {THANG_OPTIONS.map((t) => (
-                  <option key={t} value={t}>Tháng {t}</option>
+                  <option key={t} value={t}>
+                    Tháng {t}
+                  </option>
                 ))}
               </select>
             </div>
@@ -151,16 +177,19 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
                 className={errors.denThang ? inputErrCls : inputCls}
                 {...register("denThang", {
                   validate: (v) =>
-                    parseInt(v) >= parseInt(tuThang) ||
-                    "Phải ≥ tháng bắt đầu",
+                    parseInt(v) >= parseInt(tuThang) || "Phải ≥ tháng bắt đầu",
                 })}
               >
                 {THANG_OPTIONS.map((t) => (
-                  <option key={t} value={t}>Tháng {t}</option>
+                  <option key={t} value={t}>
+                    Tháng {t}
+                  </option>
                 ))}
               </select>
               {errors.denThang && (
-                <p className="text-xs text-red-500 mt-1">{errors.denThang.message}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.denThang.message}
+                </p>
               )}
             </div>
           </div>
@@ -173,11 +202,16 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
               className={`${inputCls} resize-none`}
               placeholder="Mô tả thêm về báo cáo này..."
               {...register("ghiChu", {
-                maxLength: { value: 300, message: "Ghi chú không quá 300 ký tự" },
+                maxLength: {
+                  value: 300,
+                  message: "Ghi chú không quá 300 ký tự",
+                },
               })}
             />
             {errors.ghiChu && (
-              <p className="text-xs text-red-500 mt-1">{errors.ghiChu.message}</p>
+              <p className="text-xs text-red-500 mt-1">
+                {errors.ghiChu.message}
+              </p>
             )}
           </div>
 

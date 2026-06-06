@@ -3,9 +3,9 @@ import { useForm } from "react-hook-form";
 
 const BADGE_OPTIONS = [
   { label: "Xanh dương", cls: "bg-blue-100 text-blue-700" },
-  { label: "Xanh lá",    cls: "bg-emerald-100 text-emerald-700" },
-  { label: "Vàng",       cls: "bg-amber-100 text-amber-700" },
-  { label: "Tím",        cls: "bg-purple-100 text-purple-700" },
+  { label: "Xanh lá", cls: "bg-emerald-100 text-emerald-700" },
+  { label: "Vàng", cls: "bg-amber-100 text-amber-700" },
+  { label: "Tím", cls: "bg-purple-100 text-purple-700" },
 ];
 
 type FormValues = {

@@ -67,11 +67,14 @@ export default function Sidebar() {
             </Link>
           </li>
           <li>
-            <Link
-              to="/lap-quy-trinh"
-              className={link("/lap-quy-trinh")}
-            >
+            <Link to="/danh-sach-quy-trinh" className={link("/danh-sach-quy-trinh")}>
               <i className="fa-solid fa-diagram-project w-4 text-center shrink-0" />
+              <span>Danh sách quy trình</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/lap-quy-trinh" className={link("/lap-quy-trinh")}>
+              <i className="fa-solid fa-plus-square w-4 text-center shrink-0" />
               <span>Lập quy trình</span>
             </Link>
           </li>

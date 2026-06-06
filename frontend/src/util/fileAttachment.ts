@@ -1,6 +1,15 @@
 export const ACCEPT_TYPES = ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg";
 
-export const ALLOWED_EXTS = ["pdf", "doc", "docx", "xls", "xlsx", "png", "jpg", "jpeg"];
+export const ALLOWED_EXTS = [
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "png",
+  "jpg",
+  "jpeg",
+];
 
 export const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -13,9 +22,12 @@ export function formatBytes(bytes: number) {
 export function fileIcon(name: string) {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "pdf") return { icon: "fa-file-pdf", color: "text-red-500" };
-  if (["doc", "docx"].includes(ext)) return { icon: "fa-file-word", color: "text-blue-500" };
-  if (["xls", "xlsx"].includes(ext)) return { icon: "fa-file-excel", color: "text-emerald-600" };
-  if (["png", "jpg", "jpeg"].includes(ext)) return { icon: "fa-file-image", color: "text-purple-500" };
+  if (["doc", "docx"].includes(ext))
+    return { icon: "fa-file-word", color: "text-blue-500" };
+  if (["xls", "xlsx"].includes(ext))
+    return { icon: "fa-file-excel", color: "text-emerald-600" };
+  if (["png", "jpg", "jpeg"].includes(ext))
+    return { icon: "fa-file-image", color: "text-purple-500" };
   return { icon: "fa-file", color: "text-slate-400" };
 }
 
@@ -32,5 +44,3 @@ export function downloadFile(file: File) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-
