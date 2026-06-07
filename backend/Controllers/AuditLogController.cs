@@ -7,7 +7,7 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Route("api/audit-log")]
-[Authorize(Roles = "ADMIN,PHONG_QLDT")]
+[Authorize(Roles = "ADMIN,TONG_PHAP_CHE,VIEN_TRUONG")]
 public class AuditLogController : ControllerBase
 {
     private readonly IAuditLogService _service;
