@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
@@ -54,7 +55,7 @@ public class WorkflowConfigService : IWorkflowConfigService
         };
     }
 
-    public async Task<WorkflowCreateResponse> CreateWorkflowAsync(WorkflowCreateRequest request)
+    public async Task<WorkflowCreateResponse> CreateWorkflowAsync(WorkflowCreateRequest request, int? nguoiTaoId)
     {
         var hinhThucExists = await _context.HinhThucDauThaus
             .AnyAsync(h => h.Id == request.HinhThucId);
@@ -77,8 +78,22 @@ public class WorkflowConfigService : IWorkflowConfigService
             TrangThaiHoatDong = true
         };
 
+        await using var tx = await _context.Database.BeginTransactionAsync();
+
         _context.Workflows.Add(entity);
         await _context.SaveChangesAsync();
+
+        _context.WorkflowVersionHistories.Add(new WorkflowVersionHistory
+        {
+            WorkflowId = entity.Id,
+            VersionNumber = 1,
+            SnapshotData = await SerializeSnapshotAsync(entity),
+            NgayTao = DateTime.UtcNow,
+            NguoiTaoId = nguoiTaoId
+        });
+        await _context.SaveChangesAsync();
+
+        await tx.CommitAsync();
 
         _logger.LogInformation("Created workflow: id={WorkflowId}, ma={MaWorkflow}", entity.Id, entity.MaWorkflow);
 
@@ -89,7 +104,7 @@ public class WorkflowConfigService : IWorkflowConfigService
         };
     }
 
-    public async Task UpdateWorkflowAsync(int id, WorkflowUpdateRequest request)
+    public async Task UpdateWorkflowAsync(int id, WorkflowUpdateRequest request, int? nguoiTaoId)
     {
         var entity = await _context.Workflows.FindAsync(id)
             ?? throw new NotFoundException($"Workflow not found: {id}");
@@ -118,9 +133,22 @@ public class WorkflowConfigService : IWorkflowConfigService
         if (duplicate)
             throw new ConflictException("Workflow name already exists for the same bidding method.");
 
+        var nextVersion = await _context.WorkflowVersionHistories
+            .Where(v => v.WorkflowId == id)
+            .MaxAsync(v => (int?)v.VersionNumber) ?? 0;
+
+        _context.WorkflowVersionHistories.Add(new WorkflowVersionHistory
+        {
+            WorkflowId = id,
+            VersionNumber = nextVersion + 1,
+            SnapshotData = await SerializeSnapshotAsync(entity),
+            NgayTao = DateTime.UtcNow,
+            NguoiTaoId = nguoiTaoId
+        });
+
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Updated workflow: id={WorkflowId}", id);
+        _logger.LogInformation("Updated workflow: id={WorkflowId}, version={Version}", id, nextVersion + 1);
     }
 
     public async Task DeleteWorkflowAsync(int id)
@@ -137,6 +165,91 @@ public class WorkflowConfigService : IWorkflowConfigService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Deleted workflow: id={WorkflowId}", id);
+    }
+
+    public async Task<List<WorkflowVersionListItemDto>> GetVersionsAsync(int workflowId)
+    {
+        var workflowExists = await _context.Workflows.AnyAsync(w => w.Id == workflowId);
+        if (!workflowExists)
+            throw new NotFoundException($"Workflow not found: {workflowId}");
+
+        return await _context.WorkflowVersionHistories
+            .Where(v => v.WorkflowId == workflowId)
+            .OrderByDescending(v => v.VersionNumber)
+            .Select(v => new WorkflowVersionListItemDto
+            {
+                Id = v.Id,
+                VersionNumber = v.VersionNumber,
+                NgayTao = v.NgayTao,
+                NguoiTaoId = v.NguoiTaoId,
+                NguoiTaoHoTen = v.NguoiTao != null ? v.NguoiTao.HoTen : null
+            })
+            .ToListAsync();
+    }
+
+    public async Task<WorkflowVersionDetailDto> GetVersionByIdAsync(int workflowId, long versionId)
+    {
+        var version = await _context.WorkflowVersionHistories
+            .Include(v => v.NguoiTao)
+            .Where(v => v.WorkflowId == workflowId && v.Id == versionId)
+            .FirstOrDefaultAsync()
+            ?? throw new NotFoundException($"Version {versionId} not found for workflow {workflowId}");
+
+        return new WorkflowVersionDetailDto
+        {
+            Id = version.Id,
+            VersionNumber = version.VersionNumber,
+            NgayTao = version.NgayTao,
+            NguoiTaoId = version.NguoiTaoId,
+            NguoiTaoHoTen = version.NguoiTao?.HoTen,
+            SnapshotData = version.SnapshotData
+        };
+    }
+
+    private async Task<string> SerializeSnapshotAsync(Workflow workflow)
+    {
+        var buocs = await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == workflow.Id)
+            .ToListAsync();
+
+        var buocIds = buocs.Select(b => b.Id).ToList();
+
+        var chuyenTieps = buocIds.Count > 0
+            ? await _context.ChuyenTiepWorkflows
+                .Where(c => buocIds.Contains(c.TuBuocId))
+                .ToListAsync()
+            : [];
+
+        var snapshot = new WorkflowSnapshotDto
+        {
+            WorkflowId = workflow.Id,
+            MaWorkflow = workflow.MaWorkflow,
+            TenWorkflow = workflow.TenWorkflow,
+            HinhThucId = workflow.HinhThucId,
+            TrangThaiHoatDong = workflow.TrangThaiHoatDong,
+            BuocWorkflows = buocs.Select(b => new BuocSnapshotDto
+            {
+                Id = b.Id,
+                MaBuoc = b.MaBuoc,
+                TenBuoc = b.TenBuoc,
+                LoaiBuoc = b.LoaiBuoc,
+                VaiTroXuLyId = b.VaiTroXuLyId,
+                KhoaPhongXuLyId = b.KhoaPhongXuLyId,
+                SoNgaySLA = b.SoNgaySLA,
+                ChoPhepTuChoi = b.ChoPhepTuChoi,
+                ChoPhepBoQua = b.ChoPhepBoQua
+            }).ToList(),
+            ChuyenTiepWorkflows = chuyenTieps.Select(c => new ChuyenTiepSnapshotDto
+            {
+                Id = c.Id,
+                TuBuocId = c.TuBuocId,
+                DenBuocId = c.DenBuocId,
+                HanhDong = c.HanhDong,
+                DieuKien = c.DieuKien
+            }).ToList()
+        };
+
+        return JsonSerializer.Serialize(snapshot);
     }
 
     private async Task<string> GenerateMaWorkflowAsync()

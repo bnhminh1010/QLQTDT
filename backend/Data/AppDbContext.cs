@@ -25,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
     public DbSet<ChuyenTiepWorkflow> ChuyenTiepWorkflows => Set<ChuyenTiepWorkflow>();
     public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
+    public DbSet<WorkflowVersionHistory> WorkflowVersionHistories => Set<WorkflowVersionHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -243,6 +244,24 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Workflow)
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowId);
+        });
+
+        // WorkflowVersionHistory
+        modelBuilder.Entity<WorkflowVersionHistory>(entity =>
+        {
+            entity.ToTable("WorkflowVersionHistory");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SnapshotData).IsRequired();
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.HasIndex(e => new { e.WorkflowId, e.VersionNumber }).IsUnique();
+            entity.HasOne(e => e.Workflow)
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.NguoiTao)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiTaoId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // GoiThau
