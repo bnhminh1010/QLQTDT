@@ -249,7 +249,7 @@ public class WorkflowConfigService : IWorkflowConfigService
             }).ToList()
         };
 
-        return JsonSerializer.Serialize(snapshot);
+        return JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
     }
 
     private async Task<string> GenerateMaWorkflowAsync()
