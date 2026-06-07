@@ -68,8 +68,10 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("VaiTro");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaVaiTro).HasMaxLength(50).IsRequired();
             entity.Property(e => e.TenVaiTro).HasMaxLength(100).IsRequired();
             entity.Property(e => e.DaXoa).HasDefaultValue(false);
+            entity.HasIndex(e => e.MaVaiTro).IsUnique();
             entity.HasIndex(e => e.TenVaiTro).IsUnique();
         });
 
@@ -114,7 +116,6 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TenCongTy).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.HasIndex(e => e.MaSoThue).IsUnique();
-            entity.HasOne(e => e.NguoiDung).WithMany().HasForeignKey(e => e.NguoiDungId);
         });
 
         // PasswordResetToken
