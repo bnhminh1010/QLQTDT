@@ -10,4 +10,5 @@ public class NhaThau : IBaseEntity
     public string? Email { get; set; }
     public string? SoDienThoai { get; set; }
     public bool TrangThaiHoatDong { get; set; } = true;
+    public int? NguoiDungId { get; set; }
 }
