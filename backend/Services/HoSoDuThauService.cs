@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
@@ -75,15 +76,25 @@ public class HoSoDuThauService : IHoSoDuThauService
             NgayNop = DateTime.UtcNow
         };
 
-        _db.HoSoDuThaus.Add(entity);
-        await _db.SaveChangesAsync();
-
-        // Liên kết file sau khi có entity.Id
-        if (request.FileIds.Count > 0)
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        try
         {
-            await _db.TaiLieuHoSos
-                .Where(f => request.FileIds.Contains(f.Id))
-                .ExecuteUpdateAsync(s => s.SetProperty(f => f.HoSoDuThauId, entity.Id));
+            _db.HoSoDuThaus.Add(entity);
+            await _db.SaveChangesAsync();
+
+            if (request.FileIds.Count > 0)
+            {
+                await _db.TaiLieuHoSos
+                    .Where(f => request.FileIds.Contains(f.Id))
+                    .ExecuteUpdateAsync(s => s.SetProperty(f => f.HoSoDuThauId, entity.Id));
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            await transaction.RollbackAsync();
+            throw new ConflictException("Nhà thầu đã có hồ sơ dự thầu cho gói thầu này.");
         }
 
         return await BuildDetailDtoAsync(entity.Id);
@@ -91,6 +102,9 @@ public class HoSoDuThauService : IHoSoDuThauService
 
     public async Task<PagedResult<HoSoDuThauListItemDto>> GetByGoiThauAsync(int goiThauId, int page, int pageSize)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
         var goiThauExists = await _db.GoiThaus.AnyAsync(g => g.Id == goiThauId);
         if (!goiThauExists)
             throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId}");
@@ -154,7 +168,8 @@ public class HoSoDuThauService : IHoSoDuThauService
 
     public async Task AwardAsync(int goiThauId, AwardGoiThauRequest request)
     {
-        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await using var transaction = await _db.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.RepeatableRead);
 
         var goiThau = await _db.GoiThaus.FindAsync(goiThauId)
             ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId}");
