@@ -42,14 +42,15 @@ public class HoSoDuThauService : IHoSoDuThauService
             throw new ConflictException("Nhà thầu đã có hồ sơ dự thầu cho gói thầu này.");
 
         // Validate fileIds
-        if (request.FileIds.Count > 0)
+        var distinctFileIds = request.FileIds.Distinct().ToList();
+        if (distinctFileIds.Count > 0)
         {
             var files = await _db.TaiLieuHoSos
-                .Where(f => request.FileIds.Contains(f.Id))
+                .Where(f => distinctFileIds.Contains(f.Id))
                 .ToListAsync();
 
             var foundIds = files.Select(f => f.Id).ToHashSet();
-            var missingIds = request.FileIds.Where(id => !foundIds.Contains(id)).ToList();
+            var missingIds = distinctFileIds.Where(id => !foundIds.Contains(id)).ToList();
             if (missingIds.Count > 0)
                 throw new NotFoundException($"Không tìm thấy tài liệu với Id: {string.Join(", ", missingIds)}");
 
@@ -82,10 +83,10 @@ public class HoSoDuThauService : IHoSoDuThauService
             _db.HoSoDuThaus.Add(entity);
             await _db.SaveChangesAsync();
 
-            if (request.FileIds.Count > 0)
+            if (distinctFileIds.Count > 0)
             {
                 await _db.TaiLieuHoSos
-                    .Where(f => request.FileIds.Contains(f.Id))
+                    .Where(f => distinctFileIds.Contains(f.Id))
                     .ExecuteUpdateAsync(s => s.SetProperty(f => f.HoSoDuThauId, entity.Id));
             }
 
@@ -142,10 +143,6 @@ public class HoSoDuThauService : IHoSoDuThauService
 
     public async Task<HoSoDuThauDetailDto> GetByIdAsync(int id)
     {
-        var exists = await _db.HoSoDuThaus.AnyAsync(h => h.Id == id);
-        if (!exists)
-            throw new NotFoundException($"Không tìm thấy hồ sơ dự thầu với Id = {id}");
-
         return await BuildDetailDtoAsync(id);
     }
 
@@ -157,9 +154,13 @@ public class HoSoDuThauService : IHoSoDuThauService
         if (!HoSoDuThauTrangThai.CoTheCapNhat.Contains(request.TrangThai))
             throw new BadRequestException($"Trạng thái không hợp lệ. Các giá trị được phép: {string.Join(", ", HoSoDuThauTrangThai.CoTheCapNhat)}");
 
-        // TRUNG_THAU chỉ set qua award endpoint, không cho phép đổi ngược
         if (entity.TrangThai == HoSoDuThauTrangThai.TRUNG_THAU)
             throw new BadRequestException("Không thể thay đổi trạng thái hồ sơ đã trúng thầu.");
+
+        // Không cho phép quay về CHUA_XU_LY từ trạng thái đã xử lý
+        if (request.TrangThai == HoSoDuThauTrangThai.CHUA_XU_LY
+            && entity.TrangThai != HoSoDuThauTrangThai.CHUA_XU_LY)
+            throw new BadRequestException("Không thể đổi trạng thái về CHUA_XU_LY sau khi đã xử lý.");
 
         entity.TrangThai = request.TrangThai;
         entity.NgayCapNhat = DateTime.UtcNow;
@@ -188,6 +189,9 @@ public class HoSoDuThauService : IHoSoDuThauService
 
         if (hoSo.TrangThai == HoSoDuThauTrangThai.BI_TU_CHOI)
             throw new BadRequestException("Không thể chọn hồ sơ đã bị từ chối.");
+
+        if (request.GiaTrungThau > hoSo.GiaDuThau)
+            throw new BadRequestException("Giá trúng thầu không được cao hơn giá dự thầu.");
 
         hoSo.TrangThai = HoSoDuThauTrangThai.TRUNG_THAU;
         hoSo.GiaTrungThau = request.GiaTrungThau;
