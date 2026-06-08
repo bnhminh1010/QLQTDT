@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,117 +11,123 @@ namespace QLQTDT.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "HoSoDuThauId",
-                table: "TaiLieuHoSo",
-                type: "int",
-                nullable: true);
+            // Cleanup partial state từ các lần migration thất bại trước
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_TaiLieuHoSo_HoSoDuThau_HoSoDuThauId')
+                    ALTER TABLE [TaiLieuHoSo] DROP CONSTRAINT [FK_TaiLieuHoSo_HoSoDuThau_HoSoDuThauId];
+                IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_TaiLieuHoSo_GoiThau_GoiThauId')
+                    ALTER TABLE [TaiLieuHoSo] DROP CONSTRAINT [FK_TaiLieuHoSo_GoiThau_GoiThauId];
+                IF EXISTS (SELECT 1 FROM sys.tables WHERE name = N'HoSoDuThau')
+                    DROP TABLE [HoSoDuThau];
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_TaiLieuHoSo_HoSoDuThauId' AND object_id = OBJECT_ID(N'TaiLieuHoSo'))
+                    DROP INDEX [IX_TaiLieuHoSo_HoSoDuThauId] ON [TaiLieuHoSo];
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_TaiLieuHoSo_GoiThauId' AND object_id = OBJECT_ID(N'TaiLieuHoSo'))
+                    DROP INDEX [IX_TaiLieuHoSo_GoiThauId] ON [TaiLieuHoSo];
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'TaiLieuHoSo') AND name = N'HoSoDuThauId')
+                    ALTER TABLE [TaiLieuHoSo] DROP COLUMN [HoSoDuThauId];
+            ");
 
-            migrationBuilder.AddColumn<int>(
-                name: "NguoiDungId",
-                table: "NhaThau",
-                type: "int",
-                nullable: true);
+            // Thêm cột HoSoDuThauId vào TaiLieuHoSo nếu chưa có
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.columns
+                    WHERE object_id = OBJECT_ID(N'TaiLieuHoSo') AND name = N'HoSoDuThauId'
+                )
+                ALTER TABLE [TaiLieuHoSo] ADD [HoSoDuThauId] int NULL;
+            ");
 
-            migrationBuilder.CreateTable(
-                name: "HoSoDuThau",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    GoiThauId = table.Column<int>(type: "int", nullable: false),
-                    NhaThauId = table.Column<int>(type: "int", nullable: false),
-                    GiaDuThau = table.Column<decimal>(type: "decimal(18,0)", nullable: false),
-                    GiaTrungThau = table.Column<decimal>(type: "decimal(18,0)", nullable: true),
-                    TrangThai = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    GhiChu = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    NgayNop = table.Column<DateTime>(type: "datetime2(3)", nullable: false, defaultValueSql: "GETDATE()"),
-                    NgayCapNhat = table.Column<DateTime>(type: "datetime2(3)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_HoSoDuThau", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_HoSoDuThau_GoiThau_GoiThauId",
-                        column: x => x.GoiThauId,
-                        principalTable: "GoiThau",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_HoSoDuThau_NhaThau_NhaThauId",
-                        column: x => x.NhaThauId,
-                        principalTable: "NhaThau",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
+            // Tạo bảng HoSoDuThau nếu chưa có
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = N'HoSoDuThau')
+                CREATE TABLE [HoSoDuThau] (
+                    [Id] int NOT NULL IDENTITY(1,1),
+                    [GoiThauId] int NOT NULL,
+                    [NhaThauId] int NOT NULL,
+                    [GiaDuThau] decimal(18,0) NOT NULL,
+                    [GiaTrungThau] decimal(18,0) NULL,
+                    [TrangThai] nvarchar(50) NOT NULL,
+                    [GhiChu] nvarchar(1000) NULL,
+                    [NgayNop] datetime2(3) NOT NULL DEFAULT (GETDATE()),
+                    [NgayCapNhat] datetime2(3) NULL,
+                    CONSTRAINT [PK_HoSoDuThau] PRIMARY KEY ([Id]),
+                    CONSTRAINT [FK_HoSoDuThau_GoiThau_GoiThauId] FOREIGN KEY ([GoiThauId])
+                        REFERENCES [GoiThau] ([Id]) ON DELETE NO ACTION,
+                    CONSTRAINT [FK_HoSoDuThau_NhaThau_NhaThauId] FOREIGN KEY ([NhaThauId])
+                        REFERENCES [NhaThau] ([Id]) ON DELETE NO ACTION
+                );
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_TaiLieuHoSo_GoiThauId",
-                table: "TaiLieuHoSo",
-                column: "GoiThauId");
+            // Index IX_TaiLieuHoSo_GoiThauId
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_TaiLieuHoSo_GoiThauId' AND object_id = OBJECT_ID(N'TaiLieuHoSo'))
+                CREATE INDEX [IX_TaiLieuHoSo_GoiThauId] ON [TaiLieuHoSo] ([GoiThauId]);
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_TaiLieuHoSo_HoSoDuThauId",
-                table: "TaiLieuHoSo",
-                column: "HoSoDuThauId");
+            // Index IX_TaiLieuHoSo_HoSoDuThauId
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_TaiLieuHoSo_HoSoDuThauId' AND object_id = OBJECT_ID(N'TaiLieuHoSo'))
+                CREATE INDEX [IX_TaiLieuHoSo_HoSoDuThauId] ON [TaiLieuHoSo] ([HoSoDuThauId]);
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_HoSoDuThau_GoiThauId_NhaThauId",
-                table: "HoSoDuThau",
-                columns: new[] { "GoiThauId", "NhaThauId" },
-                unique: true);
+            // Index unique IX_HoSoDuThau_GoiThauId_NhaThauId
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_HoSoDuThau_GoiThauId_NhaThauId' AND object_id = OBJECT_ID(N'HoSoDuThau'))
+                CREATE UNIQUE INDEX [IX_HoSoDuThau_GoiThauId_NhaThauId] ON [HoSoDuThau] ([GoiThauId], [NhaThauId]);
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_HoSoDuThau_NhaThauId",
-                table: "HoSoDuThau",
-                column: "NhaThauId");
+            // Index IX_HoSoDuThau_NhaThauId
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_HoSoDuThau_NhaThauId' AND object_id = OBJECT_ID(N'HoSoDuThau'))
+                CREATE INDEX [IX_HoSoDuThau_NhaThauId] ON [HoSoDuThau] ([NhaThauId]);
+            ");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_TaiLieuHoSo_GoiThau_GoiThauId",
-                table: "TaiLieuHoSo",
-                column: "GoiThauId",
-                principalTable: "GoiThau",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+            // FK từ TaiLieuHoSo → GoiThau
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_TaiLieuHoSo_GoiThau_GoiThauId')
+                ALTER TABLE [TaiLieuHoSo] ADD CONSTRAINT [FK_TaiLieuHoSo_GoiThau_GoiThauId]
+                    FOREIGN KEY ([GoiThauId]) REFERENCES [GoiThau] ([Id]) ON DELETE NO ACTION;
+            ");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_TaiLieuHoSo_HoSoDuThau_HoSoDuThauId",
-                table: "TaiLieuHoSo",
-                column: "HoSoDuThauId",
-                principalTable: "HoSoDuThau",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
+            // FK từ TaiLieuHoSo → HoSoDuThau
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_TaiLieuHoSo_HoSoDuThau_HoSoDuThauId')
+                ALTER TABLE [TaiLieuHoSo] ADD CONSTRAINT [FK_TaiLieuHoSo_HoSoDuThau_HoSoDuThauId]
+                    FOREIGN KEY ([HoSoDuThauId]) REFERENCES [HoSoDuThau] ([Id]) ON DELETE SET NULL;
+            ");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_TaiLieuHoSo_GoiThau_GoiThauId",
-                table: "TaiLieuHoSo");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_TaiLieuHoSo_GoiThau_GoiThauId')
+                ALTER TABLE [TaiLieuHoSo] DROP CONSTRAINT [FK_TaiLieuHoSo_GoiThau_GoiThauId];
+            ");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_TaiLieuHoSo_HoSoDuThau_HoSoDuThauId",
-                table: "TaiLieuHoSo");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_TaiLieuHoSo_HoSoDuThau_HoSoDuThauId')
+                ALTER TABLE [TaiLieuHoSo] DROP CONSTRAINT [FK_TaiLieuHoSo_HoSoDuThau_HoSoDuThauId];
+            ");
 
-            migrationBuilder.DropTable(
-                name: "HoSoDuThau");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.tables WHERE name = N'HoSoDuThau')
+                DROP TABLE [HoSoDuThau];
+            ");
 
-            migrationBuilder.DropIndex(
-                name: "IX_TaiLieuHoSo_GoiThauId",
-                table: "TaiLieuHoSo");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_TaiLieuHoSo_GoiThauId' AND object_id = OBJECT_ID(N'TaiLieuHoSo'))
+                DROP INDEX [IX_TaiLieuHoSo_GoiThauId] ON [TaiLieuHoSo];
+            ");
 
-            migrationBuilder.DropIndex(
-                name: "IX_TaiLieuHoSo_HoSoDuThauId",
-                table: "TaiLieuHoSo");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_TaiLieuHoSo_HoSoDuThauId' AND object_id = OBJECT_ID(N'TaiLieuHoSo'))
+                DROP INDEX [IX_TaiLieuHoSo_HoSoDuThauId] ON [TaiLieuHoSo];
+            ");
 
-            migrationBuilder.DropColumn(
-                name: "HoSoDuThauId",
-                table: "TaiLieuHoSo");
-
-            migrationBuilder.DropColumn(
-                name: "NguoiDungId",
-                table: "NhaThau");
+            migrationBuilder.Sql(@"
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'TaiLieuHoSo') AND name = N'HoSoDuThauId')
+                ALTER TABLE [TaiLieuHoSo] DROP COLUMN [HoSoDuThauId];
+            ");
         }
     }
 }
