@@ -207,7 +207,6 @@ export function SuaNguoiDungModal({
               })}
             >
               <option value="Hoạt động">Hoạt động</option>
-              <option value="Chờ duyệt">Chờ duyệt</option>
               <option value="Bị khóa">Bị khóa</option>
               <option value="Ngưng hoạt động">Ngưng hoạt động</option>
             </select>

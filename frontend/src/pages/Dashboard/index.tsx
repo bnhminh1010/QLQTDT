@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+/* ─ RBAC ─ */
+const MOCK_CURRENT_ROLE = "Admin"; // "Admin" | "Quản lý" | "Nhân viên"
+const CAN_CREATE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const CAN_APPROVE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+
 type BadgeStatus = "Đang xử lý" | "Hoàn thành" | "Trễ hạn" | "Chờ duyệt";
 type BarColor = "blue" | "green" | "red" | "amber";
 type DotState = "done" | "warn" | "idle";
@@ -203,10 +208,22 @@ export default function Dashboard() {
   const [selectedIdx, setSelectedIdx] = useState(2);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState(NOTIFICATIONS);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<BadgeStatus | "">("");
   const notifRef = useRef<HTMLDivElement>(null);
 
   const selected = TABLE_ROWS[selectedIdx];
   const unreadCount = notifs.filter((n) => !n.read).length;
+
+  const filteredRows = TABLE_ROWS.filter((r) => {
+    const matchSearch =
+      !search ||
+      r.code.toLowerCase().includes(search.toLowerCase()) ||
+      r.name.toLowerCase().includes(search.toLowerCase()) ||
+      r.unit.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = !filterStatus || r.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
 
   /* Close notification dropdown on outside click */
   useEffect(() => {
@@ -296,12 +313,14 @@ export default function Dashboard() {
             )}
           </div>
 
-          <button
-            onClick={() => navigate("/tao-goi-thau")}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <i className="fa-solid fa-plus text-xs" /> Tạo gói thầu
-          </button>
+          {CAN_CREATE && (
+            <button
+              onClick={() => navigate("/tao-goi-thau")}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <i className="fa-solid fa-plus text-xs" /> Tạo gói thầu
+            </button>
+          )}
         </div>
       </header>
 
@@ -338,10 +357,32 @@ export default function Dashboard() {
 
           {/* TABLE */}
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
               <span className="font-semibold text-slate-800 text-sm">
                 Gói thầu cần chú ý
               </span>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Tìm theo mã, tên, đơn vị..."
+                    className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 w-52"
+                  />
+                </div>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value as BadgeStatus | "")}
+                  className="border border-slate-200 rounded-lg text-xs px-2 py-1.5 bg-white focus:outline-none"
+                >
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="Đang xử lý">Đang xử lý</option>
+                  <option value="Hoàn thành">Hoàn thành</option>
+                  <option value="Trễ hạn">Trễ hạn</option>
+                  <option value="Chờ duyệt">Chờ duyệt</option>
+                </select>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -355,36 +396,48 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {TABLE_ROWS.map((row, idx) => (
-                    <tr
-                      key={row.code}
-                      onClick={() => setSelectedIdx(idx)}
-                      className={`cursor-pointer transition-colors ${row.status === "Trễ hạn" ? "bg-red-50/40" : ""} ${selectedIdx === idx ? "bg-blue-50" : "hover:bg-slate-50"}`}
-                    >
-                      <td className="px-5 py-3 font-mono text-xs text-blue-700 font-bold">
-                        {row.code}
-                      </td>
-                      <td className="px-5 py-3 text-slate-800">{row.name}</td>
-                      <td className="px-5 py-3 text-slate-500">{row.unit}</td>
-                      <td className="px-5 py-3">
-                        <Badge label={row.status} />
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <ProgBar color={row.color} pct={row.pct} />
-                        </div>
-                        <span className="text-[11px] text-slate-400 mt-0.5 block">
-                          {row.txt}
-                        </span>
+                  {filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-10 text-slate-400 text-sm">
+                        Không tìm thấy gói thầu phù hợp.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredRows.map((row) => {
+                      const idx = TABLE_ROWS.indexOf(row);
+                      return (
+                        <tr
+                          key={row.code}
+                          onClick={() => setSelectedIdx(idx)}
+                          className={`cursor-pointer transition-colors ${row.status === "Trễ hạn" ? "bg-red-50/40" : ""} ${selectedIdx === idx ? "bg-blue-50" : "hover:bg-slate-50"}`}
+                        >
+                          <td className="px-5 py-3 font-mono text-xs text-blue-700 font-bold">
+                            {row.code}
+                          </td>
+                          <td className="px-5 py-3 text-slate-800">{row.name}</td>
+                          <td className="px-5 py-3 text-slate-500">{row.unit}</td>
+                          <td className="px-5 py-3">
+                            <Badge label={row.status} />
+                          </td>
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-2">
+                              <ProgBar color={row.color} pct={row.pct} />
+                            </div>
+                            <span className="text-[11px] text-slate-400 mt-0.5 block">
+                              {row.txt}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* APPROVAL */}
+          {/* APPROVAL — only visible to Admin/Quản lý */}
+          {CAN_APPROVE && (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-100">
               <span className="font-semibold text-slate-800 text-sm">
@@ -421,6 +474,7 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+          )}
         </main>
 
         {/* DETAIL PANEL — dynamic based on selected row */}
@@ -473,6 +527,23 @@ export default function Dashboard() {
                 </span>
               </div>
             ))}
+            {/* SLA indicator */}
+            <div className="flex justify-between items-center text-xs pt-1">
+              <span className="text-slate-400">SLA</span>
+              {selected.status === "Trễ hạn" ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-semibold text-[11px]">
+                  <i className="fa-solid fa-circle-exclamation text-[10px]" /> Trễ hạn
+                </span>
+              ) : selected.status === "Hoàn thành" ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 font-semibold text-[11px]">
+                  <i className="fa-solid fa-circle-check text-[10px]" /> Đúng hạn
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 font-semibold text-[11px]">
+                  <i className="fa-solid fa-clock text-[10px]" /> Đang theo dõi
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Steps */}
@@ -481,7 +552,11 @@ export default function Dashboard() {
           </div>
           <div className="space-y-3 mb-5">
             {selected.steps.map(([state, name, sub]) => (
-              <div key={name} className="flex items-start gap-2.5">
+              <div
+                key={name}
+                onClick={() => navigate("/danh-sach-goi-thau")}
+                className="flex items-start gap-2.5 cursor-pointer hover:bg-slate-50 rounded-lg p-1 -m-1 transition-colors"
+              >
                 <Dot state={state} />
                 <div>
                   <div className="text-xs font-medium text-slate-800">{name}</div>

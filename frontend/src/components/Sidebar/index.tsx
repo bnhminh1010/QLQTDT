@@ -1,7 +1,21 @@
-import { Link, useLocation } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node))
+        setUserMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   const link = (path: string) =>
     `flex items-center gap-2.5 px-4 py-[9px] text-[13px] transition-colors ${
       pathname === path
@@ -114,16 +128,49 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      <div className="flex items-center gap-2.5 px-4 py-3.5 border-t border-white/[0.07] shrink-0">
-        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
-          T
-        </div>
-        <div>
-          <span className="block text-slate-200 text-[12.5px] font-semibold">
-            Nguyễn Mạnh Tuấn
-          </span>
-          <span className="block text-slate-500 text-[11px]">P.HCQT</span>
-        </div>
+      <div className="relative shrink-0" ref={menuRef}>
+        <button
+          onClick={() => setUserMenuOpen((o) => !o)}
+          className="w-full flex items-center gap-2.5 px-4 py-3.5 border-t border-white/[0.07] hover:bg-white/[0.06] transition-colors"
+        >
+          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            T
+          </div>
+          <div className="flex-1 text-left min-w-0">
+            <span className="block text-slate-200 text-[12.5px] font-semibold truncate">
+              Nguyễn Mạnh Tuấn
+            </span>
+            <span className="block text-slate-500 text-[11px]">P.HCQT</span>
+          </div>
+          <i className={`fa-solid fa-chevron-${userMenuOpen ? "down" : "up"} text-slate-500 text-[10px]`} />
+        </button>
+
+        {userMenuOpen && (
+          <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-[200]">
+            <button
+              onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <i className="fa-solid fa-user-circle text-slate-400 w-4 text-center" />
+              Hồ sơ cá nhân
+            </button>
+            <button
+              onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <i className="fa-solid fa-lock text-slate-400 w-4 text-center" />
+              Đổi mật khẩu
+            </button>
+            <div className="border-t border-slate-100" />
+            <button
+              onClick={() => { setUserMenuOpen(false); navigate("/login"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <i className="fa-solid fa-right-from-bracket text-red-400 w-4 text-center" />
+              Đăng xuất
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

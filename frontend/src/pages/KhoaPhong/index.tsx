@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { ThemKhoaPhongModal } from "./ThemKhoaPhongModal";
 import { SuaKhoaPhongModal } from "./SuaKhoaPhongModal";
-import type { Phong, LoaiPhong, TrangThai } from "./types";
+import type { Phong, LoaiPhong, TrangThai, PhongFormValues } from "./types";
 
 /* ─── Badge maps ──────────────────────────────────────── */
 const LOAI_BADGE: Record<LoaiPhong, string> = {
@@ -100,6 +100,21 @@ const INITIAL_DATA: Phong[] = [
 const PAGE_SIZE = 8;
 type SortCol = "ten" | "soNhanVien" | "soGoiThau";
 
+/* ─── Mock RBAC ───────────────────────────────────────── */
+const MOCK_CURRENT_ROLE = "Admin" as const;
+const KP_CAN_ADD = MOCK_CURRENT_ROLE === "Admin";
+const KP_CAN_EDIT = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const KP_CAN_DELETE = MOCK_CURRENT_ROLE === "Admin";
+const KP_CAN_TOGGLE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+
+/* ─── Audit log ───────────────────────────────────────── */
+type KPAuditEntry = { id: string; unitId: string; hanhDong: string; nguoiThucHien: string; thoiGian: string };
+const INITIAL_KP_AUDIT: KPAuditEntry[] = [
+  { id: "ka1", unitId: "KN", hanhDong: "Tạo khoa/phòng", nguoiThucHien: "admin", thoiGian: "01/01/2025 08:00" },
+  { id: "ka2", unitId: "KD", hanhDong: "Tạo khoa/phòng", nguoiThucHien: "admin", thoiGian: "01/01/2025 08:10" },
+  { id: "ka3", unitId: "KXN", hanhDong: "Ngưng hoạt động", nguoiThucHien: "admin", thoiGian: "15/03/2025 14:00" },
+];
+
 /* ─── Confirm modal ───────────────────────────────────── */
 type ConfirmProps = {
   title: string;
@@ -187,6 +202,10 @@ export default function KhoaPhong() {
   const [editTarget, setEditTarget] = useState<Phong | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Phong | null>(null);
   const [toggleTarget, setToggleTarget] = useState<Phong | null>(null);
+  const [detailTab, setDetailTab] = useState<"info" | "history">("info");
+  const [auditLog, setAuditLog] = useState<KPAuditEntry[]>(INITIAL_KP_AUDIT);
+  const [pageSizeOpt, setPageSizeOpt] = useState(PAGE_SIZE);
+  const [staffTarget, setStaffTarget] = useState<Phong | null>(null);
 
   // Loading / error mock
   const [loading, setLoading] = useState(true);
@@ -231,8 +250,8 @@ export default function KhoaPhong() {
     return list;
   }, [data, search, filterLoai, filterTrangThai, sortCol, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSizeOpt));
+  const paginated = filtered.slice((page - 1) * pageSizeOpt, page * pageSizeOpt);
 
   /* ─ Sort handler ─ */
   function toggleSort(col: SortCol) {
@@ -244,57 +263,57 @@ export default function KhoaPhong() {
     }
   }
 
+  /* ─ Audit helper ─ */
+  function addKPAudit(unitId: string, hanhDong: string) {
+    setAuditLog((prev) => [{
+      id: `ka${Date.now()}`,
+      unitId,
+      hanhDong,
+      nguoiThucHien: "admin",
+      thoiGian: new Date().toLocaleString("vi-VN"),
+    }, ...prev]);
+  }
+
   /* ─ CRUD handlers ─ */
-  function handleAdd(
-    values: Parameters<
-      typeof ThemKhoaPhongModal extends React.ComponentType<infer P> ? P : never
-    >["onSave"] extends (v: infer V) => void
-      ? V
-      : never,
-  ) {
-    // use explicit type from imports
+  function handleAdd(values: PhongFormValues) {
     const newPhong: Phong = {
       id: values.ma.trim().toUpperCase(),
       ten: values.ten.trim(),
-      loai: values.loai,
+      loai: values.loai as LoaiPhong,
       truongKhoa: values.truongKhoa.trim(),
       soNhanVien: values.soNhanVien,
       soGoiThau: 0,
       email: values.email.trim(),
       sdt: values.sdt.trim(),
-      trangThai: values.trangThai,
+      trangThai: values.trangThai as TrangThai,
       donViCha: values.donViCha.trim(),
       moTa: values.moTa.trim(),
     };
     setData((prev) => [...prev, newPhong]);
     setSelected(newPhong);
+    addKPAudit(newPhong.id, `Tạo khoa/phòng "${newPhong.ten}"`);
     toast.success(`Đã thêm "${newPhong.ten}"`);
     setAddOpen(false);
   }
 
-  function handleEdit(
-    values: Parameters<
-      typeof SuaKhoaPhongModal extends React.ComponentType<infer P> ? P : never
-    >["onSave"] extends (v: infer V) => void
-      ? V
-      : never,
-  ) {
+  function handleEdit(values: PhongFormValues) {
     if (!editTarget) return;
     const updated: Phong = {
       ...editTarget,
       id: values.ma.trim().toUpperCase(),
       ten: values.ten.trim(),
-      loai: values.loai,
+      loai: values.loai as LoaiPhong,
       truongKhoa: values.truongKhoa.trim(),
       soNhanVien: values.soNhanVien,
       email: values.email.trim(),
       sdt: values.sdt.trim(),
-      trangThai: values.trangThai,
+      trangThai: values.trangThai as TrangThai,
       donViCha: values.donViCha.trim(),
       moTa: values.moTa.trim(),
     };
     setData((prev) => prev.map((p) => (p.id === editTarget.id ? updated : p)));
     if (selected.id === editTarget.id) setSelected(updated);
+    addKPAudit(updated.id, `Cập nhật thông tin "${updated.ten}"`);
     toast.success(`Đã cập nhật "${updated.ten}"`);
     setEditTarget(null);
   }
@@ -306,6 +325,7 @@ export default function KhoaPhong() {
       const remaining = data.filter((p) => p.id !== deleteTarget.id);
       if (remaining.length > 0) setSelected(remaining[0]);
     }
+    addKPAudit(deleteTarget.id, `Xóa khoa/phòng "${deleteTarget.ten}"`);
     toast.success(`Đã xóa "${deleteTarget.ten}"`);
     setDeleteTarget(null);
   }
@@ -323,11 +343,13 @@ export default function KhoaPhong() {
     );
     if (selected.id === toggleTarget.id)
       setSelected({ ...selected, trangThai: next });
+    addKPAudit(toggleTarget.id, `${next === "Ngưng hoạt động" ? "Ngưng hoạt động" : "Kích hoạt lại"} "${toggleTarget.ten}"`);
     toast.success(`"${toggleTarget.ten}" chuyển sang ${next}`);
     setToggleTarget(null);
   }
 
   const existingIds = data.map((p) => p.id.toUpperCase());
+  const existingNames = data.map((p) => p.ten);
 
   /* ─ Render ─ */
   return (
@@ -345,18 +367,14 @@ export default function KhoaPhong() {
               className={`fa-solid fa-rotate-right ${loading ? "animate-spin" : ""}`}
             />
           </button>
-          <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">
-            <i className="fa-regular fa-bell" />
-            <span className="absolute top-1.5 right-1.5 w-[15px] h-[15px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-              5
-            </span>
-          </button>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <i className="fa-solid fa-plus text-xs" /> Thêm khoa/phòng
-          </button>
+          {KP_CAN_ADD && (
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <i className="fa-solid fa-plus text-xs" /> Thêm khoa/phòng
+            </button>
+          )}
         </div>
       </header>
 
@@ -617,33 +635,33 @@ export default function KhoaPhong() {
                               className="flex items-center justify-center gap-1"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <button
-                                title="Chỉnh sửa"
-                                onClick={() => setEditTarget(p)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
-                              >
-                                <i className="fa-solid fa-pen text-xs" />
-                              </button>
-                              <button
-                                title={
-                                  p.trangThai === "Đang hoạt động"
-                                    ? "Tắt hoạt động"
-                                    : "Bật hoạt động"
-                                }
-                                onClick={() => setToggleTarget(p)}
-                                className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${p.trangThai === "Đang hoạt động" ? "text-slate-500 hover:bg-slate-100" : "text-emerald-500 hover:bg-emerald-50"}`}
-                              >
-                                <i
-                                  className={`fa-solid text-xs ${p.trangThai === "Đang hoạt động" ? "fa-eye-slash" : "fa-eye"}`}
-                                />
-                              </button>
-                              <button
-                                title="Xóa"
-                                onClick={() => setDeleteTarget(p)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                              >
-                                <i className="fa-solid fa-trash text-xs" />
-                              </button>
+                              {KP_CAN_EDIT && (
+                                <button
+                                  title="Chỉnh sửa"
+                                  onClick={() => setEditTarget(p)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
+                                >
+                                  <i className="fa-solid fa-pen text-xs" />
+                                </button>
+                              )}
+                              {KP_CAN_TOGGLE && (
+                                <button
+                                  title={p.trangThai === "Đang hoạt động" ? "Tắt hoạt động" : "Bật hoạt động"}
+                                  onClick={() => setToggleTarget(p)}
+                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${p.trangThai === "Đang hoạt động" ? "text-slate-500 hover:bg-slate-100" : "text-emerald-500 hover:bg-emerald-50"}`}
+                                >
+                                  <i className={`fa-solid text-xs ${p.trangThai === "Đang hoạt động" ? "fa-eye-slash" : "fa-eye"}`} />
+                                </button>
+                              )}
+                              {KP_CAN_DELETE && (
+                                <button
+                                  title="Xóa"
+                                  onClick={() => p.soGoiThau > 0 ? toast.error(`"${p.ten}" đang có gói thầu, chỉ có thể tắt/ẩn.`) : setDeleteTarget(p)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                                >
+                                  <i className="fa-solid fa-trash text-xs" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -655,14 +673,23 @@ export default function KhoaPhong() {
             )}
 
             {/* Pagination */}
-            {!loading && !error && filtered.length > PAGE_SIZE && (
+            {!loading && !error && (
               <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm">
                 <span className="text-xs text-slate-400">
-                  Hiển thị {(page - 1) * PAGE_SIZE + 1}–
-                  {Math.min(page * PAGE_SIZE, filtered.length)} /{" "}
+                  Hiển thị {filtered.length === 0 ? 0 : (page - 1) * pageSizeOpt + 1}–
+                  {Math.min(page * pageSizeOpt, filtered.length)} /{" "}
                   {filtered.length} kết quả
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={pageSizeOpt}
+                    onChange={(e) => { setPageSizeOpt(Number(e.target.value)); setPage(1); }}
+                    className="border border-slate-200 rounded-lg text-xs px-2 py-1.5 bg-white focus:outline-none"
+                  >
+                    <option value={8}>8 / trang</option>
+                    <option value={15}>15 / trang</option>
+                    <option value={25}>25 / trang</option>
+                  </select>
                   <button
                     disabled={page === 1}
                     onClick={() => setPage((p) => p - 1)}
@@ -713,108 +740,157 @@ export default function KhoaPhong() {
         </main>
 
         {/* DETAIL PANEL */}
-        <aside className="w-[272px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden xl:block">
-          <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${selected.trangThai === "Đang hoạt động" ? "bg-blue-100" : "bg-slate-100"}`}
-          >
-            <i
-              className={`fa-solid fa-building text-xl ${selected.trangThai === "Đang hoạt động" ? "text-blue-600" : "text-slate-400"}`}
-            />
-          </div>
-          <div className="text-sm font-bold text-slate-900 mb-0.5">
-            {selected.ten}
-          </div>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            <span
-              className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[selected.loai]}`}
-            >
-              {selected.loai}
-            </span>
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TRANG_THAI_BADGE[selected.trangThai]}`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${selected.trangThai === "Đang hoạt động" ? "bg-emerald-500" : "bg-red-400"}`}
-              />
-              {selected.trangThai}
-            </span>
-          </div>
-
-          <div className="space-y-2.5 mb-5">
-            {[
-              ["Mã", selected.id],
-              ["Trưởng khoa/phòng", selected.truongKhoa],
-              ["Email", selected.email || "—"],
-              ["Điện thoại", selected.sdt || "—"],
-              ["Đơn vị cha", selected.donViCha || "—"],
-            ].map(([lbl, val]) => (
-              <div key={lbl} className="flex flex-col text-xs gap-0.5">
-                <span className="text-slate-400">{lbl}</span>
-                <span className="text-slate-800 font-medium break-all">
-                  {val}
-                </span>
-              </div>
-            ))}
-            {selected.moTa && (
-              <div className="flex flex-col text-xs gap-0.5">
-                <span className="text-slate-400">Mô tả</span>
-                <span className="text-slate-600 leading-relaxed">
-                  {selected.moTa}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            {[
-              [
-                "fa-users",
-                "Nhân viên",
-                selected.soNhanVien.toString(),
-                "bg-slate-50",
-              ],
-              [
-                "fa-box-archive",
-                "Gói thầu",
-                selected.soGoiThau.toString(),
-                "bg-blue-50",
-              ],
-            ].map(([icon, lbl, val, bg]) => (
-              <div key={lbl} className={`${bg} rounded-xl p-3 text-center`}>
-                <i className={`fa-solid ${icon} text-slate-400 mb-1`} />
-                <div className="text-xl font-extrabold text-slate-800">
-                  {val}
-                </div>
-                <div className="text-[11px] text-slate-400">{lbl}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={() => setEditTarget(selected)}
-              className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors"
-            >
-              <i className="fa-solid fa-pen text-xs" /> Chỉnh sửa
-            </button>
-            <button
-              onClick={() => setToggleTarget(selected)}
-              className={`w-full flex items-center justify-center gap-2 text-sm rounded-xl py-2.5 border transition-colors ${selected.trangThai === "Đang hoạt động" ? "text-slate-600 border-slate-200 hover:bg-slate-50" : "text-emerald-600 border-emerald-200 hover:bg-emerald-50"}`}
+        <aside className="w-[300px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden xl:block">
+          {/* Header */}
+          <div className="p-5 border-b border-slate-100">
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${selected.trangThai === "Đang hoạt động" ? "bg-blue-100" : "bg-slate-100"}`}
             >
               <i
-                className={`fa-solid text-xs ${selected.trangThai === "Đang hoạt động" ? "fa-eye-slash" : "fa-eye"}`}
+                className={`fa-solid fa-building text-xl ${selected.trangThai === "Đang hoạt động" ? "text-blue-600" : "text-slate-400"}`}
               />
-              {selected.trangThai === "Đang hoạt động"
-                ? "Tắt hoạt động"
-                : "Bật hoạt động"}
-            </button>
-            <button
-              onClick={() => setDeleteTarget(selected)}
-              className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
-            >
-              <i className="fa-solid fa-trash text-xs" /> Xóa khoa/phòng
-            </button>
+            </div>
+            <div className="text-sm font-bold text-slate-900 mb-0.5">
+              {selected.ten}
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              <span
+                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[selected.loai]}`}
+              >
+                {selected.loai}
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TRANG_THAI_BADGE[selected.trangThai]}`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${selected.trangThai === "Đang hoạt động" ? "bg-emerald-500" : "bg-red-400"}`}
+                />
+                {selected.trangThai}
+              </span>
+            </div>
           </div>
+
+          {/* Tabs */}
+          <div className="flex border-b border-slate-100">
+            {(["info", "history"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setDetailTab(tab)}
+                className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                  detailTab === tab
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                {tab === "info" ? "Thông tin" : "Lịch sử"}
+              </button>
+            ))}
+          </div>
+
+          {detailTab === "info" ? (
+            <div className="p-5">
+              <div className="space-y-2.5 mb-5">
+                {[
+                  ["Mã", selected.id],
+                  ["Trưởng khoa/phòng", selected.truongKhoa],
+                  ["Email", selected.email || "—"],
+                  ["Điện thoại", selected.sdt || "—"],
+                  ["Đơn vị cha", selected.donViCha || "—"],
+                ].map(([lbl, val]) => (
+                  <div key={lbl} className="flex flex-col text-xs gap-0.5">
+                    <span className="text-slate-400">{lbl}</span>
+                    <span className="text-slate-800 font-medium break-all">
+                      {val}
+                    </span>
+                  </div>
+                ))}
+                {selected.moTa && (
+                  <div className="flex flex-col text-xs gap-0.5">
+                    <span className="text-slate-400">Mô tả</span>
+                    <span className="text-slate-600 leading-relaxed">
+                      {selected.moTa}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <button
+                  onClick={() => toast.info(`${selected.ten}: ${selected.soNhanVien} nhân viên`)}
+                  className="bg-slate-50 rounded-xl p-3 text-center hover:bg-slate-100 transition-colors"
+                >
+                  <i className="fa-solid fa-users text-slate-400 mb-1" />
+                  <div className="text-xl font-extrabold text-slate-800">{selected.soNhanVien}</div>
+                  <div className="text-[11px] text-slate-400">Nhân viên</div>
+                </button>
+                <div className="bg-blue-50 rounded-xl p-3 text-center">
+                  <i className="fa-solid fa-box-archive text-slate-400 mb-1" />
+                  <div className="text-xl font-extrabold text-slate-800">{selected.soGoiThau}</div>
+                  <div className="text-[11px] text-slate-400">Gói thầu</div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {KP_CAN_EDIT && (
+                  <button
+                    onClick={() => setEditTarget(selected)}
+                    className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors"
+                  >
+                    <i className="fa-solid fa-pen text-xs" /> Chỉnh sửa
+                  </button>
+                )}
+                {KP_CAN_TOGGLE && (
+                  <button
+                    onClick={() => setToggleTarget(selected)}
+                    className={`w-full flex items-center justify-center gap-2 text-sm rounded-xl py-2.5 border transition-colors ${selected.trangThai === "Đang hoạt động" ? "text-slate-600 border-slate-200 hover:bg-slate-50" : "text-emerald-600 border-emerald-200 hover:bg-emerald-50"}`}
+                  >
+                    <i
+                      className={`fa-solid text-xs ${selected.trangThai === "Đang hoạt động" ? "fa-eye-slash" : "fa-eye"}`}
+                    />
+                    {selected.trangThai === "Đang hoạt động" ? "Tắt hoạt động" : "Bật hoạt động"}
+                  </button>
+                )}
+                {KP_CAN_DELETE && (
+                  <button
+                    onClick={() => selected.soGoiThau > 0 ? toast.error(`"${selected.ten}" đang có gói thầu, chỉ có thể tắt/ẩn.`) : setDeleteTarget(selected)}
+                    className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
+                  >
+                    <i className="fa-solid fa-trash text-xs" /> Xóa khoa/phòng
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="p-5">
+              <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-3">
+                Lịch sử thao tác
+              </p>
+              {auditLog.filter((a) => a.unitId === selected.id).length === 0 ? (
+                <div className="text-center py-8">
+                  <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
+                  <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLog
+                    .filter((a) => a.unitId === selected.id)
+                    .map((a) => (
+                      <div key={a.id} className="flex gap-2.5">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <i className="fa-solid fa-clock-rotate-left text-blue-500 text-[10px]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-slate-700 font-medium">{a.hanhDong}</p>
+                          <p className="text-[11px] text-slate-400">
+                            {a.nguoiThucHien} · {a.thoiGian}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
         </aside>
       </div>
 
@@ -822,25 +898,8 @@ export default function KhoaPhong() {
       {addOpen && (
         <ThemKhoaPhongModal
           existingIds={existingIds}
-          onSave={(values) => {
-            const newPhong: Phong = {
-              id: values.ma.trim().toUpperCase(),
-              ten: values.ten.trim(),
-              loai: values.loai,
-              truongKhoa: values.truongKhoa.trim(),
-              soNhanVien: values.soNhanVien,
-              soGoiThau: 0,
-              email: values.email.trim(),
-              sdt: values.sdt.trim(),
-              trangThai: values.trangThai,
-              donViCha: values.donViCha.trim(),
-              moTa: values.moTa.trim(),
-            };
-            setData((prev) => [...prev, newPhong]);
-            setSelected(newPhong);
-            toast.success(`Đã thêm "${newPhong.ten}"`);
-            setAddOpen(false);
-          }}
+          existingNames={existingNames}
+          onSave={handleAdd}
           onClose={() => setAddOpen(false)}
         />
       )}
@@ -851,27 +910,8 @@ export default function KhoaPhong() {
           existingIds={existingIds.filter(
             (id) => id !== editTarget.id.toUpperCase(),
           )}
-          onSave={(values) => {
-            const updated: Phong = {
-              ...editTarget,
-              id: values.ma.trim().toUpperCase(),
-              ten: values.ten.trim(),
-              loai: values.loai,
-              truongKhoa: values.truongKhoa.trim(),
-              soNhanVien: values.soNhanVien,
-              email: values.email.trim(),
-              sdt: values.sdt.trim(),
-              trangThai: values.trangThai,
-              donViCha: values.donViCha.trim(),
-              moTa: values.moTa.trim(),
-            };
-            setData((prev) =>
-              prev.map((p) => (p.id === editTarget.id ? updated : p)),
-            );
-            if (selected.id === editTarget.id) setSelected(updated);
-            toast.success(`Đã cập nhật "${updated.ten}"`);
-            setEditTarget(null);
-          }}
+          existingNames={existingNames}
+          onSave={handleEdit}
           onClose={() => setEditTarget(null)}
         />
       )}

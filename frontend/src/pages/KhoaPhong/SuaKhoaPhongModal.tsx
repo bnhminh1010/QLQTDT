@@ -11,6 +11,7 @@ const LOAI_OPTIONS: LoaiPhong[] = [
 type Props = {
   phong: Phong;
   existingIds: string[]; // excludes current phong.id — passed from parent
+  existingNames: string[]; // for donViCha dropdown
   onSave: (values: PhongFormValues) => void;
   onClose: () => void;
 };
@@ -25,6 +26,7 @@ const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 export function SuaKhoaPhongModal({
   phong,
   existingIds,
+  existingNames,
   onSave,
   onClose,
 }: Props) {
@@ -236,18 +238,17 @@ export function SuaKhoaPhongModal({
           {/* Đơn vị cha */}
           <div>
             <label className={labelCls}>Đơn vị cha</label>
-            <input
-              className={errors.donViCha ? inputErrCls : inputCls}
-              placeholder="Để trống nếu không có đơn vị cha"
-              {...register("donViCha", {
-                maxLength: { value: 100, message: "Tối đa 100 ký tự" },
-              })}
-            />
-            {errors.donViCha && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.donViCha.message}
-              </p>
-            )}
+            <select
+              className={inputCls}
+              {...register("donViCha")}
+            >
+              <option value="">-- Không có đơn vị cha --</option>
+              {existingNames
+                .filter((n) => n !== phong.ten)
+                .map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+            </select>
           </div>
 
           {/* Email + SĐT */}

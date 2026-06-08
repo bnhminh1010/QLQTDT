@@ -19,17 +19,23 @@ const VAI_TRO_BADGE: Record<VaiTro, string> = {
 
 const TT_BADGE: Record<TrangThai, string> = {
   "Hoạt động": "bg-emerald-100 text-emerald-700",
-  "Chờ duyệt": "bg-amber-100 text-amber-700",
   "Bị khóa": "bg-red-100 text-red-600",
   "Ngưng hoạt động": "bg-slate-100 text-slate-500",
 };
 
 const TT_DOT: Record<TrangThai, string> = {
   "Hoạt động": "bg-emerald-500",
-  "Chờ duyệt": "bg-amber-400",
   "Bị khóa": "bg-red-500",
   "Ngưng hoạt động": "bg-slate-400",
 };
+
+/* ─── Mock RBAC ───────────────────────────────────────── */
+// Giả lập người dùng hiện tại — trong thực tế lấy từ auth context
+const MOCK_CURRENT_ROLE: VaiTro = "Admin";
+const CAN_ADD = MOCK_CURRENT_ROLE === "Admin";
+const CAN_EDIT = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const CAN_LOCK = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const CAN_DELETE = MOCK_CURRENT_ROLE === "Admin";
 
 /* ─── Mock data ───────────────────────────────────────── */
 const INITIAL_DATA: User[] = [
@@ -74,7 +80,7 @@ const INITIAL_DATA: User[] = [
     sdt: "0934567890",
     phong: "Khoa Xét nghiệm",
     vaiTro: "Nhân viên",
-    trangThai: "Chờ duyệt",
+    trangThai: "Hoạt động",
     ngayTao: "15/02/2025",
   },
   {
@@ -107,7 +113,7 @@ const INITIAL_DATA: User[] = [
     sdt: "0967890123",
     phong: "Khoa Ngoại",
     vaiTro: "Nhân viên",
-    trangThai: "Chờ duyệt",
+    trangThai: "Hoạt động",
     ngayTao: "10/03/2025",
   },
   {
@@ -229,8 +235,9 @@ export default function NguoiDung() {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [lockTarget, setLockTarget] = useState<User | null>(null);
   const [disableTarget, setDisableTarget] = useState<User | null>(null);
-  const [approveTarget, setApproveTarget] = useState<User | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<User | null>(null);
+  const [detailTab, setDetailTab] = useState<"info" | "history">("info");
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>(INITIAL_AUDIT);
+  const [pageSizeOpt, setPageSizeOpt] = useState(PAGE_SIZE);
 
   const simulateLoad = useCallback(() => {
     setLoading(true);
@@ -270,8 +277,8 @@ export default function NguoiDung() {
     return list;
   }, [data, search, filterVaiTro, filterTT, sortCol, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSizeOpt));
+  const paginated = filtered.slice((page - 1) * pageSizeOpt, page * pageSizeOpt);
 
   function toggleSort(col: SortCol) {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -285,20 +292,33 @@ export default function NguoiDung() {
   const existingUsernames = data.map((u) => u.username.toLowerCase());
   const existingEmails = data.map((u) => u.email.toLowerCase());
 
+  function addAudit(userId: string, hanhDong: string) {
+    const entry: AuditEntry = {
+      id: `a${Date.now()}`,
+      userId,
+      hanhDong,
+      nguoiThucHien: "admin",
+      thoiGian: new Date().toLocaleString("vi-VN"),
+    };
+    setAuditLog((prev) => [entry, ...prev]);
+  }
+
   function handleAdd(values: UserAddFormValues) {
+    const v = values as UserAddFormValues & { vaiTro: VaiTro };
     const newUser: User = {
       id: `U${String(data.length + 1).padStart(3, "0")}`,
-      hoTen: values.hoTen.trim(),
-      username: values.username.trim(),
-      email: values.email.trim().toLowerCase(),
-      sdt: values.sdt.trim(),
-      phong: values.phong,
-      vaiTro: values.vaiTro,
-      trangThai: values.trangThai,
+      hoTen: v.hoTen.trim(),
+      username: v.username.trim(),
+      email: v.email.trim().toLowerCase(),
+      sdt: v.sdt.trim(),
+      phong: v.phong,
+      vaiTro: v.vaiTro,
+      trangThai: v.trangThai,
       ngayTao: new Date().toLocaleDateString("vi-VN"),
     };
     setData((prev) => [newUser, ...prev]);
     setSelected(newUser);
+    addAudit(newUser.id, `Tạo tài khoản "${newUser.hoTen}"`);
     toast.success(`Đã thêm người dùng "${newUser.hoTen}"`);
     setAddOpen(false);
   }
@@ -316,16 +336,18 @@ export default function NguoiDung() {
     };
     setData((prev) => prev.map((u) => (u.id === editTarget.id ? updated : u)));
     if (selected.id === editTarget.id) setSelected(updated);
+    addAudit(updated.id, `Cập nhật thông tin "${updated.hoTen}"`);
     toast.success(`Đã cập nhật "${updated.hoTen}"`);
     setEditTarget(null);
   }
 
-  function updateTrangThai(target: User, next: TrangThai, msg: string) {
+  function updateTrangThai(target: User, next: TrangThai, msg: string, action?: string) {
     setData((prev) =>
       prev.map((u) => (u.id === target.id ? { ...u, trangThai: next } : u)),
     );
     if (selected.id === target.id)
       setSelected({ ...selected, trangThai: next });
+    addAudit(target.id, action ?? msg);
     toast.success(msg);
   }
 
@@ -344,18 +366,14 @@ export default function NguoiDung() {
               className={`fa-solid fa-rotate-right ${loading ? "animate-spin" : ""}`}
             />
           </button>
-          <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">
-            <i className="fa-regular fa-bell" />
-            <span className="absolute top-1.5 right-1.5 w-[15px] h-[15px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-              5
-            </span>
-          </button>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <i className="fa-solid fa-plus text-xs" /> Thêm người dùng
-          </button>
+          {CAN_ADD && (
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <i className="fa-solid fa-plus text-xs" /> Thêm người dùng
+            </button>
+          )}
         </div>
       </header>
 
@@ -383,11 +401,11 @@ export default function NguoiDung() {
                   "text-emerald-600",
                 ],
                 [
-                  "fa-hourglass-half",
+                  "fa-eye-slash",
                   "amber",
-                  "CHỜ DUYỆT",
-                  data.filter((d) => d.trangThai === "Chờ duyệt").length,
-                  "yêu cầu",
+                  "NGƯNG HOẠT ĐỘNG",
+                  data.filter((d) => d.trangThai === "Ngưng hoạt động").length,
+                  "tài khoản",
                   "text-amber-600",
                 ],
                 [
@@ -464,9 +482,18 @@ export default function NguoiDung() {
               >
                 <option value="">Tất cả trạng thái</option>
                 <option>Hoạt động</option>
-                <option>Chờ duyệt</option>
                 <option>Bị khóa</option>
                 <option>Ngưng hoạt động</option>
+              </select>
+              <select
+                value={pageSizeOpt}
+                onChange={(e) => { setPageSizeOpt(Number(e.target.value)); setPage(1); }}
+                className="border border-slate-200 rounded-xl text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={8}>8 / trang</option>
+                <option value={15}>15 / trang</option>
+                <option value={25}>25 / trang</option>
+                <option value={50}>50 / trang</option>
               </select>
             </div>
 
@@ -622,35 +649,18 @@ export default function NguoiDung() {
                               className="flex items-center justify-center gap-1"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {/* Duyệt / Từ chối (Chờ duyệt) */}
-                              {u.trangThai === "Chờ duyệt" && (
-                                <>
-                                  <button
-                                    title="Duyệt"
-                                    onClick={() => setApproveTarget(u)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg text-emerald-500 hover:bg-emerald-50"
-                                  >
-                                    <i className="fa-solid fa-check text-xs" />
-                                  </button>
-                                  <button
-                                    title="Từ chối"
-                                    onClick={() => setRejectTarget(u)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50"
-                                  >
-                                    <i className="fa-solid fa-ban text-xs" />
-                                  </button>
-                                </>
-                              )}
                               {/* Sửa */}
-                              <button
-                                title="Chỉnh sửa"
-                                onClick={() => setEditTarget(u)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50"
-                              >
-                                <i className="fa-solid fa-pen text-xs" />
-                              </button>
+                              {CAN_EDIT && (
+                                <button
+                                  title="Chỉnh sửa"
+                                  onClick={() => setEditTarget(u)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50"
+                                >
+                                  <i className="fa-solid fa-pen text-xs" />
+                                </button>
+                              )}
                               {/* Khóa / Tắt hoạt động */}
-                              {u.trangThai === "Hoạt động" && (
+                              {CAN_LOCK && u.trangThai === "Hoạt động" && (
                                 <>
                                   <button
                                     title="Tắt hoạt động"
@@ -669,24 +679,27 @@ export default function NguoiDung() {
                                 </>
                               )}
                               {/* Mở khóa nếu đang bị khóa/ngưng */}
-                              {(u.trangThai === "Bị khóa" ||
-                                u.trangThai === "Ngưng hoạt động") && (
+                              {CAN_LOCK &&
+                                (u.trangThai === "Bị khóa" ||
+                                  u.trangThai === "Ngưng hoạt động") && (
+                                  <button
+                                    title="Kích hoạt lại"
+                                    onClick={() => setDisableTarget(u)}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg text-emerald-500 hover:bg-emerald-50"
+                                  >
+                                    <i className="fa-solid fa-lock-open text-xs" />
+                                  </button>
+                                )}
+                              {/* Xóa */}
+                              {CAN_DELETE && (
                                 <button
-                                  title="Kích hoạt lại"
-                                  onClick={() => setDisableTarget(u)}
-                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-emerald-500 hover:bg-emerald-50"
+                                  title="Xóa tài khoản"
+                                  onClick={() => setDeleteTarget(u)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50"
                                 >
-                                  <i className="fa-solid fa-lock-open text-xs" />
+                                  <i className="fa-solid fa-trash text-xs" />
                                 </button>
                               )}
-                              {/* Xóa */}
-                              <button
-                                title="Xóa tài khoản"
-                                onClick={() => setDeleteTarget(u)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50"
-                              >
-                                <i className="fa-solid fa-trash text-xs" />
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -698,11 +711,11 @@ export default function NguoiDung() {
             )}
 
             {/* Pagination */}
-            {!loading && !error && filtered.length > PAGE_SIZE && (
+            {!loading && !error && (
               <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs text-slate-400">
-                  Hiển thị {(page - 1) * PAGE_SIZE + 1}–
-                  {Math.min(page * PAGE_SIZE, filtered.length)} /{" "}
+                  Hiển thị {filtered.length === 0 ? 0 : (page - 1) * pageSizeOpt + 1}–
+                  {Math.min(page * pageSizeOpt, filtered.length)} /{" "}
                   {filtered.length} kết quả
                 </span>
                 <div className="flex items-center gap-1">
@@ -756,121 +769,158 @@ export default function NguoiDung() {
         </main>
 
         {/* DETAIL PANEL */}
-        <aside className="w-[272px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden xl:block">
+        <aside className="w-[300px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden xl:block">
           {(() => {
             const i = data.findIndex((u) => u.id === selected.id);
             const idx = i >= 0 ? i : 0;
+            const userAudit = auditLog.filter((a) => a.userId === selected.id);
             return (
               <>
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold mb-3 ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}
-                >
-                  {getInitials(selected.hoTen)}
-                </div>
-                <div className="text-sm font-bold text-slate-900 mb-0.5">
-                  {selected.hoTen}
-                </div>
-                <div className="text-xs text-slate-400 mb-3">
-                  @{selected.username}
-                </div>
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  <span
-                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${VAI_TRO_BADGE[selected.vaiTro]}`}
+                {/* Header */}
+                <div className="p-5 border-b border-slate-100">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold mb-3 ${AVATAR_COLORS[idx % AVATAR_COLORS.length]}`}
                   >
-                    {selected.vaiTro}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TT_BADGE[selected.trangThai]}`}
-                  >
+                    {getInitials(selected.hoTen)}
+                  </div>
+                  <div className="text-sm font-bold text-slate-900 mb-0.5">
+                    {selected.hoTen}
+                  </div>
+                  <div className="text-xs text-slate-400 mb-3">
+                    @{selected.username}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
                     <span
-                      className={`w-1.5 h-1.5 rounded-full ${TT_DOT[selected.trangThai]}`}
-                    />
-                    {selected.trangThai}
-                  </span>
+                      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${VAI_TRO_BADGE[selected.vaiTro]}`}
+                    >
+                      {selected.vaiTro}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TT_BADGE[selected.trangThai]}`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${TT_DOT[selected.trangThai]}`}
+                      />
+                      {selected.trangThai}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="space-y-2.5 mb-5">
-                  {(
-                    [
-                      ["Mã", selected.id],
-                      ["Email", selected.email],
-                      ["Điện thoại", selected.sdt || "—"],
-                      ["Khoa/phòng", selected.phong],
-                      ["Ngày tạo", selected.ngayTao],
-                    ] as [string, string][]
-                  ).map(([lbl, val]) => (
-                    <div key={lbl} className="flex flex-col text-xs gap-0.5">
-                      <span className="text-slate-400">{lbl}</span>
-                      <span className="text-slate-800 font-medium break-all">
-                        {val}
-                      </span>
-                    </div>
+                {/* Tabs */}
+                <div className="flex border-b border-slate-100">
+                  {(["info", "history"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setDetailTab(tab)}
+                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                        detailTab === tab
+                          ? "border-b-2 border-blue-600 text-blue-600"
+                          : "text-slate-400 hover:text-slate-600"
+                      }`}
+                    >
+                      {tab === "info" ? "Thông tin" : "Lịch sử"}
+                    </button>
                   ))}
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => setEditTarget(selected)}
-                    className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors"
-                  >
-                    <i className="fa-solid fa-pen text-xs" /> Chỉnh sửa
-                  </button>
+                {detailTab === "info" ? (
+                  <div className="p-5">
+                    <div className="space-y-2.5 mb-5">
+                      {(
+                        [
+                          ["Mã", selected.id],
+                          ["Email", selected.email],
+                          ["Điện thoại", selected.sdt || "—"],
+                          ["Khoa/phòng", selected.phong],
+                          ["Ngày tạo", selected.ngayTao],
+                        ] as [string, string][]
+                      ).map(([lbl, val]) => (
+                        <div key={lbl} className="flex flex-col text-xs gap-0.5">
+                          <span className="text-slate-400">{lbl}</span>
+                          <span className="text-slate-800 font-medium break-all">
+                            {val}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
 
-                  {selected.trangThai === "Chờ duyệt" && (
-                    <>
-                      <button
-                        onClick={() => setApproveTarget(selected)}
-                        className="w-full flex items-center justify-center gap-2 text-sm text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-xl py-2.5 transition-colors"
-                      >
-                        <i className="fa-solid fa-check text-xs" /> Duyệt tài
-                        khoản
-                      </button>
-                      <button
-                        onClick={() => setRejectTarget(selected)}
-                        className="w-full flex items-center justify-center gap-2 text-sm text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 transition-colors"
-                      >
-                        <i className="fa-solid fa-ban text-xs" /> Từ chối
-                      </button>
-                    </>
-                  )}
+                    <div className="flex flex-col gap-2">
+                      {CAN_EDIT && (
+                        <button
+                          onClick={() => setEditTarget(selected)}
+                          className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors"
+                        >
+                          <i className="fa-solid fa-pen text-xs" /> Chỉnh sửa
+                        </button>
+                      )}
 
-                  {selected.trangThai === "Hoạt động" && (
-                    <>
-                      <button
-                        onClick={() => setDisableTarget(selected)}
-                        className="w-full flex items-center justify-center gap-2 text-sm text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 transition-colors"
-                      >
-                        <i className="fa-solid fa-eye-slash text-xs" /> Tắt hoạt
-                        động
-                      </button>
-                      <button
-                        onClick={() => setLockTarget(selected)}
-                        className="w-full flex items-center justify-center gap-2 text-sm text-orange-500 hover:bg-orange-50 border border-orange-200 rounded-xl py-2.5 transition-colors"
-                      >
-                        <i className="fa-solid fa-lock text-xs" /> Khóa tài
-                        khoản
-                      </button>
-                    </>
-                  )}
+                      {CAN_LOCK && selected.trangThai === "Hoạt động" && (
+                        <>
+                          <button
+                            onClick={() => setDisableTarget(selected)}
+                            className="w-full flex items-center justify-center gap-2 text-sm text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 transition-colors"
+                          >
+                            <i className="fa-solid fa-eye-slash text-xs" /> Tắt hoạt động
+                          </button>
+                          <button
+                            onClick={() => setLockTarget(selected)}
+                            className="w-full flex items-center justify-center gap-2 text-sm text-orange-500 hover:bg-orange-50 border border-orange-200 rounded-xl py-2.5 transition-colors"
+                          >
+                            <i className="fa-solid fa-lock text-xs" /> Khóa tài khoản
+                          </button>
+                        </>
+                      )}
 
-                  {(selected.trangThai === "Bị khóa" ||
-                    selected.trangThai === "Ngưng hoạt động") && (
-                    <button
-                      onClick={() => setDisableTarget(selected)}
-                      className="w-full flex items-center justify-center gap-2 text-sm text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-xl py-2.5 transition-colors"
-                    >
-                      <i className="fa-solid fa-lock-open text-xs" /> Kích hoạt
-                      lại
-                    </button>
-                  )}
+                      {CAN_LOCK &&
+                        (selected.trangThai === "Bị khóa" ||
+                          selected.trangThai === "Ngưng hoạt động") && (
+                          <button
+                            onClick={() => setDisableTarget(selected)}
+                            className="w-full flex items-center justify-center gap-2 text-sm text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-xl py-2.5 transition-colors"
+                          >
+                            <i className="fa-solid fa-lock-open text-xs" /> Kích hoạt lại
+                          </button>
+                        )}
 
-                  <button
-                    onClick={() => setDeleteTarget(selected)}
-                    className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
-                  >
-                    <i className="fa-solid fa-trash text-xs" /> Xóa tài khoản
-                  </button>
-                </div>
+                      {CAN_DELETE && (
+                        <button
+                          onClick={() => setDeleteTarget(selected)}
+                          className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
+                        >
+                          <i className="fa-solid fa-trash text-xs" /> Xóa tài khoản
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-5">
+                    <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-3">
+                      Lịch sử thao tác
+                    </p>
+                    {userAudit.length === 0 ? (
+                      <div className="text-center py-8">
+                        <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
+                        <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {userAudit.map((a) => (
+                          <div key={a.id} className="flex gap-2.5">
+                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                              <i className="fa-solid fa-clock-rotate-left text-blue-500 text-[10px]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-slate-700 font-medium">{a.hanhDong}</p>
+                              <p className="text-[11px] text-slate-400">
+                                {a.nguoiThucHien} · {a.thoiGian}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             );
           })()}
@@ -909,6 +959,7 @@ export default function NguoiDung() {
             setData(remaining);
             if (selected.id === deleteTarget.id && remaining.length > 0)
               setSelected(remaining[0]);
+            addAudit(deleteTarget.id, `Xóa tài khoản "${deleteTarget.hoTen}"`);
             toast.success(`Đã xóa tài khoản "${deleteTarget.hoTen}"`);
             setDeleteTarget(null);
           }}
@@ -927,6 +978,7 @@ export default function NguoiDung() {
               lockTarget,
               "Bị khóa",
               `Đã khóa tài khoản "${lockTarget.hoTen}"`,
+              `Khóa tài khoản "${lockTarget.hoTen}"`,
             );
             setLockTarget(null);
           }}
@@ -960,6 +1012,7 @@ export default function NguoiDung() {
               disableTarget,
               next,
               `"${disableTarget.hoTen}" chuyển sang ${next}`,
+              `${next === "Ngưng hoạt động" ? "Tắt hoạt động" : "Kích hoạt lại"} "${disableTarget.hoTen}"`,
             );
             setDisableTarget(null);
           }}
@@ -967,40 +1020,8 @@ export default function NguoiDung() {
         />
       )}
 
-      {approveTarget && (
-        <ConfirmModal
-          title="Duyệt tài khoản"
-          message={`Bạn có chắc muốn duyệt tài khoản "${approveTarget.hoTen}"? Người dùng sẽ được phép đăng nhập.`}
-          confirmLabel="Duyệt"
-          onConfirm={() => {
-            updateTrangThai(
-              approveTarget,
-              "Hoạt động",
-              `Đã duyệt tài khoản "${approveTarget.hoTen}"`,
-            );
-            setApproveTarget(null);
-          }}
-          onClose={() => setApproveTarget(null)}
-        />
-      )}
-
-      {rejectTarget && (
-        <ConfirmModal
-          danger
-          title="Từ chối tài khoản"
-          message={`Bạn có chắc muốn từ chối tài khoản "${rejectTarget.hoTen}"?`}
-          confirmLabel="Từ chối"
-          onConfirm={() => {
-            updateTrangThai(
-              rejectTarget,
-              "Bị khóa",
-              `Đã từ chối tài khoản "${rejectTarget.hoTen}"`,
-            );
-            setRejectTarget(null);
-          }}
-          onClose={() => setRejectTarget(null)}
-        />
-      )}
+      {approveTarget && null}
+      {rejectTarget && null}
     </>
   );
 }

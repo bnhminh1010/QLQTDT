@@ -10,6 +10,7 @@ const LOAI_OPTIONS: LoaiPhong[] = [
 
 type Props = {
   existingIds: string[];
+  existingNames: string[]; // for donViCha dropdown
   onSave: (values: PhongFormValues) => void;
   onClose: () => void;
 };
@@ -21,7 +22,7 @@ const inputErrCls =
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
 /* ─── Component ─────────────────────────────────────── */
-export function ThemKhoaPhongModal({ existingIds, onSave, onClose }: Props) {
+export function ThemKhoaPhongModal({ existingIds, existingNames, onSave, onClose }: Props) {
   const {
     register,
     handleSubmit,
@@ -30,7 +31,7 @@ export function ThemKhoaPhongModal({ existingIds, onSave, onClose }: Props) {
     defaultValues: {
       ma: "",
       ten: "",
-      loai: "Khoa lâm sàng",
+      loai: "" as LoaiPhong,
       truongKhoa: "",
       soNhanVien: 1,
       email: "",
@@ -129,6 +130,7 @@ export function ThemKhoaPhongModal({ existingIds, onSave, onClose }: Props) {
                 className={errors.loai ? inputErrCls : inputCls}
                 {...register("loai", { required: "Vui lòng chọn loại" })}
               >
+                <option value="">-- Chọn loại khoa/phòng --</option>
                 {LOAI_OPTIONS.map((l) => (
                   <option key={l} value={l}>
                     {l}
@@ -230,18 +232,15 @@ export function ThemKhoaPhongModal({ existingIds, onSave, onClose }: Props) {
           {/* Đơn vị cha */}
           <div>
             <label className={labelCls}>Đơn vị cha</label>
-            <input
+            <select
               className={inputCls}
-              placeholder="Để trống nếu không có đơn vị cha"
-              {...register("donViCha", {
-                maxLength: { value: 100, message: "Tối đa 100 ký tự" },
-              })}
-            />
-            {errors.donViCha && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.donViCha.message}
-              </p>
-            )}
+              {...register("donViCha")}
+            >
+              <option value="">-- Không có đơn vị cha --</option>
+              {existingNames.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
           </div>
 
           {/* Email + SĐT */}

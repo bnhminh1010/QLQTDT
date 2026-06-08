@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import type { UserAddFormValues } from "./types";
+import type { UserAddFormValues, VaiTro } from "./types";
 import { PHONG_OPTIONS, VAI_TRO_OPTIONS } from "./types";
 
 type Props = {
   existingUsernames: string[];
   existingEmails: string[];
-  onSave: (values: UserAddFormValues) => void;
+  onSave: (values: UserAddFormValues & { vaiTro: VaiTro }) => void;
   onClose: () => void;
 };
 
@@ -37,7 +37,7 @@ export function ThemNguoiDungModal({
       email: "",
       sdt: "",
       phong: "",
-      vaiTro: "Nhân viên",
+      vaiTro: "",
       trangThai: "Hoạt động",
       matKhau: "",
       xacNhanMatKhau: "",
@@ -215,6 +215,7 @@ export function ThemNguoiDungModal({
                 className={errors.vaiTro ? inputErrCls : inputCls}
                 {...register("vaiTro", { required: "Vui lòng chọn vai trò" })}
               >
+                <option value="">-- Chọn vai trò --</option>
                 {VAI_TRO_OPTIONS.map((v) => (
                   <option key={v} value={v}>
                     {v}
@@ -241,7 +242,6 @@ export function ThemNguoiDungModal({
               })}
             >
               <option value="Hoạt động">Hoạt động</option>
-              <option value="Chờ duyệt">Chờ duyệt</option>
               <option value="Bị khóa">Bị khóa</option>
               <option value="Ngưng hoạt động">Ngưng hoạt động</option>
             </select>

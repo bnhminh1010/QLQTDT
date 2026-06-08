@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -14,6 +14,11 @@ import {
 } from "@/util/fileAttachment";
 import { addGoiThau, generateGoiThauId, formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { HinhThuc } from "@/pages/DanhSachGoiThau/goiThauService";
+import { getQuyTrinhList, type QuyTrinh } from "@/pages/DanhSachQuyTrinh/quyTrinhService";
+
+/* ─ RBAC ─ */
+const MOCK_CURRENT_ROLE = "Admin";
+const CAN_CREATE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý" || MOCK_CURRENT_ROLE === "Nhân viên";
 
 const HT_BADGE: Record<HinhThuc, string> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
@@ -51,8 +56,14 @@ type FormData = InferType<typeof taoGoiThauSchema>;
 export default function TaoGoiThau() {
   const navigate = useNavigate();
   const [savingDraft, setSavingDraft] = useState(false);
+  const [quyTrinhList, setQuyTrinhList] = useState<QuyTrinh[]>([]);
+  const [selectedQuyTrinhId, setSelectedQuyTrinhId] = useState("");
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
+
+  useEffect(() => {
+    setQuyTrinhList(getQuyTrinhList().filter((qt) => qt.trangThai === "Đang hoạt động"));
+  }, []);
 
   const {
     register,
@@ -68,8 +79,27 @@ export default function TaoGoiThau() {
   const hasPreview = !!(watched.ten?.trim() || watched.hinhThuc);
   const ghiChuLen = watched.ghiChu?.length ?? 0;
 
+  // Auto-suggest workflow when hinhThuc changes
+  const suggestedQT = watched.hinhThuc
+    ? quyTrinhList.find((qt) => qt.hinhThuc === watched.hinhThuc)
+    : null;
+
+  // If user hasn't manually selected, auto-select the suggestion
+  const effectiveQTId = selectedQuyTrinhId || suggestedQT?.id || "";
+  const selectedQT = quyTrinhList.find((qt) => qt.id === effectiveQTId) ?? null;
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingSubmitData, setPendingSubmitData] = useState<FormData | null>(null);
+
   /* ─ Gửi đề xuất ─ */
   function onSubmit(data: FormData) {
+    setPendingSubmitData(data);
+    setConfirmOpen(true);
+  }
+
+  function doSubmit() {
+    if (!pendingSubmitData) return;
+    const data = pendingSubmitData;
     const num = parseInt(data.giaTriStr.replace(/[^\d]/g, ""), 10) || 0;
     addGoiThau({
       id: generateGoiThauId(),
@@ -84,10 +114,11 @@ export default function TaoGoiThau() {
         ngayTao: data.ngayTao,
         hanHT: data.hanHT,
         pct: "0%",
-        buoc: "1/14",
+        buoc: selectedQT ? `0/${selectedQT.buocList.length}` : "1/14",
       },
     });
     toast.success("Gói thầu đã được gửi đề xuất và đang chờ duyệt");
+    setConfirmOpen(false);
     navigate("/danh-sach-goi-thau");
   }
 
@@ -221,6 +252,67 @@ export default function TaoGoiThau() {
                     </p>
                   )}
                 </div>
+              </div>
+
+              {/* Quy trình áp dụng */}
+              <div>
+                <label className={labelCls}>
+                  Quy trình áp dụng
+                  {suggestedQT && selectedQuyTrinhId === "" && (
+                    <span className="ml-2 text-[11px] text-blue-500 font-normal">
+                      (Gợi ý tự động: {suggestedQT.ten})
+                    </span>
+                  )}
+                </label>
+                <select
+                  value={selectedQuyTrinhId || suggestedQT?.id || ""}
+                  onChange={(e) => setSelectedQuyTrinhId(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">-- Chọn quy trình --</option>
+                  {quyTrinhList.map((qt) => (
+                    <option key={qt.id} value={qt.id}>
+                      {qt.ten} ({qt.buocList.length} bước)
+                      {qt.hinhThuc === watched.hinhThuc ? " ★" : ""}
+                    </option>
+                  ))}
+                </select>
+                {selectedQT && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedQT.buocList.slice(0, 5).map((b, i) => (
+                      <span
+                        key={b.id}
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          b.loai === "Bắt đầu"
+                            ? "bg-emerald-50 text-emerald-600"
+                            : b.loai === "Kết thúc"
+                              ? "bg-red-50 text-red-500"
+                              : "bg-blue-50 text-blue-600"
+                        }`}
+                      >
+                        {i + 1}. {b.ten}
+                      </span>
+                    ))}
+                    {selectedQT.buocList.length > 5 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                        +{selectedQT.buocList.length - 5} bước
+                      </span>
+                    )}
+                  </div>
+                )}
+                {quyTrinhList.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    <i className="fa-solid fa-triangle-exclamation mr-1" />
+                    Chưa có quy trình nào được tạo.{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate("/lap-quy-trinh")}
+                      className="underline text-blue-600"
+                    >
+                      Tạo quy trình
+                    </button>
+                  </p>
+                )}
               </div>
 
               {/* Giá trị + Đơn vị */}
@@ -512,11 +604,29 @@ export default function TaoGoiThau() {
                   </p>
                 </div>
               )}
+              {selectedQT && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                  <p className="text-[10px] font-bold text-blue-400 tracking-wide mb-1.5">
+                    QUY TRÌNH ÁP DỤNG
+                  </p>
+                  <p className="text-xs font-medium text-blue-700 mb-1">{selectedQT.ten}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedQT.buocList.map((b, i) => (
+                      <span
+                        key={b.id}
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-white text-blue-600 border border-blue-200"
+                      >
+                        {i + 1}. {b.ten.length > 12 ? b.ten.slice(0, 12) + "…" : b.ten}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="mt-5 p-3 bg-amber-50 rounded-xl border border-amber-100">
                 <p className="text-xs text-amber-700 font-medium">
                   <i className="fa-solid fa-circle-info mr-1" />
-                  Gói thầu sau khi tạo sẽ "Chờ duyệt" và cần Giám đốc BV phê
-                  duyệt trước khi tiến hành.
+                  Gói thầu sau khi tạo sẽ ở trạng thái <strong>Chờ duyệt</strong> và cần
+                  Giám đốc BV phê duyệt trước khi tiến hành.
                 </p>
               </div>
             </>
@@ -532,6 +642,58 @@ export default function TaoGoiThau() {
           )}
         </aside>
       </div>
+
+      {/* CONFIRM SUBMIT MODAL */}
+      {confirmOpen && pendingSubmitData && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-paper-plane text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 text-sm">Xác nhận gửi đề xuất</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Gói thầu <strong>"{pendingSubmitData.ten}"</strong> sẽ được
+                  gửi và chuyển sang trạng thái <strong>Chờ duyệt</strong>.
+                  Bạn không thể chỉnh sửa sau khi gửi.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="h-9 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Quay lại
+              </button>
+              <button
+                onClick={doSubmit}
+                className="h-9 px-5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl flex items-center gap-2"
+              >
+                <i className="fa-solid fa-paper-plane text-xs" /> Xác nhận gửi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RBAC guard */}
+      {!CAN_CREATE && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center space-y-4">
+            <i className="fa-solid fa-lock text-4xl text-slate-300" />
+            <h3 className="font-bold text-slate-800">Không có quyền truy cập</h3>
+            <p className="text-sm text-slate-500">Bạn không có quyền tạo gói thầu.</p>
+            <button
+              onClick={() => navigate(-1)}
+              className="h-9 px-5 bg-blue-600 text-white text-sm font-semibold rounded-xl"
+            >
+              Quay lại
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

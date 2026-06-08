@@ -1,9 +1,5 @@
 export type VaiTro = "Admin" | "Quản lý" | "Nhân viên";
-export type TrangThai =
-  | "Hoạt động"
-  | "Chờ duyệt"
-  | "Bị khóa"
-  | "Ngưng hoạt động";
+export type TrangThai = "Hoạt động" | "Bị khóa" | "Ngưng hoạt động";
 
 export type User = {
   id: string;
@@ -23,7 +19,7 @@ export type UserAddFormValues = {
   email: string;
   sdt: string;
   phong: string;
-  vaiTro: VaiTro;
+  vaiTro: VaiTro | "";
   trangThai: TrangThai;
   matKhau: string;
   xacNhanMatKhau: string;

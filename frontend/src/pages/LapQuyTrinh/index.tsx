@@ -295,6 +295,14 @@ export default function LapQuyTrinh() {
       );
       return;
     }
+    if (startCount > 1) {
+      setSaveErr("Quy trình chỉ được có đúng 1 bước Bắt đầu.");
+      return;
+    }
+    if (endCount > 1) {
+      setSaveErr("Quy trình chỉ được có đúng 1 bước Kết thúc.");
+      return;
+    }
 
     setSaveErr("");
     setSaving(true);
@@ -331,6 +339,16 @@ export default function LapQuyTrinh() {
   const startCount = buocList.filter((b) => b.loai === "Bắt đầu").length;
   const endCount = buocList.filter((b) => b.loai === "Kết thúc").length;
   const tenLen = tenQuyTrinh.trim().length;
+
+  // Orphan: not "Bắt đầu" and not pointed to by any step
+  const pointedToIds = new Set(
+    buocList.map((b) => b.buocTiepTheoId).filter(Boolean),
+  );
+  const orphanIds = new Set(
+    buocList
+      .filter((b) => b.loai !== "Bắt đầu" && !pointedToIds.has(b.id))
+      .map((b) => b.id),
+  );
 
   /* ── Render ── */
   return (
@@ -514,7 +532,7 @@ export default function LapQuyTrinh() {
                 return (
                   <li
                     key={b.id}
-                    className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3"
+                    className={`flex items-start gap-3 border rounded-xl px-4 py-3 ${orphanIds.has(b.id) ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}
                   >
                     {/* Badge số thứ tự với màu theo loại */}
                     <span
@@ -559,6 +577,12 @@ export default function LapQuyTrinh() {
                           <span className="text-[11px] text-blue-500 flex items-center gap-1">
                             <i className="fa-solid fa-arrow-right text-[10px]" />
                             {nextStep.ten}
+                          </span>
+                        )}
+                        {orphanIds.has(b.id) && (
+                          <span className="text-[11px] text-amber-600 flex items-center gap-1 font-medium">
+                            <i className="fa-solid fa-triangle-exclamation text-[10px]" />
+                            Bước mồ côi
                           </span>
                         )}
                       </div>
@@ -607,6 +631,61 @@ export default function LapQuyTrinh() {
             </ol>
           )}
         </section>
+
+        {/* FLOW PREVIEW */}
+        {buocList.length > 0 && (
+          <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <i className="fa-solid fa-diagram-project text-blue-500" />
+              Xem trước luồng quy trình
+            </h2>
+            {orphanIds.size > 0 && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
+                <i className="fa-solid fa-triangle-exclamation" />
+                Có {orphanIds.size} bước mồ côi (không được trỏ đến từ bước nào).
+                Kiểm tra lại điều kiện chuyển tiếp.
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {buocList.map((b, idx) => (
+                <div key={b.id} className="flex items-center gap-1.5">
+                  <div
+                    className={`flex flex-col items-center px-3 py-2 rounded-xl border text-center min-w-[80px] ${
+                      b.loai === "Bắt đầu"
+                        ? "bg-emerald-50 border-emerald-300"
+                        : b.loai === "Kết thúc"
+                          ? "bg-red-50 border-red-300"
+                          : orphanIds.has(b.id)
+                            ? "bg-amber-50 border-amber-300"
+                            : "bg-blue-50 border-blue-200"
+                    }`}
+                  >
+                    <span
+                      className={`text-[10px] font-bold mb-0.5 ${
+                        b.loai === "Bắt đầu"
+                          ? "text-emerald-600"
+                          : b.loai === "Kết thúc"
+                            ? "text-red-600"
+                            : orphanIds.has(b.id)
+                              ? "text-amber-600"
+                              : "text-blue-600"
+                      }`}
+                    >
+                      {idx + 1}
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-700 break-words max-w-[80px] leading-tight">
+                      {b.ten}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">{b.slaNgay}N</span>
+                  </div>
+                  {idx < buocList.length - 1 && (
+                    <i className="fa-solid fa-arrow-right text-slate-300 text-xs" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* ── STEP MODAL (Add + Edit) ───────────────────────────── */}
