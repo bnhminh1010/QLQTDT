@@ -25,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
     public DbSet<ChuyenTiepWorkflow> ChuyenTiepWorkflows => Set<ChuyenTiepWorkflow>();
     public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
+    public DbSet<LichSuTrangThaiGoiThau> LichSuTrangThaiGoiThaus => Set<LichSuTrangThaiGoiThau>();
     public DbSet<TaiLieuHoSo> TaiLieuHoSos => Set<TaiLieuHoSo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -270,6 +271,25 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
             entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => e.MaGoiThau).IsUnique();
+        });
+
+        // LichSuTrangThaiGoiThau
+        modelBuilder.Entity<LichSuTrangThaiGoiThau>(entity =>
+        {
+            entity.ToTable("LichSuTrangThaiGoiThau");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TrangThaiCu).HasMaxLength(50);
+            entity.Property(e => e.TrangThaiMoi).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.ThoiGianThayDoi).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.HasOne<GoiThau>()
+                .WithMany()
+                .HasForeignKey(e => e.GoiThauId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<NguoiDung>()
+                .WithMany()
+                .HasForeignKey(e => e.NguoiThayDoiId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => new { e.GoiThauId, e.ThoiGianThayDoi });
         });
 
         // TaiLieuHoSo

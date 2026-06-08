@@ -41,3 +41,13 @@ public class GoiThauDetailDto
     public DateTime NgayTao { get; set; }
     public DateTime? NgayCapNhat { get; set; }
 }
+
+public class LichSuTrangThaiGoiThauDto
+{
+    public int Id { get; set; }
+    public int GoiThauId { get; set; }
+    public string? TrangThaiCu { get; set; }
+    public string TrangThaiMoi { get; set; } = null!;
+    public int? NguoiThayDoiId { get; set; }
+    public DateTime ThoiGianThayDoi { get; set; }
+}

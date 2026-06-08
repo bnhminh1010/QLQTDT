@@ -54,6 +54,14 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<GoiThauDetailDto>.Ok(detail));
     }
 
+    [AllowAnonymous]
+    [HttpGet("{id}/lich-su-trang-thai")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>>> GetLichSuTrangThai(int id)
+    {
+        var result = await _service.GetLichSuTrangThaiAsync(id);
+        return Ok(ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Ok(result));
+    }
+
     [NonAction]
     public override Task<ActionResult<ApiResponse<GoiThau>>> Create(GoiThau entity)
         => throw new NotSupportedException("Sử dụng CreateGoiThauDto.");
