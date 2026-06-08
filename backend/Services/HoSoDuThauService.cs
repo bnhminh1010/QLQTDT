@@ -23,11 +23,19 @@ public class HoSoDuThauService : IHoSoDuThauService
         var goiThau = await _db.GoiThaus.FindAsync(request.GoiThauId)
             ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {request.GoiThauId}");
 
-        // Không được nộp hồ sơ khi gói thầu đã hủy hoặc đã chọn nhà thầu
-        if (goiThau.TrangThai == GoiThauTrangThai.HUY_BO)
-            throw new BadRequestException("Không thể nộp hồ sơ cho gói thầu đã hủy.");
-        if (goiThau.TrangThai == GoiThauTrangThai.DA_CHON_NHA_THAU)
-            throw new BadRequestException("Gói thầu đã chọn nhà thầu, không thể nộp thêm hồ sơ.");
+        // Chỉ nhận hồ sơ khi gói thầu đang trong giai đoạn xử lý
+        if (goiThau.TrangThai != GoiThauTrangThai.DANG_XU_LY)
+        {
+            var msg = goiThau.TrangThai switch
+            {
+                GoiThauTrangThai.DU_THAO        => "Gói thầu chưa được công bố (đang ở trạng thái dự thảo).",
+                GoiThauTrangThai.HOAN_THANH     => "Gói thầu đã hoàn tất, không thể nộp hồ sơ.",
+                GoiThauTrangThai.HUY_BO         => "Gói thầu đã bị hủy.",
+                GoiThauTrangThai.DA_CHON_NHA_THAU => "Gói thầu đã chọn nhà thầu.",
+                _                               => "Gói thầu không ở trạng thái nhận hồ sơ."
+            };
+            throw new BadRequestException(msg);
+        }
 
         // Validate NhaThau tồn tại và đang hoạt động
         var nhaThau = await _db.NhaThaus.FindAsync(request.NhaThauId)
