@@ -21,9 +21,9 @@ public class AppDbContext : DbContext
     public DbSet<IntegrationLog> IntegrationLogs => Set<IntegrationLog>();
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
-    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
     public DbSet<ChuyenTiepWorkflow> ChuyenTiepWorkflows => Set<ChuyenTiepWorkflow>();
+    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
     public DbSet<TaiLieuHoSo> TaiLieuHoSos => Set<TaiLieuHoSo>();
 
@@ -138,7 +138,7 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.NguoiDung).WithMany(n => n.PasswordResetTokens).HasForeignKey(e => e.NguoiDungId);
         });
 
-        // LoginLockout — Persistent brute-force tracking
+        // LoginLockout
         modelBuilder.Entity<LoginLockout>(entity =>
         {
             entity.ToTable("LoginLockout");
@@ -191,9 +191,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TenWorkflow).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.HasIndex(e => e.MaWorkflow).IsUnique();
-            entity.HasOne(e => e.HinhThucDauThau)
-                .WithMany(h => h.Workflows)
-                .HasForeignKey(e => e.HinhThucId);
+            entity.HasOne(e => e.HinhThuc)
+                  .WithMany(h => h.Workflows)
+                  .HasForeignKey(e => e.HinhThucId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // BuocWorkflow
