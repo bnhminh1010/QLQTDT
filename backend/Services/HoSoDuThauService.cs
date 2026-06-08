@@ -50,7 +50,7 @@ public class HoSoDuThauService : IHoSoDuThauService
             throw new ConflictException("Nhà thầu đã có hồ sơ dự thầu cho gói thầu này.");
 
         // Validate fileIds
-        var distinctFileIds = request.FileIds.Distinct().ToList();
+        var distinctFileIds = (request.FileIds ?? []).Distinct().ToList();
         if (distinctFileIds.Count > 0)
         {
             var files = await _db.TaiLieuHoSos
@@ -190,8 +190,17 @@ public class HoSoDuThauService : IHoSoDuThauService
         if (goiThau.TrangThai == GoiThauTrangThai.DA_CHON_NHA_THAU)
             throw new ConflictException("Gói thầu đã được chọn nhà thầu trước đó.");
 
-        if (goiThau.TrangThai == GoiThauTrangThai.HUY_BO)
-            throw new BadRequestException("Không thể award gói thầu đã hủy.");
+        if (goiThau.TrangThai != GoiThauTrangThai.DANG_XU_LY)
+        {
+            var msg = goiThau.TrangThai switch
+            {
+                GoiThauTrangThai.DU_THAO    => "Gói thầu chưa được công bố (đang ở trạng thái dự thảo).",
+                GoiThauTrangThai.HOAN_THANH => "Gói thầu đã hoàn tất, không thể chọn nhà thầu.",
+                GoiThauTrangThai.HUY_BO     => "Gói thầu đã bị hủy.",
+                _                           => "Gói thầu không ở trạng thái có thể chọn nhà thầu."
+            };
+            throw new BadRequestException(msg);
+        }
 
         var hoSo = await _db.HoSoDuThaus.FindAsync(request.HoSoDuThauId)
             ?? throw new NotFoundException($"Không tìm thấy hồ sơ dự thầu với Id = {request.HoSoDuThauId}");
