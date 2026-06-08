@@ -149,6 +149,23 @@ public static class WorkflowTemplateSeeder
                 .Where(b => b.WorkflowId == wf.Id)
                 .ToListAsync();
 
+            var templateMaBuocs = steps.Select(s => s.MaBuoc).ToHashSet();
+
+            // Xóa bước không thuộc template (test data dư)
+            var extraBuocs = existingBuocs.Where(b => !templateMaBuocs.Contains(b.MaBuoc)).ToList();
+            if (extraBuocs.Count > 0)
+            {
+                var extraIds = extraBuocs.Select(b => b.Id).ToList();
+                var extraTransitions = await context.ChuyenTiepWorkflows
+                    .Where(t => extraIds.Contains(t.TuBuocId) || extraIds.Contains(t.DenBuocId))
+                    .ToListAsync();
+                context.ChuyenTiepWorkflows.RemoveRange(extraTransitions);
+                context.BuocWorkflows.RemoveRange(extraBuocs);
+                await context.SaveChangesAsync();
+                foreach (var b in extraBuocs)
+                    logger.LogInformation("Seed: Xóa bước dư [{Ma}] khỏi workflow [{Wf}]", b.MaBuoc, maWorkflow);
+            }
+
             var buocList = new List<BuocWorkflow>();
             for (int i = 0; i < steps.Length; i++)
             {
