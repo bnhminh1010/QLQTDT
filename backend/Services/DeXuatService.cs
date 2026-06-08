@@ -180,7 +180,7 @@ public class DeXuatService : IDeXuatService
             ?? throw new NotFoundException($"Không tìm thấy đề xuất với Id = {id}");
 
         if (deXuat.TrangThai != "DRAFT")
-            throw new BadRequestException("Chỉ được sửa đề xuất ở trạng thái DRAFT.");
+            throw new ConflictException("Chỉ được sửa đề xuất ở trạng thái DRAFT.");
 
         if (deXuat.NguoiDeXuatId != userId)
             throw new ForbiddenException("Chỉ người tạo mới có quyền sửa đề xuất này.");
@@ -239,7 +239,7 @@ public class DeXuatService : IDeXuatService
             ?? throw new NotFoundException($"Không tìm thấy đề xuất với Id = {id}");
 
         if (deXuat.TrangThai != "DRAFT")
-            throw new BadRequestException("Chỉ được xóa đề xuất ở trạng thái DRAFT.");
+            throw new ConflictException("Chỉ được xóa đề xuất ở trạng thái DRAFT.");
 
         if (deXuat.NguoiDeXuatId != userId)
             throw new ForbiddenException("Chỉ người tạo mới có quyền xóa đề xuất này.");
@@ -286,24 +286,7 @@ public class DeXuatService : IDeXuatService
     /// </summary>
     private async Task<string> GenerateMaDeXuatAsync()
     {
-        var year = DateTime.UtcNow.Year;
-        var prefix = $"DX-{year}-";
-
-        var maxCode = await _context.DeXuatMuaSams
-            .Where(d => d.MaDeXuat.StartsWith(prefix))
-            .OrderByDescending(d => d.MaDeXuat)
-            .Select(d => d.MaDeXuat)
-            .FirstOrDefaultAsync();
-
-        var seq = 1;
-        if (maxCode != null)
-        {
-            var parts = maxCode.Split('-');
-            if (parts.Length == 3 && int.TryParse(parts[2], out var lastSeq))
-                seq = lastSeq + 1;
-        }
-
-        return $"{prefix}{seq:D4}";
+        return await QLQTDT.Api.Helpers.CodeGenerator.GenerateMaDeXuatAsync(_context);
     }
 
     /// <summary>

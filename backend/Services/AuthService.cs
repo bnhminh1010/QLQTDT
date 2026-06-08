@@ -133,8 +133,9 @@ public class AuthService : IAuthService
         // Lấy danh sách roles
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var permissions = await GetUserPermissions(user.Id);
 
-        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames);
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissions);
 
         return new LoginResponseDto
         {

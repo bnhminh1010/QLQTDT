@@ -128,8 +128,11 @@ builder.Services.AddScoped<IDeXuatService, DeXuatService>();
 // FluentValidation — đăng ký tất cả validators từ assembly
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-// Controllers với JSON camelCase
-builder.Services.AddControllers()
+// Controllers với JSON camelCase + ValidationFilter tự động
+builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add<QLQTDT.Api.Helpers.ValidationFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;

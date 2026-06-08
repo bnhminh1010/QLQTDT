@@ -1,9 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.DeXuat;
 using QLQTDT.Api.Services;
@@ -24,6 +24,7 @@ public class DeXuatController : ControllerBase
 
     /// <summary>Lấy danh sách đề xuất (filter theo khoa/phòng user)</summary>
     [HttpGet]
+    [HasPermission("DEXUAT.VIEW")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<DeXuatResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll([FromQuery] DeXuatQueryParams queryParams)
     {
@@ -34,6 +35,7 @@ public class DeXuatController : ControllerBase
 
     /// <summary>Lấy chi tiết 1 đề xuất (kèm danh sách vật tư)</summary>
     [HttpGet("{id}")]
+    [HasPermission("DEXUAT.VIEW")]
     [ProducesResponseType(typeof(ApiResponse<DeXuatResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(long id)
     {
@@ -44,14 +46,10 @@ public class DeXuatController : ControllerBase
 
     /// <summary>Tạo đề xuất mua sắm mới</summary>
     [HttpPost]
+    [HasPermission("DEXUAT.CREATE")]
     [ProducesResponseType(typeof(ApiResponse<DeXuatResponseDto>), StatusCodes.Status201Created)]
-    public async Task<IActionResult> Create(
-        [FromBody] CreateDeXuatDto dto,
-        [FromServices] IValidator<CreateDeXuatDto> validator)
+    public async Task<IActionResult> Create([FromBody] CreateDeXuatDto dto)
     {
-        var validation = await validator.ValidateAsync(dto);
-        if (!validation.IsValid) return BadRequest(ToValidationError(validation));
-
         var userId = GetCurrentUserId();
         var result = await _deXuatService.CreateAsync(dto, userId);
         return CreatedAtAction(nameof(GetById), new { id = result.Id },
@@ -60,15 +58,10 @@ public class DeXuatController : ControllerBase
 
     /// <summary>Cập nhật đề xuất (chỉ khi DRAFT và là owner)</summary>
     [HttpPut("{id}")]
+    [HasPermission("DEXUAT.EDIT")]
     [ProducesResponseType(typeof(ApiResponse<DeXuatResponseDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Update(
-        long id,
-        [FromBody] UpdateDeXuatDto dto,
-        [FromServices] IValidator<UpdateDeXuatDto> validator)
+    public async Task<IActionResult> Update(long id, [FromBody] UpdateDeXuatDto dto)
     {
-        var validation = await validator.ValidateAsync(dto);
-        if (!validation.IsValid) return BadRequest(ToValidationError(validation));
-
         var userId = GetCurrentUserId();
         var result = await _deXuatService.UpdateAsync(id, dto, userId);
         return Ok(ApiResponse<DeXuatResponseDto>.Ok(result, "Cập nhật đề xuất thành công"));
@@ -76,6 +69,7 @@ public class DeXuatController : ControllerBase
 
     /// <summary>Xóa đề xuất — soft delete (chỉ khi DRAFT và là owner)</summary>
     [HttpDelete("{id}")]
+    [HasPermission("DEXUAT.DELETE")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(long id)
     {
@@ -86,6 +80,7 @@ public class DeXuatController : ControllerBase
 
     /// <summary>Lấy danh sách chi tiết vật tư của 1 đề xuất</summary>
     [HttpGet("{id}/chi-tiet")]
+    [HasPermission("DEXUAT.VIEW")]
     [ProducesResponseType(typeof(ApiResponse<List<ChiTietResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetChiTiet(long id)
     {
@@ -102,17 +97,5 @@ public class DeXuatController : ControllerBase
             ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
         return int.TryParse(sub, out var id) ? id : throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
     }
-
-    private static Models.DTOs.Common.ApiErrorResponse ToValidationError(
-        FluentValidation.Results.ValidationResult result) => new()
-    {
-        Timestamp = DateTime.UtcNow,
-        Status = 400,
-        Error = "Validation Failed",
-        Errors = result.Errors
-            .GroupBy(e => e.PropertyName)
-            .ToDictionary(
-                g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
-                g => g.First().ErrorMessage)
-    };
 }
+
