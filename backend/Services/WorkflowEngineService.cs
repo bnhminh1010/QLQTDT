@@ -37,14 +37,19 @@ public class WorkflowEngineService : IWorkflowEngineService
             throw new ConflictException(
                 $"Goi thau phai o trang thai DU_THAO. Trang thai hien tai: {goiThau.TrangThai}");
 
-        // 2. Validate Workflow template
-        var workflow = await _db.Workflows.FindAsync(request.WorkflowId);
+        // 2. Auto-suggest mode (WorkflowRule chưa implement)
+        if (request.AutoSuggest)
+            throw new BadRequestException(
+                "Tính năng tự động đề xuất workflow chưa được hỗ trợ. Vui lòng chọn workflow thủ công.");
+
+        // 3. Validate Workflow template
+        var workflow = await _db.Workflows.FindAsync(request.WorkflowId!.Value);
         if (workflow is null)
             throw new NotFoundException($"Khong tim thay workflow template voi Id = {request.WorkflowId}");
 
         // 3. Validate workflow has steps
         var steps = await _db.BuocWorkflows
-            .Where(b => b.WorkflowId == request.WorkflowId)
+            .Where(b => b.WorkflowId == request.WorkflowId!.Value)
             .OrderBy(b => b.Id)
             .ToListAsync();
 
@@ -79,7 +84,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             var instance = new WorkflowInstance
             {
                 GoiThauId = goiThauId,
-                WorkflowId = request.WorkflowId,
+                WorkflowId = request.WorkflowId!.Value,
                 BuocHienTaiId = firstStep.Id,
                 TrangThai = WorkflowTrangThai.ACTIVE,
                 NgayBatDau = DateTime.UtcNow
@@ -135,7 +140,7 @@ public class WorkflowEngineService : IWorkflowEngineService
 
             // 14. Update GoiThau state
             lockedGoiThau.TrangThai = GoiThauTrangThai.DANG_XU_LY;
-            lockedGoiThau.WorkflowId = request.WorkflowId;
+            lockedGoiThau.WorkflowId = request.WorkflowId!.Value;
             lockedGoiThau.NgayCapNhat = DateTime.UtcNow;
 
             // 15. Save all changes and commit

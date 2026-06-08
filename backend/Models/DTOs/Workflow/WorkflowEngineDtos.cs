@@ -2,7 +2,8 @@ namespace QLQTDT.Api.Models.DTOs.Workflow;
 
 public class StartWorkflowRequest
 {
-    public int WorkflowId { get; set; }
+    public int? WorkflowId { get; set; }
+    public bool AutoSuggest { get; set; }
 }
 
 public class WorkflowInstanceDto

@@ -8,6 +8,7 @@ public class StartWorkflowValidator : AbstractValidator<StartWorkflowRequest>
     public StartWorkflowValidator()
     {
         RuleFor(x => x.WorkflowId)
-            .GreaterThan(0).WithMessage("WorkflowId phai lon hon 0.");
+            .GreaterThan(0).WithMessage("WorkflowId phải lớn hơn 0.")
+            .When(x => !x.AutoSuggest);
     }
 }
