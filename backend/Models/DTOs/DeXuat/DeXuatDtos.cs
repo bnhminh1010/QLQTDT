@@ -28,6 +28,16 @@ public class ChiTietDeXuatDto
     public decimal DonGiaDuToan { get; set; }
 }
 
+public class ApproveDeXuatDto
+{
+    public string? GhiChu { get; set; }
+}
+
+public class RejectDeXuatDto
+{
+    public string LyDo { get; set; } = null!;
+}
+
 public class DeXuatQueryParams
 {
     public int Page { get; set; } = 1;

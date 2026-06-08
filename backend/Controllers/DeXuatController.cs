@@ -78,6 +78,39 @@ public class DeXuatController : ControllerBase
         return Ok(ApiResponse.Ok("Xóa đề xuất thành công"));
     }
 
+    /// <summary>Trình duyệt đề xuất (DRAFT -> PENDING)</summary>
+    [HttpPost("{id}/submit")]
+    [HasPermission("DEXUAT.SUBMIT")]
+    [ProducesResponseType(typeof(ApiResponse<DeXuatResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Submit(long id)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _deXuatService.SubmitAsync(id, userId);
+        return Ok(ApiResponse<DeXuatResponseDto>.Ok(result, "Đã trình duyệt đề xuất"));
+    }
+
+    /// <summary>Phê duyệt đề xuất (PENDING -> APPROVED)</summary>
+    [HttpPost("{id}/approve")]
+    [HasPermission("DEXUAT.APPROVE")]
+    [ProducesResponseType(typeof(ApiResponse<DeXuatResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Approve(long id, [FromBody] ApproveDeXuatDto dto)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _deXuatService.ApproveAsync(id, dto, userId);
+        return Ok(ApiResponse<DeXuatResponseDto>.Ok(result, "Phê duyệt đề xuất thành công"));
+    }
+
+    /// <summary>Từ chối đề xuất (PENDING -> REJECTED)</summary>
+    [HttpPost("{id}/reject")]
+    [HasPermission("DEXUAT.APPROVE")]
+    [ProducesResponseType(typeof(ApiResponse<DeXuatResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Reject(long id, [FromBody] RejectDeXuatDto dto)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _deXuatService.RejectAsync(id, dto, userId);
+        return Ok(ApiResponse<DeXuatResponseDto>.Ok(result, "Đã từ chối đề xuất"));
+    }
+
     /// <summary>Lấy danh sách chi tiết vật tư của 1 đề xuất</summary>
     [HttpGet("{id}/chi-tiet")]
     [HasPermission("DEXUAT.VIEW")]
@@ -98,4 +131,3 @@ public class DeXuatController : ControllerBase
         return int.TryParse(sub, out var id) ? id : throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
     }
 }
-

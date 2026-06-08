@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
@@ -249,6 +250,79 @@ public class DeXuatService : IDeXuatService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<DeXuatResponseDto> SubmitAsync(long id, int userId)
+    {
+        var deXuat = await _context.DeXuatMuaSams
+            .Where(d => d.Id == id && !d.DaXoa)
+            .Include(d => d.ChiTiet)
+            .FirstOrDefaultAsync()
+            ?? throw new NotFoundException($"Không tìm thấy đề xuất với Id = {id}");
+
+        if (deXuat.TrangThai != "DRAFT")
+            throw new ConflictException("Chỉ được trình duyệt đề xuất ở trạng thái DRAFT.");
+
+        if (deXuat.NguoiDeXuatId != userId)
+            throw new ForbiddenException("Chỉ người tạo mới có quyền trình duyệt đề xuất này.");
+
+        if (!deXuat.ChiTiet.Any())
+            throw new BadRequestException("Đề xuất phải có ít nhất 1 vật tư.");
+
+        deXuat.TrangThai = "PENDING";
+        deXuat.NgayCapNhat = DateTime.UtcNow;
+        AddTransitionAudit("DEXUAT_SUBMIT", deXuat.Id, userId, null);
+        await _context.SaveChangesAsync();
+
+        return await GetByIdAsync(id, userId);
+    }
+
+    public async Task<DeXuatResponseDto> ApproveAsync(long id, ApproveDeXuatDto dto, int userId)
+    {
+        dto ??= new ApproveDeXuatDto();
+
+        var deXuat = await _context.DeXuatMuaSams
+            .Where(d => d.Id == id && !d.DaXoa)
+            .FirstOrDefaultAsync()
+            ?? throw new NotFoundException($"Không tìm thấy đề xuất với Id = {id}");
+
+        await EnsureUserCanViewAsync(userId, deXuat.KhoaPhongId);
+
+        if (deXuat.TrangThai != "PENDING")
+            throw new ConflictException("Chỉ được phê duyệt đề xuất ở trạng thái PENDING.");
+
+        deXuat.TrangThai = "APPROVED";
+        deXuat.NgayCapNhat = DateTime.UtcNow;
+        AddTransitionAudit("DEXUAT_APPROVE", deXuat.Id, userId, dto.GhiChu);
+        await _context.SaveChangesAsync();
+
+        return await GetByIdAsync(id, userId);
+    }
+
+    public async Task<DeXuatResponseDto> RejectAsync(long id, RejectDeXuatDto dto, int userId)
+    {
+        if (dto is null)
+            throw new BadRequestException("Lý do từ chối không được để trống.");
+
+        var deXuat = await _context.DeXuatMuaSams
+            .Where(d => d.Id == id && !d.DaXoa)
+            .FirstOrDefaultAsync()
+            ?? throw new NotFoundException($"Không tìm thấy đề xuất với Id = {id}");
+
+        await EnsureUserCanViewAsync(userId, deXuat.KhoaPhongId);
+
+        if (deXuat.TrangThai != "PENDING")
+            throw new ConflictException("Chỉ được từ chối đề xuất ở trạng thái PENDING.");
+
+        if (string.IsNullOrWhiteSpace(dto.LyDo))
+            throw new BadRequestException("Lý do từ chối không được để trống.");
+
+        deXuat.TrangThai = "REJECTED";
+        deXuat.NgayCapNhat = DateTime.UtcNow;
+        AddTransitionAudit("DEXUAT_REJECT", deXuat.Id, userId, dto.LyDo);
+        await _context.SaveChangesAsync();
+
+        return await GetByIdAsync(id, userId);
+    }
+
     // ──────────────────────────────────────────────
     // GET CHI TIẾT — danh sách vật tư của 1 đề xuất
     // ──────────────────────────────────────────────
@@ -309,6 +383,21 @@ public class DeXuatService : IDeXuatService
         var userKhoaPhongIds = await GetUserKhoaPhongIdsAsync(userId);
         if (!userKhoaPhongIds.Contains(khoaPhongId))
             throw new ForbiddenException("Bạn không có quyền xem đề xuất của khoa/phòng này.");
+    }
+
+    private void AddTransitionAudit(string action, long deXuatId, int userId, string? note)
+    {
+        _context.NhatKyKiemToans.Add(new NhatKyKiemToan
+        {
+            HanhDong = action,
+            MoTaChiTiet = JsonSerializer.Serialize(new
+            {
+                deXuatId,
+                note = string.IsNullOrWhiteSpace(note) ? null : InputSanitizer.Sanitize(note)
+            }),
+            NguoiThucHienId = userId,
+            ThoiGianThucHien = DateTime.UtcNow
+        });
     }
 
     /// <summary>

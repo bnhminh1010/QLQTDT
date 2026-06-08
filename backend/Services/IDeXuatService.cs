@@ -10,5 +10,8 @@ public interface IDeXuatService
     Task<DeXuatResponseDto> CreateAsync(CreateDeXuatDto dto, int userId);
     Task<DeXuatResponseDto> UpdateAsync(long id, UpdateDeXuatDto dto, int userId);
     Task DeleteAsync(long id, int userId);
+    Task<DeXuatResponseDto> SubmitAsync(long id, int userId);
+    Task<DeXuatResponseDto> ApproveAsync(long id, ApproveDeXuatDto dto, int userId);
+    Task<DeXuatResponseDto> RejectAsync(long id, RejectDeXuatDto dto, int userId);
     Task<List<ChiTietResponseDto>> GetChiTietAsync(long id, int userId);
 }

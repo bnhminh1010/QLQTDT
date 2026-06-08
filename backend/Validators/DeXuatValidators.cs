@@ -73,3 +73,13 @@ public class UpdateDeXuatValidator : AbstractValidator<UpdateDeXuatDto>
         });
     }
 }
+
+public class RejectDeXuatValidator : AbstractValidator<RejectDeXuatDto>
+{
+    public RejectDeXuatValidator()
+    {
+        RuleFor(x => x.LyDo)
+            .NotEmpty().WithMessage("Ly do tu choi khong duoc de trong")
+            .MaximumLength(1000).WithMessage("Ly do tu choi toi da 1000 ky tu");
+    }
+}
