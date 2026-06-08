@@ -4,63 +4,6 @@ using QLQTDT.Api.Models.DTOs.Auth;
 
 namespace QLQTDT.Api.Validators;
 
-public class RegisterContractorValidator : AbstractValidator<RegisterContractorDto>
-{
-    public RegisterContractorValidator()
-    {
-        RuleFor(x => x.TenDangNhap)
-            .NotEmpty().WithMessage("Tên đăng nhập không được để trống")
-            .MinimumLength(3).WithMessage("Tên đăng nhập phải có ít nhất 3 ký tự")
-            .MaximumLength(100).WithMessage("Tên đăng nhập tối đa 100 ký tự")
-            .Matches(@"^[a-zA-Z0-9_.]+$").WithMessage("Tên đăng nhập chỉ chứa chữ cái, số, dấu gạch dưới và dấu chấm");
-
-        RuleFor(x => x.Email)
-            .NotEmpty().WithMessage("Email không được để trống")
-            .MaximumLength(100).WithMessage("Email tối đa 100 ký tự")
-            .EmailAddress().WithMessage("Định dạng email không hợp lệ");
-
-        RuleFor(x => x.MatKhau)
-            .NotEmpty().WithMessage("Mật khẩu không được để trống")
-            .MinimumLength(8).WithMessage("Mật khẩu phải có ít nhất 8 ký tự")
-            .Matches(@"[A-Z]").WithMessage("Mật khẩu phải có ít nhất 1 chữ hoa")
-            .Matches(@"[a-z]").WithMessage("Mật khẩu phải có ít nhất 1 chữ thường")
-            .Matches(@"[0-9]").WithMessage("Mật khẩu phải có ít nhất 1 chữ số")
-            .Matches(@"[!@#$%^&*()\-_=+\[\]{}|;:'"",.<>?/~\\]").WithMessage("Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)");
-
-        RuleFor(x => x.ConfirmMatKhau)
-            .NotEmpty().WithMessage("Xác nhận mật khẩu không được để trống")
-            .Equal(x => x.MatKhau).WithMessage("Xác nhận mật khẩu không trùng khớp");
-
-        RuleFor(x => x.HoTen)
-            .NotEmpty().WithMessage("Họ tên không được để trống")
-            .MaximumLength(255).WithMessage("Họ tên tối đa 255 ký tự")
-            .Must(v => !InputSanitizer.ContainsDangerousContent(v))
-                .WithMessage("Họ tên chứa ký tự không hợp lệ (HTML/script không được phép)");
-
-        RuleFor(x => x.MaSoThue)
-            .NotEmpty().WithMessage("Mã số thuế không được để trống")
-            .Matches(@"^\d{10,14}$").WithMessage("Mã số thuế phải từ 10 đến 14 chữ số");
-
-        RuleFor(x => x.TenCongTy)
-            .NotEmpty().WithMessage("Tên công ty không được để trống")
-            .MaximumLength(255).WithMessage("Tên công ty tối đa 255 ký tự")
-            .Must(v => !InputSanitizer.ContainsDangerousContent(v))
-                .WithMessage("Tên công ty chứa ký tự không hợp lệ (HTML/script không được phép)");
-
-        RuleFor(x => x.DiaChi)
-            .MaximumLength(500).WithMessage("Địa chỉ tối đa 500 ký tự")
-            .Must(v => !InputSanitizer.ContainsDangerousContent(v))
-                .WithMessage("Địa chỉ chứa ký tự không hợp lệ (HTML/script không được phép)")
-            .When(x => x.DiaChi != null);
-
-        RuleFor(x => x.NguoiDaiDien)
-            .MaximumLength(100).WithMessage("Người đại diện tối đa 100 ký tự")
-            .Must(v => !InputSanitizer.ContainsDangerousContent(v))
-                .WithMessage("Người đại diện chứa ký tự không hợp lệ (HTML/script không được phép)")
-            .When(x => x.NguoiDaiDien != null);
-    }
-}
-
 public class LoginRequestValidator : AbstractValidator<LoginRequestDto>
 {
     public LoginRequestValidator()

@@ -7,7 +7,7 @@ using QLQTDT.Api.Services;
 namespace QLQTDT.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "ADMIN,PHONG_QLDT")]
+[Authorize(Roles = "ADMIN")]
 [Route("api/workflows/transitions")]
 public class WorkflowTransitionItemController : ControllerBase
 {

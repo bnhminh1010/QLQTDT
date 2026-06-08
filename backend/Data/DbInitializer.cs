@@ -4,23 +4,23 @@ using QLQTDT.Api.Models.Entities;
 namespace QLQTDT.Api.Data;
 
 /// <summary>
-/// Khởi tạo dữ liệu mặc định cho hệ thống: 7 vai trò + 1 tài khoản Admin gốc + danh sách quyền + mapping mặc định.
+/// Khởi tạo dữ liệu mặc định cho hệ thống: vai trò + tài khoản Admin gốc + danh sách quyền + mapping.
 /// Chạy idempotent — chỉ tạo dữ liệu nếu chưa tồn tại.
 /// </summary>
 public static class DbInitializer
 {
-    private static readonly (string TenVaiTro, string MoTa)[] DefaultRoles =
+    private static readonly (string MaVaiTro, string TenVaiTro, string MoTa)[] DefaultRoles =
     [
-        ("ADMIN", "Quản trị hệ thống — quản lý tài khoản, phân quyền, cấu hình"),
-        ("KHOA_PHONG", "Nhân viên hành chính khoa/phòng — khởi tạo đề xuất, upload hồ sơ"),
-        ("BCN_KHOA_PHONG", "Ban chủ nhiệm khoa/phòng — xem/duyệt hồ sơ nội bộ"),
-        ("KE_TOAN", "Kế toán — kiểm tra ngân sách, dự toán, tài chính"),
-        ("PHONG_QLDT", "Phòng QLĐT — điều phối chính, kiểm tra hồ sơ, quản lý workflow"),
-        ("VIEN_TRUONG", "Viện trưởng — theo dõi báo cáo tổng hợp"),
-        ("NHA_THAU", "Nhà thầu bên ngoài — đăng ký, nộp HSDT, xem kết quả")
+        ("ADMIN", "ADMIN", "Quản trị hệ thống — quản lý tài khoản, phân quyền, cấu hình"),
+        ("KHOA_PHONG", "KHOA_PHONG", "Nhân viên hành chính khoa/phòng — khởi tạo đề xuất, upload hồ sơ"),
+        ("BCN_KHOA_PHONG", "BCN_KHOA_PHONG", "Ban chủ nhiệm khoa/phòng — xem/duyệt hồ sơ nội bộ"),
+        ("KE_TOAN_TRUONG", "KE_TOAN_TRUONG", "Kế toán trưởng — kiểm tra nguồn vốn, xác nhận dự toán"),
+        ("TONG_PHAP_CHE", "TONG_PHAP_CHE", "Tổ pháp chế — kiểm tra tính pháp lý, điều phối quy trình"),
+        ("VIEN_TRUONG", "VIEN_TRUONG", "Viện trưởng — theo dõi báo cáo tổng hợp"),
+        ("BCN_HCQT", "BCN_HCQT", "Ban chủ nhiệm phòng HCQT — tạo workflow, xem hồ sơ toàn BV"),
     ];
 
-    // Format chuẩn: MODULE.ACTION — UPPERCASE, nhất quán với convention DB
+    // Union của DbInitializer + PermissionSeeder lists
     private static readonly (string MaQuyen, string TenQuyen)[] DefaultPermissions =
     [
         // Đề xuất
@@ -31,12 +31,13 @@ public static class DbInitializer
         ("DEXUAT.SUBMIT",  "Nộp đề xuất"),
         ("DEXUAT.APPROVE", "Duyệt đề xuất"),
         ("DEXUAT.REJECT",  "Từ chối đề xuất"),
+        ("DEXUAT.ATTACH_FILE", "Đính kèm file đề xuất"),
         // Hợp đồng
-        ("HOPDONG.CREATE",    "Tạo hợp đồng"),
-        ("HOPDONG.VIEW",      "Xem hợp đồng"),
-        ("HOPDONG.EDIT",      "Sửa hợp đồng"),
-        ("HOPDONG.DELETE",    "Xóa hợp đồng"),
-        ("HOPDONG.QUYETTOAN", "Quyết toán hợp đồng"),
+        ("HOPDONG.CREATE",     "Tạo hợp đồng"),
+        ("HOPDONG.VIEW",       "Xem hợp đồng"),
+        ("HOPDONG.EDIT",       "Sửa hợp đồng"),
+        ("HOPDONG.DELETE",     "Xóa hợp đồng"),
+        ("HOPDONG.QUYETTOAN",  "Quyết toán hợp đồng"),
         // Báo cáo
         ("REPORT.VIEW",          "Xem báo cáo nội bộ"),
         ("REPORT.EXPORT",        "Xuất báo cáo"),
@@ -50,12 +51,15 @@ public static class DbInitializer
         ("GOITHAU.VIEW_INTERNAL", "Xem gói thầu nội bộ"),
         ("GOITHAU.VIEW_ALL",      "Xem tất cả gói thầu"),
         ("GOITHAU.UPDATE_STATUS", "Cập nhật trạng thái gói thầu"),
+        ("GOITHAU.START_WORKFLOW", "Khởi động quy trình"),
         ("GOITHAU.DISABLE",       "Tắt / ẩn gói thầu"),
         // Hồ sơ dự thầu
         ("HOSODUTHAU.CREATE", "Tạo hồ sơ dự thầu"),
         ("HOSODUTHAU.VIEW",   "Xem hồ sơ dự thầu"),
         ("HOSODUTHAU.EDIT",   "Sửa hồ sơ dự thầu"),
         ("HOSODUTHAU.DELETE", "Xóa hồ sơ dự thầu"),
+        ("HOSODUTHAU.EVALUATE", "Đánh giá hồ sơ"),
+        ("HOSODUTHAU.AWARD",  "Trao giải thầu"),
         // Workflow
         ("WORKFLOW.CREATE",   "Tạo workflow"),
         ("WORKFLOW.VIEW",     "Xem workflow"),
@@ -64,6 +68,10 @@ public static class DbInitializer
         ("WORKFLOW.DISABLE",  "Tắt / ẩn workflow"),
         ("WORKFLOW.VIEW_ALL", "Xem tất cả workflow"),
         ("WORKFLOW.CHOOSE",   "Chọn workflow áp dụng"),
+        ("WORKFLOW.CONFIG",   "Cấu hình workflow"),
+        ("WORKFLOW.PROCESS",  "Xử lý workflow"),
+        ("WORKFLOW.ROLLBACK", "Hoàn tác bước"),
+        ("WORKFLOW.REASSIGN", "Gán lại công việc"),
         // Nhà thầu
         ("NHATHAU.CREATE", "Tạo nhà thầu"),
         ("NHATHAU.VIEW",   "Xem nhà thầu"),
@@ -115,7 +123,6 @@ public static class DbInitializer
         ("DANHMUC.CONFIG",   "Tùy chỉnh nội dung danh mục"),
     ];
 
-    // Các permission đã đổi tên — seed sẽ tự rename trong DB khi khởi động
     private static readonly Dictionary<string, string> PermissionRenames = new()
     {
         ["USER.EDIT"] = "USER.UPDATE",
@@ -123,7 +130,7 @@ public static class DbInitializer
         ["QUYEN.EDIT"] = "QUYEN.UPDATE",
         ["WORKFLOW.EDIT"] = "WORKFLOW.UPDATE",
         ["DANHMUC.EDIT"] = "DANHMUC.UPDATE",
-        ["TAILIEU.UPDATE_OLD"] = "TAILIEU.UPDATE", // placeholder nếu có tên cũ khác
+        ["TAILIEU.UPDATE_OLD"] = "TAILIEU.UPDATE",
     };
 
     private static readonly Dictionary<string, string[]> RolePermissionMap = new()
@@ -132,36 +139,53 @@ public static class DbInitializer
 
         ["KHOA_PHONG"] =
         [
-            "DEXUAT.CREATE", "DEXUAT.VIEW", "DEXUAT.EDIT", "DEXUAT.DELETE", "DEXUAT.SUBMIT"
+            "DEXUAT.CREATE", "DEXUAT.VIEW", "DEXUAT.EDIT", "DEXUAT.DELETE", "DEXUAT.SUBMIT",
+            "DEXUAT.ATTACH_FILE", "GOITHAU.UPDATE_STATUS", "WORKFLOW.CHOOSE"
         ],
 
         ["BCN_KHOA_PHONG"] =
         [
-            "DEXUAT.VIEW", "DEXUAT.APPROVE", "DEXUAT.REJECT"
+            "DEXUAT.VIEW", "DEXUAT.APPROVE", "DEXUAT.REJECT",
+            "GOITHAU.VIEW_INTERNAL", "GOITHAU.VIEW",
+            "REPORT.VIEW", "REPORT.VIEW_INTERNAL",
+            "AUDIT.VIEW", "AUDIT.VIEW_INTERNAL"
         ],
 
-        ["KE_TOAN"] =
+        ["KE_TOAN_TRUONG"] =
         [
-            "HOPDONG.VIEW", "HOPDONG.QUYETTOAN", "REPORT.VIEW"
+            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW",
+            "HOPDONG.VIEW", "HOPDONG.QUYETTOAN",
+            "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
+            "AUDIT.VIEW_ALL"
         ],
 
-        ["PHONG_QLDT"] =
+        ["TONG_PHAP_CHE"] =
         [
-            "GOITHAU.CREATE",    "GOITHAU.VIEW",    "GOITHAU.EDIT",    "GOITHAU.DELETE",
+            "DEXUAT.ATTACH_FILE",
+            "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.EDIT", "GOITHAU.DELETE",
+            "GOITHAU.UPDATE_STATUS", "GOITHAU.DISABLE",
             "HOSODUTHAU.CREATE", "HOSODUTHAU.VIEW", "HOSODUTHAU.EDIT", "HOSODUTHAU.DELETE",
-            "WORKFLOW.CREATE",   "WORKFLOW.VIEW",   "WORKFLOW.UPDATE",  "WORKFLOW.DELETE",
-            "NHATHAU.CREATE",    "NHATHAU.VIEW",    "NHATHAU.EDIT",    "NHATHAU.DELETE",
-            "HOPDONG.CREATE",    "HOPDONG.VIEW",    "HOPDONG.EDIT",    "HOPDONG.DELETE",    "HOPDONG.QUYETTOAN"
+            "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.DELETE", "WORKFLOW.CHOOSE",
+            "NHATHAU.CREATE", "NHATHAU.VIEW", "NHATHAU.EDIT", "NHATHAU.DELETE",
+            "HOPDONG.CREATE", "HOPDONG.VIEW", "HOPDONG.EDIT", "HOPDONG.DELETE", "HOPDONG.QUYETTOAN",
+            "TAILIEU.UPLOAD", "TAILIEU.DOWNLOAD", "TAILIEU.VIEW", "TAILIEU.DELETE",
+            "AUDIT.VIEW", "AUDIT.VIEW_ALL",
+            "REPORT.VIEW", "REPORT.VIEW_ALL"
         ],
 
         ["VIEN_TRUONG"] =
         [
-            "REPORT.VIEW", "REPORT.EXPORT"
+            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW",
+            "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
+            "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
 
-        ["NHA_THAU"] =
+        ["BCN_HCQT"] =
         [
-            "HOSODUTHAU.CREATE", "HOSODUTHAU.VIEW", "NHATHAU.VIEW"
+            "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.CHOOSE",
+            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW",
+            "REPORT.VIEW", "REPORT.VIEW_ALL",
+            "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
     };
 
@@ -173,7 +197,6 @@ public static class DbInitializer
 
         await SeedRolesAsync(context, logger);
         await SeedKhoaPhongAsync(context, logger);
-        await SeedData.PermissionSeeder.SeedPermissionsAsync(context, logger);
         await SeedData.HinhThucDauThauSeeder.SeedAsync(context, logger);
         await SeedAdminAccountAsync(context, logger);
         await RenamePermissionsAsync(context, logger);
@@ -184,13 +207,19 @@ public static class DbInitializer
 
     private static async Task SeedRolesAsync(AppDbContext context, ILogger logger)
     {
-        foreach (var (tenVaiTro, moTa) in DefaultRoles)
+        foreach (var (maVaiTro, tenVaiTro, moTa) in DefaultRoles)
         {
-            var exists = await context.VaiTros.AnyAsync(v => v.TenVaiTro == tenVaiTro);
+            var exists = await context.VaiTros.AnyAsync(v => v.MaVaiTro == maVaiTro);
             if (!exists)
             {
-                context.VaiTros.Add(new VaiTro { TenVaiTro = tenVaiTro, MoTa = moTa, DaXoa = false });
-                logger.LogInformation("Seed: Tạo vai trò {TenVaiTro}", tenVaiTro);
+                context.VaiTros.Add(new VaiTro
+                {
+                    MaVaiTro = maVaiTro,
+                    TenVaiTro = tenVaiTro,
+                    MoTa = moTa,
+                    DaXoa = false
+                });
+                logger.LogInformation("Seed: Tạo vai trò {MaVaiTro}", maVaiTro);
             }
         }
         await context.SaveChangesAsync();
@@ -219,7 +248,6 @@ public static class DbInitializer
         const string adminEmail = "admin@qlqtdt.local";
         const string adminFullName = "Quản Trị Viên Hệ Thống";
 
-        // Lấy mật khẩu admin từ biến môi trường — không hardcode
         var adminPassword = Environment.GetEnvironmentVariable("ADMIN_DEFAULT_PASSWORD");
         if (string.IsNullOrWhiteSpace(adminPassword))
         {
@@ -232,13 +260,11 @@ public static class DbInitializer
                 return;
             }
 
-            // Chỉ dùng mật khẩu mặc định trong Development
             adminPassword = "Admin@123456";
             logger.LogWarning("Seed: Đang dùng mật khẩu admin mặc định. " +
                 "Hãy set ADMIN_DEFAULT_PASSWORD trong môi trường production.");
         }
 
-        // Kiểm tra admin đã tồn tại chưa
         var adminExists = await context.NguoiDungs.AnyAsync(u => u.TenDangNhap == adminUsername);
         if (adminExists)
         {
@@ -246,10 +272,8 @@ public static class DbInitializer
             return;
         }
 
-        // Lấy KhoaPhong mặc định (đã được seed ở SeedKhoaPhongAsync)
         var defaultKhoaPhong = await context.KhoaPhongs.FirstAsync();
 
-        // Tạo tài khoản admin
         var admin = new NguoiDung
         {
             TenDangNhap = adminUsername,
@@ -262,8 +286,7 @@ public static class DbInitializer
         context.NguoiDungs.Add(admin);
         await context.SaveChangesAsync();
 
-        // Gán vai trò ADMIN + KhoaPhong mặc định
-        var adminRole = await context.VaiTros.FirstOrDefaultAsync(v => v.TenVaiTro == "ADMIN");
+        var adminRole = await context.VaiTros.FirstOrDefaultAsync(v => v.MaVaiTro == "ADMIN");
         if (adminRole != null)
         {
             context.NguoiDungKhoaPhongVaiTros.Add(new NguoiDungKhoaPhongVaiTro
@@ -279,7 +302,6 @@ public static class DbInitializer
         logger.LogInformation("Seed: Tạo tài khoản admin mặc định (username: {Username})", adminUsername);
     }
 
-    // Đổi tên các permission cũ sang tên mới trong DB (chạy trước SeedPermissionsAsync)
     private static async Task RenamePermissionsAsync(AppDbContext context, ILogger logger)
     {
         foreach (var (oldCode, newCode) in PermissionRenames)
@@ -288,7 +310,6 @@ public static class DbInitializer
                 .FirstOrDefaultAsync(q => q.MaQuyen == oldCode && !q.DaXoa);
             if (existing == null) continue;
 
-            // Kiểm tra newCode chưa tồn tại để tránh duplicate
             var newExists = await context.Quyens.AnyAsync(q => q.MaQuyen == newCode && !q.DaXoa);
             if (newExists)
             {
@@ -308,7 +329,6 @@ public static class DbInitializer
     {
         foreach (var (maQuyen, tenQuyen) in DefaultPermissions)
         {
-            // SQL Server dùng case-insensitive collation → tìm được dù tên cũ sai case
             var existing = await context.Quyens.FirstOrDefaultAsync(q => q.MaQuyen == maQuyen && !q.DaXoa);
 
             if (existing == null)
@@ -318,7 +338,6 @@ public static class DbInitializer
             }
             else if (existing.MaQuyen != maQuyen)
             {
-                // Chuẩn hóa về UPPERCASE nếu entry cũ bị sai format
                 var oldMaQuyen = existing.MaQuyen;
                 existing.MaQuyen = maQuyen;
                 logger.LogInformation("Seed: Chuẩn hóa quyền {Old} -> {New}", oldMaQuyen, maQuyen);
@@ -329,9 +348,9 @@ public static class DbInitializer
 
     private static async Task SeedRolePermissionsAsync(AppDbContext context, ILogger logger)
     {
-        foreach (var (tenVaiTro, maCodes) in RolePermissionMap)
+        foreach (var (maVaiTro, maCodes) in RolePermissionMap)
         {
-            var vaiTro = await context.VaiTros.FirstOrDefaultAsync(v => v.TenVaiTro == tenVaiTro);
+            var vaiTro = await context.VaiTros.FirstOrDefaultAsync(v => v.MaVaiTro == maVaiTro);
             if (vaiTro == null) continue;
 
             var existingPermIds = await context.VaiTroQuyens
@@ -347,7 +366,7 @@ public static class DbInitializer
             var newPermIds = targetPermIds.Except(existingPermIds).ToList();
             if (newPermIds.Count == 0)
             {
-                logger.LogInformation("Seed: Vai trò {TenVaiTro} đã có đủ mapping quyền, bỏ qua.", tenVaiTro);
+                logger.LogInformation("Seed: Vai trò {MaVaiTro} đã có đủ mapping quyền, bỏ qua.", maVaiTro);
                 continue;
             }
 
@@ -357,7 +376,7 @@ public static class DbInitializer
             }
 
             await context.SaveChangesAsync();
-            logger.LogInformation("Seed: Thêm {Count} quyền mới cho vai trò {TenVaiTro}", newPermIds.Count, tenVaiTro);
+            logger.LogInformation("Seed: Thêm {Count} quyền mới cho vai trò {MaVaiTro}", newPermIds.Count, maVaiTro);
         }
     }
 }

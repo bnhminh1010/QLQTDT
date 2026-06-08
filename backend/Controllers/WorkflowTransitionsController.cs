@@ -28,7 +28,7 @@ public class WorkflowTransitionsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "ADMIN,PHONG_QLDT")]
+    [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]

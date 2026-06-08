@@ -12,6 +12,8 @@ public class BuocWorkflow : IBaseEntity
     public int SoNgaySLA { get; set; }
     public bool ChoPhepTuChoi { get; set; } = true;
     public bool ChoPhepBoQua { get; set; }
+    public bool WorkflowDuocChonThuCong { get; set; }
+    public string? LyDoChonWorkflow { get; set; }
 
     public Workflow? Workflow { get; set; }
     public VaiTro? VaiTroXuLy { get; set; }
