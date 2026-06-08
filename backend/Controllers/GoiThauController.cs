@@ -1,7 +1,10 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
+using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.GoiThau;
+using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
 using QLQTDT.Api.Services;
 
@@ -12,7 +15,13 @@ namespace QLQTDT.Api.Controllers;
 [Authorize]
 public class GoiThauController : BaseController<GoiThau, IGoiThauService>
 {
-    public GoiThauController(IGoiThauService service) : base(service) { }
+    private readonly IWorkflowEngineService _workflowEngine;
+
+    public GoiThauController(IGoiThauService service, IWorkflowEngineService workflowEngine)
+        : base(service)
+    {
+        _workflowEngine = workflowEngine;
+    }
 
     [NonAction]
     public override Task<ActionResult<ApiResponse<PagedResult<GoiThau>>>> GetAll(
@@ -52,6 +61,31 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     {
         var detail = await _service.GetChiTietAsync(id);
         return Ok(ApiResponse<GoiThauDetailDto>.Ok(detail));
+    }
+
+    [HttpPost("{id}/start-workflow")]
+    public async Task<ActionResult<ApiResponse<WorkflowInstanceDto>>> StartWorkflow(
+        int id,
+        [FromBody] StartWorkflowRequest request,
+        [FromServices] IValidator<StartWorkflowRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Timestamp = DateTime.UtcNow,
+                Status = 400,
+                Error = "Validation Failed",
+                Errors = validation.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
+                                  g => g.First().ErrorMessage)
+            });
+        }
+
+        var result = await _workflowEngine.StartWorkflowAsync(id, request);
+        return Ok(ApiResponse<WorkflowInstanceDto>.Ok(result, "Khởi tạo workflow thành công"));
     }
 
     [NonAction]

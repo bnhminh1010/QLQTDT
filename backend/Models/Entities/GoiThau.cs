@@ -10,6 +10,38 @@ public static class GoiThauTrangThai
     public static readonly string[] All = [DU_THAO, DANG_XU_LY, HOAN_THANH, HUY_BO];
 }
 
+public static class WorkflowHanhDong
+{
+    public const string START = "START";
+    public const string APPROVE = "APPROVE";
+    public const string REJECT = "REJECT";
+    public const string ROLLBACK = "ROLLBACK";
+    public const string SKIP = "SKIP";
+    public const string REASSIGN = "REASSIGN";
+    public const string RETRY = "RETRY";
+}
+
+public static class WorkflowTrangThai
+{
+    public const string ACTIVE = "ACTIVE";
+    public const string COMPLETED = "COMPLETED";
+    public const string CANCELLED = "CANCELLED";
+    public const string REJECTED = "REJECTED";
+
+    public static readonly string[] All = [ACTIVE, COMPLETED, CANCELLED, REJECTED];
+}
+
+public static class WorkflowStepTrangThai
+{
+    public const string PENDING = "PENDING";
+    public const string APPROVED = "APPROVED";
+    public const string REJECTED = "REJECTED";
+    public const string SKIPPED = "SKIPPED";
+    public const string ROLLED_BACK = "ROLLED_BACK";
+
+    public static readonly string[] All = [PENDING, APPROVED, REJECTED, SKIPPED, ROLLED_BACK];
+}
+
 public class GoiThau : IBaseEntity
 {
     public int Id { get; set; }

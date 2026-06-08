@@ -74,7 +74,9 @@ public class AuditInterceptor : SaveChangesInterceptor
     {
         var prop = entry.Properties.FirstOrDefault(p =>
             p.Metadata.Name.Equals("GoiThauId", StringComparison.OrdinalIgnoreCase));
-        return prop?.CurrentValue as long?;
+        if (prop?.CurrentValue is null) return null;
+        // Handle both int and long GoiThauId
+        return Convert.ToInt64(prop.CurrentValue);
     }
 
     private static string FormatChangeDescription(EntityEntry entry)

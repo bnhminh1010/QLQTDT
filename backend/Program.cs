@@ -189,6 +189,7 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IIntegrationService, IntegrationService>();
 builder.Services.AddScoped<IWorkflowConfigService, WorkflowConfigService>();
+builder.Services.AddScoped<IWorkflowEngineService, WorkflowEngineService>();
 
 builder.Services.AddScoped<IFtpService, FtpService>();
 builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();

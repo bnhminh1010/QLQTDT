@@ -25,6 +25,9 @@ public class AppDbContext : DbContext
     public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
     public DbSet<ChuyenTiepWorkflow> ChuyenTiepWorkflows => Set<ChuyenTiepWorkflow>();
     public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
+    public DbSet<WorkflowStepInstance> WorkflowStepInstances => Set<WorkflowStepInstance>();
+    public DbSet<WorkflowAssignment> WorkflowAssignments => Set<WorkflowAssignment>();
+    public DbSet<WorkflowActionHistory> WorkflowActionHistories => Set<WorkflowActionHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -248,9 +251,76 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired();
             entity.Property(e => e.NgayBatDau).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayHoanThanh).HasColumnType("datetime2");
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.HasOne(e => e.Workflow)
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowId);
+            entity.HasOne(e => e.GoiThau)
+                .WithMany()
+                .HasForeignKey(e => e.GoiThauId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // WorkflowStepInstance
+        modelBuilder.Entity<WorkflowStepInstance>(entity =>
+        {
+            entity.ToTable("WorkflowStepInstance");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired().HasDefaultValue("PENDING");
+            entity.Property(e => e.NgayBatDau).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayHoanThanh).HasColumnType("datetime2");
+            entity.Property(e => e.GhiChu).HasMaxLength(1000);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+            entity.HasOne(e => e.WorkflowInstance)
+                .WithMany(wi => wi.WorkflowStepInstances)
+                .HasForeignKey(e => e.WorkflowInstanceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.BuocWorkflow)
+                .WithMany(b => b.WorkflowStepInstances)
+                .HasForeignKey(e => e.BuocWorkflowId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.NguoiXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiXuLyId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // WorkflowAssignment
+        modelBuilder.Entity<WorkflowAssignment>(entity =>
+        {
+            entity.ToTable("WorkflowAssignment");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DaXuLy).HasDefaultValue(false);
+            entity.Property(e => e.NgayGiao).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayXuLy).HasColumnType("datetime2");
+            entity.Property(e => e.GhiChu).HasMaxLength(1000);
+            entity.HasOne(e => e.WorkflowStepInstance)
+                .WithMany(wsi => wsi.WorkflowAssignments)
+                .HasForeignKey(e => e.WorkflowStepInstanceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.NguoiDuocGiao)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiDuocGiaoId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.WorkflowStepInstanceId, e.NguoiDuocGiaoId }).IsUnique();
+        });
+
+        // WorkflowActionHistory
+        modelBuilder.Entity<WorkflowActionHistory>(entity =>
+        {
+            entity.ToTable("WorkflowActionHistory");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HanhDong).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.GhiChu).HasMaxLength(1000);
+            entity.Property(e => e.ThoiGian).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+            entity.HasOne(e => e.WorkflowInstance)
+                .WithMany(wi => wi.WorkflowActionHistories)
+                .HasForeignKey(e => e.WorkflowInstanceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.WorkflowStepInstance)
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowStepInstanceId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // GoiThau
