@@ -15,9 +15,9 @@ public class CreateGoiThauValidator : AbstractValidator<CreateGoiThauDto>
             .MaximumLength(1000).WithMessage("Mô tả tối đa 1000 ký tự.")
             .When(x => x.MoTa is not null);
 
-        RuleFor(x => x.GiaGoiThau)
+        RuleFor(x => x.NganSach)
             .GreaterThan(0).WithMessage("Giá gói thầu phải lớn hơn 0.")
-            .When(x => x.GiaGoiThau.HasValue);
+            .When(x => x.NganSach.HasValue);
 
         RuleFor(x => x.DeXuatId)
             .GreaterThan(0).WithMessage("DeXuatId không hợp lệ.")
@@ -37,8 +37,8 @@ public class UpdateGoiThauValidator : AbstractValidator<UpdateGoiThauDto>
             .MaximumLength(1000).WithMessage("Mô tả tối đa 1000 ký tự.")
             .When(x => x.MoTa is not null);
 
-        RuleFor(x => x.GiaGoiThau)
+        RuleFor(x => x.NganSach)
             .GreaterThan(0).WithMessage("Giá gói thầu phải lớn hơn 0.")
-            .When(x => x.GiaGoiThau.HasValue);
+            .When(x => x.NganSach.HasValue);
     }
 }
