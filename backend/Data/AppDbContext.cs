@@ -40,8 +40,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MatKhauHash).HasMaxLength(255).IsRequired();
             entity.Property(e => e.HoTen).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Email).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.SoDienThoai).HasMaxLength(20);
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            entity.Property(e => e.DaXoa).HasDefaultValue(false);
+            entity.Property(e => e.NgayDangNhapCuoi).HasColumnType("datetime2(3)");
             entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
             entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => e.TenDangNhap).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
@@ -114,6 +118,8 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.MaSoThue).HasMaxLength(20).IsRequired();
             entity.Property(e => e.TenCongTy).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Email).HasMaxLength(100);
+            entity.Property(e => e.SoDienThoai).HasMaxLength(20);
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.HasIndex(e => e.MaSoThue).IsUnique();
         });
@@ -250,14 +256,16 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("GoiThau");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.MaGoiThau).HasMaxLength(20).IsRequired();
-            entity.Property(e => e.TenGoiThau).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.IdCongKhai).HasDefaultValueSql("NEWSEQUENTIALID()");
+            entity.Property(e => e.MaGoiThau).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenGoiThau).HasMaxLength(500).IsRequired();
             entity.Property(e => e.MoTa).HasMaxLength(1000);
             entity.Property(e => e.GiaGoiThau).HasColumnType("decimal(18,0)");
             entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired().HasDefaultValue("DU_THAO");
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => e.MaGoiThau).IsUnique();
         });
     }
