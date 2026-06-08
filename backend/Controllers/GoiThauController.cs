@@ -64,6 +64,32 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<GoiThauDetailDto>.Ok(detail));
     }
 
+    [HttpPost("{id}/process-step")]
+    [HasPermission("WORKFLOW_TUY_CHON")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> ProcessStep(
+        int id,
+        [FromBody] ProcessStepRequest request,
+        [FromServices] IValidator<ProcessStepRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Timestamp = DateTime.UtcNow,
+                Status = 400,
+                Error = "Validation Failed",
+                Errors = validation.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
+                                  g => g.First().ErrorMessage)
+            });
+        }
+
+        var result = await _workflowEngine.ProcessStepAsync(id, request);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Xử lý bước workflow thành công"));
+    }
+
     [HttpPost("{id}/start-workflow")]
     [HasPermission("WORKFLOW_TUY_CHON")]
     public async Task<ActionResult<ApiResponse<WorkflowInstanceDto>>> StartWorkflow(
