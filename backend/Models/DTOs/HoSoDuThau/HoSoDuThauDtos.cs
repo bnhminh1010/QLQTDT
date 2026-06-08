@@ -28,6 +28,7 @@ public class HoSoDuThauListItemDto
     public string TenNhaThau { get; set; } = null!;
     public string MaSoThue { get; set; } = null!;
     public decimal GiaDuThau { get; set; }
+    public decimal? GiaTrungThau { get; set; }
     public string TrangThai { get; set; } = null!;
     public DateTime NgayNop { get; set; }
 }

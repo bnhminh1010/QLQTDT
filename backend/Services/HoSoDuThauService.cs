@@ -103,6 +103,9 @@ public class HoSoDuThauService : IHoSoDuThauService
 
     public async Task<PagedResult<HoSoDuThauListItemDto>> GetByGoiThauAsync(int goiThauId, int page, int pageSize)
     {
+        if (goiThauId <= 0)
+            throw new BadRequestException("goiThauId không hợp lệ.");
+
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
@@ -121,6 +124,7 @@ public class HoSoDuThauService : IHoSoDuThauService
                     TenNhaThau = n.TenCongTy,
                     MaSoThue = n.MaSoThue,
                     GiaDuThau = h.GiaDuThau,
+                    GiaTrungThau = h.GiaTrungThau,
                     TrangThai = h.TrangThai,
                     NgayNop = h.NgayNop
                 });
@@ -189,6 +193,9 @@ public class HoSoDuThauService : IHoSoDuThauService
 
         if (hoSo.TrangThai == HoSoDuThauTrangThai.BI_TU_CHOI)
             throw new BadRequestException("Không thể chọn hồ sơ đã bị từ chối.");
+
+        if (hoSo.TrangThai == HoSoDuThauTrangThai.TRUNG_THAU)
+            throw new ConflictException("Hồ sơ này đã được chọn trúng thầu trước đó.");
 
         if (request.GiaTrungThau > hoSo.GiaDuThau)
             throw new BadRequestException("Giá trúng thầu không được cao hơn giá dự thầu.");
