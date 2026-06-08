@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.GoiThau;
@@ -64,6 +65,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpPost("{id}/start-workflow")]
+    [HasPermission("WORKFLOW_TUY_CHON")]
     public async Task<ActionResult<ApiResponse<WorkflowInstanceDto>>> StartWorkflow(
         int id,
         [FromBody] StartWorkflowRequest request,

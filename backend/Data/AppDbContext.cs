@@ -316,7 +316,7 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.WorkflowInstance)
                 .WithMany(wi => wi.WorkflowActionHistories)
                 .HasForeignKey(e => e.WorkflowInstanceId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.WorkflowStepInstance)
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowStepInstanceId)
