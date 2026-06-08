@@ -189,7 +189,7 @@ if (user.quyen.includes("DEXUAT.APPROVE")) enableApproveAction();
 |--------|------|---------|
 | 401 | UNAUTHORIZED | Token không hợp lệ |
 
----
+---//
 
 ## GET /api/auth/permissions
 
