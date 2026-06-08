@@ -3,6 +3,7 @@ using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models.DTOs.Admin;
 using QLQTDT.Api.Models.DTOs.Auth;
+using QLQTDT.Api.Models.Entities;
 
 namespace QLQTDT.Api.Services;
 
@@ -61,15 +62,6 @@ public class AdminService : IAdminService
                         TenVaiTro = r.VaiTro.TenVaiTro,
                         LaChinh = r.LaChinh
                     }).ToList(),
-                // LEFT JOIN thông tin nhà thầu
-                TenCongTy = _context.NhaThaus
-                    .Where(n => n.NguoiDungId == u.Id)
-                    .Select(n => n.TenCongTy)
-                    .FirstOrDefault(),
-                MaSoThue = _context.NhaThaus
-                    .Where(n => n.NguoiDungId == u.Id)
-                    .Select(n => n.MaSoThue)
-                    .FirstOrDefault()
             })
             .ToListAsync();
 
@@ -92,9 +84,8 @@ public class AdminService : IAdminService
             .FirstOrDefaultAsync(u => u.IdCongKhai == idCongKhai)
             ?? throw new NotFoundException($"Không tìm thấy người dùng với ID: {idCongKhai}");
 
-        // Lấy thông tin nhà thầu nếu có
-        var nhaThau = await _context.NhaThaus
-            .FirstOrDefaultAsync(n => n.NguoiDungId == user.Id);
+        // Thông tin nhà thầu không còn gắn với user (NhaThau info only)
+        NhaThau? nhaThau = null;
 
         return new AdminUserDetailDto
         {

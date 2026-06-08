@@ -10,6 +10,7 @@ public class UserDto
     public DateTime NgayTao { get; set; }
     public string? AvatarUrl { get; set; }
     public List<UserRoleDto> Roles { get; set; } = [];
+    public List<string> Quyen { get; set; } = [];
 }
 
 public class UserRoleDto
@@ -20,24 +21,6 @@ public class UserRoleDto
     public int VaiTroId { get; set; }
     public string TenVaiTro { get; set; } = null!;
     public bool LaChinh { get; set; }
-}
-
-public class RegisterResponseDto
-{
-    public string Message { get; set; } = null!;
-    public RegisterDataDto Data { get; set; } = null!;
-}
-
-public class RegisterDataDto
-{
-    public Guid IdCongKhai { get; set; }
-    public string TenDangNhap { get; set; } = null!;
-    public string HoTen { get; set; } = null!;
-    public string Email { get; set; } = null!;
-    public string TenCongTy { get; set; } = null!;
-    public string MaSoThue { get; set; } = null!;
-    public bool TrangThaiHoatDong { get; set; }
-    public DateTime NgayTao { get; set; }
 }
 
 public class LoginResponseDto

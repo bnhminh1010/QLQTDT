@@ -16,6 +16,7 @@ public class AuthService : IAuthService
     private readonly LoginAttemptGuard _loginGuard;
     private readonly IMemoryCache _cache;
     private readonly ILogger<AuthService> _logger;
+    private readonly IPermissionService _permissionService;
 
     private const int ForgotPasswordMaxRequests = 3;
     private static readonly TimeSpan ForgotPasswordWindow = TimeSpan.FromHours(1);
@@ -26,7 +27,8 @@ public class AuthService : IAuthService
         IEmailService emailService,
         LoginAttemptGuard loginGuard,
         IMemoryCache cache,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IPermissionService permissionService)
     {
         _context = context;
         _jwtService = jwtService;
@@ -34,79 +36,9 @@ public class AuthService : IAuthService
         _loginGuard = loginGuard;
         _cache = cache;
         _logger = logger;
+        _permissionService = permissionService;
     }
 
-    public async Task<RegisterResponseDto> RegisterContractorAsync(RegisterContractorDto dto)
-    {
-        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
-        var normalizedUsername = dto.TenDangNhap.Trim();
-
-        // Kiểm tra trùng lặp
-        var existsUser = await _context.NguoiDungs
-            .AnyAsync(u => u.TenDangNhap == normalizedUsername || u.Email == normalizedEmail);
-        if (existsUser)
-            throw new ConflictException("Tên đăng nhập hoặc email đã được sử dụng trên hệ thống.");
-
-        var existsMst = await _context.NhaThaus.AnyAsync(n => n.MaSoThue == dto.MaSoThue);
-        if (existsMst)
-            throw new ConflictException("Mã số thuế đã được sử dụng trên hệ thống.");
-
-        // Tạo NguoiDung với TrangThaiHoatDong = false (chờ duyệt)
-        var nguoiDung = new NguoiDung
-        {
-            TenDangNhap = normalizedUsername,
-            MatKhauHash = BCrypt.Net.BCrypt.HashPassword(dto.MatKhau),
-            HoTen = InputSanitizer.Sanitize(dto.HoTen),
-            Email = normalizedEmail,
-            TrangThaiHoatDong = false,
-            NgayTao = DateTime.UtcNow
-        };
-        _context.NguoiDungs.Add(nguoiDung);
-        await _context.SaveChangesAsync();
-
-        // Tạo NhaThau liên kết
-        var nhaThau = new NhaThau
-        {
-            MaSoThue = dto.MaSoThue,
-            TenCongTy = InputSanitizer.Sanitize(dto.TenCongTy),
-            DiaChi = dto.DiaChi != null ? InputSanitizer.Sanitize(dto.DiaChi) : null,
-            NguoiDaiDien = dto.NguoiDaiDien != null ? InputSanitizer.Sanitize(dto.NguoiDaiDien) : null,
-            TrangThaiHoatDong = true,
-            NguoiDungId = nguoiDung.Id
-        };
-        _context.NhaThaus.Add(nhaThau);
-
-        // Gán vai trò NHA_THAU (KhoaPhongId = null vì nhà thầu không thuộc khoa/phòng nào)
-        var vaiTroNhaThau = await _context.VaiTros.FirstOrDefaultAsync(v => v.TenVaiTro == "NHA_THAU");
-        if (vaiTroNhaThau != null)
-        {
-            _context.NguoiDungKhoaPhongVaiTros.Add(new NguoiDungKhoaPhongVaiTro
-            {
-                NguoiDungId = nguoiDung.Id,
-                KhoaPhongId = null,
-                VaiTroId = vaiTroNhaThau.Id,
-                LaChinh = true
-            });
-        }
-
-        await _context.SaveChangesAsync();
-
-        return new RegisterResponseDto
-        {
-            Message = "Đăng ký tài khoản nhà thầu thành công. Vui lòng chờ quản trị viên phê duyệt.",
-            Data = new RegisterDataDto
-            {
-                IdCongKhai = nguoiDung.IdCongKhai,
-                TenDangNhap = nguoiDung.TenDangNhap,
-                HoTen = nguoiDung.HoTen,
-                Email = nguoiDung.Email,
-                TenCongTy = nhaThau.TenCongTy,
-                MaSoThue = nhaThau.MaSoThue,
-                TrangThaiHoatDong = nguoiDung.TrangThaiHoatDong,
-                NgayTao = nguoiDung.NgayTao
-            }
-        };
-    }
 
     public async Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp)
     {
@@ -130,13 +62,15 @@ public class AuthService : IAuthService
 
         await _loginGuard.ResetAttemptsAsync(lockoutKey);
 
-        // Lấy danh sách roles
+        // Lấy danh sách roles và permissions
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
-        var permissions = await GetUserPermissions(user.Id);
-        var permissionsClaim = string.Join(',', permissions);
-        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionsClaim);
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
+
+        // Chuyển thành List<string> đã sort cho response
+        var permissionList = permissionSet.OrderBy(q => q).ToList();
 
         return new LoginResponseDto
         {
@@ -151,7 +85,8 @@ public class AuthService : IAuthService
                 TrangThaiHoatDong = user.TrangThaiHoatDong,
                 NgayTao = user.NgayTao,
                 AvatarUrl = user.AvatarUrl,
-                Roles = userRoles
+                Roles = userRoles,
+                Quyen = permissionList
             }
         };
     }
@@ -162,6 +97,9 @@ public class AuthService : IAuthService
             ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
 
         var userRoles = await GetUserRoles(user.Id);
+        var permissions = (await _permissionService.GetPermissionsAsync(user.Id))
+            .OrderBy(q => q)
+            .ToList();
 
         return new UserDto
         {
@@ -172,7 +110,8 @@ public class AuthService : IAuthService
             TrangThaiHoatDong = user.TrangThaiHoatDong,
             NgayTao = user.NgayTao,
             AvatarUrl = user.AvatarUrl,
-            Roles = userRoles
+            Roles = userRoles,
+            Quyen = permissions
         };
     }
 

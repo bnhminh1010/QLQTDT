@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
@@ -8,6 +9,7 @@ using QLQTDT.Api.Services;
 namespace QLQTDT.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/workflows")]
 public class WorkflowsController : ControllerBase
 {
@@ -33,6 +35,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> Create(
         [FromBody] WorkflowCreateRequest request,
@@ -47,6 +50,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse>> Update(
         int id,
@@ -61,6 +65,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "ADMIN")]
     public async Task<ActionResult<ApiResponse>> Delete(int id)
     {
         await _workflowService.DeleteWorkflowAsync(id);

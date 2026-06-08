@@ -4,7 +4,6 @@ namespace QLQTDT.Api.Services;
 
 public interface IAuthService
 {
-    Task<RegisterResponseDto> RegisterContractorAsync(RegisterContractorDto dto);
     Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp);
     Task<UserDto> GetCurrentUserAsync(int userId);
     Task ForgotPasswordAsync(ForgotPasswordDto dto);

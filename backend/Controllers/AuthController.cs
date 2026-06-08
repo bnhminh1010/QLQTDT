@@ -26,23 +26,6 @@ public class AuthController : ControllerBase
         _env = env;
     }
 
-    /// <summary>Đăng ký tài khoản Nhà thầu</summary>
-    [HttpPost("register")]
-    [AllowAnonymous]
-    [ProducesResponseType(typeof(RegisterResponseDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Register(
-        [FromBody] RegisterContractorDto dto,
-        [FromServices] IValidator<RegisterContractorDto> validator)
-    {
-        var validation = await validator.ValidateAsync(dto);
-        if (!validation.IsValid) return BadRequest(ToValidationError(validation));
-
-        var result = await _authService.RegisterContractorAsync(dto);
-        return StatusCode(StatusCodes.Status201Created, result);
-    }
-
     /// <summary>Đăng nhập hệ thống</summary>
     [HttpPost("login")]
     [AllowAnonymous]

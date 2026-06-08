@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using QLQTDT.Api.Data;
 
@@ -11,9 +12,11 @@ using QLQTDT.Api.Data;
 namespace QLQTDT.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260608000308_AlignSchemaWithDbschema")]
+    partial class AlignSchemaWithDbschema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,9 +51,6 @@ namespace QLQTDT.Api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("LyDoChonWorkflow")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("MaBuoc")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -68,11 +68,6 @@ namespace QLQTDT.Api.Migrations
 
                     b.Property<int?>("VaiTroXuLyId")
                         .HasColumnType("int");
-
-                    b.Property<bool>("WorkflowDuocChonThuCong")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<int>("WorkflowId")
                         .HasColumnType("int");
@@ -132,6 +127,9 @@ namespace QLQTDT.Api.Migrations
                     b.Property<int?>("DeXuatId")
                         .HasColumnType("int");
 
+                    b.Property<decimal?>("GiaGoiThau")
+                        .HasColumnType("decimal(18,0)");
+
                     b.Property<int?>("HinhThucId")
                         .HasColumnType("int");
 
@@ -151,9 +149,6 @@ namespace QLQTDT.Api.Migrations
                     b.Property<string>("MoTa")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<decimal?>("NganSach")
-                        .HasColumnType("decimal(18,0)");
 
                     b.Property<DateTime?>("NgayCapNhat")
                         .HasColumnType("datetime2(3)");
@@ -561,58 +556,6 @@ namespace QLQTDT.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Quyen", (string)null);
-                });
-
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.TaiLieuHoSo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("DaXoa")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("DuongDanFtp")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int?>("GoiThauId")
-                        .HasColumnType("int");
-
-                    b.Property<long>("KichThuoc")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("LoaiTaiLieu")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("NgayTao")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2(3)")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.Property<int?>("NguoiUploadId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TenFile")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TaiLieuHoSo", (string)null);
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.VaiTro", b =>
