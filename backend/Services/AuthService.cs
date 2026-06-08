@@ -150,7 +150,8 @@ public class AuthService : IAuthService
                 TrangThaiHoatDong = user.TrangThaiHoatDong,
                 NgayTao = user.NgayTao,
                 AvatarUrl = user.AvatarUrl,
-                Roles = userRoles
+                Roles = userRoles,
+                Quyen = permissions
             }
         };
     }
@@ -161,6 +162,7 @@ public class AuthService : IAuthService
             ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
 
         var userRoles = await GetUserRoles(user.Id);
+        var permissions = await GetUserPermissions(user.Id);
 
         return new UserDto
         {
@@ -171,7 +173,8 @@ public class AuthService : IAuthService
             TrangThaiHoatDong = user.TrangThaiHoatDong,
             NgayTao = user.NgayTao,
             AvatarUrl = user.AvatarUrl,
-            Roles = userRoles
+            Roles = userRoles,
+            Quyen = permissions
         };
     }
 
@@ -264,6 +267,18 @@ public class AuthService : IAuthService
                 TenVaiTro = r.VaiTro.TenVaiTro,
                 LaChinh = r.LaChinh
             })
+            .ToListAsync();
+    }
+
+    private async Task<List<string>> GetUserPermissions(int userId)
+    {
+        return await _context.NguoiDungKhoaPhongVaiTros
+            .Where(r => r.NguoiDungId == userId && !r.VaiTro.DaXoa)
+            .SelectMany(r => r.VaiTro.VaiTroQuyens)
+            .Where(rq => !rq.Quyen.DaXoa)
+            .Select(rq => rq.Quyen.MaQuyen)
+            .Distinct()
+            .OrderBy(q => q)
             .ToListAsync();
     }
 }
