@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.NhaThau;
@@ -51,6 +52,50 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     {
         var updated = await _service.UpdateAsync(id, dto);
         return Ok(ApiResponse<NhaThau>.Ok(updated, "Cập nhật nhà thầu thành công"));
+    }
+
+    /// <summary>
+    /// Danh sach ho so nang luc cua nha thau
+    /// GET /api/nha-thau/{id}/ho-so-nang-luc
+    /// </summary>
+    [HttpGet("{id}/ho-so-nang-luc")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<List<HoSoNangLucDto>>>> GetHoSoNangLuc(int id)
+    {
+        var results = await _service.GetHoSoNangLucAsync(id);
+        return Ok(ApiResponse<List<HoSoNangLucDto>>.Ok(results));
+    }
+
+    /// <summary>
+    /// Upload ho so nang luc cua nha thau
+    /// POST /api/nha-thau/{id}/ho-so-nang-luc
+    /// </summary>
+    [HttpPost("{id}/ho-so-nang-luc")]
+    [AllowAnonymous]
+    [RequestSizeLimit(52_428_800)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
+    public async Task<ActionResult<ApiResponse<HoSoNangLucDto>>> UploadHoSoNangLuc(
+        int id,
+        [FromForm] UploadHoSoNangLucDto dto,
+        CancellationToken ct)
+    {
+        var result = await _service.UploadHoSoNangLucAsync(id, dto, ct);
+        return Ok(ApiResponse<HoSoNangLucDto>.Ok(result, "Upload ho so nang luc thanh cong"));
+    }
+
+    /// <summary>
+    /// Xoa ho so nang luc cua nha thau
+    /// DELETE /api/nha-thau/{id}/ho-so-nang-luc/{hoSoId}
+    /// </summary>
+    [HttpDelete("{id}/ho-so-nang-luc/{hoSoId:long}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse>> DeleteHoSoNangLuc(
+        int id,
+        long hoSoId,
+        CancellationToken ct)
+    {
+        await _service.DeleteHoSoNangLucAsync(id, hoSoId, ct);
+        return Ok(ApiResponse.Ok("Xoa ho so nang luc thanh cong"));
     }
 
     [NonAction]
