@@ -189,3 +189,27 @@ if (user.quyen.includes("DEXUAT.APPROVE")) enableApproveAction();
 |--------|------|---------|
 | 401 | UNAUTHORIZED | Token không hợp lệ |
 
+---
+
+## GET /api/auth/permissions
+
+*(Phương án dự phòng)*: Lấy trực tiếp danh sách quyền của người dùng hiện tại mà không kèm thông tin tài khoản (trả về mảng JSON string thẳng).
+
+**Response 200:**
+```json
+[
+  "DEXUAT.APPROVE",
+  "DEXUAT.CREATE",
+  "DEXUAT.DELETE",
+  "DEXUAT.EDIT",
+  "DEXUAT.SUBMIT",
+  "DEXUAT.VIEW"
+]
+```
+
+> **Lưu ý**: Endpoint này có cùng đặc điểm với mảng `quyen` của `GET /api/auth/me` (đã sort, không trùng, mảng rỗng nếu bị khóa). Khuyến nghị Frontend ưu tiên dùng dữ liệu trả về từ `/api/auth/me` để tối ưu số lần gọi API.
+
+**Errors:**
+| Status | Code | Message |
+|--------|------|---------|
+| 401 | UNAUTHORIZED | Token không hợp lệ |

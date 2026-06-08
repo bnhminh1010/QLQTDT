@@ -89,6 +89,17 @@ public class AuthController : ControllerBase
         return Ok(user);
     }
 
+    /// <summary>Lấy danh sách quyền của người dùng hiện tại</summary>
+    [HttpGet("permissions")]
+    [Authorize]
+    [ProducesResponseType(typeof(IReadOnlyCollection<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPermissions()
+    {
+        var userId = GetCurrentUserId();
+        var permissions = await _authService.GetPermissionsAsync(userId);
+        return Ok(permissions);
+    }
+
     /// <summary>Quên mật khẩu</summary>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
