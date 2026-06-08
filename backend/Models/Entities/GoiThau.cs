@@ -18,7 +18,7 @@ public class GoiThau : IBaseEntity
     public string TenGoiThau { get; set; } = null!;
     public string? MoTa { get; set; }
     public int? DeXuatId { get; set; }
-    public decimal? GiaGoiThau { get; set; }
+    public decimal? NganSach { get; set; }
     public int? KhoaPhongId { get; set; }
     public int? NguoiTaoId { get; set; }
     public int? HinhThucId { get; set; }

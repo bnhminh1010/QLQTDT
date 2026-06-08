@@ -36,7 +36,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 Id = g.Id,
                 MaGoiThau = g.MaGoiThau,
                 TenGoiThau = g.TenGoiThau,
-                GiaGoiThau = g.GiaGoiThau,
+                NganSach = g.NganSach,
                 TrangThai = g.TrangThai,
                 NgayTao = g.NgayTao
             })
@@ -71,7 +71,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             TenGoiThau = entity.TenGoiThau,
             MoTa = entity.MoTa,
             DeXuatId = entity.DeXuatId,
-            GiaGoiThau = entity.GiaGoiThau,
+            NganSach = entity.NganSach,
             TrangThai = entity.TrangThai,
             NgayTao = entity.NgayTao,
             NgayCapNhat = entity.NgayCapNhat
@@ -92,7 +92,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                     TenGoiThau = dto.TenGoiThau,
                     MoTa = dto.MoTa,
                     DeXuatId = dto.DeXuatId,
-                    GiaGoiThau = dto.GiaGoiThau,
+                    NganSach = dto.NganSach,
                     TrangThai = GoiThauTrangThai.DU_THAO,
                     TrangThaiHoatDong = true,
                     NgayTao = DateTime.UtcNow
@@ -127,7 +127,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
         entity.TenGoiThau = dto.TenGoiThau;
         entity.MoTa = dto.MoTa;
-        entity.GiaGoiThau = dto.GiaGoiThau;
+        entity.NganSach = dto.NganSach;
         entity.NgayCapNhat = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

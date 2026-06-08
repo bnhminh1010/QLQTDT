@@ -206,6 +206,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ChoPhepTuChoi).HasDefaultValue(true);
             entity.Property(e => e.ChoPhepBoQua).HasDefaultValue(false);
             entity.Property(e => e.SoNgaySLA).HasDefaultValue(0);
+            entity.Property(e => e.WorkflowDuocChonThuCong).HasDefaultValue(false);
+            entity.Property(e => e.LyDoChonWorkflow);
             entity.HasOne(e => e.Workflow)
                 .WithMany(w => w.BuocWorkflows)
                 .HasForeignKey(e => e.WorkflowId)
@@ -260,7 +262,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MaGoiThau).HasMaxLength(50).IsRequired();
             entity.Property(e => e.TenGoiThau).HasMaxLength(500).IsRequired();
             entity.Property(e => e.MoTa).HasMaxLength(1000);
-            entity.Property(e => e.GiaGoiThau).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.NganSach).HasColumnType("decimal(18,0)");
             entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired().HasDefaultValue("DU_THAO");
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
