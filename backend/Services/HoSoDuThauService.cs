@@ -211,6 +211,11 @@ public class HoSoDuThauService : IHoSoDuThauService
         if (hoSo.GoiThauId != goiThauId)
             throw new BadRequestException("Hồ sơ dự thầu không thuộc gói thầu này.");
 
+        var nhaThau = await _db.NhaThaus.FindAsync(hoSo.NhaThauId)
+            ?? throw new NotFoundException($"Không tìm thấy nhà thầu với Id = {hoSo.NhaThauId}");
+        if (!nhaThau.TrangThaiHoatDong)
+            throw new BadRequestException("Nhà thầu không còn hoạt động, không thể chọn trúng thầu.");
+
         if (hoSo.TrangThai == HoSoDuThauTrangThai.BI_TU_CHOI)
             throw new BadRequestException("Không thể chọn hồ sơ đã bị từ chối.");
 
