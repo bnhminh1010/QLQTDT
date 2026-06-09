@@ -65,7 +65,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpPost("{id}/start-workflow")]
-    [HasPermission("WORKFLOW_TUY_CHON")]
+    [HasPermission("WORKFLOW.CHOOSE")]
     public async Task<ActionResult<ApiResponse<WorkflowInstanceDto>>> StartWorkflow(
         int id,
         [FromBody] StartWorkflowRequest request,
