@@ -43,6 +43,8 @@ ScaffoldingReadMe.txt
 ~$*
 *~
 CodeCoverage/
+CLAUDE.md
+Quy Định & Hướng Dẫn Dành Cho Dev Team.md
 
 # MSBuild Binary and Structured Log
 *.binlog
@@ -56,3 +58,6 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 .ast-graph/
+
+# Claude Code internal state
+.omc/

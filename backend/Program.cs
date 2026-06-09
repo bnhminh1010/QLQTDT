@@ -45,8 +45,22 @@ if (!builder.Environment.IsEnvironment("Testing"))
     });
 }
 
-// JWT
-var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "DefaultSecretKeyForDevOnly123!@#";
+// JWT — fail-fast nếu thiếu JWT_SECRET trong môi trường non-Development
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        jwtSecret = "DevOnlySecret_" + Guid.NewGuid().ToString("N");
+        Console.WriteLine("⚠️  WARNING: JWT_SECRET chưa được cấu hình. Đang dùng secret tạm cho Development.");
+    }
+    else
+    {
+        throw new InvalidOperationException(
+            "FATAL: JWT_SECRET chưa được cấu hình. " +
+            "Set biến môi trường JWT_SECRET trước khi chạy trong môi trường production/staging.");
+    }
+}
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "QLQTDT";
 var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "QLQTDT.Frontend";
 
@@ -67,7 +81,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
-                context.Token = context.Request.Cookies["AccessToken"];
+                // Ưu tiên đọc từ Header (giúp test Postman dễ dàng bằng Bearer token)
+                if (context.Request.Headers.ContainsKey("Authorization"))
+                {
+                    return Task.CompletedTask; // Middleware tự parse header
+                }
+
+                // Fallback sang Cookie nếu không có Header
+                if (context.Request.Cookies.TryGetValue("AccessToken", out var token))
+                {
+                    context.Token = token;
+                }
+
                 return Task.CompletedTask;
             }
         };
@@ -83,13 +108,48 @@ builder.Services.Configure<JwtConfig>(options =>
 });
 
 // FTP
+var ftpServer = Environment.GetEnvironmentVariable("FTP_SERVER") ?? "";
+var ftpUser = Environment.GetEnvironmentVariable("FTP_USER") ?? "";
+var ftpPassword = Environment.GetEnvironmentVariable("FTP_PASSWORD") ?? "";
+var ftpPort = int.TryParse(Environment.GetEnvironmentVariable("FTP_PORT"), out var parsedFtpPort) ? parsedFtpPort : 21;
+var ftpBasePath = Environment.GetEnvironmentVariable("FTP_BASE_PATH") ?? "/qlqtdt/uploads";
+var ftpEncryptionMode = Environment.GetEnvironmentVariable("FTP_ENCRYPTION_MODE") ?? "None";
+var ftpUsePassive = bool.TryParse(Environment.GetEnvironmentVariable("FTP_USE_PASSIVE"), out var parsedUsePassive)
+    ? parsedUsePassive
+    : true;
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    if (string.IsNullOrWhiteSpace(ftpServer)
+        || string.IsNullOrWhiteSpace(ftpUser)
+        || string.IsNullOrWhiteSpace(ftpPassword))
+    {
+        throw new InvalidOperationException(
+            "FATAL: FTP_SERVER, FTP_USER va FTP_PASSWORD chua duoc cau hinh. " +
+            "Set bien moi truong FTP_SERVER, FTP_PORT, FTP_USER, FTP_PASSWORD.");
+    }
+
+    if (ftpPort is < 1 or > 65535)
+    {
+        throw new InvalidOperationException("FATAL: FTP_PORT phai nam trong khoang 1-65535.");
+    }
+
+    if (!string.Equals(ftpEncryptionMode, "None", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(ftpEncryptionMode, "Explicit", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("FATAL: FTP_ENCRYPTION_MODE chi ho tro None hoac Explicit.");
+    }
+}
+
 builder.Services.Configure<FtpConfig>(options =>
 {
-    options.Server = Environment.GetEnvironmentVariable("FTP_SERVER") ?? "";
-    options.Port = int.TryParse(Environment.GetEnvironmentVariable("FTP_PORT"), out var p) ? p : 21;
-    options.User = Environment.GetEnvironmentVariable("FTP_USER") ?? "";
-    options.Password = Environment.GetEnvironmentVariable("FTP_PASSWORD") ?? "";
-    options.UsePassive = true;
+    options.Server = ftpServer;
+    options.Port = ftpPort;
+    options.User = ftpUser;
+    options.Password = ftpPassword;
+    options.UsePassive = ftpUsePassive;
+    options.BasePath = ftpBasePath;
+    options.EncryptionMode = ftpEncryptionMode;
 });
 
 // Google Auth
@@ -124,10 +184,27 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IVaiTroService, VaiTroService>();
+builder.Services.AddScoped<IQuyenService, QuyenService>();
 builder.Services.AddScoped<IUserService, UserService>();
+// Các Service từ nhánh develop
+builder.Services.AddScoped<INhaThauService, NhaThauService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IIntegrationService, IntegrationService>();
+builder.Services.AddScoped<IWorkflowConfigService, WorkflowConfigService>();
+
+builder.Services.AddScoped<IFtpService, FtpService>();
+builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();
+builder.Services.AddScoped<IBuocWorkflowService, BuocWorkflowService>();
+builder.Services.AddScoped<IGoiThauService, GoiThauService>();
+builder.Services.AddScoped<ITaiLieuService, TaiLieuService>();
+
+// Service từ nhánh feature của anh
 builder.Services.AddScoped<IDeXuatService, DeXuatService>();
 
-// FluentValidation — đăng ký tất cả validators từ assembly
+// FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
+
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Controllers với JSON camelCase + ValidationFilter tự động

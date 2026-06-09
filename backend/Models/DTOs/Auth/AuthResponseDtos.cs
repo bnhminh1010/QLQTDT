@@ -23,24 +23,6 @@ public class UserRoleDto
     public bool LaChinh { get; set; }
 }
 
-public class RegisterResponseDto
-{
-    public string Message { get; set; } = null!;
-    public RegisterDataDto Data { get; set; } = null!;
-}
-
-public class RegisterDataDto
-{
-    public Guid IdCongKhai { get; set; }
-    public string TenDangNhap { get; set; } = null!;
-    public string HoTen { get; set; } = null!;
-    public string Email { get; set; } = null!;
-    public string TenCongTy { get; set; } = null!;
-    public string MaSoThue { get; set; } = null!;
-    public bool TrangThaiHoatDong { get; set; }
-    public DateTime NgayTao { get; set; }
-}
-
 public class LoginResponseDto
 {
     public string Message { get; set; } = null!;

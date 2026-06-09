@@ -8,8 +8,12 @@ public class NguoiDung
     public string MatKhauHash { get; set; } = null!;
     public string HoTen { get; set; } = null!;
     public string Email { get; set; } = null!;
+    public string? SoDienThoai { get; set; }
     public bool TrangThaiHoatDong { get; set; } = true;
+    public bool DaXoa { get; set; }
+    public DateTime? NgayDangNhapCuoi { get; set; }
     public DateTime NgayTao { get; set; }
+    public DateTime? NgayCapNhat { get; set; }
 
     // Google OAuth
     public string? GoogleId { get; set; }

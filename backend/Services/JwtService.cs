@@ -16,7 +16,9 @@ public class JwtService
         _config = config.Value;
     }
 
+
     public string GenerateToken(int userId, string email, string fullName, List<string> roles, IEnumerable<string>? permissions = null)
+ 
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -24,10 +26,12 @@ public class JwtService
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Email, email),
             new(JwtRegisteredClaimNames.Name, fullName),
-            new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
+            new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new("permissions", string.Join(",", permissions))
         };
 
         // Thêm từng role vào claims

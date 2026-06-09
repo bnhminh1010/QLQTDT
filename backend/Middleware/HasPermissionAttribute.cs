@@ -10,6 +10,7 @@ namespace QLQTDT.Api.Middleware;
 /// Cách dùng:
 ///   [HasPermission("DEXUAT.VIEW")]                          — yêu cầu 1 quyền
 ///   [HasPermission("DEXUAT.VIEW", "DEXUAT.EDIT")]           — any-of (OR logic)
+
 ///
 /// Cơ chế:
 ///   1. Kiểm tra user đã authenticated → 401 nếu chưa
