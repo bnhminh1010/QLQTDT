@@ -19,36 +19,6 @@ public class HoSoDuThauService : IHoSoDuThauService
 
     public async Task<HoSoDuThauDetailDto> CreateAsync(CreateHoSoDuThauRequest request)
     {
-        // Validate GoiThau tồn tại
-        var goiThau = await _db.GoiThaus.FindAsync(request.GoiThauId)
-            ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {request.GoiThauId}");
-
-        // Chỉ nhận hồ sơ khi gói thầu đang trong giai đoạn xử lý
-        if (goiThau.TrangThai != GoiThauTrangThai.DANG_XU_LY)
-        {
-            var msg = goiThau.TrangThai switch
-            {
-                GoiThauTrangThai.DU_THAO        => "Gói thầu chưa được công bố (đang ở trạng thái dự thảo).",
-                GoiThauTrangThai.HOAN_THANH     => "Gói thầu đã hoàn tất, không thể nộp hồ sơ.",
-                GoiThauTrangThai.HUY_BO         => "Gói thầu đã bị hủy.",
-                GoiThauTrangThai.DA_CHON_NHA_THAU => "Gói thầu đã chọn nhà thầu.",
-                _                               => "Gói thầu không ở trạng thái nhận hồ sơ."
-            };
-            throw new BadRequestException(msg);
-        }
-
-        // Validate NhaThau tồn tại và đang hoạt động
-        var nhaThau = await _db.NhaThaus.FindAsync(request.NhaThauId)
-            ?? throw new NotFoundException($"Không tìm thấy nhà thầu với Id = {request.NhaThauId}");
-        if (!nhaThau.TrangThaiHoatDong)
-            throw new BadRequestException("Nhà thầu không còn hoạt động.");
-
-        // 1 nhà thầu chỉ được có 1 hồ sơ cho 1 gói thầu
-        var duplicate = await _db.HoSoDuThaus.AnyAsync(h =>
-            h.GoiThauId == request.GoiThauId && h.NhaThauId == request.NhaThauId);
-        if (duplicate)
-            throw new ConflictException("Nhà thầu đã có hồ sơ dự thầu cho gói thầu này.");
-
         var distinctFileIds = (request.FileIds ?? []).Distinct().ToList();
 
         var entity = new HoSoDuThau
@@ -61,10 +31,37 @@ public class HoSoDuThauService : IHoSoDuThauService
             NgayNop = DateTime.UtcNow
         };
 
-        await using var transaction = await _db.Database.BeginTransactionAsync();
+        // RepeatableRead: lock các row đã đọc để tránh race khi admin đổi trạng thái GoiThau
+        await using var transaction = await _db.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.RepeatableRead);
         try
         {
-            // Validate fileIds bên trong transaction để tránh race condition
+            var goiThau = await _db.GoiThaus.FindAsync(request.GoiThauId)
+                ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {request.GoiThauId}");
+
+            if (goiThau.TrangThai != GoiThauTrangThai.DANG_XU_LY)
+            {
+                var msg = goiThau.TrangThai switch
+                {
+                    GoiThauTrangThai.DU_THAO          => "Gói thầu chưa được công bố (đang ở trạng thái dự thảo).",
+                    GoiThauTrangThai.HOAN_THANH        => "Gói thầu đã hoàn tất, không thể nộp hồ sơ.",
+                    GoiThauTrangThai.HUY_BO            => "Gói thầu đã bị hủy.",
+                    GoiThauTrangThai.DA_CHON_NHA_THAU  => "Gói thầu đã chọn nhà thầu.",
+                    _                                  => "Gói thầu không ở trạng thái nhận hồ sơ."
+                };
+                throw new BadRequestException(msg);
+            }
+
+            var nhaThau = await _db.NhaThaus.FindAsync(request.NhaThauId)
+                ?? throw new NotFoundException($"Không tìm thấy nhà thầu với Id = {request.NhaThauId}");
+            if (!nhaThau.TrangThaiHoatDong)
+                throw new BadRequestException("Nhà thầu không còn hoạt động.");
+
+            var duplicate = await _db.HoSoDuThaus.AnyAsync(h =>
+                h.GoiThauId == request.GoiThauId && h.NhaThauId == request.NhaThauId);
+            if (duplicate)
+                throw new ConflictException("Nhà thầu đã có hồ sơ dự thầu cho gói thầu này.");
+
             if (distinctFileIds.Count > 0)
             {
                 var files = await _db.TaiLieuHoSos
