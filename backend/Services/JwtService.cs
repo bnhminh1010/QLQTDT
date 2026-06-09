@@ -18,7 +18,7 @@ public class JwtService
 
 
     public string GenerateToken(int userId, string email, string fullName, List<string> roles, IEnumerable<string>? permissions = null)
- 
+
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
