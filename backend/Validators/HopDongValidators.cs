@@ -12,6 +12,7 @@ public class CreateHopDongValidator : AbstractValidator<CreateHopDongRequest>
 
         RuleFor(x => x.SoHopDong)
             .NotEmpty().WithMessage("Số hợp đồng không được để trống")
+            .Must(s => !string.IsNullOrWhiteSpace(s)).WithMessage("Số hợp đồng không được chỉ chứa khoảng trắng")
             .MaximumLength(100).WithMessage("Số hợp đồng tối đa 100 ký tự");
 
         RuleFor(x => x.TongGiaTri)
