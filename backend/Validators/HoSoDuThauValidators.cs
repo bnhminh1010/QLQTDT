@@ -26,6 +26,8 @@ public class CreateHoSoDuThauValidator : AbstractValidator<CreateHoSoDuThauReque
 
         RuleFor(x => x.GhiChu)
             .MaximumLength(1000).WithMessage("Ghi chú tối đa 1000 ký tự")
+            .Must(v => !QLQTDT.Api.Helpers.InputSanitizer.ContainsDangerousContent(v))
+            .WithMessage("Ghi chú chứa nội dung không hợp lệ")
             .When(x => x.GhiChu != null);
     }
 }
