@@ -49,31 +49,7 @@ public class HoSoDuThauService : IHoSoDuThauService
         if (duplicate)
             throw new ConflictException("Nhà thầu đã có hồ sơ dự thầu cho gói thầu này.");
 
-        // Validate fileIds
         var distinctFileIds = (request.FileIds ?? []).Distinct().ToList();
-        if (distinctFileIds.Count > 0)
-        {
-            var files = await _db.TaiLieuHoSos
-                .Where(f => distinctFileIds.Contains(f.Id))
-                .ToListAsync();
-
-            var foundIds = files.Select(f => f.Id).ToHashSet();
-            var missingIds = distinctFileIds.Where(id => !foundIds.Contains(id)).ToList();
-            if (missingIds.Count > 0)
-                throw new NotFoundException($"Không tìm thấy tài liệu với Id: {string.Join(", ", missingIds)}");
-
-            var deletedFiles = files.Where(f => f.DaXoa).ToList();
-            if (deletedFiles.Count > 0)
-                throw new BadRequestException($"Tài liệu đã bị xóa: {string.Join(", ", deletedFiles.Select(f => f.Id))}");
-
-            var wrongGoiThau = files.Where(f => f.GoiThauId != request.GoiThauId).ToList();
-            if (wrongGoiThau.Count > 0)
-                throw new BadRequestException($"Tài liệu không thuộc gói thầu này: {string.Join(", ", wrongGoiThau.Select(f => f.Id))}");
-
-            var alreadyLinked = files.Where(f => f.HoSoDuThauId != null).ToList();
-            if (alreadyLinked.Count > 0)
-                throw new ConflictException($"Tài liệu đã được liên kết với hồ sơ khác: {string.Join(", ", alreadyLinked.Select(f => f.Id))}");
-        }
 
         var entity = new HoSoDuThau
         {
@@ -88,6 +64,31 @@ public class HoSoDuThauService : IHoSoDuThauService
         await using var transaction = await _db.Database.BeginTransactionAsync();
         try
         {
+            // Validate fileIds bên trong transaction để tránh race condition
+            if (distinctFileIds.Count > 0)
+            {
+                var files = await _db.TaiLieuHoSos
+                    .Where(f => distinctFileIds.Contains(f.Id))
+                    .ToListAsync();
+
+                var foundIds = files.Select(f => f.Id).ToHashSet();
+                var missingIds = distinctFileIds.Where(id => !foundIds.Contains(id)).ToList();
+                if (missingIds.Count > 0)
+                    throw new NotFoundException($"Không tìm thấy tài liệu với Id: {string.Join(", ", missingIds)}");
+
+                var deletedFiles = files.Where(f => f.DaXoa).ToList();
+                if (deletedFiles.Count > 0)
+                    throw new BadRequestException($"Tài liệu đã bị xóa: {string.Join(", ", deletedFiles.Select(f => f.Id))}");
+
+                var wrongGoiThau = files.Where(f => f.GoiThauId != request.GoiThauId).ToList();
+                if (wrongGoiThau.Count > 0)
+                    throw new BadRequestException($"Tài liệu không thuộc gói thầu này: {string.Join(", ", wrongGoiThau.Select(f => f.Id))}");
+
+                var alreadyLinked = files.Where(f => f.HoSoDuThauId != null).ToList();
+                if (alreadyLinked.Count > 0)
+                    throw new ConflictException($"Tài liệu đã được liên kết với hồ sơ khác: {string.Join(", ", alreadyLinked.Select(f => f.Id))}");
+            }
+
             _db.HoSoDuThaus.Add(entity);
             await _db.SaveChangesAsync();
 
@@ -173,6 +174,11 @@ public class HoSoDuThauService : IHoSoDuThauService
         if (request.TrangThai == HoSoDuThauTrangThai.CHUA_XU_LY
             && entity.TrangThai != HoSoDuThauTrangThai.CHUA_XU_LY)
             throw new BadRequestException("Không thể đổi trạng thái về CHUA_XU_LY sau khi đã xử lý.");
+
+        // Hồ sơ đã bị từ chối không thể duyệt lại — nhà thầu cần nộp hồ sơ mới
+        if (entity.TrangThai == HoSoDuThauTrangThai.BI_TU_CHOI
+            && request.TrangThai == HoSoDuThauTrangThai.DA_DUYET)
+            throw new BadRequestException("Không thể duyệt hồ sơ đã bị từ chối. Nhà thầu cần nộp hồ sơ mới.");
 
         entity.TrangThai = request.TrangThai;
         entity.NgayCapNhat = DateTime.UtcNow;

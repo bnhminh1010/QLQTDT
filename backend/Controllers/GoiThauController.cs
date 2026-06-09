@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.GoiThau;
 using QLQTDT.Api.Models.DTOs.HoSoDuThau;
@@ -85,6 +86,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpPost("{id}/award")]
+    [HasPermission("HOSODUTHAU.AWARD")]
     public async Task<ActionResult<ApiResponse<object?>>> Award(
         int id, [FromBody] AwardGoiThauRequest request)
     {

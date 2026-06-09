@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.HoSoDuThau;
 using QLQTDT.Api.Services;
@@ -23,6 +24,7 @@ public class HoSoDuThauController : ControllerBase
     /// POST /api/ho-so-du-thau
     /// </summary>
     [HttpPost]
+    [HasPermission("HOSODUTHAU.CREATE")]
     public async Task<ActionResult<ApiResponse<HoSoDuThauDetailDto>>> Create(
         [FromBody] CreateHoSoDuThauRequest request)
     {
@@ -36,6 +38,7 @@ public class HoSoDuThauController : ControllerBase
     /// GET /api/ho-so-du-thau?goiThauId=1&amp;page=1&amp;pageSize=20
     /// </summary>
     [HttpGet]
+    [HasPermission("HOSODUTHAU.VIEW")]
     public async Task<ActionResult<ApiResponse<PagedResult<HoSoDuThauListItemDto>>>> GetByGoiThau(
         [FromQuery] int goiThauId,
         [FromQuery] int page = 1,
@@ -50,6 +53,7 @@ public class HoSoDuThauController : ControllerBase
     /// GET /api/ho-so-du-thau/{id}
     /// </summary>
     [HttpGet("{id}")]
+    [HasPermission("HOSODUTHAU.VIEW")]
     public async Task<ActionResult<ApiResponse<HoSoDuThauDetailDto>>> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -61,6 +65,7 @@ public class HoSoDuThauController : ControllerBase
     /// PATCH /api/ho-so-du-thau/{id}/trang-thai
     /// </summary>
     [HttpPatch("{id}/trang-thai")]
+    [HasPermission("HOSODUTHAU.EVALUATE")]
     public async Task<ActionResult<ApiResponse<object?>>> UpdateTrangThai(
         int id, [FromBody] UpdateTrangThaiHoSoRequest request)
     {
