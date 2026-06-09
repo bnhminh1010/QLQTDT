@@ -23,11 +23,11 @@ public class HopDongService : IHopDongService
 
         var entity = new HopDong
         {
-            GoiThauId   = request.GoiThauId,
-            SoHopDong   = request.SoHopDong.Trim(),
-            TongGiaTri  = request.TongGiaTri,
-            NgayKy      = request.NgayKy,
-            NgayTao     = DateTime.UtcNow
+            GoiThauId = request.GoiThauId,
+            SoHopDong = request.SoHopDong.Trim(),
+            TongGiaTri = request.TongGiaTri,
+            NgayKy = request.NgayKy,
+            NgayTao = DateTime.UtcNow
         };
 
         // RepeatableRead: lock GoiThau để tránh race khi trạng thái bị đổi đồng thời
@@ -42,11 +42,11 @@ public class HopDongService : IHopDongService
             {
                 var msg = goiThau.TrangThai switch
                 {
-                    GoiThauTrangThai.DU_THAO          => "Gói thầu chưa được công bố.",
-                    GoiThauTrangThai.DANG_XU_LY        => "Gói thầu đang trong quá trình đấu thầu, chưa chọn nhà thầu.",
-                    GoiThauTrangThai.HOAN_THANH        => "Gói thầu đã hoàn tất.",
-                    GoiThauTrangThai.HUY_BO            => "Gói thầu đã bị hủy.",
-                    _                                  => "Gói thầu chưa ở trạng thái có thể lập hợp đồng."
+                    GoiThauTrangThai.DU_THAO => "Gói thầu chưa được công bố.",
+                    GoiThauTrangThai.DANG_XU_LY => "Gói thầu đang trong quá trình đấu thầu, chưa chọn nhà thầu.",
+                    GoiThauTrangThai.HOAN_THANH => "Gói thầu đã hoàn tất.",
+                    GoiThauTrangThai.HUY_BO => "Gói thầu đã bị hủy.",
+                    _ => "Gói thầu chưa ở trạng thái có thể lập hợp đồng."
                 };
                 throw new BadRequestException(msg);
             }
@@ -123,13 +123,13 @@ public class HopDongService : IHopDongService
             .Where(h => h.GoiThauId == goiThauId)
             .Select(h => new HopDongListItemDto
             {
-                Id          = h.Id,
-                GoiThauId   = h.GoiThauId,
-                TenGoiThau  = h.GoiThau!.TenGoiThau,
-                SoHopDong   = h.SoHopDong,
-                TongGiaTri  = h.TongGiaTri,
-                NgayKy      = h.NgayKy,
-                NgayTao     = h.NgayTao
+                Id = h.Id,
+                GoiThauId = h.GoiThauId,
+                TenGoiThau = h.GoiThau!.TenGoiThau,
+                SoHopDong = h.SoHopDong,
+                TongGiaTri = h.TongGiaTri,
+                NgayKy = h.NgayKy,
+                NgayTao = h.NgayTao
             });
 
         var total = await query.CountAsync();
@@ -141,9 +141,9 @@ public class HopDongService : IHopDongService
 
         return new PagedResult<HopDongListItemDto>
         {
-            Items    = items,
-            Total    = total,
-            Page     = page,
+            Items = items,
+            Total = total,
+            Page = page,
             PageSize = pageSize
         };
     }
@@ -159,23 +159,23 @@ public class HopDongService : IHopDongService
             .Where(h => h.Id == id)
             .Select(h => new HopDongDetailDto
             {
-                Id          = h.Id,
-                GoiThauId   = h.GoiThauId,
-                TenGoiThau  = h.GoiThau!.TenGoiThau,
-                SoHopDong   = h.SoHopDong,
-                TongGiaTri  = h.TongGiaTri,
-                NgayKy      = h.NgayKy,
-                NgayTao     = h.NgayTao,
+                Id = h.Id,
+                GoiThauId = h.GoiThauId,
+                TenGoiThau = h.GoiThau!.TenGoiThau,
+                SoHopDong = h.SoHopDong,
+                TongGiaTri = h.TongGiaTri,
+                NgayKy = h.NgayKy,
+                NgayTao = h.NgayTao,
                 NgayCapNhat = h.NgayCapNhat,
-                TaiLieus    = h.TaiLieus
+                TaiLieus = h.TaiLieus
                     .Where(f => !f.DaXoa)
                     .Select(f => new TaiLieuTomTatDto
                     {
-                        Id           = f.Id,
-                        TenFile      = f.TenFile,
-                        KichThuoc    = f.KichThuoc,
-                        LoaiTaiLieu  = f.LoaiTaiLieu,
-                        ContentType  = f.ContentType
+                        Id = f.Id,
+                        TenFile = f.TenFile,
+                        KichThuoc = f.KichThuoc,
+                        LoaiTaiLieu = f.LoaiTaiLieu,
+                        ContentType = f.ContentType
                     }).ToList()
             })
             .FirstOrDefaultAsync();
