@@ -15,11 +15,11 @@ namespace QLQTDT.Api.Migrations
                 name: "HinhThucDauThau",
                 columns: table => new
                 {
-                    Id                = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                                               .Annotation("SqlServer:Identity", "1, 1"),
-                    MaHinhThuc        = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    TenHinhThuc       = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    HanMucToiDa       = table.Column<decimal>(type: "decimal(18,0)", nullable: true),
+                    MaHinhThuc = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    TenHinhThuc = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    HanMucToiDa = table.Column<decimal>(type: "decimal(18,0)", nullable: true),
                     TrangThaiHoatDong = table.Column<bool>(type: "bit", nullable: false, defaultValue: true)
                 },
                 constraints: table =>
@@ -37,13 +37,13 @@ namespace QLQTDT.Api.Migrations
                 name: "NhatKyKiemToan",
                 columns: table => new
                 {
-                    Id                = table.Column<long>(type: "bigint", nullable: false)
+                    Id = table.Column<long>(type: "bigint", nullable: false)
                                              .Annotation("SqlServer:Identity", "1, 1"),
-                    GoiThauId         = table.Column<long>(type: "bigint", nullable: true),
-                    HanhDong          = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    MoTaChiTiet       = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    NguoiThucHienId   = table.Column<int>(type: "int", nullable: false),
-                    ThoiGianThucHien  = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()")
+                    GoiThauId = table.Column<long>(type: "bigint", nullable: true),
+                    HanhDong = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    MoTaChiTiet = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NguoiThucHienId = table.Column<int>(type: "int", nullable: false),
+                    ThoiGianThucHien = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {

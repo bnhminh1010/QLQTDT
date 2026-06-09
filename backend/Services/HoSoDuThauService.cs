@@ -43,11 +43,11 @@ public class HoSoDuThauService : IHoSoDuThauService
             {
                 var msg = goiThau.TrangThai switch
                 {
-                    GoiThauTrangThai.DU_THAO          => "Gói thầu chưa được công bố (đang ở trạng thái dự thảo).",
-                    GoiThauTrangThai.HOAN_THANH        => "Gói thầu đã hoàn tất, không thể nộp hồ sơ.",
-                    GoiThauTrangThai.HUY_BO            => "Gói thầu đã bị hủy.",
-                    GoiThauTrangThai.DA_CHON_NHA_THAU  => "Gói thầu đã chọn nhà thầu.",
-                    _                                  => "Gói thầu không ở trạng thái nhận hồ sơ."
+                    GoiThauTrangThai.DU_THAO => "Gói thầu chưa được công bố (đang ở trạng thái dự thảo).",
+                    GoiThauTrangThai.HOAN_THANH => "Gói thầu đã hoàn tất, không thể nộp hồ sơ.",
+                    GoiThauTrangThai.HUY_BO => "Gói thầu đã bị hủy.",
+                    GoiThauTrangThai.DA_CHON_NHA_THAU => "Gói thầu đã chọn nhà thầu.",
+                    _ => "Gói thầu không ở trạng thái nhận hồ sơ."
                 };
                 throw new BadRequestException(msg);
             }
@@ -197,10 +197,10 @@ public class HoSoDuThauService : IHoSoDuThauService
         {
             var msg = goiThau.TrangThai switch
             {
-                GoiThauTrangThai.DU_THAO    => "Gói thầu chưa được công bố (đang ở trạng thái dự thảo).",
+                GoiThauTrangThai.DU_THAO => "Gói thầu chưa được công bố (đang ở trạng thái dự thảo).",
                 GoiThauTrangThai.HOAN_THANH => "Gói thầu đã hoàn tất, không thể chọn nhà thầu.",
-                GoiThauTrangThai.HUY_BO     => "Gói thầu đã bị hủy.",
-                _                           => "Gói thầu không ở trạng thái có thể chọn nhà thầu."
+                GoiThauTrangThai.HUY_BO => "Gói thầu đã bị hủy.",
+                _ => "Gói thầu không ở trạng thái có thể chọn nhà thầu."
             };
             throw new BadRequestException(msg);
         }

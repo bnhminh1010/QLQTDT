@@ -16,17 +16,17 @@ namespace QLQTDT.Api.Migrations
                 name: "BuocWorkflow",
                 columns: table => new
                 {
-                    Id                = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                                              .Annotation("SqlServer:Identity", "1, 1"),
-                    WorkflowId        = table.Column<int>(type: "int", nullable: false),
-                    MaBuoc            = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    TenBuoc           = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    LoaiBuoc          = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    VaiTroXuLyId      = table.Column<int>(type: "int", nullable: true),
-                    KhoaPhongXuLyId   = table.Column<int>(type: "int", nullable: true),
-                    SoNgaySLA         = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    ChoPhepTuChoi     = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
-                    ChoPhepBoQua      = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
+                    WorkflowId = table.Column<int>(type: "int", nullable: false),
+                    MaBuoc = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    TenBuoc = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    LoaiBuoc = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    VaiTroXuLyId = table.Column<int>(type: "int", nullable: true),
+                    KhoaPhongXuLyId = table.Column<int>(type: "int", nullable: true),
+                    SoNgaySLA = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    ChoPhepTuChoi = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    ChoPhepBoQua = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
                 },
                 constraints: table =>
                 {
@@ -66,12 +66,12 @@ namespace QLQTDT.Api.Migrations
                 name: "ChuyenTiepWorkflow",
                 columns: table => new
                 {
-                    Id        = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                                      .Annotation("SqlServer:Identity", "1, 1"),
-                    TuBuocId  = table.Column<int>(type: "int", nullable: false),
+                    TuBuocId = table.Column<int>(type: "int", nullable: false),
                     DenBuocId = table.Column<int>(type: "int", nullable: false),
-                    HanhDong  = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    DieuKien  = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    HanhDong = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    DieuKien = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
