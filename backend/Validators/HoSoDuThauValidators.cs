@@ -18,9 +18,11 @@ public class CreateHoSoDuThauValidator : AbstractValidator<CreateHoSoDuThauReque
             .GreaterThan(0).WithMessage("Giá dự thầu phải lớn hơn 0");
 
         RuleFor(x => x.FileIds)
-            .NotNull().WithMessage("FileIds không được null")
-            .Must(ids => ids.All(id => id > 0)).WithMessage("FileIds chứa giá trị không hợp lệ")
-            .When(x => x.FileIds != null && x.FileIds.Count > 0);
+            .NotNull().WithMessage("FileIds không được null");
+
+        RuleFor(x => x.FileIds)
+            .Must(ids => ids!.All(id => id > 0)).WithMessage("FileIds chứa giá trị không hợp lệ")
+            .When(x => x.FileIds is { Count: > 0 });
 
         RuleFor(x => x.GhiChu)
             .MaximumLength(1000).WithMessage("Ghi chú tối đa 1000 ký tự")
