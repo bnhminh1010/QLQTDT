@@ -80,10 +80,9 @@ public class HopDongService : IHopDongService
                         $"Tài liệu có loại không hợp lệ cho hợp đồng (phải là {string.Join(", ", LoaiTaiLieu.HopDongTypes)}): " +
                         $"{string.Join(", ", invalidType.Select(f => f.Id))}");
 
-                // Sau khi task-027 merge, cần bổ sung: || f.HoSoDuThauId != null
-                var alreadyLinked = files.Where(f => f.HopDongId != null).ToList();
+                var alreadyLinked = files.Where(f => f.HopDongId != null || f.HoSoDuThauId != null).ToList();
                 if (alreadyLinked.Count > 0)
-                    throw new ConflictException($"Tài liệu đã được liên kết với hợp đồng khác: {string.Join(", ", alreadyLinked.Select(f => f.Id))}");
+                    throw new ConflictException($"Tài liệu đã được liên kết với hồ sơ hoặc hợp đồng khác: {string.Join(", ", alreadyLinked.Select(f => f.Id))}");
             }
 
             _db.HopDongs.Add(entity);
