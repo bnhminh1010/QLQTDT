@@ -59,11 +59,13 @@ public class DeXuatService : IDeXuatService
         query = query.OrderByDescending(d => d.NgayDeXuat);
 
         var total = await query.CountAsync();
-        var items = await query
+        var entities = await query
             .Skip((p.Page - 1) * p.PageSize)
             .Take(p.PageSize)
-            .Select(d => MapToResponseDto(d, includeChiTiet: false))
             .ToListAsync();
+        var items = entities
+            .Select(d => MapToResponseDto(d, includeChiTiet: false))
+            .ToList();
 
         return new PagedResult<DeXuatResponseDto>
         {
@@ -335,19 +337,22 @@ public class DeXuatService : IDeXuatService
 
         await EnsureUserCanViewAsync(userId, deXuat.KhoaPhongId);
 
-        return await _context.ChiTietDeXuats
+        var chiTiets = await _context.ChiTietDeXuats
             .Where(c => c.DeXuatId == id)
+            .ToListAsync();
+
+        return chiTiets
             .Select(c => new ChiTietResponseDto
             {
                 Id = c.Id,
-                MaVatTu = c.MaVatTu,
-                TenVatTu = c.TenVatTu,
-                DonViTinh = c.DonViTinh,
+                MaVatTu = InputSanitizer.NormalizeForOutput(c.MaVatTu),
+                TenVatTu = InputSanitizer.NormalizeForOutput(c.TenVatTu),
+                DonViTinh = InputSanitizer.NormalizeNullableForOutput(c.DonViTinh),
                 SoLuong = c.SoLuong,
                 DonGiaDuToan = c.DonGiaDuToan,
                 ThanhTien = c.SoLuong * c.DonGiaDuToan  // Tính trong code, không phụ thuộc EF reload
             })
-            .ToListAsync();
+            .ToList();
     }
 
     // ══════════════════════════════════════════════
@@ -410,8 +415,8 @@ public class DeXuatService : IDeXuatService
             Id = d.Id,
             IdCongKhai = d.IdCongKhai,
             MaDeXuat = d.MaDeXuat,
-            TieuDe = d.TieuDe,
-            MoTa = d.MoTa,
+            TieuDe = InputSanitizer.NormalizeForOutput(d.TieuDe),
+            MoTa = InputSanitizer.NormalizeNullableForOutput(d.MoTa),
             KhoaPhongId = d.KhoaPhongId,
             TenKhoaPhong = d.KhoaPhong.TenKhoaPhong,
             NguoiDeXuatId = d.NguoiDeXuatId,
@@ -427,9 +432,9 @@ public class DeXuatService : IDeXuatService
             dto.ChiTiet = d.ChiTiet.Select(c => new ChiTietResponseDto
             {
                 Id = c.Id,
-                MaVatTu = c.MaVatTu,
-                TenVatTu = c.TenVatTu,
-                DonViTinh = c.DonViTinh,
+                MaVatTu = InputSanitizer.NormalizeForOutput(c.MaVatTu),
+                TenVatTu = InputSanitizer.NormalizeForOutput(c.TenVatTu),
+                DonViTinh = InputSanitizer.NormalizeNullableForOutput(c.DonViTinh),
                 SoLuong = c.SoLuong,
                 DonGiaDuToan = c.DonGiaDuToan,
                 ThanhTien = c.SoLuong * c.DonGiaDuToan

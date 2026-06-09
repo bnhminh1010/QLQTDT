@@ -49,4 +49,15 @@ public static partial class InputSanitizer
     {
         return _htmlEncoder.Encode(input.Trim());
     }
+
+    public static string NormalizeForOutput(string input)
+    {
+        var decoded = WebUtility.HtmlDecode(input) ?? string.Empty;
+        return _htmlEncoder.Encode(decoded);
+    }
+
+    public static string? NormalizeNullableForOutput(string? input)
+    {
+        return input == null ? null : NormalizeForOutput(input);
+    }
 }
