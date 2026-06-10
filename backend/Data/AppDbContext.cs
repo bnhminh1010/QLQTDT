@@ -160,7 +160,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IdCongKhai).HasDefaultValueSql("NEWSEQUENTIALID()");
             entity.Property(e => e.MaDeXuat).HasMaxLength(50).IsRequired();
             entity.Property(e => e.TieuDe).HasMaxLength(500).IsRequired();
-            entity.Property(e => e.TongDuToan).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TongDuToan).HasColumnType("decimal(18,2)");
             entity.Property(e => e.TrangThai).HasMaxLength(50).HasDefaultValue("DRAFT");
             entity.Property(e => e.NgayDeXuat).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2");

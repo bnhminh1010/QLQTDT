@@ -23,7 +23,7 @@ namespace QLQTDT.Api.Migrations
                     MoTa = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     KhoaPhongId = table.Column<int>(type: "int", nullable: false),
                     NguoiDeXuatId = table.Column<int>(type: "int", nullable: false),
-                    TongDuToan = table.Column<decimal>(type: "decimal(18,0)", nullable: false),
+                    TongDuToan = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TrangThai = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false, defaultValue: "DRAFT"),
                     NgayDeXuat = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
                     NgayCapNhat = table.Column<DateTime>(type: "datetime2", nullable: true),

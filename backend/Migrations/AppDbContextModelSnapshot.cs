@@ -210,7 +210,7 @@ namespace QLQTDT.Api.Migrations
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<decimal>("TongDuToan")
-                        .HasColumnType("decimal(18,0)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("TrangThai")
                         .IsRequired()
