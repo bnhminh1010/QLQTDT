@@ -43,4 +43,8 @@ public static partial class InputSanitizer
     {
         return input.Trim();
     }
+
+    // DB lưu plain text (không HTML-encode), nên chỉ cần trả về nguyên giá trị.
+    public static string NormalizeForOutput(string input) => input;
+    public static string? NormalizeNullableForOutput(string? input) => input;
 }
