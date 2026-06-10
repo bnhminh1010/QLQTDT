@@ -1,4 +1,6 @@
 using FluentValidation;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -185,6 +187,7 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IVaiTroService, VaiTroService>();
 builder.Services.AddScoped<IQuyenService, QuyenService>();
 builder.Services.AddScoped<IUserService, UserService>();
+// Các Service từ nhánh develop
 builder.Services.AddScoped<INhaThauService, NhaThauService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
@@ -196,7 +199,12 @@ builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();
 builder.Services.AddScoped<IBuocWorkflowService, BuocWorkflowService>();
 builder.Services.AddScoped<IGoiThauService, GoiThauService>();
 builder.Services.AddScoped<ITaiLieuService, TaiLieuService>();
+
+// Service từ nhánh feature của anh
+builder.Services.AddScoped<IDeXuatService, DeXuatService>();
+
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
+
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Controllers với JSON camelCase + ValidationFilter tự động
@@ -207,6 +215,8 @@ builder.Services.AddControllers(options =>
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        // Cho phép hiển thị Unicode tiếng Việt bình thường trên response JSON
+        options.JsonSerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.All);
     });
 
 // Swagger

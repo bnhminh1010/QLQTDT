@@ -1,5 +1,7 @@
 using System.Net;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 
 namespace QLQTDT.Api.Middleware;
 
@@ -53,7 +55,8 @@ public class ExceptionMiddleware
         };
         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
         });
         await context.Response.WriteAsync(json);
     }

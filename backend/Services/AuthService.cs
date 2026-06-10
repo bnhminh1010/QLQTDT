@@ -72,6 +72,7 @@ public class AuthService : IAuthService
         // Chuyển thành List<string> đã sort cho response
         var permissionList = permissionSet.OrderBy(q => q).ToList();
 
+
         return new LoginResponseDto
         {
             Message = "Đăng nhập thành công",
@@ -87,6 +88,7 @@ public class AuthService : IAuthService
                 AvatarUrl = user.AvatarUrl,
                 Roles = userRoles,
                 Quyen = permissionList
+
             }
         };
     }
@@ -100,6 +102,7 @@ public class AuthService : IAuthService
         var permissions = (await _permissionService.GetPermissionsAsync(user.Id))
             .OrderBy(q => q)
             .ToList();
+
 
         return new UserDto
         {
@@ -207,16 +210,5 @@ public class AuthService : IAuthService
             .ToListAsync();
     }
 
-    private async Task<List<string>> GetUserPermissions(int userId)
-    {
-        return await (
-                from nguoiDungVaiTro in _context.NguoiDungKhoaPhongVaiTros
-                join vaiTroQuyen in _context.VaiTroQuyens on nguoiDungVaiTro.VaiTroId equals vaiTroQuyen.VaiTroId
-                join quyen in _context.Quyens on vaiTroQuyen.QuyenId equals quyen.Id
-                where nguoiDungVaiTro.NguoiDungId == userId
-                select quyen.MaQuyen)
-            .Distinct()
-            .OrderBy(maQuyen => maQuyen)
-            .ToListAsync();
-    }
+
 }
