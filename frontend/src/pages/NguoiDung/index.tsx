@@ -8,6 +8,7 @@ import type {
   TrangThai,
   UserAddFormValues,
   UserEditFormValues,
+  AuditEntry,
 } from "./types";
 
 /* ─── Badge maps ──────────────────────────────────────── */
@@ -126,6 +127,23 @@ const INITIAL_DATA: User[] = [
     vaiTro: "Nhân viên",
     trangThai: "Ngưng hoạt động",
     ngayTao: "15/03/2025",
+  },
+];
+
+const INITIAL_AUDIT: AuditEntry[] = [
+  {
+    id: "a1",
+    userId: "U001",
+    hanhDong: 'Tạo tài khoản "Nguyễn Văn Admin"',
+    nguoiThucHien: "system",
+    thoiGian: "01/01/2025, 08:00:00",
+  },
+  {
+    id: "a2",
+    userId: "U002",
+    hanhDong: 'Tạo tài khoản "Trần Thị Bình"',
+    nguoiThucHien: "admin",
+    thoiGian: "05/01/2025, 09:00:00",
   },
 ];
 
@@ -1020,8 +1038,6 @@ export default function NguoiDung() {
         />
       )}
 
-      {approveTarget && null}
-      {rejectTarget && null}
     </>
   );
 }

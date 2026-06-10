@@ -45,3 +45,11 @@ export const PHONG_OPTIONS = [
 ];
 
 export const VAI_TRO_OPTIONS: VaiTro[] = ["Admin", "Quản lý", "Nhân viên"];
+
+export type AuditEntry = {
+  id: string;
+  userId: string;
+  hanhDong: string;
+  nguoiThucHien: string;
+  thoiGian: string;
+};
