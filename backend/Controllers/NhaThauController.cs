@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.NhaThau;
@@ -59,9 +59,12 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     /// GET /api/nha-thau/{id}/ho-so-nang-luc
     /// </summary>
     [HttpGet("{id}/ho-so-nang-luc")]
-    [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<List<HoSoNangLucDto>>>> GetHoSoNangLuc(int id)
     {
+        var authResult = EnsurePermission("HOSONANGLUC.VIEW");
+        if (authResult is not null)
+            return authResult;
+
         var results = await _service.GetHoSoNangLucAsync(id);
         return Ok(ApiResponse<List<HoSoNangLucDto>>.Ok(results));
     }
@@ -71,7 +74,6 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     /// POST /api/nha-thau/{id}/ho-so-nang-luc
     /// </summary>
     [HttpPost("{id}/ho-so-nang-luc")]
-    [AllowAnonymous]
     [RequestSizeLimit(52_428_800)]
     [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
     public async Task<ActionResult<ApiResponse<HoSoNangLucDto>>> UploadHoSoNangLuc(
@@ -79,6 +81,10 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
         [FromForm] UploadHoSoNangLucDto dto,
         CancellationToken ct)
     {
+        var authResult = EnsurePermission("HOSONANGLUC.CREATE");
+        if (authResult is not null)
+            return authResult;
+
         var result = await _service.UploadHoSoNangLucAsync(id, dto, ct);
         return Ok(ApiResponse<HoSoNangLucDto>.Ok(result, "Upload ho so nang luc thanh cong"));
     }
@@ -88,14 +94,36 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     /// DELETE /api/nha-thau/{id}/ho-so-nang-luc/{hoSoId}
     /// </summary>
     [HttpDelete("{id}/ho-so-nang-luc/{hoSoId:long}")]
-    [AllowAnonymous]
     public async Task<ActionResult<ApiResponse>> DeleteHoSoNangLuc(
         int id,
         long hoSoId,
         CancellationToken ct)
     {
+        var authResult = EnsurePermission("HOSONANGLUC.DELETE");
+        if (authResult is not null)
+            return authResult;
+
         await _service.DeleteHoSoNangLucAsync(id, hoSoId, ct);
         return Ok(ApiResponse.Ok("Xoa ho so nang luc thanh cong"));
+    }
+
+    private ActionResult? EnsurePermission(string permission)
+    {
+        if (User?.Identity?.IsAuthenticated != true)
+            return Unauthorized(ApiResponse.Fail("Vui long dang nhap de thuc hien thao tac nay."));
+
+        var permissionsClaim = User.FindFirstValue("permissions");
+        if (string.IsNullOrWhiteSpace(permissionsClaim))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Fail("Ban khong co quyen thuc hien thao tac nay."));
+
+        var permissions = permissionsClaim
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (!permissions.Contains(permission))
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Fail("Ban khong co quyen thuc hien thao tac nay."));
+
+        return null;
     }
 
     [NonAction]
