@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
@@ -58,6 +59,21 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     [HttpGet("{id}/lich-su-trang-thai")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>>> GetLichSuTrangThai(int id)
     {
+        if (User?.Identity?.IsAuthenticated != true)
+            return StatusCode(
+                StatusCodes.Status401Unauthorized,
+                ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Fail("Bạn chưa đăng nhập."));
+
+        var permissionsClaim = User.FindFirstValue("permissions");
+        var hasPermission = permissionsClaim?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains("GOITHAU.VIEW_STATUS_HISTORY", StringComparer.OrdinalIgnoreCase) == true;
+
+        if (!hasPermission)
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Fail("Bạn không có quyền xem lịch sử trạng thái gói thầu."));
+
         var result = await _service.GetLichSuTrangThaiAsync(id);
         return Ok(ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Ok(result));
     }
