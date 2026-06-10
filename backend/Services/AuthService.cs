@@ -118,6 +118,11 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task<IReadOnlyCollection<string>> GetPermissionsAsync(int userId)
+    {
+        var permissions = await _permissionService.GetPermissionsAsync(userId);
+        return permissions.OrderBy(q => q).ToList();
+    }
     public async Task ForgotPasswordAsync(ForgotPasswordDto dto)
     {
         var normalizedEmail = dto.Email.Trim().ToLowerInvariant();

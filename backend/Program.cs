@@ -94,6 +94,29 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
 
                 return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var userIdString = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                                ?? context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+
+                if (!int.TryParse(userIdString, out var userId))
+                {
+                    context.Fail("Token không chứa userId hợp lệ.");
+                    return;
+                }
+
+                var isActive = await dbContext.NguoiDungs
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.TrangThaiHoatDong)
+                    .FirstOrDefaultAsync();
+
+                if (!isActive)
+                {
+                    context.Fail("Tài khoản đã bị khóa hoặc không tồn tại.");
+                }
             }
         };
     });
