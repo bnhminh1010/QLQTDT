@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<LichSuTrangThaiGoiThau> LichSuTrangThaiGoiThaus => Set<LichSuTrangThaiGoiThau>();
     public DbSet<WorkflowVersionHistory> WorkflowVersionHistories => Set<WorkflowVersionHistory>();
     public DbSet<TaiLieuHoSo> TaiLieuHoSos => Set<TaiLieuHoSo>();
+    public DbSet<HoSoNangLuc> HoSoNangLucs => Set<HoSoNangLuc>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -368,6 +369,27 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.GoiThauId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // HoSoNangLuc
+        modelBuilder.Entity<HoSoNangLuc>(entity =>
+        {
+            entity.ToTable("HoSoNangLuc");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.LoaiTaiLieu)
+                .HasColumnType("varchar(100)")
+                .IsRequired();
+            entity.Property(e => e.TenFile)
+                .HasMaxLength(255)
+                .IsRequired();
+            entity.Property(e => e.DuongDanFile)
+                .HasColumnType("varchar(1000)")
+                .IsRequired();
+            entity.Property(e => e.NgayHetHan).HasColumnType("date");
+            entity.HasOne(e => e.NhaThau)
+                .WithMany()
+                .HasForeignKey(e => e.NhaThauId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

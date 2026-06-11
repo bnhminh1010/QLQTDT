@@ -5,9 +5,10 @@ public static class LoaiTaiLieu
     public const string HOSO_DUTHAU = "HOSO_DUTHAU";
     public const string HOP_DONG = "HOP_DONG";
     public const string BAO_CAO = "BAO_CAO";
+    public const string HO_SO_NANG_LUC = "HO_SO_NANG_LUC";
     public const string KHAC = "KHAC";
 
-    public static readonly string[] All = [HOSO_DUTHAU, HOP_DONG, BAO_CAO, KHAC];
+    public static readonly string[] All = [HOSO_DUTHAU, HOP_DONG, BAO_CAO, HO_SO_NANG_LUC, KHAC];
 }
 
 public class TaiLieuHoSo : IBaseEntity, ISoftDeletable
