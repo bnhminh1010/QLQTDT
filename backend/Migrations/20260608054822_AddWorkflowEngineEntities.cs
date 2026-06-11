@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,11 +10,8 @@ namespace QLQTDT.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "BuocHienTaiId",
-                table: "WorkflowInstance",
-                type: "int",
-                nullable: true);
+            // NOTE: BuocHienTaiId column already exists from AddGoiThauEntity migration.
+            // Only FK + Index need to be added here.
 
             migrationBuilder.CreateIndex(
                 name: "IX_WorkflowInstance_BuocHienTaiId",
@@ -38,10 +35,6 @@ namespace QLQTDT.Api.Migrations
 
             migrationBuilder.DropIndex(
                 name: "IX_WorkflowInstance_BuocHienTaiId",
-                table: "WorkflowInstance");
-
-            migrationBuilder.DropColumn(
-                name: "BuocHienTaiId",
                 table: "WorkflowInstance");
         }
     }
