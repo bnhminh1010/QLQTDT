@@ -21,8 +21,7 @@ public class JwtService
         return GenerateToken(userId, email, fullName, roles, string.Join(",", permissions));
     }
 
-    public string GenerateToken(int userId, string email, string fullName, List<string> roles, IEnumerable<string>? permissions = null)
-
+    public string GenerateToken(int userId, string email, string fullName, List<string> roles, string permissions)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.Secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -42,16 +41,6 @@ public class JwtService
         foreach (var role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
-        }
-
-        var permissionList = permissions?
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (permissionList is { Count: > 0 })
-        {
-            claims.Add(new Claim("permissions", string.Join(",", permissionList)));
         }
 
         var token = new JwtSecurityToken(
