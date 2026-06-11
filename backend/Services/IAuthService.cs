@@ -6,6 +6,7 @@ public interface IAuthService
 {
     Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp);
     Task<UserDto> GetCurrentUserAsync(int userId);
+    Task<IReadOnlyCollection<string>> GetPermissionsAsync(int userId);
     Task ForgotPasswordAsync(ForgotPasswordDto dto);
     Task ResetPasswordAsync(ResetPasswordDto dto);
     Task UpdatePasswordAsync(int userId, UpdatePasswordDto dto);

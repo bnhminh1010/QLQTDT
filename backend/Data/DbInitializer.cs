@@ -202,6 +202,7 @@ public static class DbInitializer
         await RenamePermissionsAsync(context, logger);
         await SeedPermissionsAsync(context, logger);
         await SeedRolePermissionsAsync(context, logger);
+        await SeedData.WorkflowTemplateSeeder.SeedAsync(context, logger);
     }
 
     private static async Task SeedRolesAsync(AppDbContext context, ILogger logger)
