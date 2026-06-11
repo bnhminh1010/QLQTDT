@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 
 namespace QLQTDT.Api.Helpers;
 
@@ -36,12 +38,26 @@ public static partial class InputSanitizer
             || JsProtocolRegex().IsMatch(input);
     }
 
+    private static readonly HtmlEncoder _htmlEncoder = HtmlEncoder.Create(UnicodeRanges.All);
+
     /// <summary>
     /// HTML encode chuỗi để vô hiệu hóa ký tự đặc biệt (&lt; &gt; &amp; &quot; &#39;).
     /// Dùng làm lớp bảo vệ thứ 2 trước khi lưu vào DB.
+    /// Cho phép giữ nguyên Unicode (Tiếng Việt) không bị chuyển thành HTML Entity.
     /// </summary>
     public static string Sanitize(string input)
     {
-        return WebUtility.HtmlEncode(input.Trim());
+        return _htmlEncoder.Encode(input.Trim());
+    }
+
+    public static string NormalizeForOutput(string input)
+    {
+        var decoded = WebUtility.HtmlDecode(input) ?? string.Empty;
+        return _htmlEncoder.Encode(decoded);
+    }
+
+    public static string? NormalizeNullableForOutput(string? input)
+    {
+        return input == null ? null : NormalizeForOutput(input);
     }
 }

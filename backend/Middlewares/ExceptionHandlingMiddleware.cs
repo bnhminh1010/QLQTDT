@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models.DTOs.Common;
 
@@ -51,7 +53,11 @@ public class ExceptionHandlingMiddleware
             Detail = detail
         };
 
-        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
+        };
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, options));
     }
 }

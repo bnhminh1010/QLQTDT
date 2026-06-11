@@ -17,14 +17,17 @@ public class AppDbContext : DbContext
     public DbSet<NhaThau> NhaThaus => Set<NhaThau>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<LoginLockout> LoginLockouts => Set<LoginLockout>();
+    public DbSet<DeXuatMuaSam> DeXuatMuaSams => Set<DeXuatMuaSam>();
+    public DbSet<ChiTietDeXuat> ChiTietDeXuats => Set<ChiTietDeXuat>();
     public DbSet<NhatKyKiemToan> NhatKyKiemToans { get; set; }
     public DbSet<IntegrationLog> IntegrationLogs => Set<IntegrationLog>();
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
-    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
     public DbSet<ChuyenTiepWorkflow> ChuyenTiepWorkflows => Set<ChuyenTiepWorkflow>();
+    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
+    public DbSet<WorkflowVersionHistory> WorkflowVersionHistories => Set<WorkflowVersionHistory>();
     public DbSet<TaiLieuHoSo> TaiLieuHoSos => Set<TaiLieuHoSo>();
     public DbSet<HoSoNangLuc> HoSoNangLucs => Set<HoSoNangLuc>();
 
@@ -139,7 +142,7 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.NguoiDung).WithMany(n => n.PasswordResetTokens).HasForeignKey(e => e.NguoiDungId);
         });
 
-        // LoginLockout — Persistent brute-force tracking
+        // LoginLockout
         modelBuilder.Entity<LoginLockout>(entity =>
         {
             entity.ToTable("LoginLockout");
@@ -148,6 +151,44 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FailedAttempts).IsRequired();
             entity.Property(e => e.LockoutEnd).HasColumnType("datetime2(3)");
             entity.Property(e => e.LastFailedAttempt).HasColumnType("datetime2(3)").IsRequired();
+        });
+
+        // DeXuatMuaSam
+        modelBuilder.Entity<DeXuatMuaSam>(entity =>
+        {
+            entity.ToTable("DeXuatMuaSam");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.IdCongKhai).HasDefaultValueSql("NEWSEQUENTIALID()");
+            entity.Property(e => e.MaDeXuat).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TieuDe).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.TongDuToan).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TrangThai).HasMaxLength(50).HasDefaultValue("DRAFT");
+            entity.Property(e => e.NgayDeXuat).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2");
+            entity.Property(e => e.DaXoa).HasDefaultValue(false);
+            entity.HasIndex(e => e.IdCongKhai).IsUnique();
+            entity.HasIndex(e => e.MaDeXuat).IsUnique();
+            entity.HasOne(e => e.KhoaPhong).WithMany().HasForeignKey(e => e.KhoaPhongId);
+            entity.HasOne(e => e.NguoiDeXuat).WithMany().HasForeignKey(e => e.NguoiDeXuatId);
+        });
+
+        // ChiTietDeXuat
+        modelBuilder.Entity<ChiTietDeXuat>(entity =>
+        {
+            entity.ToTable("ChiTietDeXuat");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaVatTu).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenVatTu).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.DonViTinh).HasMaxLength(50);
+            entity.Property(e => e.SoLuong).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DonGiaDuToan).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.ThanhTien)
+                .HasComputedColumnSql("[SoLuong] * [DonGiaDuToan]")
+                .ValueGeneratedOnAddOrUpdate();
+            entity.HasOne(e => e.DeXuat)
+                .WithMany(d => d.ChiTiet)
+                .HasForeignKey(e => e.DeXuatId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // NhatKyKiemToan
@@ -192,9 +233,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TenWorkflow).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.HasIndex(e => e.MaWorkflow).IsUnique();
-            entity.HasOne(e => e.HinhThucDauThau)
-                .WithMany(h => h.Workflows)
-                .HasForeignKey(e => e.HinhThucId);
+            entity.HasOne(e => e.HinhThuc)
+                  .WithMany(h => h.Workflows)
+                  .HasForeignKey(e => e.HinhThucId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // BuocWorkflow
@@ -253,6 +295,24 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Workflow)
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowId);
+        });
+
+        // WorkflowVersionHistory
+        modelBuilder.Entity<WorkflowVersionHistory>(entity =>
+        {
+            entity.ToTable("WorkflowVersionHistory");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SnapshotData).IsRequired();
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.HasIndex(e => new { e.WorkflowId, e.VersionNumber }).IsUnique();
+            entity.HasOne(e => e.Workflow)
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.NguoiTao)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiTaoId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // GoiThau
