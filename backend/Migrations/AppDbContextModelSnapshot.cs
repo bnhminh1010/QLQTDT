@@ -1031,6 +1031,8 @@ namespace QLQTDT.Api.Migrations
                         .WithMany()
                         .HasForeignKey("NguoiThayDoiId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                });
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.DeXuatMuaSam", b =>
                 {
                     b.HasOne("QLQTDT.Api.Models.Entities.KhoaPhong", "KhoaPhong")
