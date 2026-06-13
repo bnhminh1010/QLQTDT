@@ -125,7 +125,6 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         await _hoSoService.AwardAsync(id, request);
         return Ok(ApiResponse<object?>.Ok(null, "Chọn nhà thầu trúng thầu thành công"));
     }
-    }
 
     [NonAction]
     public override Task<ActionResult<ApiResponse<GoiThau>>> Create(GoiThau entity)
