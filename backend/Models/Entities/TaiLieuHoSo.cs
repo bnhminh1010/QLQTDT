@@ -15,6 +15,7 @@ public class TaiLieuHoSo : IBaseEntity, ISoftDeletable
 {
     public int Id { get; set; }
     public int? GoiThauId { get; set; }
+    public int? HoSoDuThauId { get; set; }
     public string TenFile { get; set; } = null!;
     public string DuongDanFtp { get; set; } = null!;
     public long KichThuoc { get; set; }

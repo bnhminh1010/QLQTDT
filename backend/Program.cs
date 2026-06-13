@@ -222,10 +222,8 @@ builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();
 builder.Services.AddScoped<IBuocWorkflowService, BuocWorkflowService>();
 builder.Services.AddScoped<IGoiThauService, GoiThauService>();
 builder.Services.AddScoped<ITaiLieuService, TaiLieuService>();
-
-// Service từ nhánh feature của anh
 builder.Services.AddScoped<IDeXuatService, DeXuatService>();
-
+builder.Services.AddScoped<IHoSoDuThauService, HoSoDuThauService>();
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -238,8 +236,7 @@ builder.Services.AddControllers(options =>
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        // Cho phép hiển thị Unicode tiếng Việt bình thường trên response JSON
-        options.JsonSerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.All);
+        options.JsonSerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
     });
 
 // Swagger

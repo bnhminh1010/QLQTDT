@@ -31,6 +31,7 @@ public class AppDbContext : DbContext
     public DbSet<WorkflowVersionHistory> WorkflowVersionHistories => Set<WorkflowVersionHistory>();
     public DbSet<TaiLieuHoSo> TaiLieuHoSos => Set<TaiLieuHoSo>();
     public DbSet<HoSoNangLuc> HoSoNangLucs => Set<HoSoNangLuc>();
+    public DbSet<HoSoDuThau> HoSoDuThaus => Set<HoSoDuThau>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -368,6 +369,32 @@ public class AppDbContext : DbContext
             entity.HasOne<GoiThau>()
                 .WithMany()
                 .HasForeignKey(e => e.GoiThauId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<HoSoDuThau>()
+                .WithMany(h => h.TaiLieus)
+                .HasForeignKey(e => e.HoSoDuThauId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // HoSoDuThau
+        modelBuilder.Entity<HoSoDuThau>(entity =>
+        {
+            entity.ToTable("HoSoDuThau");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.GiaDuThau).HasColumnType("decimal(18,0)").IsRequired();
+            entity.Property(e => e.GiaTrungThau).HasColumnType("decimal(18,0)");
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.GhiChu).HasMaxLength(1000);
+            entity.Property(e => e.NgayNop).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.HasIndex(e => new { e.GoiThauId, e.NhaThauId }).IsUnique();
+            entity.HasOne(e => e.GoiThau)
+                .WithMany()
+                .HasForeignKey(e => e.GoiThauId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.NhaThau)
+                .WithMany()
+                .HasForeignKey(e => e.NhaThauId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

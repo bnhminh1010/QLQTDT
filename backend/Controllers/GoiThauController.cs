@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.GoiThau;
+using QLQTDT.Api.Models.DTOs.HoSoDuThau;
 using QLQTDT.Api.Models.Entities;
 using QLQTDT.Api.Services;
 
@@ -13,7 +15,12 @@ namespace QLQTDT.Api.Controllers;
 [Authorize]
 public class GoiThauController : BaseController<GoiThau, IGoiThauService>
 {
-    public GoiThauController(IGoiThauService service) : base(service) { }
+    private readonly IHoSoDuThauService _hoSoService;
+
+    public GoiThauController(IGoiThauService service, IHoSoDuThauService hoSoService) : base(service)
+    {
+        _hoSoService = hoSoService;
+    }
 
     [NonAction]
     public override Task<ActionResult<ApiResponse<PagedResult<GoiThau>>>> GetAll(
@@ -76,6 +83,15 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
 
         var result = await _service.GetLichSuTrangThaiAsync(id);
         return Ok(ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Ok(result));
+    }
+
+    [HttpPost("{id}/award")]
+    [HasPermission("HOSODUTHAU.AWARD")]
+    public async Task<ActionResult<ApiResponse<object?>>> Award(
+        int id, [FromBody] AwardGoiThauRequest request)
+    {
+        await _hoSoService.AwardAsync(id, request);
+        return Ok(ApiResponse<object?>.Ok(null, "Chọn nhà thầu trúng thầu thành công"));
     }
 
     [NonAction]
