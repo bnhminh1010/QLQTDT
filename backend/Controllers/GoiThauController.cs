@@ -161,18 +161,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     {
         var validation = await validator.ValidateAsync(request);
         if (!validation.IsValid)
-        {
-            return BadRequest(new ApiErrorResponse
-            {
-                Timestamp = DateTime.UtcNow,
-                Status = 400,
-                Error = "Validation Failed",
-                Errors = validation.Errors
-                    .GroupBy(e => e.PropertyName)
-                    .ToDictionary(g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
-                                  g => g.First().ErrorMessage)
-            });
-        }
+            return BadRequest(ToErrorResponse(validation));
 
         var result = await _workflowEngine.StartWorkflowAsync(id, request);
         return Ok(ApiResponse<WorkflowInstanceDto>.Ok(result, "Khởi tạo workflow thành công"));

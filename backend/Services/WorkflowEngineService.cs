@@ -341,7 +341,8 @@ public class WorkflowEngineService : IWorkflowEngineService
             assignment.NgayXuLy = DateTime.UtcNow;
         }
 
-        // Find next step: try SKIP transition first, fallback to APPROVE
+        // Find next step: try SKIP transition first, fallback to APPROVE/DUYET
+        // Intent: if BA configures no SKIP transition, the step behaves like a soft-approve on skip
         var transition = await _db.ChuyenTiepWorkflows
             .Include(t => t.DenBuoc)
             .FirstOrDefaultAsync(t =>
@@ -351,7 +352,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 .Include(t => t.DenBuoc)
                 .FirstOrDefaultAsync(t =>
                     t.TuBuocId == currentStep.BuocWorkflowId &&
-                    t.HanhDong == WorkflowHanhDong.APPROVE);
+                    (t.HanhDong == WorkflowHanhDong.APPROVE || t.HanhDong == WorkflowHanhDong.DUYET));
 
         bool isCompleted;
         long? newStepId = null;
@@ -492,16 +493,16 @@ public class WorkflowEngineService : IWorkflowEngineService
         var message = isCompleted
             ? hanhDong switch
             {
-                WorkflowHanhDong.APPROVE => "Đã duyệt bước cuối cùng. Workflow hoàn thành.",
-                WorkflowHanhDong.REJECT => "Đã từ chối. Workflow kết thúc.",
+                WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET => "Đã duyệt bước cuối cùng. Workflow hoàn thành.",
+                WorkflowHanhDong.REJECT or WorkflowHanhDong.KHONG_DUYET => "Đã từ chối. Workflow kết thúc.",
                 WorkflowHanhDong.SKIP => "Đã bỏ qua bước cuối cùng. Workflow hoàn thành.",
                 _ => $"Hành động '{hanhDong}' hoàn tất."
             }
             : hanhDong switch
             {
-                WorkflowHanhDong.APPROVE => $"Đã duyệt bước '{currentStep.BuocWorkflow?.TenBuoc}'.",
+                WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET => $"Đã duyệt bước '{currentStep.BuocWorkflow?.TenBuoc}'.",
                 WorkflowHanhDong.SKIP => $"Đã bỏ qua bước '{currentStep.BuocWorkflow?.TenBuoc}'.",
-                WorkflowHanhDong.ROLLBACK => $"Đã rollback về bước '{rollbackTarget?.TenBuoc ?? newStepName}'.",
+                WorkflowHanhDong.ROLLBACK or WorkflowHanhDong.TRA_VE => $"Đã rollback về bước '{rollbackTarget?.TenBuoc ?? newStepName}'.",
                 _ => $"Hành động '{hanhDong}' hoàn tất."
             };
 
