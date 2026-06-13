@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -44,7 +45,7 @@ public class WorkflowsController : ControllerBase
         var validation = await validator.ValidateAsync(request);
         if (!validation.IsValid) return BadRequest(ToValidationError(validation));
 
-        var created = await _workflowService.CreateWorkflowAsync(request);
+        var created = await _workflowService.CreateWorkflowAsync(request, GetCurrentUserId());
         return StatusCode(StatusCodes.Status201Created,
             ApiResponse<WorkflowCreateResponse>.Ok(created, "Workflow created successfully"));
     }
@@ -60,7 +61,7 @@ public class WorkflowsController : ControllerBase
         var validation = await validator.ValidateAsync(request);
         if (!validation.IsValid) return BadRequest(ToValidationError(validation));
 
-        await _workflowService.UpdateWorkflowAsync(id, request);
+        await _workflowService.UpdateWorkflowAsync(id, request, GetCurrentUserId());
         return Ok(ApiResponse.Ok("Workflow updated successfully"));
     }
 
@@ -70,6 +71,26 @@ public class WorkflowsController : ControllerBase
     {
         await _workflowService.DeleteWorkflowAsync(id);
         return Ok(ApiResponse.Ok("Workflow deleted successfully"));
+    }
+
+    [HttpGet("{id}/versions")]
+    public async Task<ActionResult<ApiResponse<List<WorkflowVersionListItemDto>>>> GetVersions(int id)
+    {
+        var versions = await _workflowService.GetVersionsAsync(id);
+        return Ok(ApiResponse<List<WorkflowVersionListItemDto>>.Ok(versions));
+    }
+
+    [HttpGet("{id}/versions/{versionId}")]
+    public async Task<ActionResult<ApiResponse<WorkflowVersionDetailDto>>> GetVersion(int id, long versionId)
+    {
+        var version = await _workflowService.GetVersionByIdAsync(id, versionId);
+        return Ok(ApiResponse<WorkflowVersionDetailDto>.Ok(version));
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(claim, out var id) ? id : null;
     }
 
     private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()

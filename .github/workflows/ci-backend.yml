@@ -85,11 +85,14 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # Gitleaks - Secret scan
+      # Gitleaks - Secret scan (manual install to avoid zricethezav CDN 504 issue)
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz" | tar xz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
       - name: Gitleaks secret scan
-        uses: gitleaks/gitleaks-action@83373cf2f8c4db6e24b41c1a9b086bb9619e9cd3 # v2.3.7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gitleaks detect --source . --no-banner --exit-code 1
 
       # SonarQube - Code quality
       - name: SonarQube scan

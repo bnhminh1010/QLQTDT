@@ -165,6 +165,7 @@ public static class DbInitializer
             "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.EDIT", "GOITHAU.DELETE",
             "GOITHAU.UPDATE_STATUS", "GOITHAU.DISABLE",
             "HOSODUTHAU.CREATE", "HOSODUTHAU.VIEW", "HOSODUTHAU.EDIT", "HOSODUTHAU.DELETE",
+            "HOSODUTHAU.EVALUATE", "HOSODUTHAU.AWARD",
             "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.DELETE", "WORKFLOW.CHOOSE",
             "NHATHAU.CREATE", "NHATHAU.VIEW", "NHATHAU.EDIT", "NHATHAU.DELETE",
             "HOPDONG.CREATE", "HOPDONG.VIEW", "HOPDONG.EDIT", "HOPDONG.DELETE", "HOPDONG.QUYETTOAN",
@@ -202,6 +203,7 @@ public static class DbInitializer
         await RenamePermissionsAsync(context, logger);
         await SeedPermissionsAsync(context, logger);
         await SeedRolePermissionsAsync(context, logger);
+        await SeedData.WorkflowTemplateSeeder.SeedAsync(context, logger);
     }
 
     private static async Task SeedRolesAsync(AppDbContext context, ILogger logger)

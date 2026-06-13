@@ -1,13 +1,12 @@
-using System.Net;
 using System.Text.RegularExpressions;
 
 namespace QLQTDT.Api.Helpers;
 
 /// <summary>
-/// Helper class chống XSS — phát hiện và vô hiệu hóa nội dung HTML/JS nguy hiểm trong input.
-/// Áp dụng chiến lược Defense in Depth:
-///   - Layer 1 (Validator): Dùng ContainsDangerousContent() để reject input → trả 400
-///   - Layer 2 (Service): Dùng Sanitize() để HtmlEncode trước khi lưu DB
+/// Helper class chống XSS — phát hiện nội dung HTML/JS nguy hiểm trong input.
+/// Chiến lược Defense in Depth:
+///   - Layer 1 (Validator): ContainsDangerousContent() reject input → 400
+///   - Layer 2 (Service): Sanitize() chỉ trim whitespace, KHÔNG encode — DB lưu plain text
 /// </summary>
 public static partial class InputSanitizer
 {
@@ -37,11 +36,15 @@ public static partial class InputSanitizer
     }
 
     /// <summary>
-    /// HTML encode chuỗi để vô hiệu hóa ký tự đặc biệt (&lt; &gt; &amp; &quot; &#39;).
-    /// Dùng làm lớp bảo vệ thứ 2 trước khi lưu vào DB.
+    /// Trim whitespace. Layer 1 (ContainsDangerousContent) đã chặn XSS — không HtmlEncode ở đây
+    /// vì encode trước khi lưu DB sẽ làm hỏng ký tự Unicode (tiếng Việt, v.v.).
     /// </summary>
     public static string Sanitize(string input)
     {
-        return WebUtility.HtmlEncode(input.Trim());
+        return input.Trim();
     }
+
+    // DB lưu plain text (không HTML-encode), nên chỉ cần trả về nguyên giá trị.
+    public static string NormalizeForOutput(string input) => input;
+    public static string? NormalizeNullableForOutput(string? input) => input;
 }

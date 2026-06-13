@@ -1,6 +1,6 @@
 namespace QLQTDT.Api.Models.Entities;
 
-public class NhaThau
+public class NhaThau : IBaseEntity
 {
     public int Id { get; set; }
     public string MaSoThue { get; set; } = null!;
@@ -10,4 +10,5 @@ public class NhaThau
     public string? Email { get; set; }
     public string? SoDienThoai { get; set; }
     public bool TrangThaiHoatDong { get; set; } = true;
+    public int? NguoiDungId { get; set; }
 }
