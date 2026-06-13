@@ -55,7 +55,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 s.BuocWorkflowId == instance.BuocHienTaiId &&
                 s.TrangThai == WorkflowStepTrangThai.PENDING);
         if (currentStep is null)
-            throw new ConflictException("Bước hiện tại không ở trạng thái PENDING hoặc không tồn tại.");
+            throw new ConflictException("Bước hiện tại không ở trạng thái DANG_XU_LY hoặc không tồn tại.");
 
         // ─── 4. RowVersion concurrency check ──────────────────────────────
         if (request.RowVersion is null ||
@@ -96,12 +96,12 @@ public class WorkflowEngineService : IWorkflowEngineService
             // ─── 7. Route to action handler ───────────────────────────────
             ProcessStepResponse response = request.HanhDong switch
             {
-                WorkflowHanhDong.APPROVE => await HandleApproveAsync(
-                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu),
-                WorkflowHanhDong.REJECT => await HandleRejectAsync(
-                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu),
-                WorkflowHanhDong.ROLLBACK => await HandleRollbackAsync(
-                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu),
+                WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET => await HandleApproveAsync(
+                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong),
+                WorkflowHanhDong.REJECT or WorkflowHanhDong.KHONG_DUYET => await HandleRejectAsync(
+                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong),
+                WorkflowHanhDong.ROLLBACK or WorkflowHanhDong.TRA_VE => await HandleRollbackAsync(
+                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong),
                 WorkflowHanhDong.SKIP => await HandleSkipAsync(
                     goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu),
                 WorkflowHanhDong.REASSIGN => await HandleReassignAsync(
@@ -127,21 +127,21 @@ public class WorkflowEngineService : IWorkflowEngineService
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  APPROVE — Duyệt bước hiện tại, chuyển step kế hoặc complete
+    //  APPROVE/DUYET — Duyệt bước hiện tại, chuyển step kế hoặc complete
     // ════════════════════════════════════════════════════════════════════
     private async Task<ProcessStepResponse> HandleApproveAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
-        int currentUserId, string? ghiChu)
+        int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.APPROVE)
     {
-        // Validate transition exists
+        // Validate transition exists — lookup by (TuBuocId, HanhDong) for conditional routing
         var transition = await _db.ChuyenTiepWorkflows
             .Include(t => t.DenBuoc)
             .FirstOrDefaultAsync(t =>
                 t.TuBuocId == currentStep.BuocWorkflowId &&
-                t.HanhDong == WorkflowHanhDong.APPROVE);
+                t.HanhDong == hanhDong);
 
-        // Mark current step as APPROVED
-        currentStep.TrangThai = WorkflowStepTrangThai.APPROVED;
+        // Mark current step as HOAN_TAT
+        currentStep.TrangThai = WorkflowStepTrangThai.HOAN_TAT;
         currentStep.NgayHoanThanh = DateTime.UtcNow;
         currentStep.NguoiXuLyId = currentUserId;
         currentStep.GhiChu = ghiChu;
@@ -197,9 +197,9 @@ public class WorkflowEngineService : IWorkflowEngineService
         }
 
         // Audit
-        AddAuditEntries(instance.Id, currentStep.Id, WorkflowHanhDong.APPROVE,
+        AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
             ghiChu ?? $"Duyệt bước '{currentStep.BuocWorkflow?.TenBuoc}'", currentUserId, goiThau.Id,
-            $"APPROVE_STEP: duyệt bước '{currentStep.BuocWorkflow?.TenBuoc}'");
+            $"{hanhDong}_STEP: duyệt bước '{currentStep.BuocWorkflow?.TenBuoc}'");
 
         // Capture new step's RowVersion for optimistic concurrency on next action
         var nextStepRv = newStepId.HasValue
@@ -209,23 +209,23 @@ public class WorkflowEngineService : IWorkflowEngineService
                 .FirstOrDefaultAsync())
             : null;
 
-        return BuildResponse(currentStep, null, instance, goiThau, WorkflowHanhDong.APPROVE,
+        return BuildResponse(currentStep, null, instance, goiThau, hanhDong,
             isCompleted, newStepId, newStepName, nextStepRv);
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  REJECT — Từ chối, kết thúc workflow, đưa GoiThau về DU_THAO
+    //  REJECT/KHONG_DUYET — Từ chối, kết thúc workflow, đưa GoiThau về DU_THAO
     // ════════════════════════════════════════════════════════════════════
     private async Task<ProcessStepResponse> HandleRejectAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
-        int currentUserId, string? ghiChu)
+        int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.REJECT)
     {
         var buoc = currentStep.BuocWorkflow;
         if (buoc is not null && !buoc.ChoPhepTuChoi)
             throw new BadRequestException($"Bước '{buoc.TenBuoc}' không cho phép từ chối.");
 
-        // Mark current step as REJECTED
-        currentStep.TrangThai = WorkflowStepTrangThai.REJECTED;
+        // Mark current step as TRA_VE
+        currentStep.TrangThai = WorkflowStepTrangThai.TRA_VE;
         currentStep.NgayHoanThanh = DateTime.UtcNow;
         currentStep.NguoiXuLyId = currentUserId;
         currentStep.GhiChu = ghiChu;
@@ -248,33 +248,33 @@ public class WorkflowEngineService : IWorkflowEngineService
         goiThau.TrangThai = GoiThauTrangThai.DU_THAO;
         goiThau.WorkflowId = null;
 
-        AddAuditEntries(instance.Id, currentStep.Id, WorkflowHanhDong.REJECT,
+        AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
             ghiChu ?? $"Từ chối tại bước '{currentStep.BuocWorkflow?.TenBuoc}'",
             currentUserId, goiThau.Id,
-            $"REJECT_STEP: từ chối tại bước '{currentStep.BuocWorkflow?.TenBuoc}'");
+            $"{hanhDong}_STEP: từ chối tại bước '{currentStep.BuocWorkflow?.TenBuoc}'");
 
-        return BuildResponse(currentStep, null, instance, goiThau, WorkflowHanhDong.REJECT, true);
+        return BuildResponse(currentStep, null, instance, goiThau, hanhDong, true);
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  ROLLBACK — Quay lại bước trước
+    //  ROLLBACK/TRA_VE — Quay lại bước trước
     // ════════════════════════════════════════════════════════════════════
     private async Task<ProcessStepResponse> HandleRollbackAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
-        int currentUserId, string? ghiChu)
+        int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.ROLLBACK)
     {
-        // Find ROLLBACK transition pointing TO this step's BuocWorkflow
+        // Find ROLLBACK/TRA_VE transition pointing TO this step's BuocWorkflow
         var rollbackTransition = await _db.ChuyenTiepWorkflows
             .Include(t => t.TuBuoc)
             .FirstOrDefaultAsync(t =>
                 t.DenBuocId == currentStep.BuocWorkflowId &&
-                t.HanhDong == WorkflowHanhDong.ROLLBACK);
+                (t.HanhDong == WorkflowHanhDong.ROLLBACK || t.HanhDong == WorkflowHanhDong.TRA_VE));
 
         if (rollbackTransition?.TuBuoc is null)
             throw new BadRequestException("Không thể rollback — không có luồng ROLLBACK cho bước này.");
 
-        // Mark current step as ROLLED_BACK
-        currentStep.TrangThai = WorkflowStepTrangThai.ROLLED_BACK;
+        // Mark current step as TRA_VE
+        currentStep.TrangThai = WorkflowStepTrangThai.TRA_VE;
         currentStep.NgayHoanThanh = DateTime.UtcNow;
         currentStep.NguoiXuLyId = currentUserId;
         currentStep.GhiChu = ghiChu;
@@ -308,13 +308,13 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         instance.BuocHienTaiId = rollbackTransition.TuBuoc.Id;
 
-        AddAuditEntries(instance.Id, currentStep.Id, WorkflowHanhDong.ROLLBACK,
+        AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
             ghiChu ?? $"Rollback từ bước '{currentStep.BuocWorkflow?.TenBuoc}' về '{rollbackTransition.TuBuoc.TenBuoc}'",
             currentUserId, goiThau.Id,
-            $"ROLLBACK_STEP: từ '{currentStep.BuocWorkflow?.TenBuoc}' về '{rollbackTransition.TuBuoc.TenBuoc}'");
+            $"{hanhDong}_STEP: từ '{currentStep.BuocWorkflow?.TenBuoc}' về '{rollbackTransition.TuBuoc.TenBuoc}'");
 
         return BuildResponse(currentStep, rollbackTransition.TuBuoc, instance, goiThau,
-            WorkflowHanhDong.ROLLBACK, false, previousStep.Id, rollbackTransition.TuBuoc.TenBuoc);
+            hanhDong, false, previousStep.Id, rollbackTransition.TuBuoc.TenBuoc);
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -328,7 +328,6 @@ public class WorkflowEngineService : IWorkflowEngineService
         if (buoc is not null && !buoc.ChoPhepBoQua)
             throw new BadRequestException($"Bước '{buoc.TenBuoc}' không cho phép bỏ qua.");
 
-        // Mark current step as SKIPPED
         currentStep.TrangThai = WorkflowStepTrangThai.SKIPPED;
         currentStep.NgayHoanThanh = DateTime.UtcNow;
         currentStep.NguoiXuLyId = currentUserId;

@@ -63,3 +63,5 @@ nunit-*.xml
 
 # LibreOffice lock files
 .~lock.*#
+*.bak
+*.docx

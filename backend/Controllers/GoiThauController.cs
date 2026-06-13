@@ -8,6 +8,7 @@ using QLQTDT.Api.Models.DTOs.GoiThau;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
 using QLQTDT.Api.Services;
+using ValidationResult = FluentValidation.Results.ValidationResult;
 
 namespace QLQTDT.Api.Controllers;
 
@@ -73,21 +74,82 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     {
         var validation = await validator.ValidateAsync(request);
         if (!validation.IsValid)
-        {
-            return BadRequest(new ApiErrorResponse
-            {
-                Timestamp = DateTime.UtcNow,
-                Status = 400,
-                Error = "Validation Failed",
-                Errors = validation.Errors
-                    .GroupBy(e => e.PropertyName)
-                    .ToDictionary(g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
-                                  g => g.First().ErrorMessage)
-            });
-        }
+            return BadRequest(ToErrorResponse(validation));
 
         var result = await _workflowEngine.ProcessStepAsync(id, request);
         return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Xử lý bước workflow thành công"));
+    }
+
+    /// <summary>
+    /// BA user-driven flow: Duyệt bước hiện tại → chuyển step kế hoặc complete
+    /// </summary>
+    [HttpPost("{id}/duyet")]
+    [HasPermission("WORKFLOW_TUY_CHON")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> Duyet(
+        int id,
+        [FromBody] DuyetStepRequest request,
+        [FromServices] IValidator<DuyetStepRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToErrorResponse(validation));
+
+        var engineRequest = new ProcessStepRequest
+        {
+            HanhDong = WorkflowHanhDong.DUYET,
+            GhiChu = request.GhiChu,
+            RowVersion = request.RowVersion
+        };
+        var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Duyệt bước thành công"));
+    }
+
+    /// <summary>
+    /// BA user-driven flow: Không duyệt bước hiện tại
+    /// </summary>
+    [HttpPost("{id}/khong-duyet")]
+    [HasPermission("WORKFLOW_TUY_CHON")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> KhongDuyet(
+        int id,
+        [FromBody] KhongDuyetStepRequest request,
+        [FromServices] IValidator<KhongDuyetStepRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToErrorResponse(validation));
+
+        var engineRequest = new ProcessStepRequest
+        {
+            HanhDong = WorkflowHanhDong.KHONG_DUYET,
+            GhiChu = request.GhiChu,
+            RowVersion = request.RowVersion
+        };
+        var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Từ chối bước thành công"));
+    }
+
+    /// <summary>
+    /// BA user-driven flow: Trả về bước trước
+    /// </summary>
+    [HttpPost("{id}/tra-ve")]
+    [HasPermission("WORKFLOW_TUY_CHON")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> TraVe(
+        int id,
+        [FromBody] TraVeStepRequest request,
+        [FromServices] IValidator<TraVeStepRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToErrorResponse(validation));
+
+        var engineRequest = new ProcessStepRequest
+        {
+            HanhDong = WorkflowHanhDong.TRA_VE,
+            GhiChu = request.GhiChu,
+            RowVersion = request.RowVersion
+        };
+        var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Trả về bước thành công"));
     }
 
     [HttpPost("{id}/start-workflow")]
@@ -123,4 +185,18 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     [NonAction]
     public override Task<ActionResult<ApiResponse<GoiThau>>> Update(int id, GoiThau entity)
         => throw new NotSupportedException("Sử dụng UpdateGoiThauDto.");
+
+    private static ApiErrorResponse ToErrorResponse(ValidationResult validation)
+    {
+        return new ApiErrorResponse
+        {
+            Timestamp = DateTime.UtcNow,
+            Status = 400,
+            Error = "Validation Failed",
+            Errors = validation.Errors
+                .GroupBy(e => e.PropertyName)
+                .ToDictionary(g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
+                              g => g.First().ErrorMessage)
+        };
+    }
 }

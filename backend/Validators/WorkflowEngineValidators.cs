@@ -13,10 +13,48 @@ public class StartWorkflowValidator : AbstractValidator<StartWorkflowRequest>
     }
 }
 
+public class DuyetStepValidator : AbstractValidator<DuyetStepRequest>
+{
+    public DuyetStepValidator()
+    {
+        RuleFor(x => x.RowVersion)
+            .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
+
+        RuleFor(x => x.GhiChu)
+            .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+    }
+}
+
+public class KhongDuyetStepValidator : AbstractValidator<KhongDuyetStepRequest>
+{
+    public KhongDuyetStepValidator()
+    {
+        RuleFor(x => x.RowVersion)
+            .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
+
+        RuleFor(x => x.GhiChu)
+            .NotEmpty().WithMessage("Lý do từ chối là bắt buộc khi không duyệt bước.")
+            .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+    }
+}
+
+public class TraVeStepValidator : AbstractValidator<TraVeStepRequest>
+{
+    public TraVeStepValidator()
+    {
+        RuleFor(x => x.RowVersion)
+            .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
+
+        RuleFor(x => x.GhiChu)
+            .NotEmpty().WithMessage("Lý do trả về là bắt buộc.")
+            .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+    }
+}
+
 public class ProcessStepValidator : AbstractValidator<ProcessStepRequest>
 {
     private static readonly string[] AllowedActions =
-        ["APPROVE", "REJECT", "ROLLBACK", "SKIP", "REASSIGN"];
+        ["APPROVE", "REJECT", "ROLLBACK", "SKIP", "REASSIGN", "DUYET", "KHONG_DUYET", "TRA_VE"];
 
     public ProcessStepValidator()
     {

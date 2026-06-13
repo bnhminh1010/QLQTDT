@@ -55,3 +55,30 @@ public class ProcessStepResponse
     public string Message { get; set; } = null!;
     public byte[]? NewRowVersion { get; set; }
 }
+
+/// <summary>
+/// BA user-driven: Duyệt bước (POST /duyet)
+/// </summary>
+public class DuyetStepRequest
+{
+    public string? GhiChu { get; set; }
+    public byte[]? RowVersion { get; set; }
+}
+
+/// <summary>
+/// BA user-driven: Không duyệt (POST /khong-duyet) — GhiChu bắt buộc
+/// </summary>
+public class KhongDuyetStepRequest
+{
+    public string GhiChu { get; set; } = null!;
+    public byte[]? RowVersion { get; set; }
+}
+
+/// <summary>
+/// BA user-driven: Trả về bước trước (POST /tra-ve) — GhiChu bắt buộc
+/// </summary>
+public class TraVeStepRequest
+{
+    public string GhiChu { get; set; } = null!;
+    public byte[]? RowVersion { get; set; }
+}
