@@ -66,7 +66,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpPost("{id}/process-step")]
-    [HasPermission("WORKFLOW_TUY_CHON")]
+    [HasPermission("WORKFLOW.PROCESS")]
     public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> ProcessStep(
         int id,
         [FromBody] ProcessStepRequest request,
@@ -84,7 +84,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     /// BA user-driven flow: Duyệt bước hiện tại → chuyển step kế hoặc complete
     /// </summary>
     [HttpPost("{id}/duyet")]
-    [HasPermission("WORKFLOW_TUY_CHON")]
+    [HasPermission("WORKFLOW.PROCESS")]
     public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> Duyet(
         int id,
         [FromBody] DuyetStepRequest request,
@@ -108,7 +108,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     /// BA user-driven flow: Không duyệt bước hiện tại
     /// </summary>
     [HttpPost("{id}/khong-duyet")]
-    [HasPermission("WORKFLOW_TUY_CHON")]
+    [HasPermission("WORKFLOW.PROCESS")]
     public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> KhongDuyet(
         int id,
         [FromBody] KhongDuyetStepRequest request,
@@ -132,7 +132,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     /// BA user-driven flow: Trả về bước trước
     /// </summary>
     [HttpPost("{id}/tra-ve")]
-    [HasPermission("WORKFLOW_TUY_CHON")]
+    [HasPermission("WORKFLOW.PROCESS")]
     public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> TraVe(
         int id,
         [FromBody] TraVeStepRequest request,
