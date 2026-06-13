@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models;
+using QLQTDT.Api.Models.DTOs.HoSoDuThau;
 using QLQTDT.Api.Models.DTOs.NhaThau;
 using QLQTDT.Api.Models.Entities;
 using QLQTDT.Api.Services;
@@ -105,6 +106,21 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
 
         await _service.DeleteHoSoNangLucAsync(id, hoSoId, ct);
         return Ok(ApiResponse.Ok("Xoa ho so nang luc thanh cong"));
+    }
+
+    /// <summary>
+    /// Lịch sử đấu thầu của nhà thầu
+    /// GET /api/nha-thau/{id}/ls-du-thau
+    /// </summary>
+    [HttpGet("{id}/ls-du-thau")]
+    public async Task<ActionResult<ApiResponse<List<LichSuDauThauItemDto>>>> GetLichSuDauThau(int id)
+    {
+        var authResult = EnsurePermission("HOSODUTHAU.VIEW");
+        if (authResult is not null)
+            return authResult;
+
+        var result = await _service.GetLichSuDauThauAsync(id);
+        return Ok(ApiResponse<List<LichSuDauThauItemDto>>.Ok(result));
     }
 
     private ActionResult? EnsurePermission(string permission)

@@ -3,6 +3,7 @@ using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
+using QLQTDT.Api.Models.DTOs.HoSoDuThau;
 using QLQTDT.Api.Models.DTOs.NhaThau;
 using QLQTDT.Api.Models.Entities;
 using System.Linq.Expressions;
@@ -201,6 +202,30 @@ public partial class NhaThauService : BaseService<NhaThau>, INhaThauService
 
         _db.HoSoNangLucs.Remove(entity);
         await _db.SaveChangesAsync(CancellationToken.None);
+    }
+
+    public async Task<List<LichSuDauThauItemDto>> GetLichSuDauThauAsync(int nhaThauId)
+    {
+        await EnsureNhaThauExistsAsync(nhaThauId);
+
+        return await _db.HoSoDuThaus
+            .AsNoTracking()
+            .Where(h => h.NhaThauId == nhaThauId)
+            .OrderByDescending(h => h.NgayNop)
+            .Select(h => new LichSuDauThauItemDto
+            {
+                HoSoDuThauId = h.Id,
+                GoiThauId = h.GoiThauId,
+                MaGoiThau = h.GoiThau!.MaGoiThau,
+                TenGoiThau = h.GoiThau.TenGoiThau,
+                TrangThaiGoiThau = h.GoiThau.TrangThai,
+                GiaDuThau = h.GiaDuThau,
+                GiaTrungThau = h.GiaTrungThau,
+                KetQua = h.TrangThai,
+                NgayNop = h.NgayNop,
+                NgayCapNhat = h.NgayCapNhat
+            })
+            .ToListAsync();
     }
 
     private async Task EnsureNhaThauExistsAsync(int nhaThauId, CancellationToken ct = default)
