@@ -8,8 +8,9 @@ namespace QLQTDT.Api.Middleware;
 /// Authorization attribute kiểm tra quyền chi tiết (fine-grained permission).
 ///
 /// Cách dùng:
-///   [HasPermission("DeXuat.Approve")]                    — yêu cầu 1 quyền
-///   [HasPermission("DeXuat.Read", "DeXuat.Write")]       — any-of (OR logic)
+///   [HasPermission("DEXUAT.VIEW")]                          — yêu cầu 1 quyền
+///   [HasPermission("DEXUAT.VIEW", "DEXUAT.EDIT")]           — any-of (OR logic)
+
 ///
 /// Cơ chế:
 ///   1. Kiểm tra user đã authenticated → 401 nếu chưa

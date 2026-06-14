@@ -1,4 +1,6 @@
 using FluentValidation;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -92,6 +94,29 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
 
                 return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var userIdString = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                                ?? context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+
+                if (!int.TryParse(userIdString, out var userId))
+                {
+                    context.Fail("Token không chứa userId hợp lệ.");
+                    return;
+                }
+
+                var isActive = await dbContext.NguoiDungs
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.TrangThaiHoatDong)
+                    .FirstOrDefaultAsync();
+
+                if (!isActive)
+                {
+                    context.Fail("Tài khoản đã bị khóa hoặc không tồn tại.");
+                }
             }
         };
     });
@@ -185,6 +210,8 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IVaiTroService, VaiTroService>();
 builder.Services.AddScoped<IQuyenService, QuyenService>();
 builder.Services.AddScoped<IUserService, UserService>();
+// Các Service từ nhánh develop
+builder.Services.AddScoped<INhaThauService, NhaThauService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IIntegrationService, IntegrationService>();
@@ -195,7 +222,11 @@ builder.Services.AddScoped<IFtpService, FtpService>();
 builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();
 builder.Services.AddScoped<IBuocWorkflowService, BuocWorkflowService>();
 builder.Services.AddScoped<IGoiThauService, GoiThauService>();
+builder.Services.AddScoped<ITaiLieuService, TaiLieuService>();
+builder.Services.AddScoped<IDeXuatService, DeXuatService>();
+builder.Services.AddScoped<IHoSoDuThauService, HoSoDuThauService>();
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
+
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Controllers với JSON camelCase + ValidationFilter tự động
@@ -206,6 +237,7 @@ builder.Services.AddControllers(options =>
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
     });
 
 // Swagger

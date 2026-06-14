@@ -113,6 +113,8 @@ CREATE TABLE DeXuatMuaSam (
     NgayDeXuat DATETIME2 DEFAULT GETDATE(),
     NgayCapNhat DATETIME2 NULL,
 
+    DaXoa BIT DEFAULT 0,
+
     FOREIGN KEY (KhoaPhongId) REFERENCES KhoaPhong(Id),
     FOREIGN KEY (NguoiDeXuatId) REFERENCES NguoiDung(Id)
 );

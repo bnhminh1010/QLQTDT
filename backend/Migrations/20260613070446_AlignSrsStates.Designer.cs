@@ -51,9 +51,6 @@ namespace QLQTDT.Api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("LyDoChonWorkflow")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("MaBuoc")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -71,11 +68,6 @@ namespace QLQTDT.Api.Migrations
 
                     b.Property<int?>("VaiTroXuLyId")
                         .HasColumnType("int");
-
-                    b.Property<bool>("WorkflowDuocChonThuCong")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<int>("WorkflowId")
                         .HasColumnType("int");
@@ -135,28 +127,17 @@ namespace QLQTDT.Api.Migrations
                     b.Property<int?>("DeXuatId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("HinhThucId")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("IdCongKhai")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
-
-                    b.Property<int?>("KhoaPhongId")
-                        .HasColumnType("int");
+                    b.Property<decimal?>("GiaGoiThau")
+                        .HasColumnType("decimal(18,0)");
 
                     b.Property<string>("MaGoiThau")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("MoTa")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<decimal?>("NganSach")
-                        .HasColumnType("decimal(18,0)");
 
                     b.Property<DateTime?>("NgayCapNhat")
                         .HasColumnType("datetime2(3)");
@@ -166,13 +147,10 @@ namespace QLQTDT.Api.Migrations
                         .HasColumnType("datetime2(3)")
                         .HasDefaultValueSql("GETDATE()");
 
-                    b.Property<int?>("NguoiTaoId")
-                        .HasColumnType("int");
-
                     b.Property<string>("TenGoiThau")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("TrangThai")
                         .IsRequired()
@@ -186,13 +164,7 @@ namespace QLQTDT.Api.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
-                    b.Property<int?>("WorkflowId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("IdCongKhai")
-                        .IsUnique();
 
                     b.HasIndex("MaGoiThau")
                         .IsUnique();
@@ -344,11 +316,6 @@ namespace QLQTDT.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<bool>("DaXoa")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -373,20 +340,10 @@ namespace QLQTDT.Api.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<DateTime?>("NgayCapNhat")
-                        .HasColumnType("datetime2(3)");
-
-                    b.Property<DateTime?>("NgayDangNhapCuoi")
-                        .HasColumnType("datetime2(3)");
-
                     b.Property<DateTime>("NgayTao")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(3)")
                         .HasDefaultValueSql("GETDATE()");
-
-                    b.Property<string>("SoDienThoai")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("TenDangNhap")
                         .IsRequired()
@@ -462,10 +419,6 @@ namespace QLQTDT.Api.Migrations
                     b.Property<string>("DiaChi")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Email")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
                     b.Property<string>("MaSoThue")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -473,10 +426,6 @@ namespace QLQTDT.Api.Migrations
 
                     b.Property<string>("NguoiDaiDien")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SoDienThoai")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("TenCongTy")
                         .IsRequired()

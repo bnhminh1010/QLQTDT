@@ -78,6 +78,27 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         };
     }
 
+    public async Task<IReadOnlyList<LichSuTrangThaiGoiThauDto>> GetLichSuTrangThaiAsync(int id)
+    {
+        var exists = await _set.AnyAsync(g => g.Id == id);
+        if (!exists)
+            throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
+
+        return await _db.LichSuTrangThaiGoiThaus
+            .Where(l => l.GoiThauId == id)
+            .OrderByDescending(l => l.ThoiGianThayDoi)
+            .Select(l => new LichSuTrangThaiGoiThauDto
+            {
+                Id = l.Id,
+                GoiThauId = l.GoiThauId,
+                TrangThaiCu = l.TrangThaiCu,
+                TrangThaiMoi = l.TrangThaiMoi,
+                NguoiThayDoiId = l.NguoiThayDoiId,
+                ThoiGianThayDoi = l.ThoiGianThayDoi
+            })
+            .ToListAsync();
+    }
+
     public async Task<GoiThau> CreateAsync(CreateGoiThauDto dto)
     {
         for (var attempt = 1; attempt <= 3; attempt++)

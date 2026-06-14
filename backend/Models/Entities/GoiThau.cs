@@ -7,8 +7,9 @@ public static class GoiThauTrangThai
     public const string HOAN_THANH = "HOAN_THANH";
     public const string HUY_BO = "HUY_BO";
     public const string QUA_HAN = "QUA_HAN";
+    public const string DA_CHON_NHA_THAU = "DA_CHON_NHA_THAU";
 
-    public static readonly string[] All = [DU_THAO, DANG_XU_LY, HOAN_THANH, HUY_BO, QUA_HAN];
+    public static readonly string[] All = [DU_THAO, DANG_XU_LY, HOAN_THANH, HUY_BO, QUA_HAN, DA_CHON_NHA_THAU];
 }
 
 public static class WorkflowHanhDong
