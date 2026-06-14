@@ -152,6 +152,79 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Trả về bước thành công"));
     }
 
+    /// <summary>
+    /// Rollback bước hiện tại về bước trước (POST /rollback)
+    /// </summary>
+    [HttpPost("{id}/rollback")]
+    [HasPermission("WORKFLOW.PROCESS")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> Rollback(
+        int id,
+        [FromBody] RollbackStepRequest request,
+        [FromServices] IValidator<RollbackStepRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToErrorResponse(validation));
+
+        var engineRequest = new ProcessStepRequest
+        {
+            HanhDong = WorkflowHanhDong.ROLLBACK,
+            GhiChu = request.GhiChu,
+            RowVersion = request.RowVersion
+        };
+        var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Rollback bước thành công"));
+    }
+
+    /// <summary>
+    /// Bỏ qua bước hiện tại (POST /skip)
+    /// </summary>
+    [HttpPost("{id}/skip")]
+    [HasPermission("WORKFLOW.PROCESS")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> Skip(
+        int id,
+        [FromBody] SkipStepRequest request,
+        [FromServices] IValidator<SkipStepRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToErrorResponse(validation));
+
+        var engineRequest = new ProcessStepRequest
+        {
+            HanhDong = WorkflowHanhDong.SKIP,
+            GhiChu = request.GhiChu,
+            RowVersion = request.RowVersion
+        };
+        var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Bỏ qua bước thành công"));
+    }
+
+    /// <summary>
+    /// Chuyển giao bước cho người xử lý khác (POST /reassign)
+    /// </summary>
+    [HttpPost("{id}/reassign")]
+    [HasPermission("WORKFLOW.PROCESS")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> Reassign(
+        int id,
+        [FromBody] ReassignStepRequest request,
+        [FromServices] IValidator<ReassignStepRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToErrorResponse(validation));
+
+        var engineRequest = new ProcessStepRequest
+        {
+            HanhDong = WorkflowHanhDong.REASSIGN,
+            GhiChu = request.GhiChu,
+            NguoiDuocGiaoId = request.NguoiDuocGiaoId,
+            RowVersion = request.RowVersion
+        };
+        var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Chuyển giao bước thành công"));
+    }
+
     [HttpPost("{id}/start-workflow")]
     [HasPermission("WORKFLOW.CHOOSE")]
     public async Task<ActionResult<ApiResponse<WorkflowInstanceDto>>> StartWorkflow(

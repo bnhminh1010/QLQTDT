@@ -18,7 +18,7 @@ public class JwtService
 
     public string GenerateToken(int userId, string email, string fullName, List<string> roles, IEnumerable<string> permissions)
     {
-        return GenerateToken(userId, email, fullName, roles, string.Empty);
+        return GenerateToken(userId, email, fullName, roles, string.Join(",", permissions));
     }
 
     public string GenerateToken(int userId, string email, string fullName, List<string> roles, string permissions)
