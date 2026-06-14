@@ -13,11 +13,17 @@ export type DieuKienChuyen =
 export type TrangThaiQT = "Đang hoạt động" | "Đã tắt";
 
 export const HINH_THUC_OPTIONS = [
+  "Chỉ định thầu tự quyết định LCNT",
   "Chỉ định thầu rút gọn",
   "Chỉ định thầu tự quyết định",
   "Chỉ định thầu thông thường",
   "Chào hàng cạnh tranh",
   "Đấu thầu rộng rãi",
+  "Mua sắm trực tiếp",
+  "Chào giá trực tuyến thông thường",
+  "Chào giá trực tuyến rút gọn",
+  "Mua sắm trực tuyến",
+  "Đặt hàng",
 ] as const;
 
 export type HinhThucQT = (typeof HINH_THUC_OPTIONS)[number];

@@ -14,13 +14,26 @@ export type TrangThai =
 export type HinhThuc =
   | "Chỉ định thầu rút gọn"
   | "Chỉ định thầu tự quyết định"
+  | "Chỉ định thầu tự quyết định LCNT"
   | "Chỉ định thầu thông thường"
   | "Chào hàng cạnh tranh"
-  | "Đấu thầu rộng rãi";
+  | "Đấu thầu rộng rãi"
+  | "Mua sắm trực tiếp"
+  | "Chào giá trực tuyến thông thường"
+  | "Chào giá trực tuyến rút gọn"
+  | "Mua sắm trực tuyến"
+  | "Đặt hàng";
+
+export type LoaiGoiThau =
+  | "Hàng hóa"
+  | "Dịch vụ tư vấn"
+  | "Dịch vụ phi tư vấn"
+  | "Xây lắp";
 
 export type GoiThau = {
   id: string;
   ten: string;
+  loaiGoiThau?: LoaiGoiThau;
   hinhThuc: HinhThuc;
   giaTriStr: string;
   giaTriNum: number;

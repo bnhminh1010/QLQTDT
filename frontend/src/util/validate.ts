@@ -127,7 +127,8 @@ export const taoGoiThauSchema = yup.object({
     .required("Vui lòng nhập tên gói thầu")
     .min(5, "Tên gói thầu phải có ít nhất 5 ký tự")
     .max(255, "Tên gói thầu không được vượt quá 255 ký tự"),
-  hinhThuc: yup.string().required("Vui lòng chọn hình thức đấu thầu"),
+  loaiGoiThau: yup.string().required("Vui lòng chọn loại gói thầu."),
+  hinhThuc: yup.string().required("Vui lòng chọn quy trình đấu thầu"),
   giaTriStr: yup
     .string()
     .trim()

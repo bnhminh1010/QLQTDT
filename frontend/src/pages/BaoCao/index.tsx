@@ -101,8 +101,48 @@ const MONTHS = [
 ];
 const CHART_DATA = [3, 5, 2, 4, 6, 3, 0, 0, 0, 0, 0, 0];
 
+const SUMMARY_ROWS = [
+  {
+    unit: "Khoa Dược",
+    count: 12,
+    total: "9,400,000,000",
+    done: 7,
+    prog: 4,
+    late: 1,
+    topPackage: "GT2025-004 - Mua sắm thuốc điều trị ung thư",
+  },
+  {
+    unit: "P.HCQT",
+    count: 7,
+    total: "1,650,000,000",
+    done: 4,
+    prog: 2,
+    late: 1,
+    topPackage: "GT2025-003 - Dịch vụ vệ sinh bệnh viện quý 3",
+  },
+  {
+    unit: "Khoa Nội",
+    count: 3,
+    total: "1,920,000,000",
+    done: 2,
+    prog: 1,
+    late: 0,
+    topPackage: "GT2025-001 - Mua sắm thiết bị y tế khoa Nội",
+  },
+  {
+    unit: "Khoa Ngoại",
+    count: 1,
+    total: "730,000,000",
+    done: 0,
+    prog: 1,
+    late: 0,
+    topPackage: "GT2025-005 - Mua sắm vật tư tiêu hao khoa Ngoại",
+  },
+];
+
 export default function BaoCao() {
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState(SUMMARY_ROWS[1]);
 
   return (
     <>
@@ -112,12 +152,6 @@ export default function BaoCao() {
           Báo cáo &amp; Thống kê
         </h1>
         <div className="flex items-center gap-3">
-          <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">
-            <i className="fa-regular fa-bell" />
-            <span className="absolute top-1.5 right-1.5 w-[15px] h-[15px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-              9
-            </span>
-          </button>
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
@@ -171,9 +205,11 @@ export default function BaoCao() {
                   const hPct =
                     maxH > 0 && n > 0 ? Math.round((n / maxH) * 100) : 0;
                   return (
-                    <div
+                    <button
                       key={i}
-                      className="flex-1 flex flex-col items-center gap-1"
+                      type="button"
+                      onClick={() => setSelectedReport(SUMMARY_ROWS[i % SUMMARY_ROWS.length])}
+                      className="flex-1 flex flex-col items-center gap-1 rounded-lg px-1 py-1 transition-colors hover:bg-blue-50"
                     >
                       {n > 0 && (
                         <span className="text-[10px] text-slate-500">{n}</span>
@@ -185,7 +221,7 @@ export default function BaoCao() {
                       <span className="text-[10px] text-slate-400">
                         {MONTHS[i]}
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -197,8 +233,13 @@ export default function BaoCao() {
                 Phân bổ theo hình thức
               </div>
               <div className="space-y-3">
-                {DIST.map((d) => (
-                  <div key={d.label}>
+                {DIST.map((d, idx) => (
+                  <button
+                    key={d.label}
+                    type="button"
+                    onClick={() => setSelectedReport(SUMMARY_ROWS[idx % SUMMARY_ROWS.length])}
+                    className="w-full rounded-lg p-1.5 text-left transition-colors hover:bg-slate-50"
+                  >
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-slate-700">{d.label}</span>
                       <span className="font-semibold text-slate-800">
@@ -211,7 +252,7 @@ export default function BaoCao() {
                         style={{ width: d.pct }}
                       />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -245,36 +286,37 @@ export default function BaoCao() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {[
-                    ["Khoa Dược", 12, "9,400,000,000", 7, 4, 1],
-                    ["P.HCQT", 7, "1,650,000,000", 4, 2, 1],
-                    ["Khoa Nội", 3, "1,920,000,000", 2, 1, 0],
-                    ["Khoa Ngoại", 1, "730,000,000", 0, 1, 0],
-                  ].map(([unit, count, total, done, prog, late]) => (
-                    <tr key={unit} className="hover:bg-slate-50">
+                  {SUMMARY_ROWS.map((row) => (
+                    <tr
+                      key={row.unit}
+                      onClick={() => setSelectedReport(row)}
+                      className={`cursor-pointer transition-colors hover:bg-slate-50 ${
+                        selectedReport.unit === row.unit ? "bg-blue-50" : ""
+                      }`}
+                    >
                       <td className="px-5 py-3 text-slate-800 font-medium">
-                        {unit}
+                        {row.unit}
                       </td>
                       <td className="px-5 py-3 text-right text-slate-700">
-                        {count}
+                        {row.count}
                       </td>
                       <td className="px-5 py-3 text-right font-medium text-slate-700">
-                        {total}
+                        {row.total}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <span className="text-emerald-700 font-semibold">
-                          {done}
+                          {row.done}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right">
                         <span className="text-blue-700 font-semibold">
-                          {prog}
+                          {row.prog}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right">
-                        {(late as number) > 0 ? (
+                        {row.late > 0 ? (
                           <span className="text-red-500 font-semibold">
-                            {late}
+                            {row.late}
                           </span>
                         ) : (
                           <span className="text-slate-300">—</span>
@@ -288,10 +330,46 @@ export default function BaoCao() {
           </div>
         </main>
 
-        {/* DETAIL PANEL (empty placeholder) */}
-        <aside className="w-[288px] shrink-0 border-l border-slate-200 bg-white hidden xl:flex flex-col items-center justify-center text-slate-400 text-sm text-center p-5">
-          <i className="fa-solid fa-chart-bar text-4xl mb-3 text-slate-200" />
-          <p>Chọn một gói thầu từ bảng để xem biểu đồ chi tiết</p>
+        {/* DETAIL PANEL */}
+        <aside className="w-[288px] shrink-0 border-l border-slate-200 bg-white hidden xl:block p-5">
+          <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">
+            CHI TIẾT BÁO CÁO
+          </div>
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <div className="text-sm font-bold text-slate-900 mb-1">
+              {selectedReport.unit}
+            </div>
+            <div className="text-xs text-slate-500 leading-relaxed mb-4">
+              {selectedReport.topPackage}
+            </div>
+            <div className="space-y-2 text-xs">
+              {[
+                ["Số gói", selectedReport.count],
+                ["Tổng giá trị", `${selectedReport.total} đ`],
+                ["Hoàn thành", selectedReport.done],
+                ["Đang xử lý", selectedReport.prog],
+                ["Trễ hạn", selectedReport.late],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-3">
+                  <span className="text-slate-400">{label}</span>
+                  <span className="font-semibold text-slate-800 text-right">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-500"
+                style={{
+                  width: `${Math.round((selectedReport.done / selectedReport.count) * 100)}%`,
+                }}
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-slate-400">
+              Tỉ lệ hoàn thành {Math.round((selectedReport.done / selectedReport.count) * 100)}%
+            </p>
+          </div>
         </aside>
       </div>
 

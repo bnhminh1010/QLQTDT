@@ -19,7 +19,7 @@ import {
   getGoiThauById,
   updateGoiThau,
 } from "@/pages/DanhSachGoiThau/goiThauService";
-import type { GoiThau, HinhThuc } from "@/pages/DanhSachGoiThau/goiThauService";
+import type { GoiThau, HinhThuc, LoaiGoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
 import { getQuyTrinhList, type QuyTrinh } from "@/pages/DanhSachQuyTrinh/quyTrinhService";
 
 /* ─ RBAC ─ */
@@ -30,12 +30,64 @@ const MOCK_CURRENT_USER = {
   donVi: "P.HCQT",
 };
 
-const HT_BADGE: Record<HinhThuc, string> = {
+const HT_BADGE: Partial<Record<HinhThuc, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
   "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
+  "Chỉ định thầu tự quyết định LCNT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
   "Đấu thầu rộng rãi": "bg-purple-100 text-purple-700",
+};
+
+const LOAI_GOI_THAU_OPTIONS: LoaiGoiThau[] = [
+  "Hàng hóa",
+  "Dịch vụ tư vấn",
+  "Dịch vụ phi tư vấn",
+  "Xây lắp",
+];
+
+const QUY_TRINH_BY_LOAI: Record<LoaiGoiThau, HinhThuc[]> = {
+  "Hàng hóa": [
+    "Chỉ định thầu tự quyết định LCNT",
+    "Chỉ định thầu rút gọn",
+    "Chỉ định thầu thông thường",
+    "Chào hàng cạnh tranh",
+    "Đấu thầu rộng rãi",
+    "Mua sắm trực tiếp",
+    "Chào giá trực tuyến thông thường",
+    "Chào giá trực tuyến rút gọn",
+    "Mua sắm trực tuyến",
+    "Đặt hàng",
+  ],
+  "Dịch vụ tư vấn": [
+    "Chỉ định thầu tự quyết định LCNT",
+    "Chỉ định thầu rút gọn",
+    "Chỉ định thầu thông thường",
+    "Đấu thầu rộng rãi",
+    "Mua sắm trực tiếp",
+    "Đặt hàng",
+  ],
+  "Dịch vụ phi tư vấn": [
+    "Chỉ định thầu tự quyết định LCNT",
+    "Chỉ định thầu rút gọn",
+    "Chỉ định thầu thông thường",
+    "Chào hàng cạnh tranh",
+    "Đấu thầu rộng rãi",
+    "Mua sắm trực tiếp",
+    "Chào giá trực tuyến thông thường",
+    "Chào giá trực tuyến rút gọn",
+    "Đặt hàng",
+  ],
+  "Xây lắp": [
+    "Chỉ định thầu tự quyết định LCNT",
+    "Chỉ định thầu rút gọn",
+    "Chỉ định thầu thông thường",
+    "Chào hàng cạnh tranh",
+    "Đấu thầu rộng rãi",
+    "Mua sắm trực tiếp",
+    "Chào giá trực tuyến rút gọn",
+    "Đặt hàng",
+  ],
 };
 
 const NGUON_VON = [
@@ -44,6 +96,13 @@ const NGUON_VON = [
   "Tự chủ tài chính",
   "Nguồn khác",
 ];
+
+function inferLoaiGoiThau(hinhThuc?: HinhThuc): LoaiGoiThau {
+  if (hinhThuc && QUY_TRINH_BY_LOAI["Hàng hóa"].includes(hinhThuc)) {
+    return "Hàng hóa";
+  }
+  return "Hàng hóa";
+}
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
@@ -105,6 +164,13 @@ function makeDefaultWorkflow(id: string, hinhThuc: HinhThuc, steps: string[]): Q
 }
 
 const DEFAULT_WORKFLOWS: Record<HinhThuc, QuyTrinh> = {
+  "Chỉ định thầu tự quyết định LCNT": makeDefaultWorkflow("QT-MACDINH-CDT-TQD-LCNT", "Chỉ định thầu tự quyết định LCNT", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Lập hồ sơ mời thầu",
+    "Phê duyệt hồ sơ mời thầu",
+    "Quyết định chỉ định nhà thầu",
+  ]),
   "Chỉ định thầu rút gọn": makeDefaultWorkflow("QT-MACDINH-CDT-RG", "Chỉ định thầu rút gọn", [
     "Đề xuất mua sắm",
     "Tờ trình chủ trương",
@@ -165,6 +231,44 @@ const DEFAULT_WORKFLOWS: Record<HinhThuc, QuyTrinh> = {
     "Đăng tải kết quả LCNT",
     "Ký kết hợp đồng",
   ]),
+  "Mua sắm trực tiếp": makeDefaultWorkflow("QT-MACDINH-MSTT", "Mua sắm trực tiếp", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Phê duyệt dự toán",
+    "Thương thảo nhà cung cấp",
+    "Phê duyệt kết quả mua sắm trực tiếp",
+    "Ký kết hợp đồng",
+  ]),
+  "Chào giá trực tuyến thông thường": makeDefaultWorkflow("QT-MACDINH-CGTT-TT", "Chào giá trực tuyến thông thường", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Đăng tải chào giá trực tuyến",
+    "Tiếp nhận báo giá",
+    "Đánh giá báo giá",
+    "Phê duyệt kết quả chào giá",
+    "Ký kết hợp đồng",
+  ]),
+  "Chào giá trực tuyến rút gọn": makeDefaultWorkflow("QT-MACDINH-CGTT-RG", "Chào giá trực tuyến rút gọn", [
+    "Đề xuất mua sắm",
+    "Đăng tải chào giá trực tuyến",
+    "Tiếp nhận báo giá",
+    "Phê duyệt kết quả chào giá",
+    "Ký kết hợp đồng",
+  ]),
+  "Mua sắm trực tuyến": makeDefaultWorkflow("QT-MACDINH-MST", "Mua sắm trực tuyến", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Chọn hàng hóa trên hệ thống",
+    "Phê duyệt đơn hàng",
+    "Hoàn tất mua sắm",
+  ]),
+  "Đặt hàng": makeDefaultWorkflow("QT-MACDINH-DH", "Đặt hàng", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Lập phiếu đặt hàng",
+    "Phê duyệt đặt hàng",
+    "Theo dõi thực hiện",
+  ]),
 };
 
 export default function TaoGoiThau() {
@@ -195,20 +299,32 @@ export default function TaoGoiThau() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: yupResolver(taoGoiThauSchema),
-    defaultValues: { donVi: MOCK_CURRENT_USER.donVi, ghiChu: "" },
+    defaultValues: { donVi: MOCK_CURRENT_USER.donVi, ghiChu: "", loaiGoiThau: "", hinhThuc: "" },
   });
 
   const watched = watch();
-  const hasPreview = !!(watched.ten?.trim() || watched.hinhThuc);
+  const selectedLoaiGoiThau = watched.loaiGoiThau as LoaiGoiThau | "";
+  const filteredQuyTrinhOptions = selectedLoaiGoiThau
+    ? QUY_TRINH_BY_LOAI[selectedLoaiGoiThau]
+    : [];
+  const hasPreview = !!(watched.ten?.trim() || watched.loaiGoiThau || watched.hinhThuc);
   const ghiChuLen = watched.ghiChu?.length ?? 0;
 
   const selectedQT = watched.hinhThuc
     ? (quyTrinhList.find((qt) => qt.hinhThuc === watched.hinhThuc) ??
       DEFAULT_WORKFLOWS[watched.hinhThuc as HinhThuc])
     : null;
+
+  useEffect(() => {
+    if (!selectedLoaiGoiThau || !watched.hinhThuc) return;
+    if (!QUY_TRINH_BY_LOAI[selectedLoaiGoiThau].includes(watched.hinhThuc as HinhThuc)) {
+      setValue("hinhThuc", "", { shouldDirty: true, shouldValidate: true });
+    }
+  }, [selectedLoaiGoiThau, setValue, watched.hinhThuc]);
   const quyTrinhStats = useMemo(() => {
     if (!selectedQT) return null;
     const tongSoBuoc = selectedQT.buocList.length;
@@ -247,6 +363,7 @@ export default function TaoGoiThau() {
     }
     reset({
       ten: editingGoiThau.ten,
+      loaiGoiThau: editingGoiThau.loaiGoiThau ?? inferLoaiGoiThau(editingGoiThau.hinhThuc),
       hinhThuc: editingGoiThau.hinhThuc,
       nguonVon: editingGoiThau.detail.nguonVon,
       giaTriStr: editingGoiThau.giaTriStr,
@@ -261,6 +378,7 @@ export default function TaoGoiThau() {
     return {
       id: editingGoiThau?.id ?? generateGoiThauId(),
       ten: data.ten.trim(),
+      loaiGoiThau: data.loaiGoiThau as LoaiGoiThau,
       hinhThuc: data.hinhThuc as HinhThuc,
       giaTriStr: formatVND(data.giaTriStr),
       giaTriNum: num,
@@ -318,6 +436,7 @@ export default function TaoGoiThau() {
     addGoiThau({
       id: generateGoiThauId(),
       ten: values.ten.trim(),
+      loaiGoiThau: (values.loaiGoiThau || "Hàng hóa") as LoaiGoiThau,
       hinhThuc: (values.hinhThuc || "Chỉ định thầu rút gọn") as HinhThuc,
       giaTriStr: values.giaTriStr ? formatVND(values.giaTriStr) : "0",
       giaTriNum: num,
@@ -352,14 +471,6 @@ export default function TaoGoiThau() {
           <h1 className="text-[17px] font-bold text-slate-900">
             {isEditMode ? "Chỉnh sửa gói thầu" : "Tạo gói thầu"}
           </h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">
-            <i className="fa-regular fa-bell" />
-            <span className="absolute top-1.5 right-1.5 w-[15px] h-[15px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-              5
-            </span>
-          </button>
         </div>
       </header>
 
@@ -403,19 +514,49 @@ export default function TaoGoiThau() {
                 )}
               </div>
 
-              {/* Hình thức + Nguồn vốn */}
+              {/* Loại gói thầu */}
+              <div>
+                <label className={labelCls}>
+                  Loại gói thầu <span className="text-red-500">*</span>
+                </label>
+                <select {...register("loaiGoiThau")} className={cls("loaiGoiThau")}>
+                  <option value="">-- Chọn loại gói thầu --</option>
+                  {LOAI_GOI_THAU_OPTIONS.map((loai) => (
+                    <option key={loai} value={loai}>
+                      {loai}
+                    </option>
+                  ))}
+                </select>
+                {errors.loaiGoiThau && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.loaiGoiThau.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Quy trình đấu thầu + Nguồn vốn */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>
-                    Hình thức đấu thầu <span className="text-red-500">*</span>
+                    Quy trình đấu thầu <span className="text-red-500">*</span>
                   </label>
-                  <select {...register("hinhThuc")} className={cls("hinhThuc")}>
-                    <option value="">-- Chọn hình thức --</option>
-                    <option>Chỉ định thầu rút gọn</option>
-                    <option>Chỉ định thầu tự quyết định</option>
-                    <option>Chỉ định thầu thông thường</option>
-                    <option>Chào hàng cạnh tranh</option>
-                    <option>Đấu thầu rộng rãi</option>
+                  <select
+                    {...register("hinhThuc")}
+                    disabled={!selectedLoaiGoiThau}
+                    className={`${cls("hinhThuc")} ${
+                      !selectedLoaiGoiThau ? "cursor-not-allowed opacity-70" : ""
+                    }`}
+                  >
+                    <option value="">
+                      {selectedLoaiGoiThau
+                        ? "-- Chọn quy trình đấu thầu --"
+                        : "Vui lòng chọn loại gói thầu trước"}
+                    </option>
+                    {filteredQuyTrinhOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                   {errors.hinhThuc && (
                     <p className="text-xs text-red-500 mt-1">
@@ -444,21 +585,36 @@ export default function TaoGoiThau() {
               {/* Quy trình áp dụng */}
               <div>
                 <label className={labelCls}>Quy trình áp dụng</label>
-                {selectedQT && (
-                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                  {selectedQT ? (
+                    <>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="text-sm font-semibold text-blue-800">
                           {selectedQT.ten}
                         </p>
                         <p className="text-xs text-blue-500 mt-0.5">
-                          Tự động áp dụng theo hình thức đấu thầu đã chọn
+                          Quy trình đấu thầu đã chọn
                         </p>
                       </div>
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
                         {selectedQT.buocList.length} bước
                       </span>
                     </div>
+                    {quyTrinhStats && (
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                        {[
+                          ["Tổng số bước", `${quyTrinhStats.tongSoBuoc} bước`],
+                          ["SLA dự kiến", `${quyTrinhStats.slaDuKien} ngày`],
+                          ["Số bước cần duyệt", `${quyTrinhStats.soBuocCanDuyet} bước`],
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-lg bg-white border border-blue-100 px-3 py-2">
+                            <p className="text-[11px] font-semibold text-blue-400">{label}</p>
+                            <p className="text-sm font-bold text-blue-800">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                       {selectedQT.buocList.map((b, i) => (
                         <div
@@ -479,13 +635,18 @@ export default function TaoGoiThau() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-                {!watched.hinhThuc && (
-                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
-                    Chọn hình thức đấu thầu để hệ thống tự hiển thị quy trình áp dụng.
-                  </div>
-                )}
+                    </>
+                  ) : (
+                    <div>
+                      <p className="text-sm font-semibold text-blue-800">
+                        Quy trình áp dụng
+                      </p>
+                      <p className="text-xs text-blue-500 mt-1">
+                        Vui lòng chọn quy trình đấu thầu để xem chi tiết.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Giá trị + Đơn vị */}
@@ -745,15 +906,18 @@ export default function TaoGoiThau() {
                   <span className="text-slate-300">Chưa có tên</span>
                 )}
               </div>
-              {watched.hinhThuc && (
-                <span
-                  className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium mb-3 ${HT_BADGE[watched.hinhThuc as HinhThuc] ?? "bg-slate-100 text-slate-600"}`}
-                >
-                  {watched.hinhThuc}
-                </span>
-              )}
               <div className="space-y-2 mt-3">
                 {[
+                  ["Loại gói thầu", watched.loaiGoiThau || "—"],
+                  ["Quy trình đấu thầu", watched.hinhThuc || "—"],
+                  [
+                    "Tổng số bước",
+                    quyTrinhStats ? `${quyTrinhStats.tongSoBuoc} bước` : "—",
+                  ],
+                  [
+                    "SLA dự kiến",
+                    quyTrinhStats ? `${quyTrinhStats.slaDuKien} ngày` : "—",
+                  ],
                   [
                     "Giá trị",
                     watched.giaTriStr ? `${formatVND(watched.giaTriStr)} đ` : "—",
@@ -762,12 +926,19 @@ export default function TaoGoiThau() {
                   ["Đơn vị", watched.donVi || "—"],
                   ["Ngày tạo", watched.ngayTao || "—"],
                 ].map(([lbl, val]) => (
-                  <div key={lbl} className="flex justify-between text-xs">
+                  <div key={lbl} className="flex justify-between gap-3 text-xs">
                     <span className="text-slate-400">{lbl}</span>
-                    <span className="text-slate-800 font-medium">{val}</span>
+                    <span className="text-slate-800 font-medium text-right">{val}</span>
                   </div>
                 ))}
               </div>
+              {watched.hinhThuc && (
+                <span
+                  className={`mt-3 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${HT_BADGE[watched.hinhThuc as HinhThuc] ?? "bg-slate-100 text-slate-600"}`}
+                >
+                  {watched.hinhThuc}
+                </span>
+              )}
               {watched.ghiChu && (
                 <div className="mt-4 p-3 bg-slate-50 rounded-xl">
                   <p className="text-[10px] font-bold text-slate-400 tracking-wide mb-1">

@@ -2,39 +2,10 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getUserGoiThauList } from "./goiThauService";
+import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 
 /* ─── Types ───────────────────────────────────────────── */
-type TrangThai =
-  | "Đang xử lý"
-  | "Hoàn thành"
-  | "Trễ hạn"
-  | "Chờ duyệt"
-  | "Đã hủy"
-  | "Nháp";
-type HinhThuc =
-  | "Chỉ định thầu rút gọn"
-  | "Chỉ định thầu tự quyết định"
-  | "Chỉ định thầu thông thường"
-  | "Chào hàng cạnh tranh"
-  | "Đấu thầu rộng rãi";
 type DotState = "done" | "warn" | "idle";
-
-type GoiThau = {
-  id: string;
-  ten: string;
-  hinhThuc: HinhThuc;
-  giaTriStr: string;
-  giaTriNum: number;
-  donVi: string;
-  trangThai: TrangThai;
-  detail: {
-    nguonVon: string;
-    ngayTao: string;
-    hanHT: string;
-    pct: string;
-    buoc: string;
-  };
-};
 
 type LichSuGoiThau = {
   id: string;
@@ -71,12 +42,18 @@ const BADGE: Record<TrangThai, string> = {
   "Đã hủy": "bg-slate-100 text-slate-500",
   "Nháp": "bg-purple-100 text-purple-600",
 };
-const HT_BADGE: Record<HinhThuc, string> = {
+const HT_BADGE: Partial<Record<HinhThuc, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
   "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
+  "Chỉ định thầu tự quyết định LCNT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
   "Đấu thầu rộng rãi": "bg-purple-100 text-purple-700",
+  "Mua sắm trực tiếp": "bg-cyan-100 text-cyan-700",
+  "Chào giá trực tuyến thông thường": "bg-indigo-100 text-indigo-700",
+  "Chào giá trực tuyến rút gọn": "bg-indigo-100 text-indigo-700",
+  "Mua sắm trực tuyến": "bg-teal-100 text-teal-700",
+  "Đặt hàng": "bg-orange-100 text-orange-700",
 };
 const BAR_COLOR: Record<TrangThai, string> = {
   "Đang xử lý": "bg-blue-500",
@@ -738,15 +715,9 @@ export default function DanhSachGoiThau() {
           <button
             onClick={() => setDetailOpen((o) => !o)}
             title="Chi tiết gói thầu"
-            className="xl:hidden w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+            className="2xl:hidden w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
             <i className="fa-solid fa-sidebar-flip" />
-          </button>
-          <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">
-            <i className="fa-regular fa-bell" />
-            <span className="absolute top-1.5 right-1.5 w-[15px] h-[15px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-              9
-            </span>
           </button>
           <button
             onClick={() => navigate("/tao-goi-thau")}
@@ -758,8 +729,8 @@ export default function DanhSachGoiThau() {
       </header>
 
       {/* CONTENT */}
-      <div className="flex flex-1 overflow-hidden relative">
-        <main className="flex-1 overflow-y-auto p-6 space-y-4 min-w-0">
+      <div className="flex flex-1 min-h-0 h-[calc(100vh-3.5rem)] overflow-hidden relative">
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 lg:p-6 space-y-4">
           {/* FILTER BAR */}
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[180px]">
@@ -922,7 +893,7 @@ export default function DanhSachGoiThau() {
                           </td>
                           <td className="px-5 py-3 whitespace-nowrap">
                             <span
-                              className={`inline-flex whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium ${HT_BADGE[row.hinhThuc]}`}
+                              className={`inline-flex whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium ${HT_BADGE[row.hinhThuc] ?? "bg-slate-100 text-slate-600"}`}
                             >
                               {row.hinhThuc}
                             </span>
@@ -1038,20 +1009,20 @@ export default function DanhSachGoiThau() {
           </div>
         </main>
 
-        {/* DETAIL PANEL — desktop: always visible; mobile: drawer overlay */}
+        {/* DETAIL PANEL — wide desktop: always visible; smaller screens: drawer overlay */}
         {/* Desktop */}
-        <aside className="w-[288px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden xl:block">
+        <aside className="w-[320px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden 2xl:block">
           <DetailPanel />
         </aside>
 
-        {/* Mobile drawer */}
+        {/* Drawer */}
         {detailOpen && (
-          <div className="xl:hidden fixed inset-0 z-[100] flex">
+          <div className="2xl:hidden fixed inset-0 z-[100] flex">
             <div
               className="flex-1 bg-black/30"
               onClick={() => setDetailOpen(false)}
             />
-            <div className="w-[300px] bg-white overflow-y-auto p-5 shadow-2xl">
+            <div className="w-[min(360px,calc(100vw-64px))] bg-white overflow-y-auto p-5 shadow-2xl">
               <button
                 onClick={() => setDetailOpen(false)}
                 className="mb-4 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700"

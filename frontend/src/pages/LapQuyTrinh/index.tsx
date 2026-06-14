@@ -48,12 +48,18 @@ const DIEU_KIEN_OPTIONS: DieuKienChuyen[] = [
   "Trả về",
 ];
 
-const HT_BADGE: Record<HinhThucQT, string> = {
+const HT_BADGE: Partial<Record<HinhThucQT, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
   "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
+  "Chỉ định thầu tự quyết định LCNT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
   "Đấu thầu rộng rãi": "bg-purple-100 text-purple-700",
+  "Mua sắm trực tiếp": "bg-cyan-100 text-cyan-700",
+  "Chào giá trực tuyến thông thường": "bg-indigo-100 text-indigo-700",
+  "Chào giá trực tuyến rút gọn": "bg-indigo-100 text-indigo-700",
+  "Mua sắm trực tuyến": "bg-teal-100 text-teal-700",
+  "Đặt hàng": "bg-orange-100 text-orange-700",
 };
 
 const LOAI_BADGE: Record<LoaiBuoc, string> = {
@@ -463,7 +469,7 @@ export default function LapQuyTrinh() {
 
           {hinhThuc && (
             <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${HT_BADGE[hinhThuc]}`}
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${HT_BADGE[hinhThuc] ?? "bg-slate-100 text-slate-600"}`}
             >
               {hinhThuc}
             </span>
