@@ -394,7 +394,7 @@ export default function LapQuyTrinh() {
         </button>
       </header>
 
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="w-full p-4 lg:p-6 space-y-6">
         {/* Error banner */}
         {saveErr && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
@@ -410,61 +410,63 @@ export default function LapQuyTrinh() {
             Thông tin quy trình
           </h2>
 
-          {/* Tên */}
-          <div>
-            <label className={labelCls}>
-              Tên quy trình <span className="text-red-500">*</span>
-            </label>
-            <input
-              className={tenErr ? inputErrCls : inputCls}
-              placeholder="Ví dụ: Quy trình mua sắm vật tư y tế 2025"
-              value={tenQuyTrinh}
-              maxLength={260}
-              onChange={(e) => {
-                setTenQuyTrinh(e.target.value);
-                setTenErr(validateTen(e.target.value));
-                markDirty();
-              }}
-            />
-            <div className="flex items-center justify-between mt-1">
-              {tenErr ? (
-                <p className="text-xs text-red-500">{tenErr}</p>
-              ) : (
-                <span />
-              )}
-              <span
-                className={`text-[11px] ml-auto ${tenLen > 255 ? "text-red-500 font-semibold" : "text-slate-400"}`}
-              >
-                {tenLen}/255
-              </span>
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-4">
+            {/* Tên */}
+            <div>
+              <label className={labelCls}>
+                Tên quy trình <span className="text-red-500">*</span>
+              </label>
+              <input
+                className={tenErr ? inputErrCls : inputCls}
+                placeholder="Ví dụ: Quy trình mua sắm vật tư y tế 2025"
+                value={tenQuyTrinh}
+                maxLength={260}
+                onChange={(e) => {
+                  setTenQuyTrinh(e.target.value);
+                  setTenErr(validateTen(e.target.value));
+                  markDirty();
+                }}
+              />
+              <div className="flex items-center justify-between mt-1">
+                {tenErr ? (
+                  <p className="text-xs text-red-500">{tenErr}</p>
+                ) : (
+                  <span />
+                )}
+                <span
+                  className={`text-[11px] ml-auto ${tenLen > 255 ? "text-red-500 font-semibold" : "text-slate-400"}`}
+                >
+                  {tenLen}/255
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Hình thức */}
-          <div>
-            <label className={labelCls}>
-              Hình thức đấu thầu áp dụng{" "}
-              <span className="text-red-500">*</span>
-            </label>
-            <select
-              className={hinhThucErr ? inputErrCls : inputCls}
-              value={hinhThuc}
-              onChange={(e) => {
-                setHinhThuc(e.target.value as HinhThucQT);
-                setHinhThucErr("");
-                markDirty();
-              }}
-            >
-              <option value="">-- Chọn hình thức --</option>
-              {HINH_THUC_OPTIONS.map((ht) => (
-                <option key={ht} value={ht}>
-                  {ht}
-                </option>
-              ))}
-            </select>
-            {hinhThucErr && (
-              <p className="text-xs text-red-500 mt-1">{hinhThucErr}</p>
-            )}
+            {/* Hình thức */}
+            <div>
+              <label className={labelCls}>
+                Hình thức đấu thầu áp dụng{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              <select
+                className={hinhThucErr ? inputErrCls : inputCls}
+                value={hinhThuc}
+                onChange={(e) => {
+                  setHinhThuc(e.target.value as HinhThucQT);
+                  setHinhThucErr("");
+                  markDirty();
+                }}
+              >
+                <option value="">-- Chọn hình thức --</option>
+                {HINH_THUC_OPTIONS.map((ht) => (
+                  <option key={ht} value={ht}>
+                    {ht}
+                  </option>
+                ))}
+              </select>
+              {hinhThucErr && (
+                <p className="text-xs text-red-500 mt-1">{hinhThucErr}</p>
+              )}
+            </div>
           </div>
 
           {hinhThuc && (

@@ -110,7 +110,7 @@ export default function UserProfile() {
         </button>
       </header>
 
-      <div className="p-6 max-w-2xl mx-auto space-y-5">
+      <div className="w-full p-4 lg:p-6 space-y-5">
         {/* Avatar + name card */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
           <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shrink-0">
@@ -167,7 +167,7 @@ export default function UserProfile() {
               <i className="fa-solid fa-user-circle text-blue-500" />
               Thông tin tài khoản
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <div>
                 <label className={labelCls}>Họ và tên</label>
                 <input readOnly value={MOCK_USER.hoTen} className={inputReadonlyCls} />
@@ -219,7 +219,7 @@ export default function UserProfile() {
               </ul>
             </div>
 
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {(["current", "newPwd", "confirm"] as const).map((field) => (
                 <div key={field}>
                   <label className={labelCls}>
