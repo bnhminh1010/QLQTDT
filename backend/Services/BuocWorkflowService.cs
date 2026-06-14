@@ -170,7 +170,7 @@ public class BuocWorkflowService : IBuocWorkflowService
                 "Cannot delete step with existing transitions. Remove transitions first.");
 
         var hasActiveInstance = await _context.WorkflowInstances.AnyAsync(
-            i => i.BuocHienTaiId == id && i.TrangThai == "ACTIVE");
+            i => i.TrangThai == "ACTIVE" && i.WorkflowStepInstances.Any(s => s.BuocWorkflowId == id));
         if (hasActiveInstance)
             throw new AppException(409, "HAS_ACTIVE_INSTANCE",
                 "Cannot delete step referenced by an active workflow instance.");

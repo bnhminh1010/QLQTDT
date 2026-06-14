@@ -61,3 +61,7 @@ nunit-*.xml
 
 # Claude Code internal state
 .omc/
+.claude/
+
+# LibreOffice lock files
+.~lock.*#

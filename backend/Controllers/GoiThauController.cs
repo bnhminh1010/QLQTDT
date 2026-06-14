@@ -1,10 +1,13 @@
+using FluentValidation;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
+using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.GoiThau;
 using QLQTDT.Api.Models.DTOs.HoSoDuThau;
+using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
 using QLQTDT.Api.Services;
 
@@ -16,10 +19,13 @@ namespace QLQTDT.Api.Controllers;
 public class GoiThauController : BaseController<GoiThau, IGoiThauService>
 {
     private readonly IHoSoDuThauService _hoSoService;
+    private readonly IWorkflowEngineService _workflowEngine;
 
-    public GoiThauController(IGoiThauService service, IHoSoDuThauService hoSoService) : base(service)
+    public GoiThauController(IGoiThauService service, IHoSoDuThauService hoSoService, IWorkflowEngineService workflowEngine)
+        : base(service)
     {
         _hoSoService = hoSoService;
+        _workflowEngine = workflowEngine;
     }
 
     [NonAction]
@@ -60,6 +66,32 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     {
         var detail = await _service.GetChiTietAsync(id);
         return Ok(ApiResponse<GoiThauDetailDto>.Ok(detail));
+    }
+
+    [HttpPost("{id}/start-workflow")]
+    [HasPermission("WORKFLOW.CHOOSE")]
+    public async Task<ActionResult<ApiResponse<WorkflowInstanceDto>>> StartWorkflow(
+        int id,
+        [FromBody] StartWorkflowRequest request,
+        [FromServices] IValidator<StartWorkflowRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Timestamp = DateTime.UtcNow,
+                Status = 400,
+                Error = "Validation Failed",
+                Errors = validation.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => char.ToLowerInvariant(g.Key[0]) + g.Key[1..],
+                                  g => g.First().ErrorMessage)
+            });
+        }
+
+        var result = await _workflowEngine.StartWorkflowAsync(id, request);
+        return Ok(ApiResponse<WorkflowInstanceDto>.Ok(result, "Khởi tạo workflow thành công"));
     }
 
     [AllowAnonymous]
