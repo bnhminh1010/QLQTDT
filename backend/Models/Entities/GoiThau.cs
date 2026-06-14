@@ -6,9 +6,10 @@ public static class GoiThauTrangThai
     public const string DANG_XU_LY = "DANG_XU_LY";
     public const string HOAN_THANH = "HOAN_THANH";
     public const string HUY_BO = "HUY_BO";
+    public const string QUA_HAN = "QUA_HAN";
     public const string DA_CHON_NHA_THAU = "DA_CHON_NHA_THAU";
 
-    public static readonly string[] All = [DU_THAO, DANG_XU_LY, HOAN_THANH, HUY_BO, DA_CHON_NHA_THAU];
+    public static readonly string[] All = [DU_THAO, DANG_XU_LY, HOAN_THANH, HUY_BO, QUA_HAN, DA_CHON_NHA_THAU];
 }
 
 public static class WorkflowHanhDong
@@ -20,6 +21,11 @@ public static class WorkflowHanhDong
     public const string SKIP = "SKIP";
     public const string REASSIGN = "REASSIGN";
     public const string RETRY = "RETRY";
+
+    // BA feedback: conditional transition actions
+    public const string DUYET = "DUYET";
+    public const string KHONG_DUYET = "KHONG_DUYET";
+    public const string TRA_VE = "TRA_VE";
 }
 
 public static class WorkflowTrangThai
@@ -34,13 +40,22 @@ public static class WorkflowTrangThai
 
 public static class WorkflowStepTrangThai
 {
-    public const string PENDING = "PENDING";
-    public const string APPROVED = "APPROVED";
-    public const string REJECTED = "REJECTED";
+    // Aligned with SRS (BA feedback)
+    public const string DANG_XU_LY = "DANG_XU_LY";
+    public const string CHO_DUYET = "CHO_DUYET";
+    public const string HOAN_TAT = "HOAN_TAT";
+    public const string TRA_VE = "TRA_VE";
     public const string SKIPPED = "SKIPPED";
-    public const string ROLLED_BACK = "ROLLED_BACK";
+    public const string YEU_CAU_KIEM_TRA = "YEU_CAU_KIEM_TRA";
+    public const string TRE_HAN = "TRE_HAN";
 
-    public static readonly string[] All = [PENDING, APPROVED, REJECTED, SKIPPED, ROLLED_BACK];
+    // Legacy aliases (consistency layer, will be removed after full migration)
+    public const string PENDING = DANG_XU_LY;
+    public const string APPROVED = HOAN_TAT;
+    public const string REJECTED = TRA_VE;
+    public const string ROLLED_BACK = TRA_VE;
+
+    public static readonly string[] All = [DANG_XU_LY, CHO_DUYET, HOAN_TAT, TRA_VE, SKIPPED, YEU_CAU_KIEM_TRA, TRE_HAN];
 }
 
 public class GoiThau : IBaseEntity

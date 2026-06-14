@@ -34,3 +34,51 @@ public class WorkflowAssignmentDto
     public string? TenNguoiDuocGiao { get; set; }
     public bool DaXuLy { get; set; }
 }
+
+public class ProcessStepRequest
+{
+    public string HanhDong { get; set; } = null!;
+    public string? GhiChu { get; set; }
+    public int? NguoiDuocGiaoId { get; set; }
+    public byte[]? RowVersion { get; set; }
+}
+
+public class ProcessStepResponse
+{
+    public long? CurrentStepId { get; set; }
+    public string? TenBuocHienTai { get; set; }
+    public long? NewStepId { get; set; }
+    public string? TenBuocMoi { get; set; }
+    public string WorkflowTrangThai { get; set; } = null!;
+    public string? GoiThauTrangThai { get; set; }
+    public string HanhDong { get; set; } = null!;
+    public string Message { get; set; } = null!;
+    public byte[]? NewRowVersion { get; set; }
+}
+
+/// <summary>
+/// BA user-driven: Duyệt bước (POST /duyet)
+/// </summary>
+public class DuyetStepRequest
+{
+    public string? GhiChu { get; set; }
+    public byte[]? RowVersion { get; set; }
+}
+
+/// <summary>
+/// BA user-driven: Không duyệt (POST /khong-duyet) — GhiChu bắt buộc
+/// </summary>
+public class KhongDuyetStepRequest
+{
+    public string GhiChu { get; set; } = null!;
+    public byte[]? RowVersion { get; set; }
+}
+
+/// <summary>
+/// BA user-driven: Trả về bước trước (POST /tra-ve) — GhiChu bắt buộc
+/// </summary>
+public class TraVeStepRequest
+{
+    public string GhiChu { get; set; } = null!;
+    public byte[]? RowVersion { get; set; }
+}

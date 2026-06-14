@@ -34,7 +34,8 @@ public class JwtService
             new(JwtRegisteredClaimNames.Email, email),
             new(JwtRegisteredClaimNames.Name, fullName),
             new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            new("permissions", string.Join(",", permissions))
+            // Note: permissions param is already comma-joined from the IEnumerable<string> overload (line 21)
+            new("permissions", permissions)
         };
 
         // Thêm từng role vào claims
