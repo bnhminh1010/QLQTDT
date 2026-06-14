@@ -35,6 +35,7 @@ public class AppDbContext : DbContext
     public DbSet<TaiLieuHoSo> TaiLieuHoSos => Set<TaiLieuHoSo>();
     public DbSet<HoSoNangLuc> HoSoNangLucs => Set<HoSoNangLuc>();
     public DbSet<HoSoDuThau> HoSoDuThaus => Set<HoSoDuThau>();
+    public DbSet<HopDong> HopDongs => Set<HopDong>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -444,6 +445,10 @@ public class AppDbContext : DbContext
                 .WithMany(h => h.TaiLieus)
                 .HasForeignKey(e => e.HoSoDuThauId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<HopDong>()
+                .WithMany(h => h.TaiLieus)
+                .HasForeignKey(e => e.HopDongId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // HoSoDuThau
@@ -465,6 +470,24 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.NhaThau)
                 .WithMany()
                 .HasForeignKey(e => e.NhaThauId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // HopDong
+        modelBuilder.Entity<HopDong>(entity =>
+        {
+            entity.ToTable("HopDong");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SoHopDong).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.TongGiaTri).HasColumnType("decimal(18,0)").IsRequired();
+            entity.Property(e => e.NgayKy).HasColumnType("datetime2(3)").IsRequired();
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.HasIndex(e => e.GoiThauId).IsUnique();
+            entity.HasIndex(e => e.SoHopDong).IsUnique();
+            entity.HasOne(e => e.GoiThau)
+                .WithMany()
+                .HasForeignKey(e => e.GoiThauId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
