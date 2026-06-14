@@ -221,16 +221,6 @@ export default function Login() {
               <i className="fa-solid fa-right-to-bracket" /> Đăng nhập
             </button>
           </form>
-
-          <p className="text-center text-sm text-slate-500 mt-6">
-            Chưa có tài khoản?{" "}
-            <Link
-              to="/register"
-              className="text-blue-600 hover:underline font-medium"
-            >
-              Yêu cầu tạo tài khoản
-            </Link>
-          </p>
         </div>
       </div>
     </div>

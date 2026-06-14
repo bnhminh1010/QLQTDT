@@ -526,7 +526,7 @@ export default function KhoaPhong() {
                           dir={sortDir}
                         />
                       </th>
-                      <th className="px-5 py-3 text-left">Loại</th>
+                      <th className="px-5 py-3 text-left min-w-[170px]">Loại</th>
                       <th className="px-5 py-3 text-left">Trưởng khoa/phòng</th>
                       <th
                         className="px-5 py-3 text-center cursor-pointer hover:text-slate-600 select-none"
@@ -550,7 +550,7 @@ export default function KhoaPhong() {
                           dir={sortDir}
                         />
                       </th>
-                      <th className="px-5 py-3 text-center">Trạng thái</th>
+                      <th className="px-5 py-3 text-center min-w-[170px]">Trạng thái</th>
                       <th className="px-5 py-3 text-center">Thao tác</th>
                     </tr>
                   </thead>
@@ -602,9 +602,9 @@ export default function KhoaPhong() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-3">
+                          <td className="px-5 py-3 whitespace-nowrap">
                             <span
-                              className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[p.loai]}`}
+                              className={`inline-flex whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[p.loai]}`}
                             >
                               {p.loai}
                             </span>
@@ -620,9 +620,9 @@ export default function KhoaPhong() {
                               {p.soGoiThau}
                             </span>
                           </td>
-                          <td className="px-5 py-3 text-center">
+                          <td className="px-5 py-3 text-center whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TRANG_THAI_BADGE[p.trangThai]}`}
+                              className={`inline-flex whitespace-nowrap items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TRANG_THAI_BADGE[p.trangThai]}`}
                             >
                               <span
                                 className={`w-1.5 h-1.5 rounded-full ${p.trangThai === "Đang hoạt động" ? "bg-emerald-500" : "bg-red-400"}`}
@@ -755,12 +755,12 @@ export default function KhoaPhong() {
             </div>
             <div className="flex flex-wrap gap-1.5 mt-2">
               <span
-                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[selected.loai]}`}
+                className={`inline-flex whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[selected.loai]}`}
               >
                 {selected.loai}
               </span>
               <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TRANG_THAI_BADGE[selected.trangThai]}`}
+                className={`inline-flex whitespace-nowrap items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TRANG_THAI_BADGE[selected.trangThai]}`}
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${selected.trangThai === "Đang hoạt động" ? "bg-emerald-500" : "bg-red-400"}`}

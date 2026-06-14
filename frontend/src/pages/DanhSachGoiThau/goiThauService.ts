@@ -60,6 +60,23 @@ export function themGoiThau(item: GoiThau): void {
   luuDanhSach(list);
 }
 
+/** Cập nhật hoặc thêm mới gói thầu vào localStorage */
+export function capNhatGoiThau(item: GoiThau): void {
+  const list = layDanhSachGoiThau();
+  const idx = list.findIndex((x) => x.id === item.id);
+  if (idx >= 0) {
+    list[idx] = item;
+  } else {
+    list.unshift(item);
+  }
+  luuDanhSach(list);
+}
+
+/** Tìm gói thầu đã lưu theo mã */
+export function layGoiThauTheoId(id: string): GoiThau | undefined {
+  return layDanhSachGoiThau().find((x) => x.id === id);
+}
+
 /** Sinh mã gói thầu duy nhất */
 export function sinhMaGoiThau(): string {
   const nam = new Date().getFullYear();
@@ -78,5 +95,7 @@ export function dinhDangVND(s: string): string {
 // ─── Alias tương thích ngược (dùng trong các file cũ) ────────────────────────
 export const getUserGoiThauList = layDanhSachGoiThau;
 export const addGoiThau = themGoiThau;
+export const updateGoiThau = capNhatGoiThau;
+export const getGoiThauById = layGoiThauTheoId;
 export const generateGoiThauId = sinhMaGoiThau;
 export const formatVND = dinhDangVND;

@@ -1,8 +1,17 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { AddModal } from "./AddModal";
 import { EditModal } from "./EditModal";
 import { DeleteModal } from "./DeleteModal";
+import {
+  addQuyTrinh,
+  getQuyTrinhById,
+  getQuyTrinhList,
+  type HinhThucQT,
+  type LoaiBuoc,
+  type TrangThaiBuoc,
+} from "@/pages/DanhSachQuyTrinh/quyTrinhService";
 
 /* ─ RBAC ─ */
 const MOCK_CURRENT_ROLE = "Admin";
@@ -336,8 +345,6 @@ function Dot({ state }: { state: DotState }) {
   );
 }
 
-let nextId = 100;
-
 type DMAuditEntry = {
   id: string;
   dmId: string;
@@ -347,11 +354,14 @@ type DMAuditEntry = {
 };
 
 const INITIAL_DM_AUDIT: DMAuditEntry[] = [
-  { id: "1", dmId: "CDT-RG", hanhDong: "Tạo danh mục", nguoiThucHien: "Admin", thoiGian: "01/01/2025 08:00" },
-  { id: "2", dmId: "DTRR", hanhDong: "Cập nhật bước 3", nguoiThucHien: "Admin", thoiGian: "15/01/2025 09:30" },
+  { id: "1", dmId: "CDT-RG", hanhDong: "Tạo hình thức đấu thầu", nguoiThucHien: "Admin", thoiGian: "01/01/2025 08:00" },
+  { id: "2", dmId: "CDT-RG", hanhDong: "Đổi màu nhãn sang xanh dương", nguoiThucHien: "Admin", thoiGian: "02/01/2025 09:15" },
+  { id: "3", dmId: "DTRR", hanhDong: "Cập nhật tên hình thức đấu thầu", nguoiThucHien: "Admin", thoiGian: "15/01/2025 09:30" },
+  { id: "4", dmId: "CHCT", hanhDong: "Mở lại hoạt động", nguoiThucHien: "Admin", thoiGian: "20/01/2025 14:00" },
 ];
 
 export default function DanhMucThucHien() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<DanhMuc[]>(INIT_DATA);
   const [selected, setSelected] = useState<DanhMuc>(INIT_DATA[0]);
   const [search, setSearch] = useState("");
@@ -417,9 +427,9 @@ export default function DanhMucThucHien() {
       : <i className="fa-solid fa-sort-down text-blue-500 ml-1 text-[10px]" />;
   }
 
-  function onAdd(values: { hinhThuc: string; badge: string }) {
+  function onAdd(values: { id: string; hinhThuc: string; badge: string }) {
     const newItem: DanhMuc = {
-      id: `DM-${++nextId}`,
+      id: values.id.trim().toUpperCase(),
       hinhThuc: values.hinhThuc.trim(),
       badge: values.badge,
       soGoi: 0,
@@ -427,25 +437,40 @@ export default function DanhMucThucHien() {
       steps: [],
     };
     setItems((prev) => [...prev, newItem]);
-    addDMAudit(newItem.id, `Tạo danh mục "${newItem.hinhThuc}"`);
+    addDMAudit(newItem.id, `Tạo hình thức đấu thầu "${newItem.hinhThuc}"`);
     setAddOpen(false);
     toast.success(`Đã thêm danh mục "${newItem.hinhThuc}"`);
   }
 
-  function onEdit(values: { hinhThuc: string; badge: string }) {
+  function onEdit(values: { id: string; hinhThuc: string; badge: string }) {
     if (!editTarget) return;
+    const nextId = values.id.trim().toUpperCase();
+    const nextName = values.hinhThuc.trim();
+    const changes: string[] = [];
+    if (editTarget.id !== nextId) changes.push(`Cập nhật mã từ ${editTarget.id} sang ${nextId}`);
+    if (editTarget.hinhThuc !== nextName) changes.push("Cập nhật tên");
+    if (editTarget.badge !== values.badge) changes.push("Đổi màu nhãn");
+
     setItems((prev) =>
       prev.map((d) =>
         d.id === editTarget.id
-          ? { ...d, hinhThuc: values.hinhThuc.trim(), badge: values.badge }
+          ? { ...d, id: nextId, hinhThuc: nextName, badge: values.badge }
           : d,
       ),
     );
-    addDMAudit(editTarget.id, `Cập nhật danh mục "${values.hinhThuc.trim()}"`);
+    if (editTarget.id !== nextId) {
+      setAuditLog((prev) =>
+        prev.map((entry) =>
+          entry.dmId === editTarget.id ? { ...entry, dmId: nextId } : entry,
+        ),
+      );
+    }
+    addDMAudit(nextId, changes.length > 0 ? changes.join("; ") : "Cập nhật danh mục");
     if (selected.id === editTarget.id)
       setSelected((s) => ({
         ...s,
-        hinhThuc: values.hinhThuc.trim(),
+        id: nextId,
+        hinhThuc: nextName,
         badge: values.badge,
       }));
     setEditTarget(null);
@@ -463,8 +488,8 @@ export default function DanhMucThucHien() {
     setItems((prev) =>
       prev.map((d) => (d.id === id ? { ...d, active: !d.active } : d)),
     );
-    addDMAudit(id, `${item.active ? "Ẩn" : "Hiện"} danh mục "${item.hinhThuc}"`);
-    toast.success(item.active ? "Đã ẩn danh mục" : "Đã hiện danh mục");
+    addDMAudit(id, `${item.active ? "Tắt hoạt động" : "Mở lại hoạt động"} hình thức "${item.hinhThuc}"`);
+    toast.success(item.active ? "Đã tắt hoạt động" : "Đã mở lại hoạt động");
   }
 
   function doDelete() {
@@ -485,6 +510,57 @@ export default function DanhMucThucHien() {
     setDeleteTarget(null);
   }
 
+  function requestDelete(item: DanhMuc, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (item.soGoi > 0) {
+      toast.error("Không thể xóa hình thức đấu thầu đang được sử dụng bởi các gói thầu.");
+      return;
+    }
+    setDeleteTarget(item);
+  }
+
+  function goEditQuyTrinh() {
+    const match = getQuyTrinhList().find((qt) => qt.hinhThuc === selItem.hinhThuc);
+    if (match) {
+      navigate(`/lap-quy-trinh?id=${encodeURIComponent(match.id)}`);
+      return;
+    }
+
+    const generatedId = `QT-DM-${selItem.id}`;
+    const existingGenerated = getQuyTrinhById(generatedId);
+    if (!existingGenerated) {
+      const buocIds = selItem.steps.map((_, index) => `${generatedId}-B${index + 1}`);
+      addQuyTrinh({
+        id: generatedId,
+        ten: `Quy trình ${selItem.hinhThuc}`,
+        hinhThuc: selItem.hinhThuc as HinhThucQT,
+        trangThai: "Đang hoạt động",
+        ngayTao: new Date().toISOString(),
+        buocList: selItem.steps.map((step, index) => ({
+          id: buocIds[index],
+          ten: step.ten.replace(/^\d+\.\s*/, ""),
+          loai: (index === 0
+            ? "Bắt đầu"
+            : index === selItem.steps.length - 1
+              ? "Kết thúc"
+              : "Thường") as LoaiBuoc,
+          donViPhuTrach: step.donVi,
+          vaiTroXuLy: step.donVi,
+          slaNgay: parseInt(step.thoiHan.replace(/[^\d]/g, ""), 10) || 1,
+          trangThaiMacDinh: (step.state === "done"
+            ? "Hoàn tất"
+            : step.state === "warn"
+              ? "Chờ duyệt"
+              : "Đang xử lý") as TrangThaiBuoc,
+          dieuKienChuyen: ["Duyệt"],
+          buocTiepTheoId: buocIds[index + 1] ?? "",
+          moTa: "",
+        })),
+      });
+    }
+    navigate(`/lap-quy-trinh?id=${encodeURIComponent(generatedId)}`);
+  }
+
   return (
     <>
       {/* TOPBAR */}
@@ -498,7 +574,7 @@ export default function DanhMucThucHien() {
               onClick={() => setAddOpen(true)}
               className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              <i className="fa-solid fa-plus text-xs" /> Thêm mới
+              <i className="fa-solid fa-plus text-xs" /> Thêm hình thức đấu thầu
             </button>
           )}
         </div>
@@ -654,7 +730,7 @@ export default function DanhMucThucHien() {
                             {DM_CAN_DELETE && (
                               <button
                                 title={d.soGoi > 0 ? `Không thể xóa (${d.soGoi} gói)` : "Xóa danh mục"}
-                                onClick={(e) => { e.stopPropagation(); setDeleteTarget(d); }}
+                                onClick={(e) => requestDelete(d, e)}
                                 className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${d.soGoi > 0 ? "text-slate-200 cursor-not-allowed" : "text-slate-400 hover:text-red-500 hover:bg-red-50"}`}
                               >
                                 <i className="fa-solid fa-trash text-xs" />
@@ -701,10 +777,11 @@ export default function DanhMucThucHien() {
               </span>
               {DM_CAN_EDIT && (
                 <button
+                  title="Sửa hình thức"
                   onClick={(e) => { e.stopPropagation(); setEditTarget(selItem); }}
                   className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                 >
-                  <i className="fa-solid fa-pen text-[10px]" /> Sửa
+                  <i className="fa-solid fa-pen text-[10px]" /> Sửa hình thức
                 </button>
               )}
             </div>
@@ -760,6 +837,13 @@ export default function DanhMucThucHien() {
                   <p className="text-xs text-slate-400 italic">Chưa có bước nào.</p>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={goEditQuyTrinh}
+                className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
+              >
+                <i className="fa-solid fa-diagram-project text-xs" /> Chỉnh sửa quy trình
+              </button>
             </div>
           ) : (
             <div className="p-5">
@@ -782,7 +866,10 @@ export default function DanhMucThucHien() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-slate-700 font-medium">{a.hanhDong}</p>
-                          <p className="text-[11px] text-slate-400">{a.nguoiThucHien} · {a.thoiGian}</p>
+                          <div className="mt-0.5 space-y-0.5 text-[11px] text-slate-400">
+                            <p>Thời gian: {a.thoiGian}</p>
+                            <p>Người thực hiện: {a.nguoiThucHien}</p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -794,15 +881,23 @@ export default function DanhMucThucHien() {
       </div>
 
       {/* MODAL THÊM */}
-      {addOpen && <AddModal onSave={onAdd} onClose={() => setAddOpen(false)} />}
+      {addOpen && (
+        <AddModal
+          existingItems={items}
+          onSave={onAdd}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
 
       {/* MODAL CHỈNH SỬA */}
       {editTarget && (
         <EditModal
           defaultValues={{
+            id: editTarget.id,
             hinhThuc: editTarget.hinhThuc,
             badge: editTarget.badge,
           }}
+          existingItems={items}
           onSave={onEdit}
           onClose={() => setEditTarget(null)}
         />

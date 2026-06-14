@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
@@ -12,13 +12,23 @@ import {
   openFile,
   downloadFile,
 } from "@/util/fileAttachment";
-import { addGoiThau, generateGoiThauId, formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
-import type { HinhThuc } from "@/pages/DanhSachGoiThau/goiThauService";
+import {
+  addGoiThau,
+  generateGoiThauId,
+  formatVND,
+  getGoiThauById,
+  updateGoiThau,
+} from "@/pages/DanhSachGoiThau/goiThauService";
+import type { GoiThau, HinhThuc } from "@/pages/DanhSachGoiThau/goiThauService";
 import { getQuyTrinhList, type QuyTrinh } from "@/pages/DanhSachQuyTrinh/quyTrinhService";
 
 /* ─ RBAC ─ */
 const MOCK_CURRENT_ROLE = "Admin";
 const CAN_CREATE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý" || MOCK_CURRENT_ROLE === "Nhân viên";
+const MOCK_CURRENT_USER = {
+  hoTen: "Nguyễn Mạnh Tuấn",
+  donVi: "P.HCQT",
+};
 
 const HT_BADGE: Record<HinhThuc, string> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
@@ -35,16 +45,6 @@ const NGUON_VON = [
   "Nguồn khác",
 ];
 
-const DON_VI = [
-  "Khoa Nội",
-  "Khoa Dược",
-  "Khoa Ngoại",
-  "Khoa Xét nghiệm",
-  "P.HCQT",
-  "P.Kế hoạch",
-  "Phòng khác",
-];
-
 const inputCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 const inputErrCls =
@@ -52,12 +52,137 @@ const inputErrCls =
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
 type FormData = InferType<typeof taoGoiThauSchema>;
+type QuyTrinhBuoc = QuyTrinh["buocList"][number];
+
+type LocationState = {
+  goiThau?: GoiThau;
+};
+
+const EDITABLE_STATUSES = ["Nháp", "Chờ duyệt"];
+
+function toDateInputValue(value: string) {
+  if (!value || value === "—") return "";
+  const parts = value.split("/");
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  return value;
+}
+
+function makeWorkflowStep(
+  id: string,
+  ten: string,
+  index: number,
+  total: number,
+  slaNgay = 2,
+): QuyTrinhBuoc {
+  return {
+    id,
+    ten,
+    loai: index === 0 ? "Bắt đầu" : index === total - 1 ? "Kết thúc" : "Thường",
+    donViPhuTrach: index >= total - 3 ? "Giám đốc BV" : "K/p mua sắm",
+    vaiTroXuLy: index >= total - 3 ? "Quản lý" : "Nhân viên",
+    slaNgay,
+    trangThaiMacDinh: index === 0 ? "Đang xử lý" : "Chờ duyệt",
+    dieuKienChuyen: ["Duyệt"],
+    buocTiepTheoId: index < total - 1 ? `${id.split("-B")[0]}-B${index + 2}` : "",
+    moTa: "",
+  };
+}
+
+function makeDefaultWorkflow(id: string, hinhThuc: HinhThuc, steps: string[]): QuyTrinh {
+  return {
+    id,
+    ten: `Quy trình ${hinhThuc}`,
+    hinhThuc,
+    trangThai: "Đang hoạt động",
+    ngayTao: new Date().toISOString(),
+    buocList: steps.map((ten, index) =>
+      makeWorkflowStep(`${id}-B${index + 1}`, ten, index, steps.length),
+    ),
+  };
+}
+
+const DEFAULT_WORKFLOWS: Record<HinhThuc, QuyTrinh> = {
+  "Chỉ định thầu rút gọn": makeDefaultWorkflow("QT-MACDINH-CDT-RG", "Chỉ định thầu rút gọn", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Đăng tải yêu cầu báo giá",
+    "Biên bản kiểm tra báo giá",
+    "Tờ trình phê duyệt dự toán",
+    "Quyết định phê duyệt dự toán",
+    "Quyết định chỉ định nhà thầu",
+  ]),
+  "Chỉ định thầu tự quyết định": makeDefaultWorkflow("QT-MACDINH-CDT-TQD", "Chỉ định thầu tự quyết định", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Lập hồ sơ mời thầu",
+    "Phê duyệt hồ sơ mời thầu",
+    "Quyết định chỉ định nhà thầu",
+  ]),
+  "Chỉ định thầu thông thường": makeDefaultWorkflow("QT-MACDINH-CDT-TT", "Chỉ định thầu thông thường", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Lập hồ sơ yêu cầu",
+    "Thẩm định hồ sơ yêu cầu",
+    "Phê duyệt hồ sơ yêu cầu",
+    "Đánh giá hồ sơ đề xuất",
+    "Phê duyệt kết quả lựa chọn nhà thầu",
+  ]),
+  "Chào hàng cạnh tranh": makeDefaultWorkflow("QT-MACDINH-CHCT", "Chào hàng cạnh tranh", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Đăng tải yêu cầu báo giá",
+    "Biên bản kiểm tra báo giá",
+    "Tờ trình phê duyệt dự toán",
+    "Quyết định phê duyệt dự toán",
+    "Tờ trình kế hoạch LCNT",
+    "Quyết định kế hoạch LCNT",
+    "Đăng tải kế hoạch LCNT",
+    "Phát hành hồ sơ mời thầu",
+    "Nộp hồ sơ dự thầu",
+    "Mở thầu và đánh giá HSDT",
+    "Trình kết quả lựa chọn nhà thầu",
+    "Quyết định phê duyệt kết quả đấu thầu",
+  ]),
+  "Đấu thầu rộng rãi": makeDefaultWorkflow("QT-MACDINH-DTRR", "Đấu thầu rộng rãi", [
+    "Đề xuất mua sắm",
+    "Tờ trình chủ trương",
+    "Tờ trình phê duyệt dự toán",
+    "Quyết định phê duyệt dự toán",
+    "Tờ trình kế hoạch LCNT",
+    "Quyết định kế hoạch LCNT",
+    "Đăng tải kế hoạch LCNT",
+    "Lập hồ sơ mời thầu",
+    "Phê duyệt HSMT",
+    "Đăng tải mời thầu",
+    "Nộp HSDT",
+    "Mở thầu",
+    "Đánh giá HSDT",
+    "Trình kết quả lựa chọn nhà thầu",
+    "Quyết định phê duyệt kết quả",
+    "Đăng tải kết quả LCNT",
+    "Ký kết hợp đồng",
+  ]),
+};
 
 export default function TaoGoiThau() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("id") ?? "";
+  const isEditMode = searchParams.get("mode") === "edit" && !!editId;
+  const locationState = location.state as LocationState | null;
+  const editingGoiThau = useMemo(
+    () => (isEditMode ? (locationState?.goiThau ?? getGoiThauById(editId)) : undefined),
+    [editId, isEditMode, locationState?.goiThau],
+  );
+  const canEditCurrent =
+    !!editingGoiThau && EDITABLE_STATUSES.includes(editingGoiThau.trangThai);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [savingChanges, setSavingChanges] = useState(false);
   const [quyTrinhList, setQuyTrinhList] = useState<QuyTrinh[]>([]);
-  const [selectedQuyTrinhId, setSelectedQuyTrinhId] = useState("");
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
 
@@ -69,27 +194,87 @@ export default function TaoGoiThau() {
     register,
     handleSubmit,
     watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: yupResolver(taoGoiThauSchema),
-    defaultValues: { ghiChu: "" },
+    defaultValues: { donVi: MOCK_CURRENT_USER.donVi, ghiChu: "" },
   });
 
   const watched = watch();
   const hasPreview = !!(watched.ten?.trim() || watched.hinhThuc);
   const ghiChuLen = watched.ghiChu?.length ?? 0;
 
-  // Auto-suggest workflow when hinhThuc changes
-  const suggestedQT = watched.hinhThuc
-    ? quyTrinhList.find((qt) => qt.hinhThuc === watched.hinhThuc)
+  const selectedQT = watched.hinhThuc
+    ? (quyTrinhList.find((qt) => qt.hinhThuc === watched.hinhThuc) ??
+      DEFAULT_WORKFLOWS[watched.hinhThuc as HinhThuc])
     : null;
+  const quyTrinhStats = useMemo(() => {
+    if (!selectedQT) return null;
+    const tongSoBuoc = selectedQT.buocList.length;
+    const slaDuKien = selectedQT.buocList.reduce(
+      (sum, buoc) => sum + (Number(buoc.slaNgay) || 0),
+      0,
+    );
+    const soBuocCanDuyet = selectedQT.buocList.filter(
+      (buoc) =>
+        buoc.trangThaiMacDinh === "Chờ duyệt" ||
+        buoc.dieuKienChuyen.includes("Duyệt"),
+    ).length;
 
-  // If user hasn't manually selected, auto-select the suggestion
-  const effectiveQTId = selectedQuyTrinhId || suggestedQT?.id || "";
-  const selectedQT = quyTrinhList.find((qt) => qt.id === effectiveQTId) ?? null;
+    return {
+      tenQuyTrinh: selectedQT.ten,
+      tongSoBuoc,
+      slaDuKien,
+      soBuocCanDuyet,
+    };
+  }, [selectedQT]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] = useState<FormData | null>(null);
+
+  useEffect(() => {
+    if (!isEditMode) return;
+    if (!editingGoiThau) {
+      toast.error("Không tìm thấy gói thầu cần chỉnh sửa");
+      navigate("/danh-sach-goi-thau", { replace: true });
+      return;
+    }
+    if (!canEditCurrent) {
+      toast.error("Chỉ được chỉnh sửa gói thầu ở trạng thái Nháp hoặc Chờ duyệt");
+      navigate("/danh-sach-goi-thau", { replace: true });
+      return;
+    }
+    reset({
+      ten: editingGoiThau.ten,
+      hinhThuc: editingGoiThau.hinhThuc,
+      nguonVon: editingGoiThau.detail.nguonVon,
+      giaTriStr: editingGoiThau.giaTriStr,
+      donVi: editingGoiThau.donVi || MOCK_CURRENT_USER.donVi,
+      ngayTao: toDateInputValue(editingGoiThau.detail.ngayTao),
+      ghiChu: "",
+    });
+  }, [canEditCurrent, editingGoiThau, isEditMode, navigate, reset]);
+
+  function buildGoiThauFromForm(data: FormData, trangThai: GoiThau["trangThai"]) {
+    const num = parseInt(data.giaTriStr.replace(/[^\d]/g, ""), 10) || 0;
+    return {
+      id: editingGoiThau?.id ?? generateGoiThauId(),
+      ten: data.ten.trim(),
+      hinhThuc: data.hinhThuc as HinhThuc,
+      giaTriStr: formatVND(data.giaTriStr),
+      giaTriNum: num,
+      donVi: data.donVi,
+      trangThai,
+      detail: {
+        nguonVon: data.nguonVon,
+        ngayTao: data.ngayTao,
+        hanHT: editingGoiThau?.detail.hanHT ?? "—",
+        pct: editingGoiThau?.detail.pct ?? "0%",
+        buoc: editingGoiThau?.detail.buoc ?? (selectedQT ? `0/${selectedQT.buocList.length}` : "1/14"),
+      },
+    };
+  }
 
   /* ─ Gửi đề xuất ─ */
   function onSubmit(data: FormData) {
@@ -100,25 +285,23 @@ export default function TaoGoiThau() {
   function doSubmit() {
     if (!pendingSubmitData) return;
     const data = pendingSubmitData;
-    const num = parseInt(data.giaTriStr.replace(/[^\d]/g, ""), 10) || 0;
-    addGoiThau({
-      id: generateGoiThauId(),
-      ten: data.ten.trim(),
-      hinhThuc: data.hinhThuc as HinhThuc,
-      giaTriStr: formatVND(data.giaTriStr),
-      giaTriNum: num,
-      donVi: data.donVi,
-      trangThai: "Chờ duyệt",
-      detail: {
-        nguonVon: data.nguonVon,
-        ngayTao: data.ngayTao,
-        hanHT: data.hanHT,
-        pct: "0%",
-        buoc: selectedQT ? `0/${selectedQT.buocList.length}` : "1/14",
-      },
-    });
-    toast.success("Gói thầu đã được gửi đề xuất và đang chờ duyệt");
+    const item = buildGoiThauFromForm(data, "Chờ duyệt");
+    if (isEditMode) {
+      updateGoiThau(item);
+      toast.success("Gói thầu đã được cập nhật và gửi đề xuất");
+    } else {
+      addGoiThau(item);
+      toast.success("Gói thầu đã được gửi đề xuất và đang chờ duyệt");
+    }
     setConfirmOpen(false);
+    navigate("/danh-sach-goi-thau");
+  }
+
+  function saveChanges(values: FormData) {
+    if (!editingGoiThau) return;
+    setSavingChanges(true);
+    updateGoiThau(buildGoiThauFromForm(values, editingGoiThau.trangThai));
+    toast.success("Đã lưu thay đổi gói thầu");
     navigate("/danh-sach-goi-thau");
   }
 
@@ -143,7 +326,7 @@ export default function TaoGoiThau() {
       detail: {
         nguonVon: values.nguonVon || "—",
         ngayTao: values.ngayTao || "—",
-        hanHT: values.hanHT || "—",
+        hanHT: "—",
         pct: "0%",
         buoc: "0/14",
       },
@@ -166,7 +349,9 @@ export default function TaoGoiThau() {
           >
             <i className="fa-solid fa-arrow-left text-sm" />
           </button>
-          <h1 className="text-[17px] font-bold text-slate-900">Tạo gói thầu</h1>
+          <h1 className="text-[17px] font-bold text-slate-900">
+            {isEditMode ? "Chỉnh sửa gói thầu" : "Tạo gói thầu"}
+          </h1>
         </div>
         <div className="flex items-center gap-3">
           <button className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">
@@ -192,7 +377,9 @@ export default function TaoGoiThau() {
                   Thông tin gói thầu
                 </p>
                 <p className="text-xs text-slate-400">
-                  Vui lòng điền đầy đủ các thông tin bắt buộc
+                  {isEditMode
+                    ? "Cập nhật thông tin gói thầu đang chọn"
+                    : "Vui lòng điền đầy đủ các thông tin bắt buộc"}
                 </p>
               </div>
             </div>
@@ -256,62 +443,48 @@ export default function TaoGoiThau() {
 
               {/* Quy trình áp dụng */}
               <div>
-                <label className={labelCls}>
-                  Quy trình áp dụng
-                  {suggestedQT && selectedQuyTrinhId === "" && (
-                    <span className="ml-2 text-[11px] text-blue-500 font-normal">
-                      (Gợi ý tự động: {suggestedQT.ten})
-                    </span>
-                  )}
-                </label>
-                <select
-                  value={selectedQuyTrinhId || suggestedQT?.id || ""}
-                  onChange={(e) => setSelectedQuyTrinhId(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="">-- Chọn quy trình --</option>
-                  {quyTrinhList.map((qt) => (
-                    <option key={qt.id} value={qt.id}>
-                      {qt.ten} ({qt.buocList.length} bước)
-                      {qt.hinhThuc === watched.hinhThuc ? " ★" : ""}
-                    </option>
-                  ))}
-                </select>
+                <label className={labelCls}>Quy trình áp dụng</label>
                 {selectedQT && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {selectedQT.buocList.slice(0, 5).map((b, i) => (
-                      <span
-                        key={b.id}
-                        className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                          b.loai === "Bắt đầu"
-                            ? "bg-emerald-50 text-emerald-600"
-                            : b.loai === "Kết thúc"
-                              ? "bg-red-50 text-red-500"
-                              : "bg-blue-50 text-blue-600"
-                        }`}
-                      >
-                        {i + 1}. {b.ten}
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-blue-800">
+                          {selectedQT.ten}
+                        </p>
+                        <p className="text-xs text-blue-500 mt-0.5">
+                          Tự động áp dụng theo hình thức đấu thầu đã chọn
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
+                        {selectedQT.buocList.length} bước
                       </span>
-                    ))}
-                    {selectedQT.buocList.length > 5 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                        +{selectedQT.buocList.length - 5} bước
-                      </span>
-                    )}
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {selectedQT.buocList.map((b, i) => (
+                        <div
+                          key={b.id}
+                          className="flex items-start gap-2 rounded-lg bg-white border border-blue-100 px-3 py-2"
+                        >
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">
+                            {i + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-slate-800">
+                              {b.ten}
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              {b.donViPhuTrach} · SLA {b.slaNgay} ngày
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                {quyTrinhList.length === 0 && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    <i className="fa-solid fa-triangle-exclamation mr-1" />
-                    Chưa có quy trình nào được tạo.{" "}
-                    <button
-                      type="button"
-                      onClick={() => navigate("/lap-quy-trinh")}
-                      className="underline text-blue-600"
-                    >
-                      Tạo quy trình
-                    </button>
-                  </p>
+                {!watched.hinhThuc && (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
+                    Chọn hình thức đấu thầu để hệ thống tự hiển thị quy trình áp dụng.
+                  </div>
                 )}
               </div>
 
@@ -343,12 +516,15 @@ export default function TaoGoiThau() {
                   <label className={labelCls}>
                     Đơn vị đề xuất <span className="text-red-500">*</span>
                   </label>
-                  <select {...register("donVi")} className={cls("donVi")}>
-                    <option value="">-- Chọn đơn vị --</option>
-                    {DON_VI.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    readOnly
+                    {...register("donVi")}
+                    className={`${cls("donVi")} cursor-not-allowed text-slate-700`}
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Tự động lấy từ tài khoản đăng nhập: {MOCK_CURRENT_USER.hoTen}
+                  </p>
                   {errors.donVi && (
                     <p className="text-xs text-red-500 mt-1">
                       {errors.donVi.message}
@@ -357,38 +533,21 @@ export default function TaoGoiThau() {
                 </div>
               </div>
 
-              {/* Ngày tạo + Hạn HT */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>
-                    Ngày tạo <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    {...register("ngayTao")}
-                    className={cls("ngayTao")}
-                  />
-                  {errors.ngayTao && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.ngayTao.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className={labelCls}>
-                    Hạn hoàn thành <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    {...register("hanHT")}
-                    className={cls("hanHT")}
-                  />
-                  {errors.hanHT && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {errors.hanHT.message}
-                    </p>
-                  )}
-                </div>
+              {/* Ngày tạo */}
+              <div>
+                <label className={labelCls}>
+                  Ngày tạo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  {...register("ngayTao")}
+                  className={cls("ngayTao")}
+                />
+                {errors.ngayTao && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.ngayTao.message}
+                  </p>
+                )}
               </div>
 
               {/* Ghi chú */}
@@ -527,22 +686,38 @@ export default function TaoGoiThau() {
                 >
                   Hủy
                 </button>
-                <button
-                  type="button"
-                  onClick={saveDraft}
-                  disabled={isSubmitting || savingDraft}
-                  className="px-5 py-2.5 text-sm font-medium border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 disabled:opacity-60"
-                >
-                  {savingDraft ? (
-                    <i className="fa-solid fa-circle-notch fa-spin text-xs" />
-                  ) : (
-                    <i className="fa-regular fa-floppy-disk text-xs" />
-                  )}{" "}
-                  Lưu nháp
-                </button>
+                {isEditMode ? (
+                  <button
+                    type="button"
+                    onClick={handleSubmit(saveChanges)}
+                    disabled={isSubmitting || savingChanges}
+                    className="px-5 py-2.5 text-sm font-medium border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {savingChanges ? (
+                      <i className="fa-solid fa-circle-notch fa-spin text-xs" />
+                    ) : (
+                      <i className="fa-regular fa-floppy-disk text-xs" />
+                    )}{" "}
+                    Lưu thay đổi
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={saveDraft}
+                    disabled={isSubmitting || savingDraft}
+                    className="px-5 py-2.5 text-sm font-medium border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {savingDraft ? (
+                      <i className="fa-solid fa-circle-notch fa-spin text-xs" />
+                    ) : (
+                      <i className="fa-regular fa-floppy-disk text-xs" />
+                    )}{" "}
+                    Lưu nháp
+                  </button>
+                )}
                 <button
                   type="submit"
-                  disabled={isSubmitting || savingDraft}
+                  disabled={isSubmitting || savingDraft || savingChanges}
                   className="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-60"
                 >
                   {isSubmitting ? (
@@ -586,7 +761,6 @@ export default function TaoGoiThau() {
                   ["Nguồn vốn", watched.nguonVon || "—"],
                   ["Đơn vị", watched.donVi || "—"],
                   ["Ngày tạo", watched.ngayTao || "—"],
-                  ["Hạn hoàn thành", watched.hanHT || "—"],
                 ].map(([lbl, val]) => (
                   <div key={lbl} className="flex justify-between text-xs">
                     <span className="text-slate-400">{lbl}</span>
@@ -609,7 +783,38 @@ export default function TaoGoiThau() {
                   <p className="text-[10px] font-bold text-blue-400 tracking-wide mb-1.5">
                     QUY TRÌNH ÁP DỤNG
                   </p>
-                  <p className="text-xs font-medium text-blue-700 mb-1">{selectedQT.ten}</p>
+                  <div className="space-y-2 mb-3">
+                    {(
+                      [
+                        ["Tên quy trình", quyTrinhStats?.tenQuyTrinh ?? "—"],
+                        [
+                          "Tổng số bước",
+                          quyTrinhStats
+                            ? `${quyTrinhStats.tongSoBuoc} bước`
+                            : "—",
+                        ],
+                        [
+                          "SLA dự kiến",
+                          quyTrinhStats
+                            ? `${quyTrinhStats.slaDuKien} ngày`
+                            : "—",
+                        ],
+                        [
+                          "Số bước cần duyệt",
+                          quyTrinhStats
+                            ? `${quyTrinhStats.soBuocCanDuyet} bước`
+                            : "—",
+                        ],
+                      ] as [string, string][]
+                    ).map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-3 text-xs">
+                        <span className="text-blue-400">{label}</span>
+                        <span className="text-right font-semibold text-blue-800">
+                          {value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                   <div className="flex flex-wrap gap-1">
                     {selectedQT.buocList.map((b, i) => (
                       <span

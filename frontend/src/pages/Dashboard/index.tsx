@@ -40,7 +40,8 @@ type TableRow = {
   ngayTao: string;
   hanHT: string;
   hinhThuc: string;
-  steps: [DotState, string, string][];
+  overdueReason?: string;
+  steps: [DotState, string, string, string, string, string?][];
 };
 
 const TABLE_ROWS: TableRow[] = [
@@ -57,12 +58,12 @@ const TABLE_ROWS: TableRow[] = [
     hanHT: "30/04/2025",
     hinhThuc: "Chỉ định thầu rút gọn",
     steps: [
-      ["done", "1. Đề xuất mua sắm", "K/p mua sắm"],
-      ["done", "2. Tờ trình chủ trương", "K/p mua sắm"],
-      ["done", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm"],
-      ["warn", "4. Biên bản kiểm tra báo giá", "Tổ kiểm tra giá"],
-      ["idle", "5. Tờ trình phê duyệt dự toán", "K/p mua sắm"],
-      ["idle", "6. QĐ phê duyệt dự toán", "Giám đốc BV"],
+      ["done", "1. Đề xuất mua sắm", "K/p mua sắm", "Hoàn tất", "2 ngày"],
+      ["done", "2. Tờ trình chủ trương", "K/p mua sắm", "Hoàn tất", "3 ngày"],
+      ["done", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm", "Hoàn tất", "1 ngày"],
+      ["warn", "4. Biên bản kiểm tra báo giá", "Tổ kiểm tra giá", "Đang xử lý", "2 ngày"],
+      ["idle", "5. Tờ trình phê duyệt dự toán", "K/p mua sắm", "Chưa bắt đầu", "2 ngày"],
+      ["idle", "6. QĐ phê duyệt dự toán", "Giám đốc BV", "Chưa bắt đầu", "1 ngày"],
     ],
   },
   {
@@ -78,13 +79,13 @@ const TABLE_ROWS: TableRow[] = [
     hanHT: "28/02/2025",
     hinhThuc: "Chỉ định thầu tự quyết định",
     steps: [
-      ["done", "1. Đề xuất mua sắm", "K/p mua sắm"],
-      ["done", "2. Tờ trình chủ trương", "K/p mua sắm"],
-      ["done", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm"],
-      ["done", "4. Biên bản kiểm tra báo giá", "Tổ kiểm tra giá"],
-      ["done", "5. Tờ trình phê duyệt dự toán", "K/p mua sắm"],
-      ["done", "6. QĐ phê duyệt dự toán", "Giám đốc BV"],
-      ["done", "7. Hoàn tất", "Ban giám đốc"],
+      ["done", "1. Đề xuất mua sắm", "K/p mua sắm", "Hoàn tất", "2 ngày"],
+      ["done", "2. Tờ trình chủ trương", "K/p mua sắm", "Hoàn tất", "3 ngày"],
+      ["done", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm", "Hoàn tất", "1 ngày"],
+      ["done", "4. Biên bản kiểm tra báo giá", "Tổ kiểm tra giá", "Hoàn tất", "2 ngày"],
+      ["done", "5. Tờ trình phê duyệt dự toán", "K/p mua sắm", "Hoàn tất", "2 ngày"],
+      ["done", "6. QĐ phê duyệt dự toán", "Giám đốc BV", "Hoàn tất", "1 ngày"],
+      ["done", "7. Hoàn tất", "Ban giám đốc", "Hoàn tất", "0 ngày"],
     ],
   },
   {
@@ -99,12 +100,21 @@ const TABLE_ROWS: TableRow[] = [
     ngayTao: "05/03/2025",
     hanHT: "29/03/2025",
     hinhThuc: "Chào hàng cạnh tranh",
+    overdueReason:
+      "Chậm tại bước 4. Biên bản kiểm tra báo giá: Tổ kiểm tra giá chưa hoàn tất xử lý hồ sơ báo giá.",
     steps: [
-      ["done", "1. Đề xuất mua sắm", "K/p mua sắm"],
-      ["done", "2. Tờ trình chủ trương", "K/p mua sắm"],
-      ["done", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm"],
-      ["warn", "4. Biên bản kiểm tra báo giá", "Tổ kiểm tra giá"],
-      ["idle", "5. Tờ trình phê duyệt dự toán", "K/p mua sắm"],
+      ["done", "1. Đề xuất mua sắm", "K/p mua sắm", "Hoàn tất", "2 ngày"],
+      ["done", "2. Tờ trình chủ trương", "K/p mua sắm", "Hoàn tất", "3 ngày"],
+      ["done", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm", "Hoàn tất", "1 ngày"],
+      [
+        "warn",
+        "4. Biên bản kiểm tra báo giá",
+        "Tổ kiểm tra giá",
+        "Trễ hạn",
+        "2 ngày",
+        "Quá SLA 21 ngày do chưa hoàn tất kiểm tra, đối chiếu báo giá.",
+      ],
+      ["idle", "5. Tờ trình phê duyệt dự toán", "K/p mua sắm", "Chưa bắt đầu", "2 ngày"],
     ],
   },
   {
@@ -120,10 +130,10 @@ const TABLE_ROWS: TableRow[] = [
     hanHT: "30/06/2025",
     hinhThuc: "Đấu thầu rộng rãi",
     steps: [
-      ["done", "1. Đề xuất mua sắm", "K/p mua sắm"],
-      ["warn", "2. Tờ trình chủ trương", "K/p mua sắm"],
-      ["idle", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm"],
-      ["idle", "4. Biên bản kiểm tra báo giá", "Tổ kiểm tra giá"],
+      ["done", "1. Đề xuất mua sắm", "K/p mua sắm", "Hoàn tất", "2 ngày"],
+      ["warn", "2. Tờ trình chủ trương", "K/p mua sắm", "Chờ duyệt", "3 ngày"],
+      ["idle", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm", "Chưa bắt đầu", "1 ngày"],
+      ["idle", "4. Biên bản kiểm tra báo giá", "Tổ kiểm tra giá", "Chưa bắt đầu", "2 ngày"],
     ],
   },
 ];
@@ -168,6 +178,42 @@ const NOTIFICATIONS = [
     title: "Hệ thống cập nhật v1.2.0",
     time: "2 ngày trước",
     read: true,
+  },
+];
+
+const APPROVAL_ITEMS = [
+  {
+    code: "GT2025-001",
+    color: "blue",
+    icon: "fa-regular fa-file-lines",
+    title: "Tờ trình phê duyệt dự toán",
+    handler: "Giám đốc BV",
+    unit: "Ban Giám đốc",
+    sla: "SLA còn: 2 ngày",
+    status: "Chờ duyệt" as BadgeStatus,
+    overdue: false,
+  },
+  {
+    code: "GT2025-003",
+    color: "orange",
+    icon: "fa-solid fa-triangle-exclamation",
+    title: "Biên bản kiểm tra báo giá",
+    handler: "Tổ kiểm tra giá",
+    unit: "Tổ kiểm tra giá",
+    sla: "Trễ 21 ngày",
+    status: "Trễ hạn" as BadgeStatus,
+    overdue: true,
+  },
+  {
+    code: "GT2025-004",
+    color: "blue",
+    icon: "fa-regular fa-file-lines",
+    title: "Tờ trình chủ trương",
+    handler: "Giám đốc BV",
+    unit: "Ban Giám đốc",
+    sla: "SLA còn: 3 ngày",
+    status: "Chờ duyệt" as BadgeStatus,
+    overdue: false,
   },
 ];
 
@@ -330,14 +376,28 @@ export default function Dashboard() {
           {/* KPI */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             {[
-              ["fa-box-archive", "gray", "TỔNG GÓI THẦU", "24", "năm 2025", "text-slate-800"],
-              ["fa-hourglass-half", "blue", "ĐANG XỬ LÝ", "8", "gói", "text-blue-600"],
-              ["fa-triangle-exclamation", "red", "TRỄ HẠN", "3", "cần xử lý gấp", "text-red-500"],
-              ["fa-circle-check", "green", "HOÀN THÀNH", "13", "gói", "text-emerald-600"],
-            ].map(([icon, color, lbl, val, sub, valCls]) => (
-              <div
+              ["fa-box-archive", "gray", "TỔNG GÓI THẦU", "24", "năm 2025", "text-slate-800", ""],
+              ["fa-hourglass-half", "blue", "ĐANG XỬ LÝ", "8", "gói", "text-blue-600", "Đang xử lý"],
+              ["fa-triangle-exclamation", "red", "TRỄ HẠN", "3", "cần xử lý gấp", "text-red-500", "Trễ hạn"],
+              ["fa-circle-check", "green", "HOÀN THÀNH", "13", "gói", "text-emerald-600", "Hoàn thành"],
+            ].map(([icon, color, lbl, val, sub, valCls, targetStatus]) => (
+              <button
                 key={lbl}
-                className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4"
+                type="button"
+                onClick={() => {
+                  const status = targetStatus as BadgeStatus | "";
+                  setFilterStatus(status);
+                  setSearch("");
+                  const firstMatch = status
+                    ? TABLE_ROWS.findIndex((row) => row.status === status)
+                    : 0;
+                  if (firstMatch >= 0) setSelectedIdx(firstMatch);
+                }}
+                className={`bg-white rounded-2xl border p-4 flex items-center gap-4 text-left transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200 ${
+                  filterStatus === targetStatus
+                    ? "border-blue-400 ring-1 ring-blue-200"
+                    : "border-slate-200"
+                }`}
               >
                 <div
                   className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg ${color === "gray" ? "bg-slate-100 text-slate-500" : color === "blue" ? "bg-blue-100 text-blue-600" : color === "red" ? "bg-red-100 text-red-500" : "bg-emerald-100 text-emerald-600"}`}
@@ -351,7 +411,7 @@ export default function Dashboard() {
                   <div className={`text-2xl font-extrabold ${valCls}`}>{val}</div>
                   <div className="text-xs text-slate-400">{sub}</div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -445,32 +505,51 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="divide-y divide-slate-100">
-              {[
-                ["blue", "fa-regular fa-file-lines", "Tờ trình phê duyệt dự toán – GT2025-001", "Chờ Giám đốc BV ký duyệt · Hạn: 12/05/2025", "Chờ duyệt", false],
-                ["orange", "fa-solid fa-triangle-exclamation", "Biên bản kiểm tra báo giá – GT2025-003", "Trễ 21 ngày · Tổ kiểm tra giá chưa xử lý", "Trễ hạn", true],
-                ["blue", "fa-regular fa-file-lines", "Tờ trình chủ trương – GT2025-004", "Chờ Giám đốc BV ký duyệt · Hạn: 13/05/2025", "Chờ duyệt", false],
-              ].map(([color, icon, title, meta, status, overdue]) => (
-                <div
-                  key={title as string}
-                  className={`flex items-center gap-4 px-5 py-4 ${overdue ? "bg-red-50/30" : ""}`}
+              {APPROVAL_ITEMS.map((item) => (
+                <button
+                  key={item.code}
+                  type="button"
+                  onClick={() => {
+                    const idx = TABLE_ROWS.findIndex((row) => row.code === item.code);
+                    if (idx >= 0) setSelectedIdx(idx);
+                  }}
+                  className={`flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-50 ${
+                    item.overdue ? "bg-red-50/30" : ""
+                  }`}
                 >
                   <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color === "blue" ? "bg-blue-100 text-blue-600" : "bg-orange-100 text-orange-500"}`}
+                    className={`mt-0.5 w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                      item.color === "blue"
+                        ? "bg-blue-100 text-blue-600"
+                        : "bg-orange-100 text-orange-500"
+                    }`}
                   >
-                    <i className={icon as string} />
+                    <i className={item.icon} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-800 truncate">
-                      {title}
+                    <div className="text-sm font-semibold text-slate-800">
+                      {item.title} – {item.code}
                     </div>
-                    <div
-                      className={`text-xs mt-0.5 ${overdue ? "text-red-500" : "text-slate-400"}`}
-                    >
-                      {meta}
+                    <div className="mt-1 grid gap-0.5 text-xs">
+                      <div className="flex gap-1.5 text-slate-600">
+                        <span className="text-slate-400">Người xử lý:</span>
+                        <span className="font-medium">{item.handler}</span>
+                      </div>
+                      <div className="flex gap-1.5 text-slate-600">
+                        <span className="text-slate-400">Đơn vị:</span>
+                        <span className="font-medium">{item.unit}</span>
+                      </div>
+                      <div
+                        className={`font-semibold ${
+                          item.overdue ? "text-red-500" : "text-blue-600"
+                        }`}
+                      >
+                        {item.sla}
+                      </div>
                     </div>
                   </div>
-                  <Badge label={status as BadgeStatus} />
-                </div>
+                  <Badge label={item.status} />
+                </button>
               ))}
             </div>
           </div>
@@ -496,6 +575,15 @@ export default function Dashboard() {
               {selected.status}
             </span>
           </div>
+          {selected.overdueReason && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+              <div className="mb-1 flex items-center gap-1.5 font-semibold">
+                <i className="fa-solid fa-circle-exclamation text-[10px]" />
+                Lý do trễ hạn
+              </div>
+              <p className="leading-relaxed">{selected.overdueReason}</p>
+            </div>
+          )}
 
           {/* Progress */}
           <div className="flex justify-between text-xs text-slate-600 mb-1.5">
@@ -551,16 +639,50 @@ export default function Dashboard() {
             CÁC BƯỚC QUY TRÌNH
           </div>
           <div className="space-y-3 mb-5">
-            {selected.steps.map(([state, name, sub]) => (
+            {selected.steps.map(([state, name, processor, stepStatus, sla, reason]) => (
               <div
                 key={name}
                 onClick={() => navigate("/danh-sach-goi-thau")}
-                className="flex items-start gap-2.5 cursor-pointer hover:bg-slate-50 rounded-lg p-1 -m-1 transition-colors"
+                className="flex items-start gap-2.5 cursor-pointer hover:bg-slate-50 rounded-lg p-1.5 -m-1.5 transition-colors"
               >
                 <Dot state={state} />
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium text-slate-800">{name}</div>
-                  <div className="text-[11px] text-slate-400">{sub}</div>
+                  <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
+                    <div className="flex justify-between gap-2">
+                      <span>Người xử lý</span>
+                      <span className="font-medium text-slate-700 text-right">
+                        {processor}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span>Trạng thái</span>
+                      <span
+                        className={`font-semibold text-right ${
+                          stepStatus === "Trễ hạn"
+                            ? "text-red-600"
+                            : stepStatus === "Hoàn tất"
+                              ? "text-emerald-600"
+                              : stepStatus === "Chờ duyệt"
+                                ? "text-amber-600"
+                                : "text-slate-600"
+                        }`}
+                      >
+                        {stepStatus}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span>SLA</span>
+                      <span className="font-medium text-slate-700 text-right">
+                        {sla}
+                      </span>
+                    </div>
+                    {reason && (
+                      <div className="mt-1 rounded-lg bg-red-50 px-2 py-1 text-red-600">
+                        {reason}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

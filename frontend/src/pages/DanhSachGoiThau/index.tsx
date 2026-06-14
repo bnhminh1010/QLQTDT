@@ -36,6 +36,32 @@ type GoiThau = {
   };
 };
 
+type LichSuGoiThau = {
+  id: string;
+  goiThauId: string;
+  thoiGian: string;
+  nguoiThucHien: string;
+  noiDung: string;
+};
+
+type QuyTrinhStepDetail = {
+  state: DotState;
+  ten: string;
+  donVi: string;
+  current?: boolean;
+  nguoiXuLy?: string;
+  slaText?: string;
+};
+
+type GoiThauDetailInfo = {
+  buocHienTai: string;
+  nguoiXuLy: string;
+  donViXuLy: string;
+  sla: string;
+  lyDoTreHan?: string;
+  steps: QuyTrinhStepDetail[];
+};
+
 /* ─── Badge / color maps ──────────────────────────────── */
 const BADGE: Record<TrangThai, string> = {
   "Đang xử lý": "bg-blue-100 text-blue-700",
@@ -166,6 +192,58 @@ const INITIAL_DATA: GoiThau[] = [
   },
 ];
 
+const HISTORY_LOGS: LichSuGoiThau[] = [
+  {
+    id: "LS-001-1",
+    goiThauId: "GT2025-001",
+    thoiGian: "10/01/2025 08:30",
+    nguoiThucHien: "Nguyễn Văn A",
+    noiDung: "Tạo gói thầu",
+  },
+  {
+    id: "LS-001-2",
+    goiThauId: "GT2025-001",
+    thoiGian: "12/01/2025 09:15",
+    nguoiThucHien: "Trần Văn B",
+    noiDung: "Phê duyệt chủ trương",
+  },
+  {
+    id: "LS-001-3",
+    goiThauId: "GT2025-001",
+    thoiGian: "14/01/2025 16:00",
+    nguoiThucHien: "Hệ thống",
+    noiDung: 'Chuyển sang bước "Đăng tải yêu cầu báo giá"',
+  },
+  {
+    id: "LS-003-1",
+    goiThauId: "GT2025-003",
+    thoiGian: "05/03/2025 08:30",
+    nguoiThucHien: "Nguyễn Văn A",
+    noiDung: "Tạo gói thầu",
+  },
+  {
+    id: "LS-003-2",
+    goiThauId: "GT2025-003",
+    thoiGian: "07/03/2025 09:15",
+    nguoiThucHien: "Trần Văn B",
+    noiDung: "Phê duyệt chủ trương",
+  },
+  {
+    id: "LS-003-3",
+    goiThauId: "GT2025-003",
+    thoiGian: "10/03/2025 16:00",
+    nguoiThucHien: "Hệ thống",
+    noiDung: 'Chuyển sang bước "Đăng tải yêu cầu báo giá"',
+  },
+  {
+    id: "LS-003-4",
+    goiThauId: "GT2025-003",
+    thoiGian: "29/03/2025 17:30",
+    nguoiThucHien: "Hệ thống",
+    noiDung: 'Đánh dấu trễ hạn tại bước "Biên bản kiểm tra báo giá"',
+  },
+];
+
 const STEPS_TEMPLATE = [
   ["done", "1. Đề xuất mua sắm", "K/p mua sắm"],
   ["done", "2. Tờ trình chủ trương", "K/p mua sắm"],
@@ -178,8 +256,62 @@ const STEPS_TEMPLATE = [
   ["idle", "9. Đăng tải kế hoạch LCNT", "K/p mua sắm"],
 ];
 
+const DEFAULT_DETAIL_INFO: GoiThauDetailInfo = {
+  buocHienTai: "Tờ trình phê duyệt dự toán",
+  nguoiXuLy: "K/p mua sắm",
+  donViXuLy: "K/p mua sắm",
+  sla: "Đang theo dõi",
+  steps: STEPS_TEMPLATE.map(([state, ten, donVi]) => ({
+    state: state as DotState,
+    ten: ten.replace(/^\d+\.\s*/, ""),
+    donVi,
+  })),
+};
+
+const DETAIL_INFO_BY_ID: Record<string, GoiThauDetailInfo> = {
+  "GT2025-003": {
+    buocHienTai: "Biên bản kiểm tra báo giá",
+    nguoiXuLy: "Nguyễn Văn A",
+    donViXuLy: "Tổ kiểm tra giá",
+    sla: "Quá hạn 21 ngày",
+    lyDoTreHan: "Tổ kiểm tra giá chưa hoàn tất biên bản đánh giá báo giá",
+    steps: [
+      { state: "done", ten: "Đề xuất mua sắm", donVi: "K/p mua sắm" },
+      { state: "done", ten: "Tờ trình chủ trương", donVi: "K/p mua sắm" },
+      { state: "done", ten: "Đăng tải yêu cầu báo giá", donVi: "K/p mua sắm" },
+      {
+        state: "warn",
+        ten: "Biên bản kiểm tra báo giá",
+        donVi: "Tổ kiểm tra giá",
+        current: true,
+        nguoiXuLy: "Nguyễn Văn A",
+        slaText: "Quá hạn 21 ngày",
+      },
+      { state: "idle", ten: "Tờ trình phê duyệt dự toán", donVi: "K/p mua sắm" },
+      { state: "idle", ten: "QĐ phê duyệt dự toán", donVi: "Giám đốc BV" },
+      { state: "idle", ten: "Tờ trình kế hoạch LCNT", donVi: "K/p mua sắm" },
+      { state: "idle", ten: "QĐ kế hoạch LCNT", donVi: "Giám đốc BV" },
+      { state: "idle", ten: "Đăng tải kế hoạch LCNT", donVi: "K/p mua sắm" },
+    ],
+  },
+};
+
+function formatCurrencyDisplay(value: string) {
+  return value.replace(/,/g, ".") + " đ";
+}
+
 const PAGE_SIZE = 8;
 type SortCol = "id" | "ten" | "giaTriNum" | "trangThai";
+
+const EDITABLE_STATUSES: TrangThai[] = ["Nháp", "Chờ duyệt"];
+const canEditGoiThau = (item: GoiThau) =>
+  EDITABLE_STATUSES.includes(item.trangThai);
+
+function getMergedGoiThauList() {
+  const userList = getUserGoiThauList();
+  const userIds = new Set(userList.map((item) => item.id));
+  return [...userList, ...INITIAL_DATA.filter((item) => !userIds.has(item.id))];
+}
 
 /* ─── Sub-components ──────────────────────────────────── */
 function Dot({ state }: { state: DotState }) {
@@ -254,14 +386,79 @@ function ConfirmModal({
   );
 }
 
+type HistoryModalProps = {
+  goiThau: GoiThau;
+  entries: LichSuGoiThau[];
+  onClose: () => void;
+};
+
+function HistoryModal({ goiThau, entries, onClose }: HistoryModalProps) {
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-mono font-bold text-blue-700">
+              {goiThau.id}
+            </p>
+            <h3 className="text-base font-bold text-slate-900 mt-0.5">
+              Lịch sử gói thầu
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">{goiThau.ten}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          >
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto px-6 py-5">
+          {entries.length === 0 ? (
+            <div className="py-10 text-center">
+              <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
+              <p className="text-sm text-slate-400 mt-3">
+                Chưa có lịch sử thao tác cho gói thầu này.
+              </p>
+            </div>
+          ) : (
+            <div className="relative space-y-5 before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-px before:bg-slate-200">
+              {entries.map((entry) => (
+                <div key={entry.id} className="relative flex gap-4">
+                  <div className="relative z-10 mt-1 h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <i className="fa-solid fa-clock text-[10px]" />
+                  </div>
+                  <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-800">
+                      {entry.thoiGian}
+                    </p>
+                    <p className="text-sm text-slate-700 mt-1">
+                      {entry.nguoiThucHien}
+                    </p>
+                    <p className="text-sm text-slate-600 mt-1">
+                      {entry.noiDung}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main component ──────────────────────────────────── */
 export default function DanhSachGoiThau() {
   const navigate = useNavigate();
-  const [data, setData] = useState<GoiThau[]>(() => [
-    ...getUserGoiThauList(),
-    ...INITIAL_DATA,
-  ]);
-  const [selected, setSelected] = useState<GoiThau>(INITIAL_DATA[2]);
+  const [data, setData] = useState<GoiThau[]>(() => getMergedGoiThauList());
+  const [selected, setSelected] = useState<GoiThau>(() => {
+    const list = getMergedGoiThauList();
+    return list.find((item) => item.id === "GT2025-003") ?? list[0];
+  });
   const [search, setSearch] = useState("");
   const [filterHT, setFilterHT] = useState("");
   const [filterTT, setFilterTT] = useState("");
@@ -277,6 +474,7 @@ export default function DanhSachGoiThau() {
   // Confirm modals
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GoiThau | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<GoiThau | null>(null);
 
   const simulateLoad = useCallback(() => {
     setLoading(true);
@@ -346,8 +544,20 @@ export default function DanhSachGoiThau() {
     setDeleteTarget(null);
   }
 
+  function goToEdit(item: GoiThau) {
+    if (!canEditGoiThau(item)) {
+      toast.error("Chỉ được chỉnh sửa gói thầu ở trạng thái Nháp hoặc Chờ duyệt");
+      return;
+    }
+    navigate(`/tao-goi-thau?mode=edit&id=${encodeURIComponent(item.id)}`, {
+      state: { goiThau: item },
+    });
+  }
+
   /* ─ Detail panel content ─ */
   function DetailPanel() {
+    const detailInfo = DETAIL_INFO_BY_ID[selected.id] ?? DEFAULT_DETAIL_INFO;
+
     return (
       <>
         <div className="font-mono text-xs font-bold text-blue-700 mb-1">
@@ -386,21 +596,38 @@ export default function DanhSachGoiThau() {
         <div className="space-y-2 mb-5">
           {(
             [
-              ["Giá trị", selected.giaTriStr + " đ"],
+              ["Bước hiện tại", detailInfo.buocHienTai],
+              ["Người xử lý", detailInfo.nguoiXuLy],
+              ["Đơn vị xử lý", detailInfo.donViXuLy],
+              ["Giá trị", formatCurrencyDisplay(selected.giaTriStr)],
               ["Nguồn vốn", selected.detail.nguonVon],
               ["Ngày tạo", selected.detail.ngayTao],
               ["Hạn hoàn thành", selected.detail.hanHT],
+              ["SLA", detailInfo.sla],
             ] as [string, string][]
           ).map(([lbl, val]) => (
             <div key={lbl} className="flex justify-between text-xs">
               <span className="text-slate-400">{lbl}</span>
               <span
-                className={`font-semibold ${lbl === "Hạn hoàn thành" && selected.trangThai === "Trễ hạn" ? "text-red-500" : "text-slate-800"}`}
+                className={`max-w-[150px] text-right font-semibold ${
+                  (lbl === "Hạn hoàn thành" || lbl === "SLA") &&
+                  selected.trangThai === "Trễ hạn"
+                    ? "text-red-500"
+                    : "text-slate-800"
+                }`}
               >
                 {val}
               </span>
             </div>
           ))}
+          {detailInfo.lyDoTreHan && (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs">
+              <p className="font-semibold text-red-600">Lý do trễ hạn</p>
+              <p className="mt-1 leading-relaxed text-red-700">
+                {detailInfo.lyDoTreHan}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Steps */}
@@ -408,12 +635,43 @@ export default function DanhSachGoiThau() {
           CÁC BƯỚC QUY TRÌNH
         </div>
         <div className="space-y-3 mb-5">
-          {STEPS_TEMPLATE.map(([state, name, sub]) => (
-            <div key={name} className="flex items-start gap-2.5">
-              <Dot state={state as DotState} />
-              <div>
-                <div className="text-xs font-medium text-slate-800">{name}</div>
-                <div className="text-[11px] text-slate-400">{sub}</div>
+          {detailInfo.steps.map((step) => (
+            <div
+              key={step.ten}
+              className={`flex items-start gap-2.5 rounded-xl ${
+                step.current
+                  ? "border border-amber-200 bg-amber-50 p-2 -mx-2"
+                  : ""
+              }`}
+            >
+              <Dot state={step.state} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="text-xs font-medium text-slate-800">
+                    {step.ten}
+                  </div>
+                  {step.current && (
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+                      BƯỚC HIỆN TẠI
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-400">{step.donVi}</div>
+                {step.current && (
+                  <div className="mt-1 space-y-0.5 text-[11px]">
+                    {step.nguoiXuLy && (
+                      <div className="text-slate-600">
+                        Người xử lý:{" "}
+                        <span className="font-semibold">{step.nguoiXuLy}</span>
+                      </div>
+                    )}
+                    {step.slaText && (
+                      <div className="font-semibold text-red-600">
+                        {step.slaText}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -422,8 +680,14 @@ export default function DanhSachGoiThau() {
         {/* Actions */}
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
           <button
-            onClick={() => navigate("/tao-goi-thau")}
-            className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors"
+            onClick={() => goToEdit(selected)}
+            disabled={!canEditGoiThau(selected)}
+            title={
+              canEditGoiThau(selected)
+                ? "Chỉnh sửa"
+                : "Chỉ chỉnh sửa gói thầu Nháp hoặc Chờ duyệt"
+            }
+            className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
           >
             <i className="fa-solid fa-pen text-xs" /> Chỉnh sửa
           </button>
@@ -436,6 +700,12 @@ export default function DanhSachGoiThau() {
                 <i className="fa-solid fa-ban text-xs" /> Hủy gói thầu
               </button>
             )}
+          <button
+            onClick={() => setHistoryTarget(selected)}
+            className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
+          >
+            <i className="fa-solid fa-clock-rotate-left text-xs" /> Xem lịch sử
+          </button>
           <button
             onClick={() => setDeleteTarget(selected)}
             className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
@@ -583,7 +853,7 @@ export default function DanhSachGoiThau() {
                         Tên gói thầu{" "}
                         <SortIcon active={sortCol === "ten"} dir={sortDir} />
                       </th>
-                      <th className="px-5 py-3 text-left">Hình thức</th>
+                      <th className="px-5 py-3 text-left min-w-[190px]">Hình thức</th>
                       <th
                         className="px-5 py-3 text-right cursor-pointer hover:text-slate-600 select-none whitespace-nowrap"
                         onClick={() => toggleSort("giaTriNum")}
@@ -596,7 +866,7 @@ export default function DanhSachGoiThau() {
                       </th>
                       <th className="px-5 py-3 text-left">Đơn vị</th>
                       <th
-                        className="px-5 py-3 text-left cursor-pointer hover:text-slate-600 select-none"
+                        className="px-5 py-3 text-left cursor-pointer hover:text-slate-600 select-none min-w-[130px]"
                         onClick={() => toggleSort("trangThai")}
                       >
                         Trạng thái{" "}
@@ -650,9 +920,9 @@ export default function DanhSachGoiThau() {
                           <td className="px-5 py-3 text-slate-800 max-w-[220px]">
                             <div className="line-clamp-2">{row.ten}</div>
                           </td>
-                          <td className="px-5 py-3">
+                          <td className="px-5 py-3 whitespace-nowrap">
                             <span
-                              className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${HT_BADGE[row.hinhThuc]}`}
+                              className={`inline-flex whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium ${HT_BADGE[row.hinhThuc]}`}
                             >
                               {row.hinhThuc}
                             </span>
@@ -663,9 +933,9 @@ export default function DanhSachGoiThau() {
                           <td className="px-5 py-3 text-slate-500 whitespace-nowrap">
                             {row.donVi}
                           </td>
-                          <td className="px-5 py-3">
+                          <td className="px-5 py-3 whitespace-nowrap">
                             <span
-                              className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BADGE[row.trangThai]}`}
+                              className={`inline-flex whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium ${BADGE[row.trangThai]}`}
                             >
                               {row.trangThai}
                             </span>
@@ -677,8 +947,9 @@ export default function DanhSachGoiThau() {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 title="Chỉnh sửa"
-                                onClick={() => navigate("/tao-goi-thau")}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
+                                onClick={() => goToEdit(row)}
+                                disabled={!canEditGoiThau(row)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
                                 <i className="fa-solid fa-pen text-xs" />
                               </button>
@@ -811,6 +1082,15 @@ export default function DanhSachGoiThau() {
           confirmLabel="Xóa"
           onConfirm={handleDelete}
           onClose={() => setDeleteTarget(null)}
+        />
+      )}
+      {historyTarget && (
+        <HistoryModal
+          goiThau={historyTarget}
+          entries={HISTORY_LOGS.filter(
+            (entry) => entry.goiThauId === historyTarget.id,
+          )}
+          onClose={() => setHistoryTarget(null)}
         />
       )}
     </>
