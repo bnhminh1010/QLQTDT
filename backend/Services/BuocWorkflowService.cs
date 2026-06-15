@@ -4,6 +4,7 @@ using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
+using System.Text.RegularExpressions;
 
 namespace QLQTDT.Api.Services;
 
@@ -16,6 +17,14 @@ public class BuocWorkflowService : IBuocWorkflowService
     {
         _context = context;
         _logger = logger;
+    }
+
+    private static string SanitizeForLog(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return string.Empty;
+
+        return Regex.Replace(input, @"\r\n?|\n", " ");
     }
 
     public async Task<List<BuocWorkflowListItemDto>> GetStepsByWorkflowIdAsync(int workflowId)
@@ -84,7 +93,7 @@ public class BuocWorkflowService : IBuocWorkflowService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Created step: id={StepId}, ma={MaBuoc}, workflow={WorkflowId}",
-            entity.Id, entity.MaBuoc, workflowId);
+            entity.Id, SanitizeForLog(entity.MaBuoc), workflowId);
 
         return new BuocWorkflowListItemDto
         {
