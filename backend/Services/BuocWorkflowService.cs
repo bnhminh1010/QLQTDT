@@ -11,6 +11,13 @@ namespace QLQTDT.Api.Services;
 public class BuocWorkflowService : IBuocWorkflowService
 {
     private readonly AppDbContext _context;
+
+    private static string SanitizeForLog(string? input)
+    {
+        return (input ?? string.Empty)
+            .Replace("\r", string.Empty)
+            .Replace("\n", string.Empty);
+    }
     private readonly ILogger<BuocWorkflowService> _logger;
 
     public BuocWorkflowService(AppDbContext context, ILogger<BuocWorkflowService> logger)
@@ -247,7 +254,7 @@ public class BuocWorkflowService : IBuocWorkflowService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Created transition: id={TransId}, tu={TuBuoc}, den={DenBuoc}, action={HanhDong}",
-            entity.Id, entity.TuBuocId, entity.DenBuocId, entity.HanhDong);
+            entity.Id, entity.TuBuocId, entity.DenBuocId, SanitizeForLog(entity.HanhDong));
 
         return new ChuyenTiepWorkflowListItemDto
         {
