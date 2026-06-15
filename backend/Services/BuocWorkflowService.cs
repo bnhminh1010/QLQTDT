@@ -12,12 +12,6 @@ public class BuocWorkflowService : IBuocWorkflowService
 {
     private readonly AppDbContext _context;
 
-    private static string SanitizeForLog(string? input)
-    {
-        return (input ?? string.Empty)
-            .Replace("\r", string.Empty)
-            .Replace("\n", string.Empty);
-    }
     private readonly ILogger<BuocWorkflowService> _logger;
 
     public BuocWorkflowService(AppDbContext context, ILogger<BuocWorkflowService> logger)
