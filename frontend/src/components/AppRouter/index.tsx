@@ -17,6 +17,7 @@ import BaoCao from "@/pages/BaoCao";
 import LapQuyTrinh from "@/pages/LapQuyTrinh";
 import DanhSachQuyTrinh from "@/pages/DanhSachQuyTrinh";
 import UserProfile from "@/pages/UserProfile";
+import XuLyBuocGoiThau from "@/pages/XuLyBuocGoiThau";
 
 function AppRoutes() {
   return (
@@ -32,6 +33,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/danh-sach-goi-thau" element={<DanhSachGoiThau />} />
         <Route path="/tao-goi-thau" element={<TaoGoiThau />} />
+        <Route path="/xu-ly-buoc/:id" element={<XuLyBuocGoiThau />} />
         <Route path="/danh-muc-thuc-hien" element={<DanhMucThucHien />} />
         <Route path="/lap-quy-trinh" element={<LapQuyTrinh />} />
         <Route path="/danh-sach-quy-trinh" element={<DanhSachQuyTrinh />} />

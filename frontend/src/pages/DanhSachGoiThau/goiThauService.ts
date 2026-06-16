@@ -35,6 +35,7 @@ export type GoiThau = {
   ten: string;
   loaiGoiThau?: LoaiGoiThau;
   hinhThuc: HinhThuc;
+  theoDoi?: string[];
   giaTriStr: string;
   giaTriNum: number;
   donVi: string;

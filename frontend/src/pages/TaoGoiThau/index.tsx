@@ -97,11 +97,64 @@ const NGUON_VON = [
   "Nguồn khác",
 ];
 
+const THEO_DOI_GROUPS = [
+  {
+    label: "Nhóm Khoa/Phòng",
+    options: [
+      "Khoa/Phòng mua sắm",
+      "Khoa/Phòng sử dụng",
+      "Phòng HCQT",
+      "Phòng CNTT",
+      "Phòng CTXH",
+      "Phòng KHTH",
+      "Phòng QLCL",
+      "Phòng TCCB",
+      "Khoa/Phòng khác",
+    ],
+  },
+  {
+    label: "Nhóm Vai trò quản lý",
+    options: [
+      "BCN",
+      "BGĐ",
+      "Giám đốc",
+      "PGĐ được ủy quyền",
+      "Kế toán trưởng",
+      "Tổ pháp chế",
+      "BCN Phòng HCQT",
+    ],
+  },
+  {
+    label: "Nhóm Tổ/Nhóm nghiệp vụ",
+    options: [
+      "Tổ kiểm tra giá",
+      "Tổ chuyên gia",
+      "Tổ thẩm định",
+      "Tư vấn LCNT",
+      "Tư vấn thẩm định",
+      "Chủ đầu tư",
+    ],
+  },
+  {
+    label: "Nhóm đối tượng ngoài BV",
+    options: ["Nhà thầu", "Nhà thầu tư vấn LCNT", "Nhà cung cấp"],
+  },
+];
+
 function inferLoaiGoiThau(hinhThuc?: HinhThuc): LoaiGoiThau {
   if (hinhThuc && QUY_TRINH_BY_LOAI["Hàng hóa"].includes(hinhThuc)) {
     return "Hàng hóa";
   }
   return "Hàng hóa";
+}
+
+function normalizeTheoDoi(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/phòng/g, "p")
+    .replace(/\s+/g, "")
+    .trim();
 }
 
 const inputCls =
@@ -287,6 +340,8 @@ export default function TaoGoiThau() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
   const [quyTrinhList, setQuyTrinhList] = useState<QuyTrinh[]>([]);
+  const [theoDoiOpen, setTheoDoiOpen] = useState(false);
+  const [theoDoiList, setTheoDoiList] = useState<string[]>([]);
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
 
@@ -313,6 +368,7 @@ export default function TaoGoiThau() {
     : [];
   const hasPreview = !!(watched.ten?.trim() || watched.loaiGoiThau || watched.hinhThuc);
   const ghiChuLen = watched.ghiChu?.length ?? 0;
+  const normalizedDonViDeXuat = normalizeTheoDoi(watched.donVi || "");
 
   const selectedQT = watched.hinhThuc
     ? (quyTrinhList.find((qt) => qt.hinhThuc === watched.hinhThuc) ??
@@ -325,6 +381,11 @@ export default function TaoGoiThau() {
       setValue("hinhThuc", "", { shouldDirty: true, shouldValidate: true });
     }
   }, [selectedLoaiGoiThau, setValue, watched.hinhThuc]);
+  useEffect(() => {
+    setTheoDoiList((prev) =>
+      prev.filter((item) => normalizeTheoDoi(item) !== normalizedDonViDeXuat),
+    );
+  }, [normalizedDonViDeXuat]);
   const quyTrinhStats = useMemo(() => {
     if (!selectedQT) return null;
     const tongSoBuoc = selectedQT.buocList.length;
@@ -349,6 +410,26 @@ export default function TaoGoiThau() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] = useState<FormData | null>(null);
 
+  function isSameAsDonViDeXuat(option: string) {
+    return normalizeTheoDoi(option) === normalizedDonViDeXuat;
+  }
+
+  function toggleTheoDoi(option: string) {
+    if (isSameAsDonViDeXuat(option)) {
+      toast.error("Không được chọn trùng với Đơn vị đề xuất");
+      return;
+    }
+    setTheoDoiList((prev) =>
+      prev.includes(option)
+        ? prev.filter((item) => item !== option)
+        : [...prev, option],
+    );
+  }
+
+  function removeTheoDoi(option: string) {
+    setTheoDoiList((prev) => prev.filter((item) => item !== option));
+  }
+
   useEffect(() => {
     if (!isEditMode) return;
     if (!editingGoiThau) {
@@ -371,6 +452,7 @@ export default function TaoGoiThau() {
       ngayTao: toDateInputValue(editingGoiThau.detail.ngayTao),
       ghiChu: "",
     });
+    setTheoDoiList(editingGoiThau.theoDoi ?? []);
   }, [canEditCurrent, editingGoiThau, isEditMode, navigate, reset]);
 
   function buildGoiThauFromForm(data: FormData, trangThai: GoiThau["trangThai"]) {
@@ -380,6 +462,7 @@ export default function TaoGoiThau() {
       ten: data.ten.trim(),
       loaiGoiThau: data.loaiGoiThau as LoaiGoiThau,
       hinhThuc: data.hinhThuc as HinhThuc,
+      theoDoi: theoDoiList,
       giaTriStr: formatVND(data.giaTriStr),
       giaTriNum: num,
       donVi: data.donVi,
@@ -438,6 +521,7 @@ export default function TaoGoiThau() {
       ten: values.ten.trim(),
       loaiGoiThau: (values.loaiGoiThau || "Hàng hóa") as LoaiGoiThau,
       hinhThuc: (values.hinhThuc || "Chỉ định thầu rút gọn") as HinhThuc,
+      theoDoi: theoDoiList,
       giaTriStr: values.giaTriStr ? formatVND(values.giaTriStr) : "0",
       giaTriNum: num,
       donVi: values.donVi || "—",
@@ -605,7 +689,7 @@ export default function TaoGoiThau() {
                       <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
                         {[
                           ["Tổng số bước", `${quyTrinhStats.tongSoBuoc} bước`],
-                          ["SLA dự kiến", `${quyTrinhStats.slaDuKien} ngày`],
+                          ["Thời hạn xử lý dự kiến", `${quyTrinhStats.slaDuKien} ngày`],
                           ["Số bước cần duyệt", `${quyTrinhStats.soBuocCanDuyet} bước`],
                         ].map(([label, value]) => (
                           <div key={label} className="rounded-lg bg-white border border-blue-100 px-3 py-2">
@@ -629,7 +713,7 @@ export default function TaoGoiThau() {
                               {b.ten}
                             </p>
                             <p className="text-[11px] text-slate-400">
-                              {b.donViPhuTrach} · SLA {b.slaNgay} ngày
+                              {b.donViPhuTrach} · Thời hạn {b.slaNgay} ngày
                             </p>
                           </div>
                         </div>
@@ -692,6 +776,103 @@ export default function TaoGoiThau() {
                     </p>
                   )}
                 </div>
+              </div>
+
+              {/* Đơn vị/Vai trò theo dõi */}
+              <div>
+                <label className={labelCls}>Đơn vị/Vai trò theo dõi</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setTheoDoiOpen((open) => !open)}
+                    className="w-full min-h-[44px] px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between gap-3 text-left"
+                  >
+                    <span className="text-slate-500">
+                      {theoDoiList.length > 0
+                        ? `${theoDoiList.length} đơn vị/vai trò đã chọn`
+                        : "Chọn đơn vị hoặc vai trò"}
+                    </span>
+                    <i
+                      className={`fa-solid fa-chevron-down text-xs text-slate-400 transition-transform ${
+                        theoDoiOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {theoDoiOpen && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-40 max-h-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                      <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                        <p className="text-xs font-bold text-slate-700">
+                          Đơn vị/Vai trò theo dõi
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setTheoDoiOpen(false)}
+                          className="h-7 px-2 rounded-lg text-xs text-slate-500 hover:bg-slate-100"
+                        >
+                          Xong
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {THEO_DOI_GROUPS.map((group) => (
+                          <div key={group.label}>
+                            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                              {group.label}
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                              {group.options.map((option) => {
+                                const disabled = isSameAsDonViDeXuat(option);
+                                const checked = theoDoiList.includes(option);
+                                return (
+                                  <label
+                                    key={option}
+                                    className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${
+                                      disabled
+                                        ? "cursor-not-allowed text-slate-300"
+                                        : "cursor-pointer text-slate-600 hover:bg-blue-50"
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      disabled={disabled}
+                                      onChange={() => toggleTheoDoi(option)}
+                                      className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
+                                    />
+                                    <span>{option}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {theoDoiList.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {theoDoiList.map((item) => (
+                      <span
+                        key={item}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 border border-blue-100"
+                      >
+                        {item}
+                        <button
+                          type="button"
+                          onClick={() => removeTheoDoi(item)}
+                          className="text-blue-400 hover:text-blue-700"
+                          title={`Xóa ${item}`}
+                        >
+                          <i className="fa-solid fa-xmark text-[10px]" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Có thể chọn nhiều đơn vị hoặc vai trò. Không bắt buộc nhập.
+                </p>
               </div>
 
               {/* Ngày tạo */}
@@ -915,7 +1096,7 @@ export default function TaoGoiThau() {
                     quyTrinhStats ? `${quyTrinhStats.tongSoBuoc} bước` : "—",
                   ],
                   [
-                    "SLA dự kiến",
+                    "Thời hạn xử lý dự kiến",
                     quyTrinhStats ? `${quyTrinhStats.slaDuKien} ngày` : "—",
                   ],
                   [
@@ -924,6 +1105,10 @@ export default function TaoGoiThau() {
                   ],
                   ["Nguồn vốn", watched.nguonVon || "—"],
                   ["Đơn vị", watched.donVi || "—"],
+                  [
+                    "Theo dõi",
+                    theoDoiList.length > 0 ? `${theoDoiList.length} mục` : "—",
+                  ],
                   ["Ngày tạo", watched.ngayTao || "—"],
                 ].map(([lbl, val]) => (
                   <div key={lbl} className="flex justify-between gap-3 text-xs">
@@ -932,6 +1117,18 @@ export default function TaoGoiThau() {
                   </div>
                 ))}
               </div>
+              {theoDoiList.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {theoDoiList.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              )}
               {watched.hinhThuc && (
                 <span
                   className={`mt-3 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${HT_BADGE[watched.hinhThuc as HinhThuc] ?? "bg-slate-100 text-slate-600"}`}
@@ -965,7 +1162,7 @@ export default function TaoGoiThau() {
                             : "—",
                         ],
                         [
-                          "SLA dự kiến",
+                          "Thời hạn xử lý dự kiến",
                           quyTrinhStats
                             ? `${quyTrinhStats.slaDuKien} ngày`
                             : "—",
@@ -998,13 +1195,6 @@ export default function TaoGoiThau() {
                   </div>
                 </div>
               )}
-              <div className="mt-5 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <p className="text-xs text-amber-700 font-medium">
-                  <i className="fa-solid fa-circle-info mr-1" />
-                  Gói thầu sau khi tạo sẽ ở trạng thái <strong>Chờ duyệt</strong> và cần
-                  Giám đốc BV phê duyệt trước khi tiến hành.
-                </p>
-              </div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">

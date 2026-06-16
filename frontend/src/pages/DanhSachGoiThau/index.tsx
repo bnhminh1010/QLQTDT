@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getUserGoiThauList } from "./goiThauService";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
+import {
+  getXuLyBuoc,
+  getXuLyBuocHistory,
+  type XuLyBuocRecord,
+} from "./xuLyBuocService";
 
 /* ─── Types ───────────────────────────────────────────── */
 type DotState = "done" | "warn" | "idle";
@@ -280,9 +285,12 @@ function formatCurrencyDisplay(value: string) {
 const PAGE_SIZE = 8;
 type SortCol = "id" | "ten" | "giaTriNum" | "trangThai";
 
-const EDITABLE_STATUSES: TrangThai[] = ["Nháp", "Chờ duyệt"];
+const EDITABLE_STATUSES: TrangThai[] = ["Nháp"];
+const STEP_UPDATE_STATUSES: TrangThai[] = ["Đang xử lý", "Chờ duyệt", "Trễ hạn"];
 const canEditGoiThau = (item: GoiThau) =>
   EDITABLE_STATUSES.includes(item.trangThai);
+const canUpdateCurrentStep = (item: GoiThau) =>
+  STEP_UPDATE_STATUSES.includes(item.trangThai);
 
 function getMergedGoiThauList() {
   const userList = getUserGoiThauList();
@@ -366,10 +374,12 @@ function ConfirmModal({
 type HistoryModalProps = {
   goiThau: GoiThau;
   entries: LichSuGoiThau[];
+  processEntries: XuLyBuocRecord[];
   onClose: () => void;
 };
 
-function HistoryModal({ goiThau, entries, onClose }: HistoryModalProps) {
+function HistoryModal({ goiThau, entries, processEntries, onClose }: HistoryModalProps) {
+  const hasEntries = entries.length > 0 || processEntries.length > 0;
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
@@ -393,7 +403,7 @@ function HistoryModal({ goiThau, entries, onClose }: HistoryModalProps) {
         </div>
 
         <div className="max-h-[60vh] overflow-y-auto px-6 py-5">
-          {entries.length === 0 ? (
+          {!hasEntries ? (
             <div className="py-10 text-center">
               <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
               <p className="text-sm text-slate-400 mt-3">
@@ -402,6 +412,29 @@ function HistoryModal({ goiThau, entries, onClose }: HistoryModalProps) {
             </div>
           ) : (
             <div className="relative space-y-5 before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-px before:bg-slate-200">
+              {processEntries.map((entry) => (
+                <div key={`${entry.goiThauId}-${entry.thoiGianXuLy}`} className="relative flex gap-4">
+                  <div className="relative z-10 mt-1 h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <i className="fa-solid fa-clipboard-check text-[10px]" />
+                  </div>
+                  <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-800">
+                      {entry.thoiGianXuLy ?? "—"}
+                    </p>
+                    <div className="mt-2 grid gap-1 text-sm text-slate-600">
+                      <p><span className="text-slate-400">Người xử lý:</span> {entry.nguoiXuLy || "—"}</p>
+                      <p><span className="text-slate-400">Bước workflow:</span> {entry.buocWorkflow}</p>
+                      <p><span className="text-slate-400">Người ký duyệt:</span> {entry.nguoiKyDuyet || "—"}</p>
+                      <p><span className="text-slate-400">Ngày ký duyệt:</span> {entry.ngayKyDuyet || "—"}</p>
+                      <p><span className="text-slate-400">Kết quả xử lý:</span> {entry.ketQua}</p>
+                      {entry.lyDoKhongDuyet && (
+                        <p><span className="text-slate-400">Lý do không duyệt:</span> {entry.lyDoKhongDuyet}</p>
+                      )}
+                      <p><span className="text-slate-400">Hệ thống:</span> {entry.thaoTacHeThong || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
               {entries.map((entry) => (
                 <div key={entry.id} className="relative flex gap-4">
                   <div className="relative z-10 mt-1 h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -523,7 +556,7 @@ export default function DanhSachGoiThau() {
 
   function goToEdit(item: GoiThau) {
     if (!canEditGoiThau(item)) {
-      toast.error("Chỉ được chỉnh sửa gói thầu ở trạng thái Nháp hoặc Chờ duyệt");
+      toast.error("Chỉ được chỉnh sửa gói thầu ở trạng thái Nháp");
       return;
     }
     navigate(`/tao-goi-thau?mode=edit&id=${encodeURIComponent(item.id)}`, {
@@ -531,9 +564,28 @@ export default function DanhSachGoiThau() {
     });
   }
 
+  function handlePrimaryAction(item: GoiThau) {
+    if (canEditGoiThau(item)) {
+      goToEdit(item);
+      return;
+    }
+    if (canUpdateCurrentStep(item)) {
+      navigate(`/xu-ly-buoc/${encodeURIComponent(item.id)}`);
+      return;
+    }
+    toast.error("Gói thầu ở trạng thái này không còn thao tác xử lý bước");
+  }
+
   /* ─ Detail panel content ─ */
   function DetailPanel() {
     const detailInfo = DETAIL_INFO_BY_ID[selected.id] ?? DEFAULT_DETAIL_INFO;
+    const processingInfo = getXuLyBuoc(selected.id);
+    const progressStatus =
+      selected.trangThai === "Trễ hạn"
+        ? "Quá hạn"
+        : selected.trangThai === "Chờ duyệt"
+          ? "Sắp quá hạn"
+          : "Đúng hạn";
 
     return (
       <>
@@ -574,20 +626,18 @@ export default function DanhSachGoiThau() {
           {(
             [
               ["Bước hiện tại", detailInfo.buocHienTai],
-              ["Người xử lý", detailInfo.nguoiXuLy],
-              ["Đơn vị xử lý", detailInfo.donViXuLy],
               ["Giá trị", formatCurrencyDisplay(selected.giaTriStr)],
               ["Nguồn vốn", selected.detail.nguonVon],
               ["Ngày tạo", selected.detail.ngayTao],
               ["Hạn hoàn thành", selected.detail.hanHT],
-              ["SLA", detailInfo.sla],
+              ["Tình trạng tiến độ", progressStatus],
             ] as [string, string][]
           ).map(([lbl, val]) => (
             <div key={lbl} className="flex justify-between text-xs">
               <span className="text-slate-400">{lbl}</span>
               <span
                 className={`max-w-[150px] text-right font-semibold ${
-                  (lbl === "Hạn hoàn thành" || lbl === "SLA") &&
+                  (lbl === "Hạn hoàn thành" || lbl === "Tình trạng tiến độ") &&
                   selected.trangThai === "Trễ hạn"
                     ? "text-red-500"
                     : "text-slate-800"
@@ -605,6 +655,26 @@ export default function DanhSachGoiThau() {
               </p>
             </div>
           )}
+        </div>
+
+        <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+          <p className="mb-2 text-[10px] font-bold tracking-wide text-slate-400">
+            THÔNG TIN BƯỚC HIỆN TẠI
+          </p>
+          <div className="space-y-2 text-xs">
+            {[
+              ["Người xử lý", processingInfo?.nguoiXuLy || detailInfo.nguoiXuLy || "—"],
+              ["Ngày xử lý", processingInfo?.ngayXuLy || "—"],
+              ["Người ký", processingInfo?.nguoiKyDuyet || "—"],
+              ["Ngày ký", processingInfo?.ngayKyDuyet || "—"],
+              ["Kết quả", processingInfo?.ketQua || "Chờ xử lý"],
+            ].map(([lbl, val]) => (
+              <div key={lbl} className="flex justify-between gap-3">
+                <span className="text-slate-400">{lbl}</span>
+                <span className="text-right font-semibold text-slate-800">{val}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Steps */}
@@ -657,16 +727,19 @@ export default function DanhSachGoiThau() {
         {/* Actions */}
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
           <button
-            onClick={() => goToEdit(selected)}
-            disabled={!canEditGoiThau(selected)}
+            onClick={() => handlePrimaryAction(selected)}
+            disabled={!canEditGoiThau(selected) && !canUpdateCurrentStep(selected)}
             title={
               canEditGoiThau(selected)
-                ? "Chỉnh sửa"
-                : "Chỉ chỉnh sửa gói thầu Nháp hoặc Chờ duyệt"
+                ? "Chỉnh sửa gói thầu"
+                : canUpdateCurrentStep(selected)
+                  ? "Cập nhật bước hiện tại"
+                  : "Không còn thao tác xử lý"
             }
             className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
           >
-            <i className="fa-solid fa-pen text-xs" /> Chỉnh sửa
+            <i className={`fa-solid ${canEditGoiThau(selected) ? "fa-pen" : "fa-clipboard-list"} text-xs`} />
+            {canEditGoiThau(selected) ? "Chỉnh sửa gói thầu" : "Cập nhật bước hiện tại"}
           </button>
           {selected.trangThai !== "Đã hủy" &&
             selected.trangThai !== "Hoàn thành" && (
@@ -681,7 +754,7 @@ export default function DanhSachGoiThau() {
             onClick={() => setHistoryTarget(selected)}
             className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
           >
-            <i className="fa-solid fa-clock-rotate-left text-xs" /> Xem lịch sử
+            <i className="fa-solid fa-clock-rotate-left text-xs" /> Xem lịch sử xử lý
           </button>
           <button
             onClick={() => setDeleteTarget(selected)}
@@ -917,12 +990,18 @@ export default function DanhSachGoiThau() {
                           >
                             <div className="flex items-center justify-center gap-1">
                               <button
-                                title="Chỉnh sửa"
-                                onClick={() => goToEdit(row)}
-                                disabled={!canEditGoiThau(row)}
+                                title={
+                                  canEditGoiThau(row)
+                                    ? "Chỉnh sửa gói thầu"
+                                    : canUpdateCurrentStep(row)
+                                      ? "Cập nhật bước hiện tại"
+                                      : "Không còn thao tác xử lý"
+                                }
+                                onClick={() => handlePrimaryAction(row)}
+                                disabled={!canEditGoiThau(row) && !canUpdateCurrentStep(row)}
                                 className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
-                                <i className="fa-solid fa-pen text-xs" />
+                                <i className={`fa-solid ${canEditGoiThau(row) ? "fa-pen" : "fa-clipboard-list"} text-xs`} />
                               </button>
                               {row.trangThai !== "Đã hủy" &&
                                 row.trangThai !== "Hoàn thành" && (
@@ -1061,6 +1140,7 @@ export default function DanhSachGoiThau() {
           entries={HISTORY_LOGS.filter(
             (entry) => entry.goiThauId === historyTarget.id,
           )}
+          processEntries={getXuLyBuocHistory(historyTarget.id)}
           onClose={() => setHistoryTarget(null)}
         />
       )}

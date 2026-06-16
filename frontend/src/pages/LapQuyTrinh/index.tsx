@@ -208,9 +208,9 @@ export default function LapQuyTrinh() {
     if (!stepForm.loai) errs.loai = "Vui lòng chọn loại bước";
     if (!stepForm.donViPhuTrach) errs.donViPhuTrach = "Vui lòng chọn đơn vị";
     if (!stepForm.slaNgay || stepForm.slaNgay <= 0)
-      errs.slaNgay = "SLA phải lớn hơn 0";
+      errs.slaNgay = "Thời hạn xử lý phải lớn hơn 0";
     else if (!Number.isInteger(Number(stepForm.slaNgay)))
-      errs.slaNgay = "SLA phải là số nguyên";
+      errs.slaNgay = "Thời hạn xử lý phải là số nguyên";
     setStepErrs(errs);
     return Object.keys(errs).length === 0;
   }
@@ -568,7 +568,7 @@ export default function LapQuyTrinh() {
                         </span>
                         <span className="text-[11px] text-slate-500 flex items-center gap-1">
                           <i className="fa-regular fa-clock text-slate-400" />
-                          SLA: {b.slaNgay} ngày
+                          Thời hạn: {b.slaNgay} ngày
                         </span>
                         {b.vaiTroXuLy && (
                           <span className="text-[11px] text-slate-500 flex items-center gap-1">
@@ -808,11 +808,11 @@ export default function LapQuyTrinh() {
                 </div>
               </div>
 
-              {/* SLA + Trạng thái mặc định */}
+              {/* Thời hạn xử lý + Trạng thái mặc định */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>
-                    SLA (số ngày) <span className="text-red-500">*</span>
+                    Thời hạn xử lý (ngày) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"

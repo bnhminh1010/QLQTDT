@@ -38,7 +38,7 @@ export type Buoc = {
   donViPhuTrach: string;
   /** Vai trò người xử lý */
   vaiTroXuLy: string;
-  /** SLA — số ngày xử lý tối đa */
+  /** Thời hạn xử lý — số ngày xử lý tối đa */
   slaNgay: number;
   /** Trạng thái mặc định khi bước bắt đầu */
   trangThaiMacDinh: TrangThaiBuoc;
