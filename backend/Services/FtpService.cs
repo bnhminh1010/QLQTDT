@@ -28,6 +28,7 @@ public partial class FtpService : IFtpService
         }
 
         var normalizedPath = NormalizeRemotePath(remotePath);
+        var safePathForLog = SanitizeForLog(normalizedPath);
 
         try
         {
@@ -37,12 +38,12 @@ public partial class FtpService : IFtpService
             await client.UploadStream(stream, normalizedPath, createRemoteDir: true, token: ct);
 
             long? bytes = stream.CanSeek ? stream.Length : null;
-            _logger.LogInformation("FTP upload completed: {RemotePath}, {Bytes} bytes", normalizedPath, bytes);
+            _logger.LogInformation("FTP upload completed: {RemotePath}, {Bytes} bytes", safePathForLog, bytes);
             return normalizedPath;
         }
         catch (FtpException ex) when (IsPermissionDenied(ex))
         {
-            _logger.LogWarning(ex, "FTP upload permission denied: {RemotePath}", normalizedPath);
+            _logger.LogWarning(ex, "FTP upload permission denied: {RemotePath}", safePathForLog);
             throw new ForbiddenException("Khong co quyen upload file len FTP server.");
         }
     }
@@ -50,6 +51,7 @@ public partial class FtpService : IFtpService
     public async Task<Stream> DownloadAsync(string remotePath, CancellationToken ct = default)
     {
         var normalizedPath = NormalizeRemotePath(remotePath);
+        var safePathForLog = SanitizeForLog(normalizedPath);
 
         try
         {
@@ -70,12 +72,12 @@ public partial class FtpService : IFtpService
             }
 
             memoryStream.Position = 0;
-            _logger.LogInformation("FTP download completed: {RemotePath}, {Bytes} bytes", normalizedPath, memoryStream.Length);
+            _logger.LogInformation("FTP download completed: {RemotePath}, {Bytes} bytes", safePathForLog, memoryStream.Length);
             return memoryStream;
         }
         catch (FtpException ex) when (IsPermissionDenied(ex))
         {
-            _logger.LogWarning(ex, "FTP download permission denied: {RemotePath}", normalizedPath);
+            _logger.LogWarning(ex, "FTP download permission denied: {RemotePath}", safePathForLog);
             throw new ForbiddenException("Khong co quyen download file tu FTP server.");
         }
     }
@@ -83,6 +85,7 @@ public partial class FtpService : IFtpService
     public async Task DeleteAsync(string remotePath, CancellationToken ct = default)
     {
         var normalizedPath = NormalizeRemotePath(remotePath);
+        var safePathForLog = SanitizeForLog(normalizedPath);
 
         try
         {
@@ -95,11 +98,11 @@ public partial class FtpService : IFtpService
             }
 
             await client.DeleteFile(normalizedPath, ct);
-            _logger.LogInformation("FTP delete completed: {RemotePath}", normalizedPath);
+            _logger.LogInformation("FTP delete completed: {RemotePath}", safePathForLog);
         }
         catch (FtpException ex) when (IsPermissionDenied(ex))
         {
-            _logger.LogWarning(ex, "FTP delete permission denied: {RemotePath}", normalizedPath);
+            _logger.LogWarning(ex, "FTP delete permission denied: {RemotePath}", safePathForLog);
             throw new ForbiddenException("Khong co quyen xoa file tren FTP server.");
         }
     }
@@ -161,6 +164,16 @@ public partial class FtpService : IFtpService
         }
 
         return normalized;
+    }
+
+    private static string SanitizeForLog(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Replace("\r", string.Empty).Replace("\n", string.Empty);
     }
 
     private static FtpEncryptionMode ParseEncryptionMode(string? value)

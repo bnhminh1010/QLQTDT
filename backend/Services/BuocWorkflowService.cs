@@ -4,18 +4,28 @@ using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
+using System.Text.RegularExpressions;
 
 namespace QLQTDT.Api.Services;
 
 public class BuocWorkflowService : IBuocWorkflowService
 {
     private readonly AppDbContext _context;
+
     private readonly ILogger<BuocWorkflowService> _logger;
 
     public BuocWorkflowService(AppDbContext context, ILogger<BuocWorkflowService> logger)
     {
         _context = context;
         _logger = logger;
+    }
+
+    private static string SanitizeForLog(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return string.Empty;
+
+        return Regex.Replace(input, @"\r\n?|\n", " ");
     }
 
     public async Task<List<BuocWorkflowListItemDto>> GetStepsByWorkflowIdAsync(int workflowId)
@@ -84,7 +94,7 @@ public class BuocWorkflowService : IBuocWorkflowService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Created step: id={StepId}, ma={MaBuoc}, workflow={WorkflowId}",
-            entity.Id, entity.MaBuoc, workflowId);
+            entity.Id, SanitizeForLog(entity.MaBuoc), workflowId);
 
         return new BuocWorkflowListItemDto
         {
@@ -238,7 +248,7 @@ public class BuocWorkflowService : IBuocWorkflowService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Created transition: id={TransId}, tu={TuBuoc}, den={DenBuoc}, action={HanhDong}",
-            entity.Id, entity.TuBuocId, entity.DenBuocId, entity.HanhDong);
+            entity.Id, entity.TuBuocId, entity.DenBuocId, SanitizeForLog(entity.HanhDong));
 
         return new ChuyenTiepWorkflowListItemDto
         {

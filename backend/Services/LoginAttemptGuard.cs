@@ -68,6 +68,15 @@ public class LoginAttemptGuard
     }
 
     /// <summary>
+    /// Loại bỏ ký tự xuống dòng để tránh log forging khi ghi dữ liệu từ user input.
+    /// </summary>
+    private static string SanitizeForLog(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        return value.Replace("\r", string.Empty).Replace("\n", string.Empty);
+    }
+
+    /// <summary>
     /// Ghi nhận lần đăng nhập sai.
     /// SemaphoreSlim đảm bảo atomic increment (single-instance).
     /// BaseCount restore từ DB khi cache miss (không mất lịch sử sau restart).
@@ -101,9 +110,10 @@ public class LoginAttemptGuard
                 lockoutEnd = DateTime.UtcNow.Add(LockoutDuration);
                 _cache.Set(LockoutCacheKey(identifier), true, LockoutDuration);
                 _cache.Remove(AttemptsCacheKey(identifier));
+                var safeIdentifier = SanitizeForLog(identifier);
                 _logger.LogWarning(
                     "Brute-force lockout: {Identifier} bị khóa đến {LockoutEnd}",
-                    identifier, lockoutEnd);
+                    safeIdentifier, lockoutEnd);
             }
 
             // await DB UPSERT — không fire-and-forget

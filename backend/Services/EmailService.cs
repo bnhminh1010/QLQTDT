@@ -21,6 +21,7 @@ public class EmailService : IEmailService
         var smtpUser = Environment.GetEnvironmentVariable("SMTP_USER") ?? "";
         var smtpPass = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? "";
         var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:5173";
+        var maskedEmail = MaskEmailForLogging(toEmail);
 
         var resetLink = $"{frontendUrl}/reset-password?token={resetToken}";
 
@@ -56,12 +57,30 @@ public class EmailService : IEmailService
             await client.AuthenticateAsync(smtpUser, smtpPass);
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
-            _logger.LogInformation("Password reset email sent to {Email}", toEmail);
+            _logger.LogInformation("Password reset email sent to {Email}", maskedEmail);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send password reset email to {Email}", toEmail);
+            _logger.LogError(ex, "Failed to send password reset email to {Email}", maskedEmail);
             // Không throw lỗi để tránh rò rỉ thông tin email có tồn tại hay không
         }
+    }
+
+    private static string MaskEmailForLogging(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return "***";
+        }
+
+        var atIndex = email.IndexOf('@');
+        if (atIndex <= 1 || atIndex == email.Length - 1)
+        {
+            return "***";
+        }
+
+        var local = email[..atIndex];
+        var domain = email[(atIndex + 1)..];
+        return $"{local[0]}***@{domain}";
     }
 }

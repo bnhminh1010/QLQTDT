@@ -113,9 +113,13 @@ public class WorkflowEngineService : IWorkflowEngineService
             await _db.SaveChangesAsync();
             await txn.CommitAsync();
 
+            var sanitizedAction = request.HanhDong.ToString()
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty);
+
             _logger.LogInformation(
                 "ProcessStep: goiThauId={GoiThauId}, instanceId={InstanceId}, action={Action}, stepId={StepId}, userId={UserId}",
-                goiThauId, lockedInstance.Id, request.HanhDong, lockedStep.Id, currentUserId);
+                goiThauId, lockedInstance.Id, sanitizedAction, lockedStep.Id, currentUserId);
 
             return response;
         }

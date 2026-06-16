@@ -143,7 +143,7 @@ public class AuthService : IAuthService
         if (user == null)
         {
             // Email Enumeration Protection — không tiết lộ email không tồn tại
-            _logger.LogInformation("Forgot password requested for non-existent email: {Email}", normalizedEmail);
+            _logger.LogInformation("Forgot password requested for a non-existent email account.");
             return;
         }
 
