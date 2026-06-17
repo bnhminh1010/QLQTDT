@@ -22,7 +22,12 @@ const inputErrCls =
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
 /* ─── Component ─────────────────────────────────────── */
-export function ThemKhoaPhongModal({ existingIds, existingNames, onSave, onClose }: Props) {
+export function ThemKhoaPhongModal({
+  existingIds,
+  existingNames,
+  onSave,
+  onClose,
+}: Props) {
   const {
     register,
     handleSubmit,
@@ -232,13 +237,12 @@ export function ThemKhoaPhongModal({ existingIds, existingNames, onSave, onClose
           {/* Đơn vị cha */}
           <div>
             <label className={labelCls}>Đơn vị cha</label>
-            <select
-              className={inputCls}
-              {...register("donViCha")}
-            >
+            <select className={inputCls} {...register("donViCha")}>
               <option value="">-- Không có đơn vị cha --</option>
               {existingNames.map((n) => (
-                <option key={n} value={n}>{n}</option>
+                <option key={n} value={n}>
+                  {n}
+                </option>
               ))}
             </select>
           </div>

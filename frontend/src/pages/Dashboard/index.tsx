@@ -3,13 +3,20 @@ import { useNavigate } from "react-router-dom";
 
 /* ─ RBAC ─ */
 const MOCK_CURRENT_ROLE = "Admin"; // "Admin" | "Quản lý" | "Nhân viên"
-const CAN_CREATE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
-const CAN_APPROVE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const CAN_CREATE =
+  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const CAN_APPROVE =
+  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
 
 type BadgeStatus = "Đang xử lý" | "Hoàn thành" | "Trễ hạn" | "Chờ duyệt";
 type BarColor = "blue" | "green" | "red" | "amber";
 type DotState = "done" | "warn" | "idle";
-type StepStatus = "Hoàn tất" | "Đang xử lý" | "Trễ hạn" | "Chờ ký duyệt" | "Chưa bắt đầu";
+type StepStatus =
+  | "Hoàn tất"
+  | "Đang xử lý"
+  | "Trễ hạn"
+  | "Chờ ký duyệt"
+  | "Chưa bắt đầu";
 type WorkflowStep = {
   state: DotState;
   name: string;
@@ -85,12 +92,60 @@ const TABLE_ROWS: TableRow[] = [
     currentResult: "Chờ ký duyệt",
     progressStatus: "Đúng hạn",
     steps: [
-      { state: "done", name: "1. Đề xuất mua sắm", processor: "K/p mua sắm", status: "Hoàn tất", sla: "2 ngày", nguoiKy: "Trần Văn B", ngayKy: "08/01/2025" },
-      { state: "done", name: "2. Tờ trình chủ trương", processor: "K/p mua sắm", status: "Hoàn tất", sla: "3 ngày", nguoiKy: "Trần Văn B", ngayKy: "12/01/2025" },
-      { state: "done", name: "3. Đăng tải yêu cầu báo giá", processor: "K/p mua sắm", status: "Hoàn tất", sla: "1 ngày", nguoiKy: "Trần Văn B", ngayKy: "14/01/2025" },
-      { state: "done", name: "4. Biên bản kiểm tra báo giá", processor: "Tổ kiểm tra giá", status: "Hoàn tất", sla: "2 ngày", nguoiKy: "Trần Văn B", ngayKy: "18/01/2025" },
-      { state: "warn", name: "5. Tờ trình phê duyệt dự toán", processor: "K/p mua sắm", status: "Chờ ký duyệt", sla: "2 ngày", ngayXuLy: "10/04/2025", nguoiKy: "Chưa cập nhật", ngayKy: "--", ketQua: "Chờ ký duyệt" },
-      { state: "idle", name: "6. QĐ phê duyệt dự toán", processor: "Giám đốc BV", status: "Chưa bắt đầu", sla: "1 ngày" },
+      {
+        state: "done",
+        name: "1. Đề xuất mua sắm",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "2 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "08/01/2025",
+      },
+      {
+        state: "done",
+        name: "2. Tờ trình chủ trương",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "3 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "12/01/2025",
+      },
+      {
+        state: "done",
+        name: "3. Đăng tải yêu cầu báo giá",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "1 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "14/01/2025",
+      },
+      {
+        state: "done",
+        name: "4. Biên bản kiểm tra báo giá",
+        processor: "Tổ kiểm tra giá",
+        status: "Hoàn tất",
+        sla: "2 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "18/01/2025",
+      },
+      {
+        state: "warn",
+        name: "5. Tờ trình phê duyệt dự toán",
+        processor: "K/p mua sắm",
+        status: "Chờ ký duyệt",
+        sla: "2 ngày",
+        ngayXuLy: "10/04/2025",
+        nguoiKy: "Chưa cập nhật",
+        ngayKy: "--",
+        ketQua: "Chờ ký duyệt",
+      },
+      {
+        state: "idle",
+        name: "6. QĐ phê duyệt dự toán",
+        processor: "Giám đốc BV",
+        status: "Chưa bắt đầu",
+        sla: "1 ngày",
+      },
     ],
   },
   {
@@ -113,13 +168,69 @@ const TABLE_ROWS: TableRow[] = [
     currentResult: "Hoàn tất",
     progressStatus: "Đúng hạn",
     steps: [
-      { state: "done", name: "1. Đề xuất mua sắm", processor: "K/p mua sắm", status: "Hoàn tất", sla: "2 ngày", nguoiKy: "Trần Văn B", ngayKy: "16/01/2025" },
-      { state: "done", name: "2. Tờ trình chủ trương", processor: "K/p mua sắm", status: "Hoàn tất", sla: "3 ngày", nguoiKy: "Trần Văn B", ngayKy: "18/01/2025" },
-      { state: "done", name: "3. Đăng tải yêu cầu báo giá", processor: "K/p mua sắm", status: "Hoàn tất", sla: "1 ngày", nguoiKy: "Trần Văn B", ngayKy: "20/01/2025" },
-      { state: "done", name: "4. Biên bản kiểm tra báo giá", processor: "Tổ kiểm tra giá", status: "Hoàn tất", sla: "2 ngày", nguoiKy: "Trần Văn B", ngayKy: "24/01/2025" },
-      { state: "done", name: "5. Tờ trình phê duyệt dự toán", processor: "K/p mua sắm", status: "Hoàn tất", sla: "2 ngày", nguoiKy: "Trần Văn B", ngayKy: "26/01/2025" },
-      { state: "done", name: "6. QĐ phê duyệt dự toán", processor: "Giám đốc BV", status: "Hoàn tất", sla: "1 ngày", nguoiKy: "Trần Văn B", ngayKy: "28/01/2025" },
-      { state: "done", name: "7. Hoàn tất", processor: "Ban giám đốc", status: "Hoàn tất", sla: "0 ngày", nguoiKy: "Trần Văn B", ngayKy: "28/02/2025" },
+      {
+        state: "done",
+        name: "1. Đề xuất mua sắm",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "2 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "16/01/2025",
+      },
+      {
+        state: "done",
+        name: "2. Tờ trình chủ trương",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "3 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "18/01/2025",
+      },
+      {
+        state: "done",
+        name: "3. Đăng tải yêu cầu báo giá",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "1 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "20/01/2025",
+      },
+      {
+        state: "done",
+        name: "4. Biên bản kiểm tra báo giá",
+        processor: "Tổ kiểm tra giá",
+        status: "Hoàn tất",
+        sla: "2 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "24/01/2025",
+      },
+      {
+        state: "done",
+        name: "5. Tờ trình phê duyệt dự toán",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "2 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "26/01/2025",
+      },
+      {
+        state: "done",
+        name: "6. QĐ phê duyệt dự toán",
+        processor: "Giám đốc BV",
+        status: "Hoàn tất",
+        sla: "1 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "28/01/2025",
+      },
+      {
+        state: "done",
+        name: "7. Hoàn tất",
+        processor: "Ban giám đốc",
+        status: "Hoàn tất",
+        sla: "0 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "28/02/2025",
+      },
     ],
   },
   {
@@ -144,9 +255,33 @@ const TABLE_ROWS: TableRow[] = [
     currentResult: "Đang xử lý",
     progressStatus: "Quá hạn",
     steps: [
-      { state: "done", name: "1. Đề xuất mua sắm", processor: "K/p mua sắm", status: "Hoàn tất", sla: "2 ngày", nguoiKy: "Trần Văn B", ngayKy: "08/03/2025" },
-      { state: "done", name: "2. Tờ trình chủ trương", processor: "K/p mua sắm", status: "Hoàn tất", sla: "3 ngày", nguoiKy: "Trần Văn B", ngayKy: "12/03/2025" },
-      { state: "done", name: "3. Đăng tải yêu cầu báo giá", processor: "K/p mua sắm", status: "Hoàn tất", sla: "1 ngày", nguoiKy: "Trần Văn B", ngayKy: "15/03/2025" },
+      {
+        state: "done",
+        name: "1. Đề xuất mua sắm",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "2 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "08/03/2025",
+      },
+      {
+        state: "done",
+        name: "2. Tờ trình chủ trương",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "3 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "12/03/2025",
+      },
+      {
+        state: "done",
+        name: "3. Đăng tải yêu cầu báo giá",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "1 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "15/03/2025",
+      },
       {
         state: "warn",
         name: "4. Biên bản kiểm tra báo giá",
@@ -159,7 +294,15 @@ const TABLE_ROWS: TableRow[] = [
         ketQua: "Đang xử lý",
         reason: "Quá hạn 21 ngày do chưa hoàn tất kiểm tra, đối chiếu báo giá.",
       },
-      { state: "idle", name: "5. Tờ trình phê duyệt dự toán", processor: "K/p mua sắm", status: "Chờ ký duyệt", sla: "2 ngày", nguoiKy: "Chưa cập nhật", ngayKy: "--" },
+      {
+        state: "idle",
+        name: "5. Tờ trình phê duyệt dự toán",
+        processor: "K/p mua sắm",
+        status: "Chờ ký duyệt",
+        sla: "2 ngày",
+        nguoiKy: "Chưa cập nhật",
+        ngayKy: "--",
+      },
     ],
   },
   {
@@ -182,10 +325,40 @@ const TABLE_ROWS: TableRow[] = [
     currentResult: "Chờ ký duyệt",
     progressStatus: "Sắp quá hạn",
     steps: [
-      { state: "done", name: "1. Đề xuất mua sắm", processor: "K/p mua sắm", status: "Hoàn tất", sla: "2 ngày", nguoiKy: "Trần Văn B", ngayKy: "22/03/2025" },
-      { state: "warn", name: "2. Tờ trình chủ trương", processor: "K/p mua sắm", status: "Chờ ký duyệt", sla: "3 ngày", ngayXuLy: "25/03/2025", nguoiKy: "Chưa cập nhật", ngayKy: "--", ketQua: "Chờ ký duyệt" },
-      { state: "idle", name: "3. Đăng tải yêu cầu báo giá", processor: "K/p mua sắm", status: "Chưa bắt đầu", sla: "1 ngày" },
-      { state: "idle", name: "4. Biên bản kiểm tra báo giá", processor: "Tổ kiểm tra giá", status: "Chưa bắt đầu", sla: "2 ngày" },
+      {
+        state: "done",
+        name: "1. Đề xuất mua sắm",
+        processor: "K/p mua sắm",
+        status: "Hoàn tất",
+        sla: "2 ngày",
+        nguoiKy: "Trần Văn B",
+        ngayKy: "22/03/2025",
+      },
+      {
+        state: "warn",
+        name: "2. Tờ trình chủ trương",
+        processor: "K/p mua sắm",
+        status: "Chờ ký duyệt",
+        sla: "3 ngày",
+        ngayXuLy: "25/03/2025",
+        nguoiKy: "Chưa cập nhật",
+        ngayKy: "--",
+        ketQua: "Chờ ký duyệt",
+      },
+      {
+        state: "idle",
+        name: "3. Đăng tải yêu cầu báo giá",
+        processor: "K/p mua sắm",
+        status: "Chưa bắt đầu",
+        sla: "1 ngày",
+      },
+      {
+        state: "idle",
+        name: "4. Biên bản kiểm tra báo giá",
+        processor: "Tổ kiểm tra giá",
+        status: "Chưa bắt đầu",
+        sla: "2 ngày",
+      },
     ],
   },
 ];
@@ -428,10 +601,42 @@ export default function Dashboard() {
           {/* KPI */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             {[
-              ["fa-box-archive", "gray", "TỔNG GÓI THẦU", "24", "năm 2025", "text-slate-800", ""],
-              ["fa-hourglass-half", "blue", "ĐANG XỬ LÝ", "8", "gói", "text-blue-600", "Đang xử lý"],
-              ["fa-triangle-exclamation", "red", "TRỄ HẠN", "3", "cần xử lý gấp", "text-red-500", "Trễ hạn"],
-              ["fa-circle-check", "green", "HOÀN THÀNH", "13", "gói", "text-emerald-600", "Hoàn thành"],
+              [
+                "fa-box-archive",
+                "gray",
+                "TỔNG GÓI THẦU",
+                "24",
+                "năm 2025",
+                "text-slate-800",
+                "",
+              ],
+              [
+                "fa-hourglass-half",
+                "blue",
+                "ĐANG XỬ LÝ",
+                "8",
+                "gói",
+                "text-blue-600",
+                "Đang xử lý",
+              ],
+              [
+                "fa-triangle-exclamation",
+                "red",
+                "TRỄ HẠN",
+                "3",
+                "cần xử lý gấp",
+                "text-red-500",
+                "Trễ hạn",
+              ],
+              [
+                "fa-circle-check",
+                "green",
+                "HOÀN THÀNH",
+                "13",
+                "gói",
+                "text-emerald-600",
+                "Hoàn thành",
+              ],
             ].map(([icon, color, lbl, val, sub, valCls, targetStatus]) => (
               <button
                 key={lbl}
@@ -460,7 +665,9 @@ export default function Dashboard() {
                   <div className="text-[10px] font-bold text-slate-400 tracking-wide">
                     {lbl}
                   </div>
-                  <div className={`text-2xl font-extrabold ${valCls}`}>{val}</div>
+                  <div className={`text-2xl font-extrabold ${valCls}`}>
+                    {val}
+                  </div>
                   <div className="text-xs text-slate-400">{sub}</div>
                 </div>
               </button>
@@ -485,7 +692,9 @@ export default function Dashboard() {
                 </div>
                 <select
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value as BadgeStatus | "")}
+                  onChange={(e) =>
+                    setFilterStatus(e.target.value as BadgeStatus | "")
+                  }
                   className="border border-slate-200 rounded-lg text-xs px-2 py-1.5 bg-white focus:outline-none"
                 >
                   <option value="">Tất cả trạng thái</option>
@@ -510,7 +719,10 @@ export default function Dashboard() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-10 text-slate-400 text-sm">
+                      <td
+                        colSpan={5}
+                        className="text-center py-10 text-slate-400 text-sm"
+                      >
                         Không tìm thấy gói thầu phù hợp.
                       </td>
                     </tr>
@@ -526,8 +738,12 @@ export default function Dashboard() {
                           <td className="px-5 py-3 font-mono text-xs text-blue-700 font-bold">
                             {row.code}
                           </td>
-                          <td className="px-5 py-3 text-slate-800">{row.name}</td>
-                          <td className="px-5 py-3 text-slate-500">{row.unit}</td>
+                          <td className="px-5 py-3 text-slate-800">
+                            {row.name}
+                          </td>
+                          <td className="px-5 py-3 text-slate-500">
+                            {row.unit}
+                          </td>
                           <td className="px-5 py-3">
                             <Badge label={row.status} />
                           </td>
@@ -550,61 +766,63 @@ export default function Dashboard() {
 
           {/* APPROVAL — only visible to Admin/Quản lý */}
           {CAN_APPROVE && (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100">
-              <span className="font-semibold text-slate-800 text-sm">
-                Bước cần phê duyệt hôm nay
-              </span>
-            </div>
-            <div className="divide-y divide-slate-100">
-              {APPROVAL_ITEMS.map((item) => (
-                <button
-                  key={item.code}
-                  type="button"
-                  onClick={() => {
-                    const idx = TABLE_ROWS.findIndex((row) => row.code === item.code);
-                    if (idx >= 0) setSelectedIdx(idx);
-                  }}
-                  className={`flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-50 ${
-                    item.overdue ? "bg-red-50/30" : ""
-                  }`}
-                >
-                  <div
-                    className={`mt-0.5 w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                      item.color === "blue"
-                        ? "bg-blue-100 text-blue-600"
-                        : "bg-orange-100 text-orange-500"
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-slate-100">
+                <span className="font-semibold text-slate-800 text-sm">
+                  Bước cần phê duyệt hôm nay
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {APPROVAL_ITEMS.map((item) => (
+                  <button
+                    key={item.code}
+                    type="button"
+                    onClick={() => {
+                      const idx = TABLE_ROWS.findIndex(
+                        (row) => row.code === item.code,
+                      );
+                      if (idx >= 0) setSelectedIdx(idx);
+                    }}
+                    className={`flex w-full items-start gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-50 ${
+                      item.overdue ? "bg-red-50/30" : ""
                     }`}
                   >
-                    <i className={item.icon} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-slate-800">
-                      {item.title} – {item.code}
+                    <div
+                      className={`mt-0.5 w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                        item.color === "blue"
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-orange-100 text-orange-500"
+                      }`}
+                    >
+                      <i className={item.icon} />
                     </div>
-                    <div className="mt-1 grid gap-0.5 text-xs">
-                      <div className="flex gap-1.5 text-slate-600">
-                        <span className="text-slate-400">Người xử lý:</span>
-                        <span className="font-medium">{item.handler}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-slate-800">
+                        {item.title} – {item.code}
                       </div>
-                      <div className="flex gap-1.5 text-slate-600">
-                        <span className="text-slate-400">Đơn vị:</span>
-                        <span className="font-medium">{item.unit}</span>
-                      </div>
-                      <div
-                        className={`font-semibold ${
-                          item.overdue ? "text-red-500" : "text-blue-600"
-                        }`}
-                      >
-                        {item.sla}
+                      <div className="mt-1 grid gap-0.5 text-xs">
+                        <div className="flex gap-1.5 text-slate-600">
+                          <span className="text-slate-400">Người xử lý:</span>
+                          <span className="font-medium">{item.handler}</span>
+                        </div>
+                        <div className="flex gap-1.5 text-slate-600">
+                          <span className="text-slate-400">Đơn vị:</span>
+                          <span className="font-medium">{item.unit}</span>
+                        </div>
+                        <div
+                          className={`font-semibold ${
+                            item.overdue ? "text-red-500" : "text-blue-600"
+                          }`}
+                        >
+                          {item.sla}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <Badge label={item.status} />
-                </button>
-              ))}
+                    <Badge label={item.status} />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
           )}
         </main>
 
@@ -658,7 +876,11 @@ export default function Dashboard() {
                 ["Bước hiện tại", selected.currentStep, ""],
                 ["Nguồn vốn", selected.nguonVon, ""],
                 ["Ngày tạo", selected.ngayTao, ""],
-                ["Hạn hoàn thành", selected.hanHT, selected.status === "Trễ hạn" ? "text-red-500" : ""],
+                [
+                  "Hạn hoàn thành",
+                  selected.hanHT,
+                  selected.status === "Trễ hạn" ? "text-red-500" : "",
+                ],
               ] as [string, string, string][]
             ).map(([lbl, val, cls]) => (
               <div key={lbl} className="flex justify-between text-xs">
@@ -678,7 +900,9 @@ export default function Dashboard() {
               ].map(([lbl, val]) => (
                 <div key={lbl} className="flex justify-between gap-3 text-xs">
                   <span className="text-slate-400">{lbl}</span>
-                  <span className="font-semibold text-slate-800 text-right">{val}</span>
+                  <span className="font-semibold text-slate-800 text-right">
+                    {val}
+                  </span>
                 </div>
               ))}
             </div>
@@ -687,15 +911,18 @@ export default function Dashboard() {
               <span className="text-slate-400">Tình trạng tiến độ</span>
               {selected.progressStatus === "Quá hạn" ? (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-semibold text-[11px]">
-                  <i className="fa-solid fa-circle-exclamation text-[10px]" /> Quá hạn
+                  <i className="fa-solid fa-circle-exclamation text-[10px]" />{" "}
+                  Quá hạn
                 </span>
               ) : selected.progressStatus === "Đúng hạn" ? (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 font-semibold text-[11px]">
-                  <i className="fa-solid fa-circle-check text-[10px]" /> {selected.progressStatus}
+                  <i className="fa-solid fa-circle-check text-[10px]" />{" "}
+                  {selected.progressStatus}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold text-[11px]">
-                  <i className="fa-solid fa-clock text-[10px]" /> {selected.progressStatus}
+                  <i className="fa-solid fa-clock text-[10px]" />{" "}
+                  {selected.progressStatus}
                 </span>
               )}
             </div>
@@ -713,7 +940,9 @@ export default function Dashboard() {
               >
                 <Dot state={step.state} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-slate-800">{step.name}</div>
+                  <div className="text-xs font-medium text-slate-800">
+                    {step.name}
+                  </div>
                   <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
                     <div className="flex justify-between gap-2">
                       <span>Người xử lý</span>

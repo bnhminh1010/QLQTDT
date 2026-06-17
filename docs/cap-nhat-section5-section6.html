@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Báo cáo thay đổi – Popup Thêm/Sửa bước (Lập quy trình)</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#f0f4f8;color:#1e293b;padding:32px 20px}
+    .page-header{background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;border-radius:16px;padding:28px 32px;margin-bottom:28px}
+    .page-header h1{font-size:22px;font-weight:800;margin-bottom:6px}
+    .page-header p{font-size:13px;opacity:.85}
+    .toc{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin-bottom:24px}
+    .toc h2{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+    .toc ol{padding-left:18px;font-size:13px;color:#334155;line-height:2}
+    .toc a{color:#1d4ed8;text-decoration:none}
+    .toc a:hover{text-decoration:underline}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:20px}
+    .card-header{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #f1f5f9}
+    .card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .icon-blue{background:#dbeafe}.icon-green{background:#dcfce7}.icon-purple{background:#f3e8ff}.icon-orange{background:#ffedd5}
+    .card-title{font-size:16px;font-weight:700;color:#0f172a}
+    .card-sub{font-size:12px;color:#64748b;margin-top:2px}
+    .item{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+    .num{flex-shrink:0;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+    .num-blue{background:#dbeafe;color:#1d4ed8}.num-green{background:#dcfce7;color:#166534}
+    .num-red{background:#fee2e2;color:#b91c1c}.num-orange{background:#ffedd5;color:#c2410c}
+    .num-purple{background:#f3e8ff;color:#7c3aed}
+    .body{font-size:13px;line-height:1.7;color:#334155;flex:1}
+    .body b{color:#0f172a}
+    code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 6px;font-size:12px;font-family:monospace;color:#7c3aed}
+    .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;margin-right:4px;vertical-align:middle}
+    .tag-new{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
+    .tag-fix{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+    .tag-rm{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+    .tag-logic{background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe}
+    ul.sub{margin:6px 0 0 0;padding-left:20px;font-size:12.5px;color:#475569;line-height:1.9;list-style:disc}
+    hr.div{border:none;border-top:1px solid #f1f5f9;margin:14px 0}
+    table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+    th{background:#f8fafc;color:#475569;font-weight:600;padding:8px 12px;text-align:left;border:1px solid #e2e8f0}
+    td{padding:8px 12px;border:1px solid #e2e8f0;color:#334155;vertical-align:top}
+    .rule-box{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#78350f;line-height:1.9;margin-top:8px}
+    .file-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;font-size:12px;color:#334155}
+    .file-box code{font-size:12px;color:#0f172a;background:none;border:none;padding:0}
+    .section-label{display:inline-block;background:#1d4ed8;color:#fff;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;margin-bottom:8px}
+    .green-label{background:#15803d}
+    .purple-label{background:#7c3aed}
+    .orange-label{background:#c2410c}
+    .default-badge{background:#e2e8f0;color:#334155;font-size:11px;padding:1px 7px;border-radius:999px;font-weight:600}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="page-header">
+  <h1>📋 Báo cáo thay đổi — Popup Thêm / Sửa bước (Lập quy trình)</h1>
+  <p>Tổng hợp toàn bộ thay đổi từ đầu đến cuối &nbsp;|&nbsp; Ngày: 17–18/06/2026 &nbsp;|&nbsp; Tester review</p>
+</div>
+
+<!-- MỤC LỤC -->
+<div class="toc">
+  <h2>Mục lục</h2>
+  <ol>
+    <li><a href="#s-type">Kiểu dữ liệu (quyTrinhService.ts)</a></li>
+    <li><a href="#s-const">Hằng số / dropdown options</a></li>
+    <li><a href="#s-modal">Cấu trúc popup — 6 Section</a></li>
+    <li><a href="#s1">Section 1 – Thông tin bước</a></li>
+    <li><a href="#s2">Section 2 – Đơn vị xử lý</a></li>
+    <li><a href="#s3">Section 3 – Thời hạn</a></li>
+    <li><a href="#s4">Section 4 – Ký duyệt</a></li>
+    <li><a href="#s5">Section 5 – Điều kiện chuyển tiếp</a></li>
+    <li><a href="#s6">Section 6 – Nhánh song song</a></li>
+    <li><a href="#s-validate">Validation tổng hợp</a></li>
+    <li><a href="#s-list">Hiển thị danh sách bước</a></li>
+    <li><a href="#s-files">Tóm tắt file đã chỉnh</a></li>
+  </ol>
+</div>
+
+<!-- ① KIỂU DỮ LIỆU -->
+<div class="card" id="s-type">
+  <div class="card-header">
+    <div class="card-icon icon-purple">🧩</div>
+    <div><div class="card-title">① Kiểu dữ liệu — quyTrinhService.ts</div><div class="card-sub">Type definitions mới & cập nhật</div></div>
+  </div>
+
+  <div class="item">
+    <div class="num num-red">1</div>
+    <div class="body">
+      <span class="tag tag-fix">SỬA</span> <b>LoaiBuoc</b> — mở rộng từ 3 → 7 loại
+      <ul class="sub">
+        <li>Giữ: <code>Bắt đầu</code>, <code>Thường</code>, <code>Kết thúc</code></li>
+        <li>Thêm mới: <code>Ký duyệt</code>, <code>Đăng tải</code>, <code>Đánh giá/kiểm tra</code>, <code>Hợp đồng</code></li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-red">2</div>
+    <div class="body">
+      <span class="tag tag-fix">SỬA</span> <b>TrangThaiBuoc</b>
+      <table><tr><th>Cũ</th><th>Mới</th></tr>
+      <tr><td><code>Đang xử lý</code> | <code>Chờ duyệt</code> | <code>Hoàn tất</code></td>
+      <td><code>Chưa bắt đầu</code> | <code>Đang xử lý</code> | <code>Chờ ký duyệt</code> | <code>Hoàn thành</code></td></tr></table>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">3</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>LoaiThoiHan</b>
+      <ul class="sub"><li><code>Chỉ cảnh báo quá hạn</code></li><li><code>Bắt buộc hoàn thành trước hạn</code></li></ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">4</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>HanhDongChuyen</b>
+      <ul class="sub">
+        <li><code>Hoàn thành / Duyệt</code> | <code>Không duyệt</code> | <code>Trả về</code> | <code>Yêu cầu bổ sung</code> | <code>Bỏ qua bước</code></li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">5</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>DieuKienKichHoat</b> — 3 giá trị (đã rút gọn từ 6)
+      <ul class="sub">
+        <li><code>Luôn</code> | <code>Theo vai trò</code> | <code>Theo kết quả xử lý</code></li>
+        <li><span class="tag tag-rm">BỎ</span> "Theo trạng thái", "Theo giá trị gói thầu", "Theo loại hình đấu thầu"</li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">6</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>DieuKienChuyenTiep</b> (type object)
+      <ul class="sub">
+        <li><code>id</code>, <code>hanhDong</code>, <code>buocChuyenDenId</code>, <code>dieuKienKichHoat</code></li>
+        <li><code>ketQuaApDung?</code> — dùng khi dieuKienKichHoat = "Theo kết quả xử lý"</li>
+        <li><code>vaiTroApDung?</code> — dùng khi dieuKienKichHoat = "Theo vai trò"</li>
+        <li><code>batBuocGhiChu</code>, <code>batBuocUpload</code></li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">7</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>NhanhSongSong</b> (type object)
+      <ul class="sub">
+        <li><code>id</code>, <code>tenNhanh</code>, <code>donVi</code>, <code>vaiTro</code>, <code>thoiHanNgay</code>, <code>loaiThoiHan</code>, <code>buocDauTienId</code></li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">8</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI/SỬA</span> <b>Buoc</b> — thêm các field sau
+      <table style="margin-top:8px">
+        <tr><th>Field</th><th>Kiểu</th><th>Mô tả</th></tr>
+        <tr><td><code>nhomGiaiDoan?</code></td><td>string</td><td>Nhóm giai đoạn (tùy chọn)</td></tr>
+        <tr><td><code>loaiThoiHan</code></td><td>LoaiThoiHan</td><td>Cảnh báo / Bắt buộc</td></tr>
+        <tr><td><code>coKyDuyet</code></td><td>boolean</td><td>Có yêu cầu ký duyệt</td></tr>
+        <tr><td><code>donViKyHoSo?</code></td><td>string</td><td>Đơn vị kiểm tra/ký hồ sơ</td></tr>
+        <tr><td><code>vaiTroKyDuyet?</code></td><td>string</td><td>Vai trò ký duyệt</td></tr>
+        <tr><td><code>soNgayKyDuyet?</code></td><td>number</td><td>Số ngày ký duyệt</td></tr>
+        <tr><td><code>batBuocKyTruocChuyenBuoc</code></td><td>boolean</td><td>Bắt buộc ký trước khi chuyển</td></tr>
+        <tr><td><code>dieuKienChuyenTiep</code></td><td>DieuKienChuyenTiep[]</td><td>Bảng điều kiện chuyển tiếp</td></tr>
+        <tr><td><code>coNhanhSongSong</code></td><td>boolean</td><td>Có nhánh song song</td></tr>
+        <tr><td><code>nhanhList</code></td><td>NhanhSongSong[]</td><td>Danh sách nhánh</td></tr>
+        <tr><td><code>dieuKienHopNhat</code></td><td>"all"|"any"|"count"</td><td>Điều kiện hợp nhất</td></tr>
+        <tr><td><code>soNhanhHopNhatToiThieu</code></td><td>number</td><td>Tối thiểu khi = "count"</td></tr>
+        <tr><td><code>buocSauHopNhatId?</code></td><td>string</td><td>Bước tiếp sau khi hợp nhất</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ② HẰNG SỐ -->
+<div class="card" id="s-const">
+  <div class="card-header">
+    <div class="card-icon icon-orange">📦</div>
+    <div><div class="card-title">② Hằng số / Dropdown options — index.tsx</div><div class="card-sub">Cập nhật danh sách lựa chọn cho các dropdown</div></div>
+  </div>
+
+  <div class="item">
+    <div class="num num-red">1</div>
+    <div class="body">
+      <span class="tag tag-fix">SỬA</span> <b>DON_VI_OPTIONS</b> (Đơn vị phụ trách) — 12 đơn vị sát thực tế
+      <ul class="sub">
+        <li>K/P mua sắm, K/P sử dụng, Tổ kiểm tra giá, Tổ chuyên gia, Tổ thẩm định</li>
+        <li>Tư vấn LCNT, Tư vấn thẩm định, Chủ đầu tư, CĐT + Nhà thầu, Nhà thầu</li>
+        <li>Nhà thầu tư vấn LCNT, K/P mua sắm hoặc tư vấn LCNT</li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-red">2</div>
+    <div class="body">
+      <span class="tag tag-fix">SỬA</span> <b>VAI_TRO_OPTIONS</b> (Vai trò xử lý) — 10 vai trò, <b>bỏ "Admin"</b>
+      <ul class="sub">
+        <li>Nhân viên K/P mua sắm, Nhân viên K/P sử dụng, Tổ kiểm tra giá, Tổ chuyên gia</li>
+        <li>Tổ thẩm định, Tư vấn LCNT, Tư vấn thẩm định, Chủ đầu tư, Nhà thầu, CĐT + Nhà thầu</li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-red">3</div>
+    <div class="body">
+      <span class="tag tag-fix">SỬA</span> <b>LOAI_BUOC_OPTIONS</b> — 7 loại (theo LoaiBuoc mới)
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-red">4</div>
+    <div class="body">
+      <span class="tag tag-fix">SỬA</span> <b>TRANG_THAI_BUOC_OPTIONS</b> — 4 giá trị mới: <code>Chưa bắt đầu</code> · <code>Đang xử lý</code> · <code>Chờ ký duyệt</code> · <code>Hoàn thành</code>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">5</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>NHOM_GIAI_DOAN_OPTIONS</b> — 6 nhóm
+      <ul class="sub">
+        <li>Pháp lý gói thầu, Tư vấn LCNT, Tư vấn thẩm định, Lựa chọn nhà thầu, Hợp đồng, Nghiệm thu/Thanh lý/Quyết toán</li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">6</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>DON_VI_KY_OPTIONS</b> — 15 đơn vị ký (cho Section 4 Ký duyệt)
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">7</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>VAI_TRO_KY_OPTIONS</b> — 11 vai trò ký (cho Section 4 Ký duyệt)
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">8</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>HANH_DONG_OPTIONS</b> — 5 hành động: <code>Hoàn thành / Duyệt</code> · <code>Không duyệt</code> · <code>Trả về</code> · <code>Yêu cầu bổ sung</code> · <code>Bỏ qua bước</code>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">9</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>DIEU_KIEN_KICH_HOAT_OPTIONS</b> — 3 option: <code>Luôn</code> · <code>Theo vai trò</code> · <code>Theo kết quả xử lý</code>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-green">10</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>KET_QUA_OPTIONS</b> — 3 option: <code>Đạt</code> · <code>Không đạt</code> · <code>Cần bổ sung</code>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item">
+    <div class="num num-red">11</div>
+    <div class="body">
+      <span class="tag tag-fix">SỬA</span> <b>LOAI_BADGE</b> — màu badge cho 7 loại bước
+      <table style="margin-top:8px">
+        <tr><th>Loại</th><th>Màu</th></tr>
+        <tr><td>Bắt đầu</td><td style="background:#dcfce7">xanh lá</td></tr>
+        <tr><td>Thường</td><td style="background:#dbeafe">xanh dương</td></tr>
+        <tr><td>Ký duyệt</td><td style="background:#f3e8ff">tím</td></tr>
+        <tr><td>Đăng tải</td><td style="background:#cffafe">cyan</td></tr>
+        <tr><td>Đánh giá/kiểm tra</td><td style="background:#fef3c7">vàng amber</td></tr>
+        <tr><td>Hợp đồng</td><td style="background:#e0e7ff">indigo</td></tr>
+        <tr><td>Kết thúc</td><td style="background:#fee2e2">đỏ</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ③ CẤU TRÚC POPUP -->
+<div class="card" id="s-modal">
+  <div class="card-header">
+    <div class="card-icon icon-blue">🪟</div>
+    <div><div class="card-title">③ Cấu trúc popup Thêm / Sửa bước</div><div class="card-sub">Tổ chức lại thành 6 section có viền riêng, max-width 2xl</div></div>
+  </div>
+  <div class="body">
+    Popup được tổ chức lại hoàn toàn — từ 1 form đơn thành <b>6 section</b> có border riêng:
+    <ul class="sub">
+      <li>Section 1 — Thông tin bước</li>
+      <li>Section 2 — Đơn vị xử lý</li>
+      <li>Section 3 — Thời hạn</li>
+      <li>Section 4 — Ký duyệt</li>
+      <li>Section 5 — Điều kiện chuyển tiếp</li>
+      <li>Section 6 — Nhánh song song</li>
+    </ul>
+  </div>
+</div>
+
+<!-- S1 -->
+<div class="card" id="s1">
+  <div class="card-header">
+    <div class="card-icon icon-blue">1️⃣</div>
+    <div><div class="card-title">Section 1 — Thông tin bước</div></div>
+  </div>
+  <div class="item"><div class="num num-blue">A</div>
+    <div class="body"><b>Tên bước *</b> — text input, bắt buộc nhập</div></div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-blue">B</div>
+    <div class="body"><b>Loại bước *</b> — 7 nút toggle màu riêng theo loại (không dùng dropdown)</div></div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-blue">C</div>
+    <div class="body"><b>Nhóm giai đoạn</b> (tùy chọn) — dropdown 6 nhóm, có option "-- Chọn nhóm --"</div></div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-blue">D</div>
+    <div class="body"><b>Mô tả</b> — textarea (tùy chọn)</div></div>
+</div>
+
+<!-- S2 -->
+<div class="card" id="s2">
+  <div class="card-header">
+    <div class="card-icon icon-green">2️⃣</div>
+    <div><div class="card-title">Section 2 — Đơn vị xử lý</div></div>
+  </div>
+  <div class="item"><div class="num num-green">A</div>
+    <div class="body"><b>Đơn vị phụ trách / Soạn hồ sơ *</b> — dropdown 12 đơn vị, <b>bắt buộc chọn</b></div></div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-green">B</div>
+    <div class="body"><b>Vai trò xử lý *</b> — dropdown 10 vai trò (bỏ Admin), <b>bắt buộc chọn</b></div></div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-green">C</div>
+    <div class="body"><b>Trạng thái mặc định *</b> — dropdown 4 trạng thái mới, mặc định "Chưa bắt đầu"</div></div>
+</div>
+
+<!-- S3 -->
+<div class="card" id="s3">
+  <div class="card-header">
+    <div class="card-icon icon-orange">3️⃣</div>
+    <div><div class="card-title">Section 3 — Thời hạn</div></div>
+  </div>
+  <div class="item"><div class="num num-orange">A</div>
+    <div class="body">
+      <b>Thời hạn xử lý (ngày) *</b> — number input<br/>
+      <ul class="sub">
+        <li>Cho phép giá trị <code>0</code> và số thập phân (<code>0.5</code>, <code>1.5</code>...)</li>
+        <li>min=0, step=0.5, parse dạng <code>parseFloat</code></li>
+        <li>Validate: phải &ge; 0</li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-orange">B</div>
+    <div class="body">
+      <b>Loại thời hạn *</b> — 2 radio button, <b>bắt buộc chọn</b>
+      <ul class="sub">
+        <li><code>Chỉ cảnh báo quá hạn</code> (mặc định)</li>
+        <li><code>Bắt buộc hoàn thành trước hạn</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S4 -->
+<div class="card" id="s4">
+  <div class="card-header">
+    <div class="card-icon icon-purple">4️⃣</div>
+    <div><div class="card-title">Section 4 — Ký duyệt</div></div>
+  </div>
+  <div class="item"><div class="num num-purple">A</div>
+    <div class="body">
+      <b>Có yêu cầu ký duyệt không? *</b> — 2 radio: <code>Không</code> (mặc định) / <code>Có</code>
+    </div>
+  </div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-purple">B</div>
+    <div class="body">
+      Khi chọn <b>Có</b> → hiện thêm:
+      <ul class="sub">
+        <li><b>Đơn vị kiểm tra/ký hồ sơ *</b> — dropdown 15 đơn vị, bắt buộc chọn</li>
+        <li><b>Vai trò ký duyệt *</b> — dropdown 11 vai trò, bắt buộc chọn</li>
+        <li><b>Số ngày ký duyệt</b> — number, tùy chọn</li>
+        <li><b>Bắt buộc ký trước khi chuyển bước?</b> — radio Có (mặc định) / Không</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- S5 -->
+<div class="card" id="s5">
+  <div class="card-header">
+    <div class="card-icon icon-blue">5️⃣</div>
+    <div><div class="card-title">Section 5 — Điều kiện chuyển tiếp</div><div class="card-sub">Bảng dạng table, thêm/xóa từng dòng</div></div>
+  </div>
+
+  <div class="item"><div class="num num-blue">A</div>
+    <div class="body">
+      <b>Cấu trúc mỗi dòng điều kiện:</b>
+      <ul class="sub">
+        <li><b>Hành động</b> — dropdown 5 giá trị</li>
+        <li><b>Bước chuyển đến</b> — dropdown danh sách bước hiện có</li>
+        <li><b>Điều kiện kích hoạt</b> — dropdown 3 giá trị (Luôn / Theo vai trò / Theo kết quả xử lý)</li>
+        <li>Nút xóa dòng (🗑️)</li>
+        <li>Checkbox <b>Bắt buộc ghi chú</b></li>
+        <li>Checkbox <b>Bắt buộc upload tài liệu</b></li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item"><div class="num num-green">B</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> <b>Field phụ động theo "Điều kiện kích hoạt"</b>
+      <table style="margin-top:8px">
+        <tr><th>Chọn</th><th>Field hiện thêm</th></tr>
+        <tr><td><code>Luôn</code></td><td>Không hiện thêm</td></tr>
+        <tr><td><code>Theo kết quả xử lý</code></td><td><b>Kết quả áp dụng *</b> — Đạt / Không đạt / Cần bổ sung (bắt buộc)</td></tr>
+        <tr><td><code>Theo vai trò</code></td><td><b>Vai trò áp dụng *</b> — dropdown vai trò (bắt buộc)</td></tr>
+      </table>
+      <ul class="sub"><li>Khi đổi điều kiện kích hoạt → tự động xóa giá trị field phụ cũ</li></ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item"><div class="num num-orange">C</div>
+    <div class="body">
+      <span class="tag tag-fix">LOGIC</span> <b>Tự động tick "Bắt buộc ghi chú" và khóa không cho bỏ</b>
+      <div class="rule-box">
+        Khi Hành động là <code>Không duyệt</code> / <code>Trả về</code> / <code>Yêu cầu bổ sung</code>:<br/>
+        ✅ Checkbox "Bắt buộc ghi chú" tự động tick<br/>
+        🔒 Bị <b>disabled</b> — không cho bỏ tick<br/>
+        📌 Hiện nhãn phụ <span style="color:#c2410c">(tự động)</span> màu cam
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- S6 -->
+<div class="card" id="s6">
+  <div class="card-header">
+    <div class="card-icon icon-green">6️⃣</div>
+    <div><div class="card-title">Section 6 — Nhánh song song</div></div>
+  </div>
+
+  <div class="item"><div class="num num-green">A</div>
+    <div class="body">
+      <b>Có tạo nhánh song song?</b> — radio <code>Không</code> (mặc định) / <code>Có</code>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item"><div class="num num-green">B</div>
+    <div class="body">
+      Khi chọn <b>Có</b> → nút "Thêm nhánh" → mỗi nhánh có:
+      <ul class="sub">
+        <li>Tên nhánh, Đơn vị phụ trách, Vai trò</li>
+        <li>Thời hạn (ngày), Loại thời hạn (cảnh báo / bắt buộc)</li>
+        <li>Bước đầu tiên của nhánh (dropdown)</li>
+        <li>Nút xóa nhánh</li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+
+  <div class="item"><div class="num num-green">C</div>
+    <div class="body">
+      <span class="tag tag-new">MỚI</span> Khi số nhánh <b>&ge; 2</b> → hiện thêm 2 field:
+      <br/><br/>
+      <b>Điều kiện hợp nhất *</b> — radio, mặc định "Đợi tất cả nhánh hoàn thành"
+      <ul class="sub">
+        <li><code>Đợi tất cả nhánh hoàn thành</code> (mặc định)</li>
+        <li><code>Chỉ cần một nhánh hoàn thành</code></li>
+        <li><code>Theo số lượng hoàn thành</code> → hiện thêm input số nhánh tối thiểu</li>
+      </ul>
+      <br/>
+      <b>Bước sau khi hợp nhất *</b> — dropdown chọn bước, <b>bắt buộc chọn</b>
+      <ul class="sub">
+        <li>Ví dụ: Nhánh 1 (Lập HSMT) + Nhánh 2 (Báo cáo thẩm định) → Bước sau: <em>Phê duyệt HSMT</em></li>
+        <li>Khi chỉ có 1 nhánh: ẩn cả 2 field này</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- VALIDATE -->
+<div class="card" id="s-validate">
+  <div class="card-header">
+    <div class="card-icon icon-orange">⚠️</div>
+    <div><div class="card-title">⑩ Validation tổng hợp (validateStep)</div><div class="card-sub">Toàn bộ rule kiểm tra khi nhấn Lưu bước</div></div>
+  </div>
+  <table>
+    <tr><th>#</th><th>Điều kiện lỗi</th><th>Thông báo hiển thị</th></tr>
+    <tr><td>1</td><td>Tên bước để trống</td><td>"Vui lòng nhập tên bước"</td></tr>
+    <tr><td>2</td><td>Chưa chọn loại bước</td><td>"Vui lòng chọn loại bước"</td></tr>
+    <tr><td>3</td><td>Chưa chọn đơn vị phụ trách</td><td>"Vui lòng chọn đơn vị phụ trách"</td></tr>
+    <tr><td>4</td><td>Chưa chọn vai trò xử lý</td><td>"Vui lòng chọn vai trò xử lý"</td></tr>
+    <tr><td>5</td><td>Thời hạn &lt; 0 hoặc để trống</td><td>"Thời hạn xử lý phải &ge; 0"</td></tr>
+    <tr><td>6</td><td>Chưa chọn loại thời hạn</td><td>"Vui lòng chọn loại thời hạn"</td></tr>
+    <tr><td>7</td><td>coKyDuyet=true, chưa chọn đơn vị ký</td><td>"Vui lòng chọn đơn vị kiểm tra/ký"</td></tr>
+    <tr><td>8</td><td>coKyDuyet=true, chưa chọn vai trò ký</td><td>"Vui lòng chọn vai trò ký duyệt"</td></tr>
+    <tr><td>9</td><td>Bật nhánh song song nhưng chỉ có 1 nhánh</td><td>"Nhánh song song phải có ít nhất 2 nhánh"</td></tr>
+    <tr><td>10</td><td>&ge; 2 nhánh nhưng chưa chọn Bước sau hợp nhất</td><td>"Vui lòng chọn bước sau khi hợp nhất"</td></tr>
+    <tr><td>11</td><td>ĐK kích hoạt="Theo kết quả xử lý" nhưng chưa chọn Kết quả áp dụng</td><td>"Vui lòng chọn đầy đủ giá trị điều kiện kích hoạt..."</td></tr>
+    <tr><td>12</td><td>ĐK kích hoạt="Theo vai trò" nhưng chưa chọn Vai trò áp dụng</td><td>(cùng thông báo #11)</td></tr>
+  </table>
+</div>
+
+<!-- DANH SÁCH BƯỚC -->
+<div class="card" id="s-list">
+  <div class="card-header">
+    <div class="card-icon icon-blue">📋</div>
+    <div><div class="card-title">⑪ Hiển thị danh sách bước (ngoài popup)</div></div>
+  </div>
+  <div class="item"><div class="num num-blue">A</div>
+    <div class="body"><b>Badge loại bước</b> — dùng 7 màu theo LOAI_BADGE mới (thay vì 3 màu cũ)</div></div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-blue">B</div>
+    <div class="body">
+      Mỗi bước hiển thị thêm:
+      <ul class="sub">
+        <li>Badge <b>nhóm giai đoạn</b> (nếu có)</li>
+        <li>Icon loại thời hạn: 🔒 (bắt buộc) hoặc 🔔 (cảnh báo)</li>
+        <li>Badge <b>Ký duyệt</b> (nếu coKyDuyet=true)</li>
+        <li>Danh sách <b>hành động</b> từ dieuKienChuyenTiep</li>
+      </ul>
+    </div>
+  </div>
+  <hr class="div"/>
+  <div class="item"><div class="num num-blue">C</div>
+    <div class="body"><b>Flow preview</b> — cập nhật theo 7 màu, lấy bước tiếp theo từ <code>dieuKienChuyenTiep[0]</code> hoặc <code>buocTiepTheoId</code></div></div>
+</div>
+
+<!-- FILE TÓM TẮT -->
+<div class="card" id="s-files">
+  <div class="card-header">
+    <div class="card-icon icon-purple">📁</div>
+    <div><div class="card-title">⑫ Tóm tắt file đã chỉnh sửa</div></div>
+  </div>
+  <div class="file-box" style="margin-bottom:12px">
+    <b>frontend/src/pages/DanhSachQuyTrinh/quyTrinhService.ts</b>
+    <ul class="sub">
+      <li>Cập nhật <code>LoaiBuoc</code> (7 loại), <code>TrangThaiBuoc</code> (4 trạng thái)</li>
+      <li>Thêm type: <code>LoaiThoiHan</code>, <code>HanhDongChuyen</code>, <code>DieuKienKichHoat</code> (3 giá trị)</li>
+      <li>Thêm type: <code>DieuKienChuyenTiep</code> (có <code>ketQuaApDung</code>, <code>vaiTroApDung</code>)</li>
+      <li>Thêm type: <code>NhanhSongSong</code></li>
+      <li>Thêm 13 field mới vào <code>Buoc</code> (bao gồm <code>buocSauHopNhatId</code>)</li>
+    </ul>
+  </div>
+  <div class="file-box">
+    <b>frontend/src/pages/LapQuyTrinh/index.tsx</b>
+    <ul class="sub">
+      <li>Cập nhật 4 hằng số, thêm 7 hằng số mới</li>
+      <li>Cập nhật <code>LOAI_BADGE</code> (7 màu)</li>
+      <li>Cập nhật <code>emptyStep()</code>, <code>openEdit()</code> với đầy đủ field mới</li>
+      <li>Cập nhật <code>validateStep()</code> — 12 rule</li>
+      <li>Thay toàn bộ UI popup → 6 section</li>
+      <li>Cập nhật hiển thị danh sách bước</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cập nhật – Section 5 & 6 (Lập quy trình)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f5f7fa; color: #1e293b; padding: 32px 24px; }
+    h1  { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 32px; }
+    .section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .section-title { font-size: 16px; font-weight: 700; color: #1d4ed8; margin-bottom: 16px; display: flex; align-items: center; gap-8px; }
+    .section-title span { font-size: 13px; font-weight: 500; background: #dbeafe; color: #1d4ed8; padding: 2px 10px; border-radius: 999px; margin-left: 8px; }
+    .item { display: flex; gap: 12px; margin-bottom: 12px; }
+    .badge { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .badge-blue  { background: #dbeafe; color: #1d4ed8; }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-red   { background: #fee2e2; color: #b91c1c; }
+    .badge-orange{ background: #ffedd5; color: #c2410c; }
+    .item-body { font-size: 13px; line-height: 1.6; }
+    .item-body strong { color: #0f172a; }
+    .item-body code { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 6px; font-size: 12px; font-family: monospace; color: #7c3aed; }
+    .sub { margin-top: 6px; margin-left: 34px; }
+    .sub li { font-size: 12.5px; color: #475569; margin-bottom: 3px; list-style: disc; margin-left: 16px; }
+    .divider { border: none; border-top: 1px solid #f1f5f9; margin: 16px 0; }
+    .tag-fix    { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 11px; padding: 1px 7px; border-radius: 999px; display: inline-block; margin-bottom: 4px; }
+    .tag-new    { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; font-size: 11px; padding: 1px 7px; border-radius: 999px; display: inline-block; margin-bottom: 4px; }
+    .tag-remove { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 11px; padding: 1px 7px; border-radius: 999px; display: inline-block; margin-bottom: 4px; }
+    .files { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-top: 16px; }
+    .files p { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .files code { font-size: 12px; font-family: monospace; color: #0f172a; }
+    .rule-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 16px; font-size: 12.5px; color: #78350f; line-height: 1.7; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+    th { background: #f1f5f9; color: #475569; font-weight: 600; padding: 8px 12px; text-align: left; border: 1px solid #e2e8f0; }
+    td { padding: 8px 12px; border: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+  </style>
+</head>
+<body>
+
+<h1>📋 Cập nhật: Section 5 &amp; Section 6 – Popup Thêm/Sửa bước</h1>
+<p class="subtitle">File: <code>frontend/src/pages/LapQuyTrinh/index.tsx</code> &nbsp;|&nbsp; Ngày: 17/06/2026</p>
+
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🔵 Section 5 – Điều kiện chuyển tiếp <span>4 thay đổi</span></div>
+
+  <div class="item">
+    <div class="badge badge-red">1</div>
+    <div class="item-body">
+      <span class="tag-remove">BỎ</span> &nbsp;
+      <strong>3 option dư trong "Điều kiện kích hoạt"</strong><br/>
+      Dropdown <em>Điều kiện kích hoạt</em> giờ chỉ còn đúng 3 lựa chọn:
+      <ul class="sub">
+        <li><code>Luôn</code></li>
+        <li><code>Theo vai trò</code></li>
+        <li><code>Theo kết quả xử lý</code> &nbsp;(đổi tên từ "Theo kết quả")</li>
+      </ul>
+      Đã <strong>bỏ hoàn toàn:</strong> "Theo trạng thái", "Theo giá trị gói thầu", "Theo loại hình đấu thầu"
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <div class="item">
+    <div class="badge badge-green">2</div>
+    <div class="item-body">
+      <span class="tag-new">MỚI</span> &nbsp;
+      <strong>Field phụ động theo "Điều kiện kích hoạt"</strong>
+      <table style="margin-top:8px;">
+        <tr><th>Chọn</th><th>Field hiện thêm bên dưới</th></tr>
+        <tr><td><code>Luôn</code></td><td>Không hiện thêm</td></tr>
+        <tr>
+          <td><code>Theo kết quả xử lý</code></td>
+          <td>
+            <strong>Kết quả áp dụng *</strong> (bắt buộc)<br/>
+            Dropdown: Đạt / Không đạt / Cần bổ sung
+          </td>
+        </tr>
+        <tr>
+          <td><code>Theo vai trò</code></td>
+          <td>
+            <strong>Vai trò áp dụng *</strong> (bắt buộc)<br/>
+            Dropdown: danh sách vai trò
+          </td>
+        </tr>
+      </table>
+      <div class="sub" style="margin-top:6px;"><li>Khi đổi sang điều kiện khác → tự động xóa giá trị field phụ cũ</li></div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <div class="item">
+    <div class="badge badge-orange">3</div>
+    <div class="item-body">
+      <span class="tag-fix">BỔ SUNG</span> &nbsp;
+      <strong>Tự động tick "Bắt buộc ghi chú" và khóa không cho bỏ</strong><br/>
+      Khi <em>Hành động</em> là <code>Không duyệt</code>, <code>Trả về</code>, hoặc <code>Yêu cầu bổ sung</code>:
+      <ul class="sub">
+        <li>Checkbox <em>Bắt buộc ghi chú</em> tự động được ✓ tick</li>
+        <li>Bị <strong>disabled</strong> — không cho bỏ tick</li>
+        <li>Hiện nhãn phụ <span style="color:#c2410c;font-size:12px;">(tự động)</span> màu cam</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <div class="item">
+    <div class="badge badge-blue">4</div>
+    <div class="item-body">
+      <span class="tag-fix">VALIDATE</span> &nbsp;
+      <strong>Bắt buộc chọn field phụ khi lưu</strong>
+      <ul class="sub">
+        <li>Nếu chọn <code>Theo kết quả xử lý</code> mà chưa chọn Kết quả áp dụng → lỗi đỏ</li>
+        <li>Nếu chọn <code>Theo vai trò</code> mà chưa chọn Vai trò áp dụng → lỗi đỏ</li>
+        <li>Thông báo lỗi hiển thị ngay dưới bảng điều kiện khi nhấn Lưu</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🟢 Section 6 – Nhánh song song <span>3 thay đổi</span></div>
+
+  <div class="item">
+    <div class="badge badge-green">1</div>
+    <div class="item-body">
+      <span class="tag-new">MỚI</span> &nbsp;
+      <strong>Trường "Bước sau khi hợp nhất *"</strong><br/>
+      Hiển thị ngay dưới <em>Điều kiện hợp nhất</em> — chỉ khi số nhánh &ge; 2.
+      <ul class="sub">
+        <li>Dropdown [-- Chọn bước --] lấy từ danh sách bước hiện có</li>
+        <li><strong>Bắt buộc chọn</strong> — không cho lưu nếu để trống</li>
+        <li>Ví dụ: Nhánh 1 (Lập HSMT) + Nhánh 2 (Báo cáo thẩm định HSMT) → Bước sau khi hợp nhất: <em>Phê duyệt HSMT</em></li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <div class="item">
+    <div class="badge badge-blue">2</div>
+    <div class="item-body">
+      <span class="tag-fix">LOGIC</span> &nbsp;
+      <strong>"Điều kiện hợp nhất" và "Bước sau khi hợp nhất" chỉ hiện khi &ge; 2 nhánh</strong>
+      <ul class="sub">
+        <li>Khi chỉ có 1 nhánh: <strong>ẩn cả 2 field</strong></li>
+        <li>Khi số nhánh &ge; 2: hiện đầy đủ</li>
+        <li>Điều kiện hợp nhất mặc định: <code>Đợi tất cả nhánh hoàn thành</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <div class="item">
+    <div class="badge badge-orange">3</div>
+    <div class="item-body">
+      <span class="tag-fix">VALIDATE</span> &nbsp;
+      <strong>Validation bổ sung khi lưu bước</strong>
+      <div class="rule-box" style="margin-top:8px;">
+        ❌ Không cho lưu nếu bật nhánh song song nhưng chỉ có 1 nhánh<br/>
+        → Thông báo: <em>"Nhánh song song phải có ít nhất 2 nhánh"</em><br/><br/>
+        ❌ Không cho lưu nếu có &ge; 2 nhánh nhưng chưa chọn Bước sau khi hợp nhất<br/>
+        → Thông báo: <em>"Vui lòng chọn bước sau khi hợp nhất"</em>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">⚙️ File đã chỉnh sửa</div>
+  <div class="files">
+    <p><strong>Type / Service</strong></p>
+    <code>frontend/src/pages/DanhSachQuyTrinh/quyTrinhService.ts</code>
+    <ul class="sub">
+      <li>Type <code>DieuKienKichHoat</code>: rút gọn còn 3 giá trị (bỏ 3 option dư)</li>
+      <li>Type <code>DieuKienChuyenTiep</code>: thêm <code>ketQuaApDung?: string</code> và <code>vaiTroApDung?: string</code></li>
+      <li>Type <code>Buoc</code>: thêm <code>buocSauHopNhatId?: string</code></li>
+    </ul>
+    <br/>
+    <p><strong>UI / Logic</strong></p>
+    <code>frontend/src/pages/LapQuyTrinh/index.tsx</code>
+    <ul class="sub">
+      <li>Hằng số <code>DIEU_KIEN_KICH_HOAT_OPTIONS</code>: rút gọn 3 option</li>
+      <li>Thêm hằng số <code>KET_QUA_OPTIONS</code>: ["Đạt", "Không đạt", "Cần bổ sung"]</li>
+      <li><code>emptyStep()</code>: thêm <code>buocSauHopNhatId: ""</code></li>
+      <li><code>openEdit()</code>: thêm map <code>buocSauHopNhatId</code></li>
+      <li><code>validateStep()</code>: 3 validation mới (điều kiện phụ, &ge;2 nhánh, bướcSauHopNhat)</li>
+      <li>Section 5 UI: logic tự-tick ghi chú, field phụ động, reset khi đổi điều kiện</li>
+      <li>Section 6 UI: thêm field "Bước sau khi hợp nhất", gộp vào block &ge;2 nhánh</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

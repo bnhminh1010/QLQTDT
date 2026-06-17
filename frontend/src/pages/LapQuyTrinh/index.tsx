@@ -5,7 +5,11 @@ import {
   type Buoc,
   type LoaiBuoc,
   type TrangThaiBuoc,
-  type DieuKienChuyen,
+  type LoaiThoiHan,
+  type HanhDongChuyen,
+  type DieuKienKichHoat,
+  type DieuKienChuyenTiep,
+  type NhanhSongSong,
   type HinhThucQT,
   HINH_THUC_OPTIONS,
   addQuyTrinh,
@@ -16,37 +20,106 @@ import {
 
 /* ─── Constants ──────────────────────────────────────────────── */
 const DON_VI_OPTIONS = [
-  "K/p mua sắm",
+  "K/P mua sắm",
+  "K/P sử dụng",
   "Tổ kiểm tra giá",
-  "Giám đốc BV",
-  "Phòng Kế hoạch",
-  "Phòng Tài chính",
-  "Phòng HCQT",
-  "Hội đồng thầu",
-  "Đơn vị khác",
+  "Tổ chuyên gia",
+  "Tổ thẩm định",
+  "Tư vấn LCNT",
+  "Tư vấn thẩm định",
+  "Chủ đầu tư",
+  "CĐT + Nhà thầu",
+  "Nhà thầu",
+  "Nhà thầu tư vấn LCNT",
+  "K/P mua sắm hoặc tư vấn LCNT",
 ];
 
 const VAI_TRO_OPTIONS = [
-  "Admin",
-  "Quản lý",
-  "Nhân viên",
+  "Nhân viên K/P mua sắm",
+  "Nhân viên K/P sử dụng",
   "Tổ kiểm tra giá",
-  "Hội đồng thầu",
-  "Giám đốc BV",
+  "Tổ chuyên gia",
+  "Tổ thẩm định",
+  "Tư vấn LCNT",
+  "Tư vấn thẩm định",
+  "Chủ đầu tư",
+  "Nhà thầu",
+  "CĐT + Nhà thầu",
 ];
 
-const LOAI_BUOC_OPTIONS: LoaiBuoc[] = ["Bắt đầu", "Thường", "Kết thúc"];
+const LOAI_BUOC_OPTIONS: LoaiBuoc[] = [
+  "Bắt đầu",
+  "Thường",
+  "Ký duyệt",
+  "Đăng tải",
+  "Đánh giá/kiểm tra",
+  "Hợp đồng",
+  "Kết thúc",
+];
+
 const TRANG_THAI_BUOC_OPTIONS: TrangThaiBuoc[] = [
+  "Chưa bắt đầu",
   "Đang xử lý",
-  "Chờ duyệt",
-  "Hoàn tất",
+  "Chờ ký duyệt",
+  "Hoàn thành",
 ];
-const DIEU_KIEN_OPTIONS: DieuKienChuyen[] = [
-  "Duyệt",
-  "Từ chối",
-  "Yêu cầu kiểm tra",
+
+const NHOM_GIAI_DOAN_OPTIONS = [
+  "Pháp lý gói thầu",
+  "Tư vấn LCNT",
+  "Tư vấn thẩm định",
+  "Lựa chọn nhà thầu",
+  "Hợp đồng",
+  "Nghiệm thu/Thanh lý/Quyết toán",
+];
+
+const DON_VI_KY_OPTIONS = [
+  "K/P mua sắm",
+  "K/P mua sắm và Giám đốc BV",
+  "Giám đốc BV",
+  "PGĐ được ủy quyền",
+  "Giám đốc BV hoặc PGĐ được ủy quyền",
+  "Kế toán trưởng",
+  "Tổ kiểm tra giá",
+  "Tổ chuyên gia",
+  "Tổ thẩm định",
+  "Tư vấn LCNT",
+  "Tư vấn thẩm định",
+  "Chủ đầu tư",
+  "CĐT + Nhà thầu",
+  "Nhà thầu tư vấn LCNT",
+  "K/P mua sắm hoặc tư vấn LCNT",
+];
+
+const VAI_TRO_KY_OPTIONS = [
+  "Trưởng K/P",
+  "Giám đốc BV",
+  "PGĐ được ủy quyền",
+  "Kế toán trưởng",
+  "Ban Giám đốc",
+  "Tổ kiểm tra giá",
+  "Tổ chuyên gia",
+  "Tổ thẩm định",
+  "Chủ đầu tư",
+  "Nhà thầu",
+  "CĐT + Nhà thầu",
+];
+
+const HANH_DONG_OPTIONS: HanhDongChuyen[] = [
+  "Hoàn thành / Duyệt",
+  "Không duyệt",
   "Trả về",
+  "Yêu cầu bổ sung",
+  "Bỏ qua bước",
 ];
+
+const DIEU_KIEN_KICH_HOAT_OPTIONS: DieuKienKichHoat[] = [
+  "Luôn",
+  "Theo vai trò",
+  "Theo kết quả xử lý",
+];
+
+const KET_QUA_OPTIONS = ["Đạt", "Không đạt", "Cần bổ sung"];
 
 const HT_BADGE: Partial<Record<HinhThucQT, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
@@ -64,7 +137,11 @@ const HT_BADGE: Partial<Record<HinhThucQT, string>> = {
 
 const LOAI_BADGE: Record<LoaiBuoc, string> = {
   "Bắt đầu": "bg-emerald-100 text-emerald-700",
-  "Thường": "bg-blue-100 text-blue-700",
+  Thường: "bg-blue-100 text-blue-700",
+  "Ký duyệt": "bg-purple-100 text-purple-700",
+  "Đăng tải": "bg-cyan-100 text-cyan-700",
+  "Đánh giá/kiểm tra": "bg-amber-100 text-amber-700",
+  "Hợp đồng": "bg-indigo-100 text-indigo-700",
   "Kết thúc": "bg-red-100 text-red-600",
 };
 
@@ -79,13 +156,26 @@ function emptyStep(): Omit<Buoc, "id"> {
   return {
     ten: "",
     loai: "Thường",
-    donViPhuTrach: DON_VI_OPTIONS[0],
-    vaiTroXuLy: VAI_TRO_OPTIONS[0],
+    nhomGiaiDoan: "",
+    donViPhuTrach: "",
+    vaiTroXuLy: "",
     slaNgay: 1,
-    trangThaiMacDinh: "Đang xử lý",
+    loaiThoiHan: "Chỉ cảnh báo quá hạn",
+    trangThaiMacDinh: "Chưa bắt đầu",
+    coKyDuyet: false,
+    donViKyHoSo: "",
+    vaiTroKyDuyet: "",
+    soNgayKyDuyet: undefined,
+    batBuocKyTruocChuyenBuoc: true,
+    dieuKienChuyenTiep: [],
+    coNhanhSongSong: false,
+    nhanhList: [],
+    dieuKienHopNhat: "all",
+    soNhanhHopNhatToiThieu: 2,
+    buocSauHopNhatId: "",
+    moTa: "",
     dieuKienChuyen: ["Duyệt"],
     buocTiepTheoId: "",
-    moTa: "",
   };
 }
 
@@ -137,7 +227,7 @@ export default function LapQuyTrinh() {
         navigate("/danh-sach-quy-trinh");
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
   /* ── beforeunload ── */
@@ -175,7 +265,8 @@ export default function LapQuyTrinh() {
     const trimmed = val.trim();
     if (!trimmed) return "Vui lòng nhập tên quy trình";
     if (trimmed.length < 3) return "Tên quy trình tối thiểu 3 ký tự";
-    if (trimmed.length > 255) return "Tên quy trình không được vượt quá 255 ký tự";
+    if (trimmed.length > 255)
+      return "Tên quy trình không được vượt quá 255 ký tự";
     return "";
   }
 
@@ -190,13 +281,26 @@ export default function LapQuyTrinh() {
     setStepForm({
       ten: b.ten,
       loai: b.loai,
+      nhomGiaiDoan: b.nhomGiaiDoan ?? "",
       donViPhuTrach: b.donViPhuTrach,
       vaiTroXuLy: b.vaiTroXuLy,
       slaNgay: b.slaNgay,
+      loaiThoiHan: b.loaiThoiHan ?? "Chỉ cảnh báo quá hạn",
       trangThaiMacDinh: b.trangThaiMacDinh,
-      dieuKienChuyen: [...b.dieuKienChuyen],
-      buocTiepTheoId: b.buocTiepTheoId,
+      coKyDuyet: b.coKyDuyet ?? false,
+      donViKyHoSo: b.donViKyHoSo ?? "",
+      vaiTroKyDuyet: b.vaiTroKyDuyet ?? "",
+      soNgayKyDuyet: b.soNgayKyDuyet,
+      batBuocKyTruocChuyenBuoc: b.batBuocKyTruocChuyenBuoc ?? true,
+      dieuKienChuyenTiep: b.dieuKienChuyenTiep ? [...b.dieuKienChuyenTiep] : [],
+      coNhanhSongSong: b.coNhanhSongSong ?? false,
+      nhanhList: b.nhanhList ? [...b.nhanhList] : [],
+      dieuKienHopNhat: b.dieuKienHopNhat ?? "all",
+      soNhanhHopNhatToiThieu: b.soNhanhHopNhatToiThieu ?? 2,
+      buocSauHopNhatId: b.buocSauHopNhatId ?? "",
       moTa: b.moTa,
+      dieuKienChuyen: [...(b.dieuKienChuyen ?? ["Duyệt"])],
+      buocTiepTheoId: b.buocTiepTheoId ?? "",
     });
     setStepErrs({});
     setStepModal({ mode: "edit", targetId: b.id });
@@ -206,11 +310,38 @@ export default function LapQuyTrinh() {
     const errs: typeof stepErrs = {};
     if (!stepForm.ten.trim()) errs.ten = "Vui lòng nhập tên bước";
     if (!stepForm.loai) errs.loai = "Vui lòng chọn loại bước";
-    if (!stepForm.donViPhuTrach) errs.donViPhuTrach = "Vui lòng chọn đơn vị";
-    if (!stepForm.slaNgay || stepForm.slaNgay <= 0)
-      errs.slaNgay = "Thời hạn xử lý phải lớn hơn 0";
-    else if (!Number.isInteger(Number(stepForm.slaNgay)))
-      errs.slaNgay = "Thời hạn xử lý phải là số nguyên";
+    if (!stepForm.donViPhuTrach)
+      errs.donViPhuTrach = "Vui lòng chọn đơn vị phụ trách";
+    if (!stepForm.vaiTroXuLy) errs.vaiTroXuLy = "Vui lòng chọn vai trò xử lý";
+    if (
+      stepForm.slaNgay === undefined ||
+      stepForm.slaNgay === null ||
+      Number(stepForm.slaNgay) < 0
+    )
+      errs.slaNgay = "Thời hạn xử lý phải >= 0";
+    if (!stepForm.loaiThoiHan) errs.loaiThoiHan = "Vui lòng chọn loại thời hạn";
+    if (stepForm.coKyDuyet) {
+      if (!stepForm.donViKyHoSo)
+        errs.donViKyHoSo = "Vui lòng chọn đơn vị kiểm tra/ký";
+      if (!stepForm.vaiTroKyDuyet)
+        errs.vaiTroKyDuyet = "Vui lòng chọn vai trò ký duyệt";
+    }
+    if (stepForm.coNhanhSongSong && stepForm.nhanhList.length < 2)
+      errs.coNhanhSongSong = "Nhánh song song phải có ít nhất 2 nhánh";
+    if (
+      stepForm.coNhanhSongSong &&
+      stepForm.nhanhList.length >= 2 &&
+      !stepForm.buocSauHopNhatId
+    )
+      errs.buocSauHopNhatId = "Vui lòng chọn bước sau khi hợp nhất";
+    const hasInvalidDk = stepForm.dieuKienChuyenTiep.some(
+      (r) =>
+        (r.dieuKienKichHoat === "Theo kết quả xử lý" && !r.ketQuaApDung) ||
+        (r.dieuKienKichHoat === "Theo vai trò" && !r.vaiTroApDung),
+    );
+    if (hasInvalidDk)
+      errs.dieuKienChuyenTiep =
+        "Vui lòng chọn đầy đủ giá trị điều kiện kích hoạt cho từng điều kiện chuyển tiếp";
     setStepErrs(errs);
     return Object.keys(errs).length === 0;
   }
@@ -259,15 +390,6 @@ export default function LapQuyTrinh() {
       return next;
     });
     markDirty();
-  }
-
-  function toggleDieuKien(dk: DieuKienChuyen) {
-    setStepForm((f) => ({
-      ...f,
-      dieuKienChuyen: f.dieuKienChuyen.includes(dk)
-        ? f.dieuKienChuyen.filter((x) => x !== dk)
-        : [...f.dieuKienChuyen, dk],
-    }));
   }
 
   /* ── Lưu quy trình ── */
@@ -348,7 +470,14 @@ export default function LapQuyTrinh() {
 
   // Orphan: not "Bắt đầu" and not pointed to by any step
   const pointedToIds = new Set(
-    buocList.map((b) => b.buocTiepTheoId).filter(Boolean),
+    buocList.flatMap((b) => {
+      const ids: string[] = [];
+      if (b.buocTiepTheoId) ids.push(b.buocTiepTheoId);
+      (b.dieuKienChuyenTiep ?? []).forEach((d) => {
+        if (d.buocChuyenDenId) ids.push(d.buocChuyenDenId);
+      });
+      return ids;
+    }),
   );
   const orphanIds = new Set(
     buocList
@@ -534,8 +663,11 @@ export default function LapQuyTrinh() {
           ) : (
             <ol className="space-y-2.5">
               {buocList.map((b, idx) => {
-                const nextStep = b.buocTiepTheoId
-                  ? buocList.find((x) => x.id === b.buocTiepTheoId)
+                const primaryId =
+                  b.buocTiepTheoId ||
+                  b.dieuKienChuyenTiep?.[0]?.buocChuyenDenId;
+                const nextStep = primaryId
+                  ? buocList.find((x) => x.id === primaryId)
                   : null;
                 return (
                   <li
@@ -544,7 +676,21 @@ export default function LapQuyTrinh() {
                   >
                     {/* Badge số thứ tự với màu theo loại */}
                     <span
-                      className={`w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 ${b.loai === "Bắt đầu" ? "bg-emerald-500" : b.loai === "Kết thúc" ? "bg-red-500" : "bg-blue-600"}`}
+                      className={`w-6 h-6 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 ${
+                        b.loai === "Bắt đầu"
+                          ? "bg-emerald-500"
+                          : b.loai === "Kết thúc"
+                            ? "bg-red-500"
+                            : b.loai === "Ký duyệt"
+                              ? "bg-purple-600"
+                              : b.loai === "Đăng tải"
+                                ? "bg-cyan-600"
+                                : b.loai === "Đánh giá/kiểm tra"
+                                  ? "bg-amber-500"
+                                  : b.loai === "Hợp đồng"
+                                    ? "bg-indigo-600"
+                                    : "bg-blue-600"
+                      }`}
                     >
                       {idx + 1}
                     </span>
@@ -560,6 +706,11 @@ export default function LapQuyTrinh() {
                         >
                           {b.loai}
                         </span>
+                        {b.nhomGiaiDoan && (
+                          <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {b.nhomGiaiDoan}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
                         <span className="text-[11px] text-slate-500 flex items-center gap-1">
@@ -568,7 +719,7 @@ export default function LapQuyTrinh() {
                         </span>
                         <span className="text-[11px] text-slate-500 flex items-center gap-1">
                           <i className="fa-regular fa-clock text-slate-400" />
-                          Thời hạn: {b.slaNgay} ngày
+                          {b.slaNgay} ngày
                         </span>
                         {b.vaiTroXuLy && (
                           <span className="text-[11px] text-slate-500 flex items-center gap-1">
@@ -576,11 +727,42 @@ export default function LapQuyTrinh() {
                             {b.vaiTroXuLy}
                           </span>
                         )}
-                        {b.dieuKienChuyen.length > 0 && (
-                          <span className="text-[11px] text-slate-400">
-                            → {b.dieuKienChuyen.join(", ")}
+                        {b.loaiThoiHan && (
+                          <span
+                            className={`text-[11px] flex items-center gap-1 ${
+                              b.loaiThoiHan === "Bắt buộc hoàn thành trước hạn"
+                                ? "text-red-500"
+                                : "text-slate-400"
+                            }`}
+                          >
+                            <i
+                              className={`fa-solid ${
+                                b.loaiThoiHan ===
+                                "Bắt buộc hoàn thành trước hạn"
+                                  ? "fa-lock"
+                                  : "fa-bell"
+                              } text-[10px]`}
+                            />
+                            {b.loaiThoiHan === "Bắt buộc hoàn thành trước hạn"
+                              ? "Bắt buộc HT"
+                              : "Cảnh báo"}
                           </span>
                         )}
+                        {b.coKyDuyet && (
+                          <span className="text-[11px] text-purple-600 flex items-center gap-1">
+                            <i className="fa-solid fa-signature text-[10px]" />
+                            Ký duyệt
+                          </span>
+                        )}
+                        {b.dieuKienChuyenTiep &&
+                          b.dieuKienChuyenTiep.length > 0 && (
+                            <span className="text-[11px] text-slate-400">
+                              →{" "}
+                              {b.dieuKienChuyenTiep
+                                .map((d) => d.hanhDong)
+                                .join(", ")}
+                            </span>
+                          )}
                         {nextStep && (
                           <span className="text-[11px] text-blue-500 flex items-center gap-1">
                             <i className="fa-solid fa-arrow-right text-[10px]" />
@@ -650,8 +832,8 @@ export default function LapQuyTrinh() {
             {orphanIds.size > 0 && (
               <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700">
                 <i className="fa-solid fa-triangle-exclamation" />
-                Có {orphanIds.size} bước mồ côi (không được trỏ đến từ bước nào).
-                Kiểm tra lại điều kiện chuyển tiếp.
+                Có {orphanIds.size} bước mồ côi (không được trỏ đến từ bước
+                nào). Kiểm tra lại điều kiện chuyển tiếp.
               </div>
             )}
             <div className="flex flex-wrap items-center gap-1.5">
@@ -663,9 +845,17 @@ export default function LapQuyTrinh() {
                         ? "bg-emerald-50 border-emerald-300"
                         : b.loai === "Kết thúc"
                           ? "bg-red-50 border-red-300"
-                          : orphanIds.has(b.id)
-                            ? "bg-amber-50 border-amber-300"
-                            : "bg-blue-50 border-blue-200"
+                          : b.loai === "Ký duyệt"
+                            ? "bg-purple-50 border-purple-300"
+                            : b.loai === "Đăng tải"
+                              ? "bg-cyan-50 border-cyan-300"
+                              : b.loai === "Đánh giá/kiểm tra"
+                                ? "bg-amber-50 border-amber-300"
+                                : b.loai === "Hợp đồng"
+                                  ? "bg-indigo-50 border-indigo-300"
+                                  : orphanIds.has(b.id)
+                                    ? "bg-amber-50 border-amber-300"
+                                    : "bg-blue-50 border-blue-200"
                     }`}
                   >
                     <span
@@ -674,9 +864,17 @@ export default function LapQuyTrinh() {
                           ? "text-emerald-600"
                           : b.loai === "Kết thúc"
                             ? "text-red-600"
-                            : orphanIds.has(b.id)
-                              ? "text-amber-600"
-                              : "text-blue-600"
+                            : b.loai === "Ký duyệt"
+                              ? "text-purple-600"
+                              : b.loai === "Đăng tải"
+                                ? "text-cyan-600"
+                                : b.loai === "Đánh giá/kiểm tra"
+                                  ? "text-amber-600"
+                                  : b.loai === "Hợp đồng"
+                                    ? "text-indigo-600"
+                                    : orphanIds.has(b.id)
+                                      ? "text-amber-600"
+                                      : "text-blue-600"
                       }`}
                     >
                       {idx + 1}
@@ -684,7 +882,9 @@ export default function LapQuyTrinh() {
                     <span className="text-[11px] font-medium text-slate-700 break-words max-w-[80px] leading-tight">
                       {b.ten}
                     </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">{b.slaNgay}N</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">
+                      {b.slaNgay}N
+                    </span>
                   </div>
                   {idx < buocList.length - 1 && (
                     <i className="fa-solid fa-arrow-right text-slate-300 text-xs" />
@@ -699,7 +899,8 @@ export default function LapQuyTrinh() {
       {/* ── STEP MODAL (Add + Edit) ───────────────────────────── */}
       {stepModal && (
         <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/40 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 my-6">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 space-y-4 my-6">
+            {/* Header */}
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-800">
                 {stepModal.mode === "add" ? "Thêm bước mới" : "Chỉnh sửa bước"}
@@ -712,7 +913,13 @@ export default function LapQuyTrinh() {
               </button>
             </div>
 
-            <div className="space-y-3">
+            {/* ── 1. Thông tin bước ── */}
+            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                <i className="fa-solid fa-circle-info text-blue-400" />
+                1. Thông tin bước
+              </p>
+
               {/* Tên bước */}
               <div>
                 <label className={labelCls}>
@@ -720,7 +927,7 @@ export default function LapQuyTrinh() {
                 </label>
                 <input
                   className={stepErrs.ten ? inputErrCls : inputCls}
-                  placeholder="Ví dụ: Đề xuất mua sắm"
+                  placeholder="Ví dụ: Đề xuất mua sắm/sửa chữa"
                   value={stepForm.ten}
                   onChange={(e) => {
                     setStepForm((f) => ({ ...f, ten: e.target.value }));
@@ -737,7 +944,7 @@ export default function LapQuyTrinh() {
                 <label className={labelCls}>
                   Loại bước <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {LOAI_BUOC_OPTIONS.map((l) => (
                     <button
                       key={l}
@@ -746,13 +953,21 @@ export default function LapQuyTrinh() {
                         setStepForm((f) => ({ ...f, loai: l }));
                         setStepErrs((e2) => ({ ...e2, loai: "" }));
                       }}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-xl border transition-colors ${
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
                         stepForm.loai === l
                           ? l === "Bắt đầu"
                             ? "bg-emerald-500 text-white border-emerald-500"
                             : l === "Kết thúc"
                               ? "bg-red-500 text-white border-red-500"
-                              : "bg-blue-600 text-white border-blue-600"
+                              : l === "Ký duyệt"
+                                ? "bg-purple-600 text-white border-purple-600"
+                                : l === "Đăng tải"
+                                  ? "bg-cyan-600 text-white border-cyan-600"
+                                  : l === "Đánh giá/kiểm tra"
+                                    ? "bg-amber-500 text-white border-amber-500"
+                                    : l === "Hợp đồng"
+                                      ? "bg-indigo-600 text-white border-indigo-600"
+                                      : "bg-blue-600 text-white border-blue-600"
                           : "border-slate-200 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -765,137 +980,20 @@ export default function LapQuyTrinh() {
                 )}
               </div>
 
-              {/* Đơn vị + Vai trò */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>
-                    Đơn vị phụ trách <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    className={stepErrs.donViPhuTrach ? inputErrCls : inputCls}
-                    value={stepForm.donViPhuTrach}
-                    onChange={(e) => {
-                      setStepForm((f) => ({
-                        ...f,
-                        donViPhuTrach: e.target.value,
-                      }));
-                      setStepErrs((e2) => ({ ...e2, donViPhuTrach: "" }));
-                    }}
-                  >
-                    {DON_VI_OPTIONS.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </select>
-                  {stepErrs.donViPhuTrach && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {stepErrs.donViPhuTrach}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className={labelCls}>Vai trò xử lý</label>
-                  <select
-                    className={inputCls}
-                    value={stepForm.vaiTroXuLy}
-                    onChange={(e) =>
-                      setStepForm((f) => ({ ...f, vaiTroXuLy: e.target.value }))
-                    }
-                  >
-                    {VAI_TRO_OPTIONS.map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Thời hạn xử lý + Trạng thái mặc định */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelCls}>
-                    Thời hạn xử lý (ngày) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    className={stepErrs.slaNgay ? inputErrCls : inputCls}
-                    value={stepForm.slaNgay}
-                    onChange={(e) => {
-                      const v = parseInt(e.target.value, 10);
-                      setStepForm((f) => ({
-                        ...f,
-                        slaNgay: isNaN(v) ? 1 : v,
-                      }));
-                      setStepErrs((e2) => ({ ...e2, slaNgay: "" }));
-                    }}
-                  />
-                  {stepErrs.slaNgay && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {stepErrs.slaNgay}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className={labelCls}>Trạng thái mặc định</label>
-                  <select
-                    className={inputCls}
-                    value={stepForm.trangThaiMacDinh}
-                    onChange={(e) =>
-                      setStepForm((f) => ({
-                        ...f,
-                        trangThaiMacDinh: e.target.value as TrangThaiBuoc,
-                      }))
-                    }
-                  >
-                    {TRANG_THAI_BUOC_OPTIONS.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Điều kiện chuyển tiếp */}
+              {/* Nhóm giai đoạn */}
               <div>
-                <label className={labelCls}>Điều kiện chuyển tiếp</label>
-                <div className="flex flex-wrap gap-2">
-                  {DIEU_KIEN_OPTIONS.map((dk) => (
-                    <button
-                      key={dk}
-                      type="button"
-                      onClick={() => toggleDieuKien(dk)}
-                      className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
-                        stepForm.dieuKienChuyen.includes(dk)
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {dk}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bước tiếp theo */}
-              <div>
-                <label className={labelCls}>Bước tiếp theo</label>
+                <label className={labelCls}>Nhóm giai đoạn</label>
                 <select
                   className={inputCls}
-                  value={stepForm.buocTiepTheoId}
+                  value={stepForm.nhomGiaiDoan ?? ""}
                   onChange={(e) =>
-                    setStepForm((f) => ({
-                      ...f,
-                      buocTiepTheoId: e.target.value,
-                    }))
+                    setStepForm((f) => ({ ...f, nhomGiaiDoan: e.target.value }))
                   }
                 >
                   <option value="">-- Không xác định --</option>
-                  {buocList
-                    .filter((b) => b.id !== stepModal?.targetId)
-                    .map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.ten}
-                      </option>
-                    ))}
+                  {NHOM_GIAI_DOAN_OPTIONS.map((n) => (
+                    <option key={n}>{n}</option>
+                  ))}
                 </select>
               </div>
 
@@ -914,6 +1012,910 @@ export default function LapQuyTrinh() {
               </div>
             </div>
 
+            {/* ── 2. Đơn vị xử lý ── */}
+            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                <i className="fa-solid fa-building text-blue-400" />
+                2. Đơn vị xử lý
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>
+                    Đơn vị phụ trách / Soạn hồ sơ{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className={stepErrs.donViPhuTrach ? inputErrCls : inputCls}
+                    value={stepForm.donViPhuTrach}
+                    onChange={(e) => {
+                      setStepForm((f) => ({
+                        ...f,
+                        donViPhuTrach: e.target.value,
+                      }));
+                      setStepErrs((e2) => ({ ...e2, donViPhuTrach: "" }));
+                    }}
+                  >
+                    <option value="">-- Chọn đơn vị --</option>
+                    {DON_VI_OPTIONS.map((d) => (
+                      <option key={d}>{d}</option>
+                    ))}
+                  </select>
+                  {stepErrs.donViPhuTrach && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {stepErrs.donViPhuTrach}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    Vai trò xử lý <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className={stepErrs.vaiTroXuLy ? inputErrCls : inputCls}
+                    value={stepForm.vaiTroXuLy}
+                    onChange={(e) => {
+                      setStepForm((f) => ({
+                        ...f,
+                        vaiTroXuLy: e.target.value,
+                      }));
+                      setStepErrs((e2) => ({ ...e2, vaiTroXuLy: "" }));
+                    }}
+                  >
+                    <option value="">-- Chọn vai trò --</option>
+                    {VAI_TRO_OPTIONS.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                  {stepErrs.vaiTroXuLy && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {stepErrs.vaiTroXuLy}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>
+                  Trạng thái mặc định <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className={inputCls}
+                  value={stepForm.trangThaiMacDinh}
+                  onChange={(e) =>
+                    setStepForm((f) => ({
+                      ...f,
+                      trangThaiMacDinh: e.target.value as TrangThaiBuoc,
+                    }))
+                  }
+                >
+                  {TRANG_THAI_BUOC_OPTIONS.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* ── 3. Thời hạn ── */}
+            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                <i className="fa-regular fa-clock text-blue-400" />
+                3. Thời hạn
+              </p>
+              <div>
+                <label className={labelCls}>
+                  Thời hạn xử lý (ngày) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  className={stepErrs.slaNgay ? inputErrCls : inputCls}
+                  placeholder="Ví dụ: 0.5, 1, 3, 5, 18..."
+                  value={stepForm.slaNgay}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    setStepForm((f) => ({ ...f, slaNgay: isNaN(v) ? 0 : v }));
+                    setStepErrs((e2) => ({ ...e2, slaNgay: "" }));
+                  }}
+                />
+                {stepErrs.slaNgay && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {stepErrs.slaNgay}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className={labelCls}>
+                  Loại thời hạn <span className="text-red-500">*</span>
+                </label>
+                <div className="flex flex-col gap-2">
+                  {(
+                    [
+                      "Chỉ cảnh báo quá hạn",
+                      "Bắt buộc hoàn thành trước hạn",
+                    ] as LoaiThoiHan[]
+                  ).map((opt) => (
+                    <label
+                      key={opt}
+                      className="flex items-start gap-2 cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name="loaiThoiHan"
+                        value={opt}
+                        checked={stepForm.loaiThoiHan === opt}
+                        onChange={() => {
+                          setStepForm((f) => ({ ...f, loaiThoiHan: opt }));
+                          setStepErrs((e2) => ({ ...e2, loaiThoiHan: "" }));
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span className="text-xs text-slate-700">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+                {stepErrs.loaiThoiHan && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {stepErrs.loaiThoiHan}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* ── 4. Ký duyệt ── */}
+            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                <i className="fa-solid fa-signature text-blue-400" />
+                4. Ký duyệt
+              </p>
+              <div>
+                <label className={labelCls}>
+                  Có yêu cầu ký duyệt không?{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-5">
+                  {[false, true].map((v) => (
+                    <label
+                      key={String(v)}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name="coKyDuyet"
+                        checked={stepForm.coKyDuyet === v}
+                        onChange={() =>
+                          setStepForm((f) => ({ ...f, coKyDuyet: v }))
+                        }
+                      />
+                      <span className="text-xs text-slate-700">
+                        {v ? "Có" : "Không"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {stepForm.coKyDuyet && (
+                <div className="space-y-3 pt-1 border-t border-slate-100">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls}>
+                        Đơn vị kiểm tra/ký hồ sơ{" "}
+                        <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className={
+                          stepErrs.donViKyHoSo ? inputErrCls : inputCls
+                        }
+                        value={stepForm.donViKyHoSo ?? ""}
+                        onChange={(e) => {
+                          setStepForm((f) => ({
+                            ...f,
+                            donViKyHoSo: e.target.value,
+                          }));
+                          setStepErrs((e2) => ({ ...e2, donViKyHoSo: "" }));
+                        }}
+                      >
+                        <option value="">-- Chọn đơn vị --</option>
+                        {DON_VI_KY_OPTIONS.map((d) => (
+                          <option key={d}>{d}</option>
+                        ))}
+                      </select>
+                      {stepErrs.donViKyHoSo && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {stepErrs.donViKyHoSo}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className={labelCls}>
+                        Vai trò ký duyệt <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className={
+                          stepErrs.vaiTroKyDuyet ? inputErrCls : inputCls
+                        }
+                        value={stepForm.vaiTroKyDuyet ?? ""}
+                        onChange={(e) => {
+                          setStepForm((f) => ({
+                            ...f,
+                            vaiTroKyDuyet: e.target.value,
+                          }));
+                          setStepErrs((e2) => ({ ...e2, vaiTroKyDuyet: "" }));
+                        }}
+                      >
+                        <option value="">-- Chọn vai trò --</option>
+                        {VAI_TRO_KY_OPTIONS.map((v) => (
+                          <option key={v}>{v}</option>
+                        ))}
+                      </select>
+                      {stepErrs.vaiTroKyDuyet && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {stepErrs.vaiTroKyDuyet}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Số ngày ký duyệt</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      className={inputCls}
+                      placeholder="Ví dụ: 1"
+                      value={stepForm.soNgayKyDuyet ?? ""}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        setStepForm((f) => ({
+                          ...f,
+                          soNgayKyDuyet: isNaN(v) ? undefined : v,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>
+                      Có bắt buộc ký trước khi chuyển bước?{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-5">
+                      {[true, false].map((v) => (
+                        <label
+                          key={String(v)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="radio"
+                            name="batBuocKyTruocChuyenBuoc"
+                            checked={stepForm.batBuocKyTruocChuyenBuoc === v}
+                            onChange={() =>
+                              setStepForm((f) => ({
+                                ...f,
+                                batBuocKyTruocChuyenBuoc: v,
+                              }))
+                            }
+                          />
+                          <span className="text-xs text-slate-700">
+                            {v ? "Có" : "Không"}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── 5. Điều kiện chuyển tiếp ── */}
+            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                  <i className="fa-solid fa-arrow-right-arrow-left text-blue-400" />
+                  5. Điều kiện chuyển tiếp
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newRow: DieuKienChuyenTiep = {
+                      id: Date.now().toString(),
+                      hanhDong: "Hoàn thành / Duyệt",
+                      buocChuyenDenId: "",
+                      dieuKienKichHoat: "Luôn",
+                      ketQuaApDung: "",
+                      vaiTroApDung: "",
+                      batBuocGhiChu: false,
+                      batBuocUpload: false,
+                    };
+                    setStepForm((f) => ({
+                      ...f,
+                      dieuKienChuyenTiep: [...f.dieuKienChuyenTiep, newRow],
+                    }));
+                  }}
+                  className="h-7 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1 transition-colors"
+                >
+                  <i className="fa-solid fa-plus text-[10px]" />
+                  Thêm điều kiện
+                </button>
+              </div>
+              {stepForm.dieuKienChuyenTiep.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-2">
+                  Chưa có điều kiện nào. Nhấn "Thêm điều kiện" để bắt đầu.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {stepForm.dieuKienChuyenTiep.map((row, idx) => (
+                    <div
+                      key={row.id}
+                      className="border border-slate-100 rounded-lg p-3 bg-slate-50 space-y-2"
+                    >
+                      <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+                        <div>
+                          <label className={labelCls}>Hành động</label>
+                          <select
+                            className={inputCls}
+                            value={row.hanhDong}
+                            onChange={(e) => {
+                              const newHanhDong = e.target
+                                .value as HanhDongChuyen;
+                              const forceGhiChu = [
+                                "Không duyệt",
+                                "Trả về",
+                                "Yêu cầu bổ sung",
+                              ].includes(newHanhDong);
+                              const updated = stepForm.dieuKienChuyenTiep.map(
+                                (r, i) =>
+                                  i === idx
+                                    ? {
+                                        ...r,
+                                        hanhDong: newHanhDong,
+                                        batBuocGhiChu: forceGhiChu
+                                          ? true
+                                          : r.batBuocGhiChu,
+                                      }
+                                    : r,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                dieuKienChuyenTiep: updated,
+                              }));
+                            }}
+                          >
+                            {HANH_DONG_OPTIONS.map((h) => (
+                              <option key={h}>{h}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelCls}>Bước chuyển đến</label>
+                          <select
+                            className={inputCls}
+                            value={row.buocChuyenDenId}
+                            onChange={(e) => {
+                              const updated = stepForm.dieuKienChuyenTiep.map(
+                                (r, i) =>
+                                  i === idx
+                                    ? { ...r, buocChuyenDenId: e.target.value }
+                                    : r,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                dieuKienChuyenTiep: updated,
+                              }));
+                            }}
+                          >
+                            <option value="">-- Chọn bước --</option>
+                            {buocList
+                              .filter((b) => b.id !== stepModal?.targetId)
+                              .map((b) => (
+                                <option key={b.id} value={b.id}>
+                                  {b.ten}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelCls}>
+                            Điều kiện kích hoạt
+                          </label>
+                          <select
+                            className={inputCls}
+                            value={row.dieuKienKichHoat}
+                            onChange={(e) => {
+                              const updated = stepForm.dieuKienChuyenTiep.map(
+                                (r, i) =>
+                                  i === idx
+                                    ? {
+                                        ...r,
+                                        dieuKienKichHoat: e.target
+                                          .value as DieuKienKichHoat,
+                                        ketQuaApDung: "",
+                                        vaiTroApDung: "",
+                                      }
+                                    : r,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                dieuKienChuyenTiep: updated,
+                              }));
+                            }}
+                          >
+                            {DIEU_KIEN_KICH_HOAT_OPTIONS.map((d) => (
+                              <option key={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStepForm((f) => ({
+                              ...f,
+                              dieuKienChuyenTiep: f.dieuKienChuyenTiep.filter(
+                                (_, i) => i !== idx,
+                              ),
+                            }));
+                          }}
+                          className="mb-0.5 w-7 h-[38px] flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                        >
+                          <i className="fa-solid fa-trash text-xs" />
+                        </button>
+                      </div>
+                      {/* Conditional sub-field based on Điều kiện kích hoạt */}
+                      {row.dieuKienKichHoat === "Theo kết quả xử lý" && (
+                        <div>
+                          <label className={labelCls}>
+                            Kết quả áp dụng{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            className={inputCls}
+                            value={row.ketQuaApDung ?? ""}
+                            onChange={(e) => {
+                              const updated = stepForm.dieuKienChuyenTiep.map(
+                                (r, i) =>
+                                  i === idx
+                                    ? { ...r, ketQuaApDung: e.target.value }
+                                    : r,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                dieuKienChuyenTiep: updated,
+                              }));
+                            }}
+                          >
+                            <option value="">-- Chọn kết quả --</option>
+                            {KET_QUA_OPTIONS.map((k) => (
+                              <option key={k}>{k}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {row.dieuKienKichHoat === "Theo vai trò" && (
+                        <div>
+                          <label className={labelCls}>
+                            Vai trò áp dụng{" "}
+                            <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            className={inputCls}
+                            value={row.vaiTroApDung ?? ""}
+                            onChange={(e) => {
+                              const updated = stepForm.dieuKienChuyenTiep.map(
+                                (r, i) =>
+                                  i === idx
+                                    ? { ...r, vaiTroApDung: e.target.value }
+                                    : r,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                dieuKienChuyenTiep: updated,
+                              }));
+                            }}
+                          >
+                            <option value="">-- Chọn vai trò --</option>
+                            {VAI_TRO_OPTIONS.map((v) => (
+                              <option key={v}>{v}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div className="flex gap-5">
+                        {(() => {
+                          const forcedGhiChu = [
+                            "Không duyệt",
+                            "Trả về",
+                            "Yêu cầu bổ sung",
+                          ].includes(row.hanhDong);
+                          return (
+                            <label
+                              className={`flex items-center gap-1.5 ${forcedGhiChu ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={forcedGhiChu || row.batBuocGhiChu}
+                                disabled={forcedGhiChu}
+                                onChange={(e) => {
+                                  if (forcedGhiChu) return;
+                                  const updated =
+                                    stepForm.dieuKienChuyenTiep.map((r, i) =>
+                                      i === idx
+                                        ? {
+                                            ...r,
+                                            batBuocGhiChu: e.target.checked,
+                                          }
+                                        : r,
+                                    );
+                                  setStepForm((f) => ({
+                                    ...f,
+                                    dieuKienChuyenTiep: updated,
+                                  }));
+                                }}
+                              />
+                              <span className="text-xs text-slate-600">
+                                Bắt buộc ghi chú
+                                {forcedGhiChu && (
+                                  <span className="ml-1 text-orange-500 text-[10px]">
+                                    (tự động)
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })()}
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={row.batBuocUpload}
+                            onChange={(e) => {
+                              const updated = stepForm.dieuKienChuyenTiep.map(
+                                (r, i) =>
+                                  i === idx
+                                    ? { ...r, batBuocUpload: e.target.checked }
+                                    : r,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                dieuKienChuyenTiep: updated,
+                              }));
+                            }}
+                          />
+                          <span className="text-xs text-slate-600">
+                            Bắt buộc upload tài liệu
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {stepErrs.dieuKienChuyenTiep && (
+                <p className="text-xs text-red-500 mt-1">
+                  {stepErrs.dieuKienChuyenTiep}
+                </p>
+              )}
+            </div>
+
+            {/* ── 6. Nhánh song song ── */}
+            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                <i className="fa-solid fa-code-branch text-blue-400" />
+                6. Nhánh song song
+              </p>
+              <div>
+                <label className={labelCls}>Có tạo nhánh song song?</label>
+                <div className="flex gap-5">
+                  {[false, true].map((v) => (
+                    <label
+                      key={String(v)}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name="coNhanhSongSong"
+                        checked={stepForm.coNhanhSongSong === v}
+                        onChange={() =>
+                          setStepForm((f) => ({ ...f, coNhanhSongSong: v }))
+                        }
+                      />
+                      <span className="text-xs text-slate-700">
+                        {v ? "Có" : "Không"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {stepForm.coNhanhSongSong && (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newBranch: NhanhSongSong = {
+                        id: Date.now().toString(),
+                        tenNhanh: "",
+                        donVi: DON_VI_OPTIONS[0],
+                        vaiTro: VAI_TRO_OPTIONS[0],
+                        thoiHanNgay: 1,
+                        loaiThoiHan: "Chỉ cảnh báo quá hạn",
+                        buocDauTienId: "",
+                      };
+                      setStepForm((f) => ({
+                        ...f,
+                        nhanhList: [...f.nhanhList, newBranch],
+                      }));
+                    }}
+                    className="h-7 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1 transition-colors"
+                  >
+                    <i className="fa-solid fa-plus text-[10px]" />
+                    Thêm nhánh
+                  </button>
+                  {stepForm.nhanhList.map((nhanh, idx) => (
+                    <div
+                      key={nhanh.id}
+                      className="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-600">
+                          Nhánh {idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setStepForm((f) => ({
+                              ...f,
+                              nhanhList: f.nhanhList.filter(
+                                (_, i) => i !== idx,
+                              ),
+                            }))
+                          }
+                          className="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:bg-red-50"
+                        >
+                          <i className="fa-solid fa-xmark text-xs" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className={labelCls}>Tên nhánh</label>
+                          <input
+                            className={inputCls}
+                            placeholder="Ví dụ: Lập HSMT"
+                            value={nhanh.tenNhanh}
+                            onChange={(e) => {
+                              const updated = stepForm.nhanhList.map((n, i) =>
+                                i === idx
+                                  ? { ...n, tenNhanh: e.target.value }
+                                  : n,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                nhanhList: updated,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelCls}>Bước đầu tiên</label>
+                          <select
+                            className={inputCls}
+                            value={nhanh.buocDauTienId}
+                            onChange={(e) => {
+                              const updated = stepForm.nhanhList.map((n, i) =>
+                                i === idx
+                                  ? { ...n, buocDauTienId: e.target.value }
+                                  : n,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                nhanhList: updated,
+                              }));
+                            }}
+                          >
+                            <option value="">-- Chọn bước --</option>
+                            {buocList
+                              .filter((b) => b.id !== stepModal?.targetId)
+                              .map((b) => (
+                                <option key={b.id} value={b.id}>
+                                  {b.ten}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelCls}>Đơn vị</label>
+                          <select
+                            className={inputCls}
+                            value={nhanh.donVi}
+                            onChange={(e) => {
+                              const updated = stepForm.nhanhList.map((n, i) =>
+                                i === idx ? { ...n, donVi: e.target.value } : n,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                nhanhList: updated,
+                              }));
+                            }}
+                          >
+                            {DON_VI_OPTIONS.map((d) => (
+                              <option key={d}>{d}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelCls}>Vai trò</label>
+                          <select
+                            className={inputCls}
+                            value={nhanh.vaiTro}
+                            onChange={(e) => {
+                              const updated = stepForm.nhanhList.map((n, i) =>
+                                i === idx
+                                  ? { ...n, vaiTro: e.target.value }
+                                  : n,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                nhanhList: updated,
+                              }));
+                            }}
+                          >
+                            {VAI_TRO_OPTIONS.map((v) => (
+                              <option key={v}>{v}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelCls}>Thời hạn (ngày)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            className={inputCls}
+                            value={nhanh.thoiHanNgay}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value);
+                              const updated = stepForm.nhanhList.map((n, i) =>
+                                i === idx
+                                  ? { ...n, thoiHanNgay: isNaN(v) ? 0 : v }
+                                  : n,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                nhanhList: updated,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelCls}>Loại thời hạn</label>
+                          <select
+                            className={inputCls}
+                            value={nhanh.loaiThoiHan}
+                            onChange={(e) => {
+                              const updated = stepForm.nhanhList.map((n, i) =>
+                                i === idx
+                                  ? {
+                                      ...n,
+                                      loaiThoiHan: e.target
+                                        .value as LoaiThoiHan,
+                                    }
+                                  : n,
+                              );
+                              setStepForm((f) => ({
+                                ...f,
+                                nhanhList: updated,
+                              }));
+                            }}
+                          >
+                            <option value="Chỉ cảnh báo quá hạn">
+                              Chỉ cảnh báo quá hạn
+                            </option>
+                            <option value="Bắt buộc hoàn thành trước hạn">
+                              Bắt buộc hoàn thành trước hạn
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Điều kiện hợp nhất + Bước sau khi hợp nhất */}
+                  {stepForm.nhanhList.length >= 2 && (
+                    <div className="space-y-3 pt-1 border-t border-slate-100">
+                      <div>
+                        <label className={labelCls}>
+                          Điều kiện hợp nhất{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex flex-col gap-2">
+                          {(["all", "any", "count"] as const).map((v) => (
+                            <label
+                              key={v}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <input
+                                type="radio"
+                                name="dieuKienHopNhat"
+                                value={v}
+                                checked={stepForm.dieuKienHopNhat === v}
+                                onChange={() =>
+                                  setStepForm((f) => ({
+                                    ...f,
+                                    dieuKienHopNhat: v,
+                                  }))
+                                }
+                              />
+                              <span className="text-xs text-slate-700">
+                                {v === "all"
+                                  ? "Đợi tất cả nhánh hoàn thành"
+                                  : v === "any"
+                                    ? "Chỉ cần một nhánh hoàn thành"
+                                    : "Theo số lượng hoàn thành"}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        {stepForm.dieuKienHopNhat === "count" && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-slate-600">
+                              Tối thiểu
+                            </span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={stepForm.nhanhList.length}
+                              className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-slate-50 text-center"
+                              value={stepForm.soNhanhHopNhatToiThieu}
+                              onChange={(e) => {
+                                const v = parseInt(e.target.value, 10);
+                                setStepForm((f) => ({
+                                  ...f,
+                                  soNhanhHopNhatToiThieu: isNaN(v) ? 1 : v,
+                                }));
+                              }}
+                            />
+                            <span className="text-xs text-slate-600">
+                              trên {stepForm.nhanhList.length} nhánh
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className={labelCls}>
+                          Bước sau khi hợp nhất{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          className={inputCls}
+                          value={stepForm.buocSauHopNhatId ?? ""}
+                          onChange={(e) =>
+                            setStepForm((f) => ({
+                              ...f,
+                              buocSauHopNhatId: e.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">-- Chọn bước --</option>
+                          {buocList
+                            .filter((b) => b.id !== stepModal?.targetId)
+                            .map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.ten}
+                              </option>
+                            ))}
+                        </select>
+                        {stepErrs.buocSauHopNhatId && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {stepErrs.buocSauHopNhatId}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {stepErrs.coNhanhSongSong && (
+                    <p className="text-xs text-red-500">
+                      {stepErrs.coNhanhSongSong}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
             <div className="flex justify-end gap-2 pt-1">
               <button
                 onClick={() => setStepModal(null)}
@@ -940,7 +1942,9 @@ export default function LapQuyTrinh() {
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-1">
                 <i className="fa-solid fa-triangle-exclamation text-red-500 text-xl" />
               </div>
-              <h3 className="text-sm font-bold text-slate-800">Xóa bước này?</h3>
+              <h3 className="text-sm font-bold text-slate-800">
+                Xóa bước này?
+              </h3>
               <p className="text-xs text-slate-500">
                 Bước <strong>"{deleteTarget.ten}"</strong> sẽ bị xóa khỏi quy
                 trình.

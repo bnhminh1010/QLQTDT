@@ -103,16 +103,42 @@ type SortCol = "ten" | "soNhanVien" | "soGoiThau";
 /* ─── Mock RBAC ───────────────────────────────────────── */
 const MOCK_CURRENT_ROLE = "Admin" as const;
 const KP_CAN_ADD = MOCK_CURRENT_ROLE === "Admin";
-const KP_CAN_EDIT = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const KP_CAN_EDIT =
+  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
 const KP_CAN_DELETE = MOCK_CURRENT_ROLE === "Admin";
-const KP_CAN_TOGGLE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const KP_CAN_TOGGLE =
+  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
 
 /* ─── Audit log ───────────────────────────────────────── */
-type KPAuditEntry = { id: string; unitId: string; hanhDong: string; nguoiThucHien: string; thoiGian: string };
+type KPAuditEntry = {
+  id: string;
+  unitId: string;
+  hanhDong: string;
+  nguoiThucHien: string;
+  thoiGian: string;
+};
 const INITIAL_KP_AUDIT: KPAuditEntry[] = [
-  { id: "ka1", unitId: "KN", hanhDong: "Tạo khoa/phòng", nguoiThucHien: "admin", thoiGian: "01/01/2025 08:00" },
-  { id: "ka2", unitId: "KD", hanhDong: "Tạo khoa/phòng", nguoiThucHien: "admin", thoiGian: "01/01/2025 08:10" },
-  { id: "ka3", unitId: "KXN", hanhDong: "Ngưng hoạt động", nguoiThucHien: "admin", thoiGian: "15/03/2025 14:00" },
+  {
+    id: "ka1",
+    unitId: "KN",
+    hanhDong: "Tạo khoa/phòng",
+    nguoiThucHien: "admin",
+    thoiGian: "01/01/2025 08:00",
+  },
+  {
+    id: "ka2",
+    unitId: "KD",
+    hanhDong: "Tạo khoa/phòng",
+    nguoiThucHien: "admin",
+    thoiGian: "01/01/2025 08:10",
+  },
+  {
+    id: "ka3",
+    unitId: "KXN",
+    hanhDong: "Ngưng hoạt động",
+    nguoiThucHien: "admin",
+    thoiGian: "15/03/2025 14:00",
+  },
 ];
 
 /* ─── Confirm modal ───────────────────────────────────── */
@@ -251,7 +277,10 @@ export default function KhoaPhong() {
   }, [data, search, filterLoai, filterTrangThai, sortCol, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSizeOpt));
-  const paginated = filtered.slice((page - 1) * pageSizeOpt, page * pageSizeOpt);
+  const paginated = filtered.slice(
+    (page - 1) * pageSizeOpt,
+    page * pageSizeOpt,
+  );
 
   /* ─ Sort handler ─ */
   function toggleSort(col: SortCol) {
@@ -265,13 +294,16 @@ export default function KhoaPhong() {
 
   /* ─ Audit helper ─ */
   function addKPAudit(unitId: string, hanhDong: string) {
-    setAuditLog((prev) => [{
-      id: `ka${Date.now()}`,
-      unitId,
-      hanhDong,
-      nguoiThucHien: "admin",
-      thoiGian: new Date().toLocaleString("vi-VN"),
-    }, ...prev]);
+    setAuditLog((prev) => [
+      {
+        id: `ka${Date.now()}`,
+        unitId,
+        hanhDong,
+        nguoiThucHien: "admin",
+        thoiGian: new Date().toLocaleString("vi-VN"),
+      },
+      ...prev,
+    ]);
   }
 
   /* ─ CRUD handlers ─ */
@@ -343,7 +375,10 @@ export default function KhoaPhong() {
     );
     if (selected.id === toggleTarget.id)
       setSelected({ ...selected, trangThai: next });
-    addKPAudit(toggleTarget.id, `${next === "Ngưng hoạt động" ? "Ngưng hoạt động" : "Kích hoạt lại"} "${toggleTarget.ten}"`);
+    addKPAudit(
+      toggleTarget.id,
+      `${next === "Ngưng hoạt động" ? "Ngưng hoạt động" : "Kích hoạt lại"} "${toggleTarget.ten}"`,
+    );
     toast.success(`"${toggleTarget.ten}" chuyển sang ${next}`);
     setToggleTarget(null);
   }
@@ -526,7 +561,9 @@ export default function KhoaPhong() {
                           dir={sortDir}
                         />
                       </th>
-                      <th className="px-5 py-3 text-left min-w-[170px]">Loại</th>
+                      <th className="px-5 py-3 text-left min-w-[170px]">
+                        Loại
+                      </th>
                       <th className="px-5 py-3 text-left">Trưởng khoa/phòng</th>
                       <th
                         className="px-5 py-3 text-center cursor-pointer hover:text-slate-600 select-none"
@@ -550,7 +587,9 @@ export default function KhoaPhong() {
                           dir={sortDir}
                         />
                       </th>
-                      <th className="px-5 py-3 text-center min-w-[170px]">Trạng thái</th>
+                      <th className="px-5 py-3 text-center min-w-[170px]">
+                        Trạng thái
+                      </th>
                       <th className="px-5 py-3 text-center">Thao tác</th>
                     </tr>
                   </thead>
@@ -646,17 +685,29 @@ export default function KhoaPhong() {
                               )}
                               {KP_CAN_TOGGLE && (
                                 <button
-                                  title={p.trangThai === "Đang hoạt động" ? "Tắt hoạt động" : "Bật hoạt động"}
+                                  title={
+                                    p.trangThai === "Đang hoạt động"
+                                      ? "Tắt hoạt động"
+                                      : "Bật hoạt động"
+                                  }
                                   onClick={() => setToggleTarget(p)}
                                   className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${p.trangThai === "Đang hoạt động" ? "text-slate-500 hover:bg-slate-100" : "text-emerald-500 hover:bg-emerald-50"}`}
                                 >
-                                  <i className={`fa-solid text-xs ${p.trangThai === "Đang hoạt động" ? "fa-eye-slash" : "fa-eye"}`} />
+                                  <i
+                                    className={`fa-solid text-xs ${p.trangThai === "Đang hoạt động" ? "fa-eye-slash" : "fa-eye"}`}
+                                  />
                                 </button>
                               )}
                               {KP_CAN_DELETE && (
                                 <button
                                   title="Xóa"
-                                  onClick={() => p.soGoiThau > 0 ? toast.error(`"${p.ten}" đang có gói thầu, chỉ có thể tắt/ẩn.`) : setDeleteTarget(p)}
+                                  onClick={() =>
+                                    p.soGoiThau > 0
+                                      ? toast.error(
+                                          `"${p.ten}" đang có gói thầu, chỉ có thể tắt/ẩn.`,
+                                        )
+                                      : setDeleteTarget(p)
+                                  }
                                   className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors"
                                 >
                                   <i className="fa-solid fa-trash text-xs" />
@@ -676,14 +727,18 @@ export default function KhoaPhong() {
             {!loading && !error && (
               <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm">
                 <span className="text-xs text-slate-400">
-                  Hiển thị {filtered.length === 0 ? 0 : (page - 1) * pageSizeOpt + 1}–
+                  Hiển thị{" "}
+                  {filtered.length === 0 ? 0 : (page - 1) * pageSizeOpt + 1}–
                   {Math.min(page * pageSizeOpt, filtered.length)} /{" "}
                   {filtered.length} kết quả
                 </span>
                 <div className="flex items-center gap-2">
                   <select
                     value={pageSizeOpt}
-                    onChange={(e) => { setPageSizeOpt(Number(e.target.value)); setPage(1); }}
+                    onChange={(e) => {
+                      setPageSizeOpt(Number(e.target.value));
+                      setPage(1);
+                    }}
                     className="border border-slate-200 rounded-lg text-xs px-2 py-1.5 bg-white focus:outline-none"
                   >
                     <option value={8}>8 / trang</option>
@@ -816,16 +871,24 @@ export default function KhoaPhong() {
 
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <button
-                  onClick={() => toast.info(`${selected.ten}: ${selected.soNhanVien} nhân viên`)}
+                  onClick={() =>
+                    toast.info(
+                      `${selected.ten}: ${selected.soNhanVien} nhân viên`,
+                    )
+                  }
                   className="bg-slate-50 rounded-xl p-3 text-center hover:bg-slate-100 transition-colors"
                 >
                   <i className="fa-solid fa-users text-slate-400 mb-1" />
-                  <div className="text-xl font-extrabold text-slate-800">{selected.soNhanVien}</div>
+                  <div className="text-xl font-extrabold text-slate-800">
+                    {selected.soNhanVien}
+                  </div>
                   <div className="text-[11px] text-slate-400">Nhân viên</div>
                 </button>
                 <div className="bg-blue-50 rounded-xl p-3 text-center">
                   <i className="fa-solid fa-box-archive text-slate-400 mb-1" />
-                  <div className="text-xl font-extrabold text-slate-800">{selected.soGoiThau}</div>
+                  <div className="text-xl font-extrabold text-slate-800">
+                    {selected.soGoiThau}
+                  </div>
                   <div className="text-[11px] text-slate-400">Gói thầu</div>
                 </div>
               </div>
@@ -847,12 +910,20 @@ export default function KhoaPhong() {
                     <i
                       className={`fa-solid text-xs ${selected.trangThai === "Đang hoạt động" ? "fa-eye-slash" : "fa-eye"}`}
                     />
-                    {selected.trangThai === "Đang hoạt động" ? "Tắt hoạt động" : "Bật hoạt động"}
+                    {selected.trangThai === "Đang hoạt động"
+                      ? "Tắt hoạt động"
+                      : "Bật hoạt động"}
                   </button>
                 )}
                 {KP_CAN_DELETE && (
                   <button
-                    onClick={() => selected.soGoiThau > 0 ? toast.error(`"${selected.ten}" đang có gói thầu, chỉ có thể tắt/ẩn.`) : setDeleteTarget(selected)}
+                    onClick={() =>
+                      selected.soGoiThau > 0
+                        ? toast.error(
+                            `"${selected.ten}" đang có gói thầu, chỉ có thể tắt/ẩn.`,
+                          )
+                        : setDeleteTarget(selected)
+                    }
                     className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
                   >
                     <i className="fa-solid fa-trash text-xs" /> Xóa khoa/phòng
@@ -880,7 +951,9 @@ export default function KhoaPhong() {
                           <i className="fa-solid fa-clock-rotate-left text-blue-500 text-[10px]" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-slate-700 font-medium">{a.hanhDong}</p>
+                          <p className="text-xs text-slate-700 font-medium">
+                            {a.hanhDong}
+                          </p>
                           <p className="text-[11px] text-slate-400">
                             {a.nguoiThucHien} · {a.thoiGian}
                           </p>

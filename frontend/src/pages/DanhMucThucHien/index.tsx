@@ -16,9 +16,11 @@ import {
 /* ─ RBAC ─ */
 const MOCK_CURRENT_ROLE = "Admin";
 const DM_CAN_ADD = MOCK_CURRENT_ROLE === "Admin";
-const DM_CAN_EDIT = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const DM_CAN_EDIT =
+  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
 const DM_CAN_DELETE = MOCK_CURRENT_ROLE === "Admin";
-const DM_CAN_TOGGLE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const DM_CAN_TOGGLE =
+  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
 
 type DotState = "done" | "warn" | "idle";
 type StepRow = { state: DotState; ten: string; donVi: string; thoiHan: string };
@@ -354,10 +356,34 @@ type DMAuditEntry = {
 };
 
 const INITIAL_DM_AUDIT: DMAuditEntry[] = [
-  { id: "1", dmId: "CDT-RG", hanhDong: "Tạo hình thức đấu thầu", nguoiThucHien: "Admin", thoiGian: "01/01/2025 08:00" },
-  { id: "2", dmId: "CDT-RG", hanhDong: "Đổi màu nhãn sang xanh dương", nguoiThucHien: "Admin", thoiGian: "02/01/2025 09:15" },
-  { id: "3", dmId: "DTRR", hanhDong: "Cập nhật tên hình thức đấu thầu", nguoiThucHien: "Admin", thoiGian: "15/01/2025 09:30" },
-  { id: "4", dmId: "CHCT", hanhDong: "Mở lại hoạt động", nguoiThucHien: "Admin", thoiGian: "20/01/2025 14:00" },
+  {
+    id: "1",
+    dmId: "CDT-RG",
+    hanhDong: "Tạo hình thức đấu thầu",
+    nguoiThucHien: "Admin",
+    thoiGian: "01/01/2025 08:00",
+  },
+  {
+    id: "2",
+    dmId: "CDT-RG",
+    hanhDong: "Đổi màu nhãn sang xanh dương",
+    nguoiThucHien: "Admin",
+    thoiGian: "02/01/2025 09:15",
+  },
+  {
+    id: "3",
+    dmId: "DTRR",
+    hanhDong: "Cập nhật tên hình thức đấu thầu",
+    nguoiThucHien: "Admin",
+    thoiGian: "15/01/2025 09:30",
+  },
+  {
+    id: "4",
+    dmId: "CHCT",
+    hanhDong: "Mở lại hoạt động",
+    nguoiThucHien: "Admin",
+    thoiGian: "20/01/2025 14:00",
+  },
 ];
 
 export default function DanhMucThucHien() {
@@ -366,7 +392,9 @@ export default function DanhMucThucHien() {
   const [selected, setSelected] = useState<DanhMuc>(INIT_DATA[0]);
   const [search, setSearch] = useState("");
   const [filterActive, setFilterActive] = useState<"" | "true" | "false">("");
-  const [sortField, setSortField] = useState<"hinhThuc" | "soGoi" | "steps" | "">("");
+  const [sortField, setSortField] = useState<
+    "hinhThuc" | "soGoi" | "steps" | ""
+  >("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 8;
@@ -391,20 +419,28 @@ export default function DanhMucThucHien() {
 
   function toggleSort(field: typeof sortField) {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortField(field); setSortDir("asc"); }
+    else {
+      setSortField(field);
+      setSortDir("asc");
+    }
     setPage(1);
   }
 
   const filtered = items
     .filter((d) => {
-      const matchSearch = !search || d.hinhThuc.toLowerCase().includes(search.toLowerCase()) || d.id.toLowerCase().includes(search.toLowerCase());
-      const matchActive = filterActive === "" || String(d.active) === filterActive;
+      const matchSearch =
+        !search ||
+        d.hinhThuc.toLowerCase().includes(search.toLowerCase()) ||
+        d.id.toLowerCase().includes(search.toLowerCase());
+      const matchActive =
+        filterActive === "" || String(d.active) === filterActive;
       return matchSearch && matchActive;
     })
     .sort((a, b) => {
       if (!sortField) return 0;
       let cmp = 0;
-      if (sortField === "hinhThuc") cmp = a.hinhThuc.localeCompare(b.hinhThuc, "vi");
+      if (sortField === "hinhThuc")
+        cmp = a.hinhThuc.localeCompare(b.hinhThuc, "vi");
       else if (sortField === "soGoi") cmp = a.soGoi - b.soGoi;
       else if (sortField === "steps") cmp = a.steps.length - b.steps.length;
       return sortDir === "asc" ? cmp : -cmp;
@@ -421,10 +457,13 @@ export default function DanhMucThucHien() {
       : 0;
 
   function SortIcon({ field }: { field: typeof sortField }) {
-    if (sortField !== field) return <i className="fa-solid fa-sort text-slate-300 ml-1 text-[10px]" />;
-    return sortDir === "asc"
-      ? <i className="fa-solid fa-sort-up text-blue-500 ml-1 text-[10px]" />
-      : <i className="fa-solid fa-sort-down text-blue-500 ml-1 text-[10px]" />;
+    if (sortField !== field)
+      return <i className="fa-solid fa-sort text-slate-300 ml-1 text-[10px]" />;
+    return sortDir === "asc" ? (
+      <i className="fa-solid fa-sort-up text-blue-500 ml-1 text-[10px]" />
+    ) : (
+      <i className="fa-solid fa-sort-down text-blue-500 ml-1 text-[10px]" />
+    );
   }
 
   function onAdd(values: { id: string; hinhThuc: string; badge: string }) {
@@ -447,7 +486,8 @@ export default function DanhMucThucHien() {
     const nextId = values.id.trim().toUpperCase();
     const nextName = values.hinhThuc.trim();
     const changes: string[] = [];
-    if (editTarget.id !== nextId) changes.push(`Cập nhật mã từ ${editTarget.id} sang ${nextId}`);
+    if (editTarget.id !== nextId)
+      changes.push(`Cập nhật mã từ ${editTarget.id} sang ${nextId}`);
     if (editTarget.hinhThuc !== nextName) changes.push("Cập nhật tên");
     if (editTarget.badge !== values.badge) changes.push("Đổi màu nhãn");
 
@@ -465,7 +505,10 @@ export default function DanhMucThucHien() {
         ),
       );
     }
-    addDMAudit(nextId, changes.length > 0 ? changes.join("; ") : "Cập nhật danh mục");
+    addDMAudit(
+      nextId,
+      changes.length > 0 ? changes.join("; ") : "Cập nhật danh mục",
+    );
     if (selected.id === editTarget.id)
       setSelected((s) => ({
         ...s,
@@ -482,20 +525,27 @@ export default function DanhMucThucHien() {
     const item = items.find((d) => d.id === id);
     if (!item) return;
     if (item.active && item.soGoi > 0) {
-      toast.error(`Không thể ẩn danh mục đang có ${item.soGoi} gói thầu. Vui lòng kết thúc các gói thầu trước.`);
+      toast.error(
+        `Không thể ẩn danh mục đang có ${item.soGoi} gói thầu. Vui lòng kết thúc các gói thầu trước.`,
+      );
       return;
     }
     setItems((prev) =>
       prev.map((d) => (d.id === id ? { ...d, active: !d.active } : d)),
     );
-    addDMAudit(id, `${item.active ? "Tắt hoạt động" : "Mở lại hoạt động"} hình thức "${item.hinhThuc}"`);
+    addDMAudit(
+      id,
+      `${item.active ? "Tắt hoạt động" : "Mở lại hoạt động"} hình thức "${item.hinhThuc}"`,
+    );
     toast.success(item.active ? "Đã tắt hoạt động" : "Đã mở lại hoạt động");
   }
 
   function doDelete() {
     if (!deleteTarget) return;
     if (deleteTarget.soGoi > 0) {
-      toast.error(`Không thể xóa danh mục đang có ${deleteTarget.soGoi} gói thầu.`);
+      toast.error(
+        `Không thể xóa danh mục đang có ${deleteTarget.soGoi} gói thầu.`,
+      );
       setDeleteTarget(null);
       return;
     }
@@ -513,14 +563,18 @@ export default function DanhMucThucHien() {
   function requestDelete(item: DanhMuc, e: React.MouseEvent) {
     e.stopPropagation();
     if (item.soGoi > 0) {
-      toast.error("Không thể xóa hình thức đấu thầu đang được sử dụng bởi các gói thầu.");
+      toast.error(
+        "Không thể xóa hình thức đấu thầu đang được sử dụng bởi các gói thầu.",
+      );
       return;
     }
     setDeleteTarget(item);
   }
 
   function goEditQuyTrinh() {
-    const match = getQuyTrinhList().find((qt) => qt.hinhThuc === selItem.hinhThuc);
+    const match = getQuyTrinhList().find(
+      (qt) => qt.hinhThuc === selItem.hinhThuc,
+    );
     if (match) {
       navigate(`/lap-quy-trinh?id=${encodeURIComponent(match.id)}`);
       return;
@@ -529,7 +583,9 @@ export default function DanhMucThucHien() {
     const generatedId = `QT-DM-${selItem.id}`;
     const existingGenerated = getQuyTrinhById(generatedId);
     if (!existingGenerated) {
-      const buocIds = selItem.steps.map((_, index) => `${generatedId}-B${index + 1}`);
+      const buocIds = selItem.steps.map(
+        (_, index) => `${generatedId}-B${index + 1}`,
+      );
       addQuyTrinh({
         id: generatedId,
         ten: `Quy trình ${selItem.hinhThuc}`,
@@ -623,13 +679,19 @@ export default function DanhMucThucHien() {
                     type="text"
                     placeholder="Tìm hình thức, mã..."
                     value={search}
-                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
                     className="pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
                   />
                 </div>
                 <select
                   value={filterActive}
-                  onChange={(e) => { setFilterActive(e.target.value as "" | "true" | "false"); setPage(1); }}
+                  onChange={(e) => {
+                    setFilterActive(e.target.value as "" | "true" | "false");
+                    setPage(1);
+                  }}
                   className="border border-slate-200 rounded-lg text-xs px-2 py-1.5 bg-white focus:outline-none"
                 >
                   <option value="">Tất cả trạng thái</option>
@@ -637,7 +699,14 @@ export default function DanhMucThucHien() {
                   <option value="false">Đã ẩn</option>
                 </select>
                 {(search || filterActive) && (
-                  <button onClick={() => { setSearch(""); setFilterActive(""); setPage(1); }} className="text-xs text-slate-400 hover:text-red-500">
+                  <button
+                    onClick={() => {
+                      setSearch("");
+                      setFilterActive("");
+                      setPage(1);
+                    }}
+                    className="text-xs text-slate-400 hover:text-red-500"
+                  >
                     <i className="fa-solid fa-xmark" />
                   </button>
                 )}
@@ -647,13 +716,22 @@ export default function DanhMucThucHien() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 tracking-wide uppercase">
-                    <th className="px-5 py-3 text-left cursor-pointer hover:text-slate-600 select-none" onClick={() => toggleSort("hinhThuc")}>
+                    <th
+                      className="px-5 py-3 text-left cursor-pointer hover:text-slate-600 select-none"
+                      onClick={() => toggleSort("hinhThuc")}
+                    >
                       Hình thức <SortIcon field="hinhThuc" />
                     </th>
-                    <th className="px-5 py-3 text-center cursor-pointer hover:text-slate-600 select-none" onClick={() => toggleSort("steps")}>
+                    <th
+                      className="px-5 py-3 text-center cursor-pointer hover:text-slate-600 select-none"
+                      onClick={() => toggleSort("steps")}
+                    >
                       Số bước <SortIcon field="steps" />
                     </th>
-                    <th className="px-5 py-3 text-center cursor-pointer hover:text-slate-600 select-none" onClick={() => toggleSort("soGoi")}>
+                    <th
+                      className="px-5 py-3 text-center cursor-pointer hover:text-slate-600 select-none"
+                      onClick={() => toggleSort("soGoi")}
+                    >
                       Số gói đang thực hiện <SortIcon field="soGoi" />
                     </th>
                     <th className="px-5 py-3 text-left">Trạng thái</th>
@@ -663,7 +741,10 @@ export default function DanhMucThucHien() {
                 <tbody className="divide-y divide-slate-100">
                   {paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-10 text-slate-400 text-sm">
+                      <td
+                        colSpan={5}
+                        className="text-center py-10 text-slate-400 text-sm"
+                      >
                         Không tìm thấy danh mục phù hợp
                       </td>
                     </tr>
@@ -673,7 +754,9 @@ export default function DanhMucThucHien() {
                         key={d.id}
                         onClick={() => setSelected(d)}
                         className={`cursor-pointer transition-colors ${
-                          selItem.id === d.id ? "bg-blue-50" : "hover:bg-slate-50"
+                          selItem.id === d.id
+                            ? "bg-blue-50"
+                            : "hover:bg-slate-50"
                         }`}
                       >
                         <td className="px-5 py-3">
@@ -682,20 +765,25 @@ export default function DanhMucThucHien() {
                           >
                             {d.hinhThuc}
                           </span>
-                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">{d.id}</div>
+                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                            {d.id}
+                          </div>
                         </td>
                         <td className="px-5 py-3 text-center font-semibold text-slate-700">
                           {d.steps.length}
                         </td>
                         <td className="px-5 py-3 text-center">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${d.soGoi > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
+                          <span
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-full ${d.soGoi > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}
+                          >
                             {d.soGoi} gói
                           </span>
                         </td>
                         <td className="px-5 py-3">
                           {d.active ? (
                             <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                              <i className="fa-solid fa-circle-check" /> Đang hoạt động
+                              <i className="fa-solid fa-circle-check" /> Đang
+                              hoạt động
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 font-medium">
@@ -708,7 +796,10 @@ export default function DanhMucThucHien() {
                             {DM_CAN_EDIT && (
                               <button
                                 title="Chỉnh sửa"
-                                onClick={(e) => { e.stopPropagation(); setEditTarget(d); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditTarget(d);
+                                }}
                                 className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                               >
                                 <i className="fa-solid fa-pen text-xs" />
@@ -716,7 +807,9 @@ export default function DanhMucThucHien() {
                             )}
                             {DM_CAN_TOGGLE && (
                               <button
-                                title={d.active ? "Ẩn danh mục" : "Hiện danh mục"}
+                                title={
+                                  d.active ? "Ẩn danh mục" : "Hiện danh mục"
+                                }
                                 onClick={(e) => toggleActive(d.id, e)}
                                 className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${
                                   d.active
@@ -724,12 +817,18 @@ export default function DanhMucThucHien() {
                                     : "text-amber-500 hover:text-slate-400 hover:bg-slate-100"
                                 }`}
                               >
-                                <i className={`fa-solid ${d.active ? "fa-eye-slash" : "fa-eye"} text-xs`} />
+                                <i
+                                  className={`fa-solid ${d.active ? "fa-eye-slash" : "fa-eye"} text-xs`}
+                                />
                               </button>
                             )}
                             {DM_CAN_DELETE && (
                               <button
-                                title={d.soGoi > 0 ? `Không thể xóa (${d.soGoi} gói)` : "Xóa danh mục"}
+                                title={
+                                  d.soGoi > 0
+                                    ? `Không thể xóa (${d.soGoi} gói)`
+                                    : "Xóa danh mục"
+                                }
                                 onClick={(e) => requestDelete(d, e)}
                                 className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${d.soGoi > 0 ? "text-slate-200 cursor-not-allowed" : "text-slate-400 hover:text-red-500 hover:bg-red-50"}`}
                               >
@@ -748,17 +847,35 @@ export default function DanhMucThucHien() {
             {filtered.length > 0 && (
               <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm">
                 <span className="text-xs text-slate-400">
-                  Hiển thị {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
-                  {Math.min(page * PAGE_SIZE, filtered.length)} / {filtered.length} danh mục
+                  Hiển thị{" "}
+                  {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
+                  {Math.min(page * PAGE_SIZE, filtered.length)} /{" "}
+                  {filtered.length} danh mục
                 </span>
                 <div className="flex items-center gap-1">
-                  <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                  >
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                    <button key={n} onClick={() => setPage(n)} className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold ${page === n ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{n}</button>
-                  ))}
-                  <button disabled={page === totalPages} onClick={() => setPage((p) => p + 1)} className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (n) => (
+                      <button
+                        key={n}
+                        onClick={() => setPage(n)}
+                        className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-semibold ${page === n ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                      >
+                        {n}
+                      </button>
+                    ),
+                  )}
+                  <button
+                    disabled={page === totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                  >
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </button>
                 </div>
@@ -772,28 +889,42 @@ export default function DanhMucThucHien() {
           {/* Header */}
           <div className="p-5 border-b border-slate-100">
             <div className="flex items-start justify-between mb-1">
-              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${selItem.badge}`}>
+              <span
+                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${selItem.badge}`}
+              >
                 {selItem.hinhThuc}
               </span>
               {DM_CAN_EDIT && (
                 <button
                   title="Sửa hình thức"
-                  onClick={(e) => { e.stopPropagation(); setEditTarget(selItem); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditTarget(selItem);
+                  }}
                   className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                 >
                   <i className="fa-solid fa-pen text-[10px]" /> Sửa hình thức
                 </button>
               )}
             </div>
-            <div className="text-[11px] text-slate-400 font-mono mt-0.5">{selItem.id}</div>
-            <div className="text-xs text-slate-400 mt-1">{selItem.steps.length} bước quy trình</div>
+            <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+              {selItem.id}
+            </div>
+            <div className="text-xs text-slate-400 mt-1">
+              {selItem.steps.length} bước quy trình
+            </div>
 
             <div className="flex justify-between text-xs text-slate-600 mb-1.5 mt-3">
               <span>Hoàn thành mẫu</span>
-              <span>{doneCount}/{selItem.steps.length} ({pct}%)</span>
+              <span>
+                {doneCount}/{selItem.steps.length} ({pct}%)
+              </span>
             </div>
             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all"
+                style={{ width: `${pct}%` }}
+              />
             </div>
           </div>
 
@@ -824,17 +955,25 @@ export default function DanhMucThucHien() {
                   <div key={s.ten} className="flex items-start gap-2.5">
                     <Dot state={s.state} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-slate-800">{s.ten}</div>
+                      <div className="text-xs font-medium text-slate-800">
+                        {s.ten}
+                      </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-slate-400">{s.donVi}</span>
+                        <span className="text-[11px] text-slate-400">
+                          {s.donVi}
+                        </span>
                         <span className="text-[10px] text-slate-300">·</span>
-                        <span className="text-[11px] text-slate-400">{s.thoiHan}</span>
+                        <span className="text-[11px] text-slate-400">
+                          {s.thoiHan}
+                        </span>
                       </div>
                     </div>
                   </div>
                 ))}
                 {selItem.steps.length === 0 && (
-                  <p className="text-xs text-slate-400 italic">Chưa có bước nào.</p>
+                  <p className="text-xs text-slate-400 italic">
+                    Chưa có bước nào.
+                  </p>
                 )}
               </div>
               <button
@@ -842,7 +981,8 @@ export default function DanhMucThucHien() {
                 onClick={goEditQuyTrinh}
                 className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
               >
-                <i className="fa-solid fa-diagram-project text-xs" /> Chỉnh sửa quy trình
+                <i className="fa-solid fa-diagram-project text-xs" /> Chỉnh sửa
+                quy trình
               </button>
             </div>
           ) : (
@@ -865,7 +1005,9 @@ export default function DanhMucThucHien() {
                           <i className="fa-solid fa-clock-rotate-left text-blue-500 text-[10px]" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-slate-700 font-medium">{a.hanhDong}</p>
+                          <p className="text-xs text-slate-700 font-medium">
+                            {a.hanhDong}
+                          </p>
                           <div className="mt-0.5 space-y-0.5 text-[11px] text-slate-400">
                             <p>Thời gian: {a.thoiGian}</p>
                             <p>Người thực hiện: {a.nguoiThucHien}</p>

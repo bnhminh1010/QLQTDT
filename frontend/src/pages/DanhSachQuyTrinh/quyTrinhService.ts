@@ -3,14 +3,56 @@
    Dùng chung cho trang Lập quy trình và Danh sách quy trình
 ───────────────────────────────────────────────────────────────────────────── */
 
-export type LoaiBuoc = "Bắt đầu" | "Thường" | "Kết thúc";
-export type TrangThaiBuoc = "Đang xử lý" | "Chờ duyệt" | "Hoàn tất";
+export type LoaiBuoc =
+  | "Bắt đầu"
+  | "Thường"
+  | "Ký duyệt"
+  | "Đăng tải"
+  | "Đánh giá/kiểm tra"
+  | "Hợp đồng"
+  | "Kết thúc";
+export type TrangThaiBuoc =
+  | "Chưa bắt đầu"
+  | "Đang xử lý"
+  | "Chờ ký duyệt"
+  | "Hoàn thành";
 export type DieuKienChuyen =
   | "Duyệt"
   | "Từ chối"
   | "Yêu cầu kiểm tra"
   | "Trả về";
+export type LoaiThoiHan =
+  | "Chỉ cảnh báo quá hạn"
+  | "Bắt buộc hoàn thành trước hạn";
+export type HanhDongChuyen =
+  | "Hoàn thành / Duyệt"
+  | "Không duyệt"
+  | "Trả về"
+  | "Yêu cầu bổ sung"
+  | "Bỏ qua bước";
+export type DieuKienKichHoat = "Luôn" | "Theo vai trò" | "Theo kết quả xử lý";
 export type TrangThaiQT = "Đang hoạt động" | "Đã tắt";
+
+export type DieuKienChuyenTiep = {
+  id: string;
+  hanhDong: HanhDongChuyen;
+  buocChuyenDenId: string;
+  dieuKienKichHoat: DieuKienKichHoat;
+  ketQuaApDung?: string;
+  vaiTroApDung?: string;
+  batBuocGhiChu: boolean;
+  batBuocUpload: boolean;
+};
+
+export type NhanhSongSong = {
+  id: string;
+  tenNhanh: string;
+  donVi: string;
+  vaiTro: string;
+  thoiHanNgay: number;
+  loaiThoiHan: LoaiThoiHan;
+  buocDauTienId: string;
+};
 
 export const HINH_THUC_OPTIONS = [
   "Chỉ định thầu tự quyết định LCNT",
@@ -32,22 +74,48 @@ export type Buoc = {
   id: string;
   /** Tên bước thực hiện */
   ten: string;
-  /** Loại bước: Bắt đầu / Thường / Kết thúc */
+  /** Loại bước */
   loai: LoaiBuoc;
-  /** Đơn vị phụ trách bước này */
+  /** Nhóm giai đoạn (tuỳ chọn) */
+  nhomGiaiDoan?: string;
+  /** Đơn vị phụ trách / soạn hồ sơ */
   donViPhuTrach: string;
   /** Vai trò người xử lý */
   vaiTroXuLy: string;
-  /** Thời hạn xử lý — số ngày xử lý tối đa */
+  /** Thời hạn xử lý — số ngày (cho phép 0 và thập phân) */
   slaNgay: number;
+  /** Loại thời hạn: cảnh báo / bắt buộc */
+  loaiThoiHan: LoaiThoiHan;
   /** Trạng thái mặc định khi bước bắt đầu */
   trangThaiMacDinh: TrangThaiBuoc;
-  /** Các điều kiện để chuyển sang bước tiếp theo */
-  dieuKienChuyen: DieuKienChuyen[];
-  /** ID của bước tiếp theo (transition) */
-  buocTiepTheoId: string;
+  /** Có yêu cầu ký duyệt */
+  coKyDuyet: boolean;
+  /** Đơn vị kiểm tra/ký hồ sơ (khi coKyDuyet = true) */
+  donViKyHoSo?: string;
+  /** Vai trò ký duyệt (khi coKyDuyet = true) */
+  vaiTroKyDuyet?: string;
+  /** Số ngày ký duyệt */
+  soNgayKyDuyet?: number;
+  /** Bắt buộc ký trước khi chuyển bước */
+  batBuocKyTruocChuyenBuoc: boolean;
+  /** Bảng điều kiện chuyển tiếp */
+  dieuKienChuyenTiep: DieuKienChuyenTiep[];
+  /** Có tạo nhánh song song */
+  coNhanhSongSong: boolean;
+  /** Danh sách nhánh song song */
+  nhanhList: NhanhSongSong[];
+  /** Điều kiện hợp nhất nhánh */
+  dieuKienHopNhat: "all" | "any" | "count";
+  /** Số nhánh tối thiểu (khi dieuKienHopNhat = "count") */
+  soNhanhHopNhatToiThieu: number;
+  /** Bước tiếp theo sau khi tất cả nhánh hợp nhất */
+  buocSauHopNhatId?: string;
   /** Ghi chú thêm */
   moTa: string;
+  /** @deprecated dùng dieuKienChuyenTiep thay thế */
+  dieuKienChuyen: DieuKienChuyen[];
+  /** @deprecated dùng dieuKienChuyenTiep thay thế */
+  buocTiepTheoId: string;
 };
 
 export type QuyTrinh = {
@@ -91,9 +159,7 @@ export function themQuyTrinh(qt: QuyTrinh): void {
 
 /** Cập nhật quy trình đã có */
 export function capNhatQuyTrinh(qt: QuyTrinh): void {
-  luuDanhSach(
-    layDanhSachQuyTrinh().map((x) => (x.id === qt.id ? qt : x)),
-  );
+  luuDanhSach(layDanhSachQuyTrinh().map((x) => (x.id === qt.id ? qt : x)));
 }
 
 /** Xóa quy trình theo ID */

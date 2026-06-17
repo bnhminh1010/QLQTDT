@@ -238,15 +238,14 @@ export function SuaKhoaPhongModal({
           {/* Đơn vị cha */}
           <div>
             <label className={labelCls}>Đơn vị cha</label>
-            <select
-              className={inputCls}
-              {...register("donViCha")}
-            >
+            <select className={inputCls} {...register("donViCha")}>
               <option value="">-- Không có đơn vị cha --</option>
               {existingNames
                 .filter((n) => n !== phong.ten)
                 .map((n) => (
-                  <option key={n} value={n}>{n}</option>
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
                 ))}
             </select>
           </div>

@@ -34,8 +34,10 @@ const TT_DOT: Record<TrangThai, string> = {
 // Giả lập người dùng hiện tại — trong thực tế lấy từ auth context
 const MOCK_CURRENT_ROLE: VaiTro = "Admin";
 const CAN_ADD = MOCK_CURRENT_ROLE === "Admin";
-const CAN_EDIT = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
-const CAN_LOCK = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const CAN_EDIT =
+  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const CAN_LOCK =
+  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
 const CAN_DELETE = MOCK_CURRENT_ROLE === "Admin";
 
 /* ─── Mock data ───────────────────────────────────────── */
@@ -296,7 +298,10 @@ export default function NguoiDung() {
   }, [data, search, filterVaiTro, filterTT, sortCol, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSizeOpt));
-  const paginated = filtered.slice((page - 1) * pageSizeOpt, page * pageSizeOpt);
+  const paginated = filtered.slice(
+    (page - 1) * pageSizeOpt,
+    page * pageSizeOpt,
+  );
 
   function toggleSort(col: SortCol) {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -359,7 +364,12 @@ export default function NguoiDung() {
     setEditTarget(null);
   }
 
-  function updateTrangThai(target: User, next: TrangThai, msg: string, action?: string) {
+  function updateTrangThai(
+    target: User,
+    next: TrangThai,
+    msg: string,
+    action?: string,
+  ) {
     setData((prev) =>
       prev.map((u) => (u.id === target.id ? { ...u, trangThai: next } : u)),
     );
@@ -505,7 +515,10 @@ export default function NguoiDung() {
               </select>
               <select
                 value={pageSizeOpt}
-                onChange={(e) => { setPageSizeOpt(Number(e.target.value)); setPage(1); }}
+                onChange={(e) => {
+                  setPageSizeOpt(Number(e.target.value));
+                  setPage(1);
+                }}
                 className="border border-slate-200 rounded-xl text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value={8}>8 / trang</option>
@@ -732,7 +745,8 @@ export default function NguoiDung() {
             {!loading && !error && (
               <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs text-slate-400">
-                  Hiển thị {filtered.length === 0 ? 0 : (page - 1) * pageSizeOpt + 1}–
+                  Hiển thị{" "}
+                  {filtered.length === 0 ? 0 : (page - 1) * pageSizeOpt + 1}–
                   {Math.min(page * pageSizeOpt, filtered.length)} /{" "}
                   {filtered.length} kết quả
                 </span>
@@ -853,7 +867,10 @@ export default function NguoiDung() {
                           ["Ngày tạo", selected.ngayTao],
                         ] as [string, string][]
                       ).map(([lbl, val]) => (
-                        <div key={lbl} className="flex flex-col text-xs gap-0.5">
+                        <div
+                          key={lbl}
+                          className="flex flex-col text-xs gap-0.5"
+                        >
                           <span className="text-slate-400">{lbl}</span>
                           <span className="text-slate-800 font-medium break-all">
                             {val}
@@ -878,13 +895,15 @@ export default function NguoiDung() {
                             onClick={() => setDisableTarget(selected)}
                             className="w-full flex items-center justify-center gap-2 text-sm text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 transition-colors"
                           >
-                            <i className="fa-solid fa-eye-slash text-xs" /> Tắt hoạt động
+                            <i className="fa-solid fa-eye-slash text-xs" /> Tắt
+                            hoạt động
                           </button>
                           <button
                             onClick={() => setLockTarget(selected)}
                             className="w-full flex items-center justify-center gap-2 text-sm text-orange-500 hover:bg-orange-50 border border-orange-200 rounded-xl py-2.5 transition-colors"
                           >
-                            <i className="fa-solid fa-lock text-xs" /> Khóa tài khoản
+                            <i className="fa-solid fa-lock text-xs" /> Khóa tài
+                            khoản
                           </button>
                         </>
                       )}
@@ -896,7 +915,8 @@ export default function NguoiDung() {
                             onClick={() => setDisableTarget(selected)}
                             className="w-full flex items-center justify-center gap-2 text-sm text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-xl py-2.5 transition-colors"
                           >
-                            <i className="fa-solid fa-lock-open text-xs" /> Kích hoạt lại
+                            <i className="fa-solid fa-lock-open text-xs" /> Kích
+                            hoạt lại
                           </button>
                         )}
 
@@ -905,7 +925,8 @@ export default function NguoiDung() {
                           onClick={() => setDeleteTarget(selected)}
                           className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
                         >
-                          <i className="fa-solid fa-trash text-xs" /> Xóa tài khoản
+                          <i className="fa-solid fa-trash text-xs" /> Xóa tài
+                          khoản
                         </button>
                       )}
                     </div>
@@ -918,7 +939,9 @@ export default function NguoiDung() {
                     {userAudit.length === 0 ? (
                       <div className="text-center py-8">
                         <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
-                        <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
+                        <p className="text-xs text-slate-400 mt-2">
+                          Chưa có lịch sử
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -928,7 +951,9 @@ export default function NguoiDung() {
                               <i className="fa-solid fa-clock-rotate-left text-blue-500 text-[10px]" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-slate-700 font-medium">{a.hanhDong}</p>
+                              <p className="text-xs text-slate-700 font-medium">
+                                {a.hanhDong}
+                              </p>
                               <p className="text-[11px] text-slate-400">
                                 {a.nguoiThucHien} · {a.thoiGian}
                               </p>
@@ -1037,7 +1062,6 @@ export default function NguoiDung() {
           onClose={() => setDisableTarget(null)}
         />
       )}
-
     </>
   );
 }

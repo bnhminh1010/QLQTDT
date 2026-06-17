@@ -24,9 +24,30 @@ type NotifItem = {
 };
 
 const INITIAL_NOTIFS: NotifItem[] = [
-  { id: 1, icon: "fa-triangle-exclamation", color: "text-red-500 bg-red-50", title: "GT2025-003 trễ hạn 21 ngày", time: "Vừa xong", read: false },
-  { id: 2, icon: "fa-circle-check", color: "text-emerald-500 bg-emerald-50", title: "GT2025-002 đã hoàn thành", time: "2 giờ trước", read: false },
-  { id: 3, icon: "fa-file-lines", color: "text-blue-500 bg-blue-50", title: "GT2025-001 cần duyệt tờ trình", time: "5 giờ trước", read: true },
+  {
+    id: 1,
+    icon: "fa-triangle-exclamation",
+    color: "text-red-500 bg-red-50",
+    title: "GT2025-003 trễ hạn 21 ngày",
+    time: "Vừa xong",
+    read: false,
+  },
+  {
+    id: 2,
+    icon: "fa-circle-check",
+    color: "text-emerald-500 bg-emerald-50",
+    title: "GT2025-002 đã hoàn thành",
+    time: "2 giờ trước",
+    read: false,
+  },
+  {
+    id: 3,
+    icon: "fa-file-lines",
+    color: "text-blue-500 bg-blue-50",
+    title: "GT2025-001 cần duyệt tờ trình",
+    time: "5 giờ trước",
+    read: true,
+  },
 ];
 
 const inputCls =
@@ -37,7 +58,9 @@ const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
 export default function UserProfile() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"profile" | "password" | "notifications">("profile");
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "password" | "notifications"
+  >("profile");
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const [notifs, setNotifs] = useState<NotifItem[]>(INITIAL_NOTIFS);
 
@@ -48,7 +71,11 @@ export default function UserProfile() {
     confirm: "",
   });
   const [pwdErrors, setPwdErrors] = useState<Record<string, string>>({});
-  const [showPwd, setShowPwd] = useState({ current: false, newPwd: false, confirm: false });
+  const [showPwd, setShowPwd] = useState({
+    current: false,
+    newPwd: false,
+    confirm: false,
+  });
   const [savingPwd, setSavingPwd] = useState(false);
 
   const unreadCount = notifs.filter((n) => !n.read).length;
@@ -57,12 +84,17 @@ export default function UserProfile() {
     const errs: Record<string, string> = {};
     if (!pwdForm.current) errs.current = "Vui lòng nhập mật khẩu hiện tại";
     if (!pwdForm.newPwd) errs.newPwd = "Vui lòng nhập mật khẩu mới";
-    else if (pwdForm.newPwd.length < 8) errs.newPwd = "Mật khẩu mới phải có ít nhất 8 ký tự";
-    else if (!/[A-Z]/.test(pwdForm.newPwd)) errs.newPwd = "Mật khẩu phải có ít nhất 1 chữ hoa";
-    else if (!/[0-9]/.test(pwdForm.newPwd)) errs.newPwd = "Mật khẩu phải có ít nhất 1 chữ số";
-    else if (pwdForm.newPwd === pwdForm.current) errs.newPwd = "Mật khẩu mới không được trùng với mật khẩu hiện tại";
+    else if (pwdForm.newPwd.length < 8)
+      errs.newPwd = "Mật khẩu mới phải có ít nhất 8 ký tự";
+    else if (!/[A-Z]/.test(pwdForm.newPwd))
+      errs.newPwd = "Mật khẩu phải có ít nhất 1 chữ hoa";
+    else if (!/[0-9]/.test(pwdForm.newPwd))
+      errs.newPwd = "Mật khẩu phải có ít nhất 1 chữ số";
+    else if (pwdForm.newPwd === pwdForm.current)
+      errs.newPwd = "Mật khẩu mới không được trùng với mật khẩu hiện tại";
     if (!pwdForm.confirm) errs.confirm = "Vui lòng xác nhận mật khẩu mới";
-    else if (pwdForm.confirm !== pwdForm.newPwd) errs.confirm = "Xác nhận mật khẩu không khớp";
+    else if (pwdForm.confirm !== pwdForm.newPwd)
+      errs.confirm = "Xác nhận mật khẩu không khớp";
     setPwdErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -100,7 +132,9 @@ export default function UserProfile() {
           >
             <i className="fa-solid fa-arrow-left text-sm" />
           </button>
-          <h1 className="text-[17px] font-bold text-slate-900">Hồ sơ cá nhân</h1>
+          <h1 className="text-[17px] font-bold text-slate-900">
+            Hồ sơ cá nhân
+          </h1>
         </div>
         <button
           onClick={() => setLogoutConfirm(true)}
@@ -117,13 +151,21 @@ export default function UserProfile() {
             {MOCK_USER.hoTen.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-lg font-bold text-slate-900">{MOCK_USER.hoTen}</div>
-            <div className="text-sm text-slate-500">{MOCK_USER.donVi} · {MOCK_USER.vaiTro}</div>
+            <div className="text-lg font-bold text-slate-900">
+              {MOCK_USER.hoTen}
+            </div>
+            <div className="text-sm text-slate-500">
+              {MOCK_USER.donVi} · {MOCK_USER.vaiTro}
+            </div>
             <div className="mt-1.5 flex gap-2 flex-wrap">
-              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BADGE_CLS[MOCK_USER.trangThai] ?? "bg-slate-100 text-slate-500"}`}>
+              <span
+                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BADGE_CLS[MOCK_USER.trangThai] ?? "bg-slate-100 text-slate-500"}`}
+              >
                 {MOCK_USER.trangThai}
               </span>
-              <span className="text-xs text-slate-400">Tạo: {MOCK_USER.ngayTao}</span>
+              <span className="text-xs text-slate-400">
+                Tạo: {MOCK_USER.ngayTao}
+              </span>
             </div>
           </div>
           {unreadCount > 0 && (
@@ -170,27 +212,51 @@ export default function UserProfile() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <div>
                 <label className={labelCls}>Họ và tên</label>
-                <input readOnly value={MOCK_USER.hoTen} className={inputReadonlyCls} />
+                <input
+                  readOnly
+                  value={MOCK_USER.hoTen}
+                  className={inputReadonlyCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Tên đăng nhập</label>
-                <input readOnly value={MOCK_USER.tenDangNhap} className={inputReadonlyCls} />
+                <input
+                  readOnly
+                  value={MOCK_USER.tenDangNhap}
+                  className={inputReadonlyCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Email</label>
-                <input readOnly value={MOCK_USER.email} className={inputReadonlyCls} />
+                <input
+                  readOnly
+                  value={MOCK_USER.email}
+                  className={inputReadonlyCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Số điện thoại</label>
-                <input readOnly value={MOCK_USER.sdt} className={inputReadonlyCls} />
+                <input
+                  readOnly
+                  value={MOCK_USER.sdt}
+                  className={inputReadonlyCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Đơn vị</label>
-                <input readOnly value={MOCK_USER.donVi} className={inputReadonlyCls} />
+                <input
+                  readOnly
+                  value={MOCK_USER.donVi}
+                  className={inputReadonlyCls}
+                />
               </div>
               <div>
                 <label className={labelCls}>Vai trò</label>
-                <input readOnly value={MOCK_USER.vaiTro} className={inputReadonlyCls} />
+                <input
+                  readOnly
+                  value={MOCK_USER.vaiTro}
+                  className={inputReadonlyCls}
+                />
               </div>
             </div>
             <p className="text-xs text-slate-400 flex items-center gap-1.5">
@@ -239,18 +305,30 @@ export default function UserProfile() {
                         setPwdErrors((err) => ({ ...err, [field]: "" }));
                       }}
                       className={`${pwdErrors[field] ? "w-full px-3.5 py-2.5 border border-red-400 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-400 pr-10" : `${inputCls} pr-10`}`}
-                      placeholder={field === "current" ? "Nhập mật khẩu hiện tại" : field === "newPwd" ? "Nhập mật khẩu mới" : "Nhập lại mật khẩu mới"}
+                      placeholder={
+                        field === "current"
+                          ? "Nhập mật khẩu hiện tại"
+                          : field === "newPwd"
+                            ? "Nhập mật khẩu mới"
+                            : "Nhập lại mật khẩu mới"
+                      }
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPwd((s) => ({ ...s, [field]: !s[field] }))}
+                      onClick={() =>
+                        setShowPwd((s) => ({ ...s, [field]: !s[field] }))
+                      }
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
-                      <i className={`fa-solid ${showPwd[field] ? "fa-eye-slash" : "fa-eye"} text-xs`} />
+                      <i
+                        className={`fa-solid ${showPwd[field] ? "fa-eye-slash" : "fa-eye"} text-xs`}
+                      />
                     </button>
                   </div>
                   {pwdErrors[field] && (
-                    <p className="text-xs text-red-500 mt-1">{pwdErrors[field]}</p>
+                    <p className="text-xs text-red-500 mt-1">
+                      {pwdErrors[field]}
+                    </p>
                   )}
                   {/* Strength bar for new password */}
                   {field === "newPwd" && pwdForm.newPwd && (
@@ -286,8 +364,18 @@ export default function UserProfile() {
                           const len = pwdForm.newPwd.length;
                           const hasUpper = /[A-Z]/.test(pwdForm.newPwd);
                           const hasNum = /[0-9]/.test(pwdForm.newPwd);
-                          const s = (len >= 8 ? 1 : 0) + (hasUpper ? 1 : 0) + (hasNum ? 1 : 0) + (len >= 12 ? 1 : 0);
-                          return s <= 1 ? "Yếu" : s <= 2 ? "Trung bình" : s <= 3 ? "Mạnh" : "Rất mạnh";
+                          const s =
+                            (len >= 8 ? 1 : 0) +
+                            (hasUpper ? 1 : 0) +
+                            (hasNum ? 1 : 0) +
+                            (len >= 12 ? 1 : 0);
+                          return s <= 1
+                            ? "Yếu"
+                            : s <= 2
+                              ? "Trung bình"
+                              : s <= 3
+                                ? "Mạnh"
+                                : "Rất mạnh";
                         })()}
                       </span>
                     </div>
@@ -318,11 +406,18 @@ export default function UserProfile() {
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
               <span className="font-semibold text-slate-800 text-sm">
-                Thông báo {unreadCount > 0 && <span className="ml-1 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">{unreadCount} mới</span>}
+                Thông báo{" "}
+                {unreadCount > 0 && (
+                  <span className="ml-1 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">
+                    {unreadCount} mới
+                  </span>
+                )}
               </span>
               {unreadCount > 0 && (
                 <button
-                  onClick={() => setNotifs((prev) => prev.map((n) => ({ ...n, read: true })))}
+                  onClick={() =>
+                    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })))
+                  }
                   className="text-xs text-blue-600 hover:underline"
                 >
                   Đánh dấu tất cả đã đọc
@@ -333,19 +428,31 @@ export default function UserProfile() {
               {notifs.map((n) => (
                 <div
                   key={n.id}
-                  onClick={() => setNotifs((prev) => prev.map((x) => x.id === n.id ? { ...x, read: true } : x))}
+                  onClick={() =>
+                    setNotifs((prev) =>
+                      prev.map((x) =>
+                        x.id === n.id ? { ...x, read: true } : x,
+                      ),
+                    )
+                  }
                   className={`flex items-start gap-3 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? "bg-blue-50/40" : ""}`}
                 >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm ${n.color}`}>
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm ${n.color}`}
+                  >
                     <i className={`fa-solid ${n.icon}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${!n.read ? "font-semibold text-slate-800" : "text-slate-600"}`}>
+                    <p
+                      className={`text-sm ${!n.read ? "font-semibold text-slate-800" : "text-slate-600"}`}
+                    >
                       {n.title}
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">{n.time}</p>
                   </div>
-                  {!n.read && <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />}
+                  {!n.read && (
+                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                  )}
                 </div>
               ))}
             </div>
@@ -362,8 +469,12 @@ export default function UserProfile() {
                 <i className="fa-solid fa-right-from-bracket text-red-500" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-800 text-sm">Xác nhận đăng xuất</h3>
-                <p className="text-sm text-slate-500 mt-1">Bạn có chắc muốn đăng xuất khỏi hệ thống?</p>
+                <h3 className="font-bold text-slate-800 text-sm">
+                  Xác nhận đăng xuất
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Bạn có chắc muốn đăng xuất khỏi hệ thống?
+                </p>
               </div>
             </div>
             <div className="flex justify-end gap-2">

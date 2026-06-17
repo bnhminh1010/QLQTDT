@@ -45,7 +45,7 @@ export default function DanhSachQuyTrinh() {
 
   useEffect(() => {
     return reload();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function toggleSort(field: SortField) {
@@ -61,9 +61,9 @@ export default function DanhSachQuyTrinh() {
   function handleToggle(qt: QuyTrinh) {
     const updated: QuyTrinh = {
       ...qt,
-      trangThai: (
-        qt.trangThai === "Đang hoạt động" ? "Đã tắt" : "Đang hoạt động"
-      ) as TrangThaiQT,
+      trangThai: (qt.trangThai === "Đang hoạt động"
+        ? "Đã tắt"
+        : "Đang hoạt động") as TrangThaiQT,
     };
     updateQuyTrinh(updated);
     setList((prev) => prev.map((x) => (x.id === qt.id ? updated : x)));
@@ -98,8 +98,7 @@ export default function DanhSachQuyTrinh() {
       let cmp = 0;
       if (sortField === "ten") cmp = a.ten.localeCompare(b.ten, "vi");
       else if (sortField === "ngayTao")
-        cmp =
-          new Date(a.ngayTao).getTime() - new Date(b.ngayTao).getTime();
+        cmp = new Date(a.ngayTao).getTime() - new Date(b.ngayTao).getTime();
       else if (sortField === "buocList")
         cmp = a.buocList.length - b.buocList.length;
       return sortDir === "asc" ? cmp : -cmp;
@@ -151,14 +150,20 @@ export default function DanhSachQuyTrinh() {
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
             <input
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Tìm theo tên, mã quy trình..."
               className="pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 w-full"
             />
           </div>
           <select
             value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value as TrangThaiQT | ""); setPage(1); }}
+            onChange={(e) => {
+              setFilterStatus(e.target.value as TrangThaiQT | "");
+              setPage(1);
+            }}
             className="border border-slate-200 rounded-xl text-xs px-3 py-2 bg-white focus:outline-none"
           >
             <option value="">Tất cả trạng thái</option>
@@ -167,23 +172,35 @@ export default function DanhSachQuyTrinh() {
           </select>
           <select
             value={filterHT}
-            onChange={(e) => { setFilterHT(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setFilterHT(e.target.value);
+              setPage(1);
+            }}
             className="border border-slate-200 rounded-xl text-xs px-3 py-2 bg-white focus:outline-none"
           >
             <option value="">Tất cả hình thức</option>
             {Object.keys(HT_BADGE).map((ht) => (
-              <option key={ht} value={ht}>{ht}</option>
+              <option key={ht} value={ht}>
+                {ht}
+              </option>
             ))}
           </select>
           {(search || filterStatus || filterHT) && (
             <button
-              onClick={() => { setSearch(""); setFilterStatus(""); setFilterHT(""); setPage(1); }}
+              onClick={() => {
+                setSearch("");
+                setFilterStatus("");
+                setFilterHT("");
+                setPage(1);
+              }}
               className="text-xs text-slate-500 hover:text-red-500 flex items-center gap-1"
             >
               <i className="fa-solid fa-xmark" /> Xóa lọc
             </button>
           )}
-          <span className="text-xs text-slate-400 ml-auto">{filtered.length} quy trình</span>
+          <span className="text-xs text-slate-400 ml-auto">
+            {filtered.length} quy trình
+          </span>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -301,7 +318,10 @@ export default function DanhSachQuyTrinh() {
                                     : "bg-blue-50 text-blue-600"
                               }`}
                             >
-                              {i + 1}. {b.ten.length > 12 ? b.ten.slice(0, 12) + "…" : b.ten}
+                              {i + 1}.{" "}
+                              {b.ten.length > 12
+                                ? b.ten.slice(0, 12) + "…"
+                                : b.ten}
                             </span>
                           ))}
                           {qt.buocList.length > 4 && (
@@ -355,8 +375,10 @@ export default function DanhSachQuyTrinh() {
           {!loading && filtered.length > 0 && (
             <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm">
               <span className="text-xs text-slate-400">
-                Hiển thị {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
-                {Math.min(page * PAGE_SIZE, filtered.length)} / {filtered.length} quy trình
+                Hiển thị{" "}
+                {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filtered.length)} /{" "}
+                {filtered.length} quy trình
               </span>
               <div className="flex items-center gap-1">
                 <button
@@ -367,15 +389,24 @@ export default function DanhSachQuyTrinh() {
                   <i className="fa-solid fa-chevron-left text-xs" />
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+                  .filter(
+                    (n) =>
+                      n === 1 || n === totalPages || Math.abs(n - page) <= 1,
+                  )
                   .reduce<(number | "…")[]>((acc, n, idx, arr) => {
-                    if (idx > 0 && n - (arr[idx - 1] as number) > 1) acc.push("…");
+                    if (idx > 0 && n - (arr[idx - 1] as number) > 1)
+                      acc.push("…");
                     acc.push(n);
                     return acc;
                   }, [])
                   .map((n, i) =>
                     n === "…" ? (
-                      <span key={`e${i}`} className="px-1 text-slate-400 text-xs">…</span>
+                      <span
+                        key={`e${i}`}
+                        className="px-1 text-slate-400 text-xs"
+                      >
+                        …
+                      </span>
                     ) : (
                       <button
                         key={n}
@@ -438,4 +469,3 @@ export default function DanhSachQuyTrinh() {
     </>
   );
 }
-
