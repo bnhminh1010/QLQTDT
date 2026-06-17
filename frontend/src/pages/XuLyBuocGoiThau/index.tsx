@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   formatVND,
@@ -8,8 +8,10 @@ import {
 } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
 import {
+  completeXuLyBuoc,
+  getCurrentStepName,
   getXuLyBuoc,
-  saveXuLyBuoc,
+  getXuLyBuocByStep,
   type KetQuaXuLy,
   type XuLyBuocRecord,
 } from "@/pages/DanhSachGoiThau/xuLyBuocService";
@@ -89,14 +91,28 @@ function getCurrentStep(goiThauId: string) {
   return "Tờ trình phê duyệt dự toán";
 }
 
-function getNextStep(goiThauId: string) {
-  if (goiThauId === "GT2025-003") return "Tờ trình phê duyệt dự toán";
-  if (goiThauId === "GT2025-004") return "Đăng tải yêu cầu báo giá";
-  return "Quyết định phê duyệt dự toán";
+const WORKFLOW_STEPS = [
+  "Đề xuất mua sắm",
+  "Tờ trình chủ trương",
+  "Đăng tải yêu cầu báo giá",
+  "Biên bản kiểm tra báo giá",
+  "Tờ trình phê duyệt dự toán",
+  "QĐ phê duyệt dự toán",
+  "Tờ trình kế hoạch LCNT",
+  "QĐ kế hoạch LCNT",
+  "Đăng tải kế hoạch LCNT",
+];
+
+function getNextStep(currentStepName: string) {
+  const idx = WORKFLOW_STEPS.indexOf(currentStepName);
+  if (idx < 0) return "Bước tiếp theo";
+  return WORKFLOW_STEPS[Math.min(idx + 1, WORKFLOW_STEPS.length - 1)];
 }
 
-function stepAfterReject() {
-  return "Trả về bước trước theo cấu hình workflow";
+function getPreviousStep(currentStepName: string) {
+  const idx = WORKFLOW_STEPS.indexOf(currentStepName);
+  if (idx <= 0) return WORKFLOW_STEPS[0];
+  return WORKFLOW_STEPS[idx - 1];
 }
 
 const inputCls =
@@ -110,25 +126,35 @@ const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 export default function XuLyBuocGoiThau() {
   const navigate = useNavigate();
   const { id = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const readonlyMode = searchParams.get("mode") === "view";
+  const viewingStep = searchParams.get("step") || "";
   const goiThau = useMemo(
     () => getGoiThauById(id) ?? FALLBACK_GOI_THAU[id],
     [id],
   );
-  const existing = id ? getXuLyBuoc(id) : null;
-  const locked = !!existing && existing.ketQua !== "Chờ xử lý";
+  const activeStepName = readonlyMode
+    ? viewingStep
+    : getCurrentStepName(id, getCurrentStep(id));
+  const existing = id
+    ? readonlyMode
+      ? getXuLyBuocByStep(id, activeStepName)
+      : getXuLyBuoc(id)
+    : null;
+  const initialLocked = readonlyMode || (!!existing && existing.ketQua !== "Chờ xử lý");
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
 
   const [form, setForm] = useState<XuLyBuocRecord>(() => ({
     goiThauId: id,
     tenGoiThau: goiThau?.ten ?? "",
-    buocWorkflow: existing?.buocWorkflow ?? getCurrentStep(id),
-    nguoiXuLy: existing?.nguoiXuLy ?? (id === "GT2025-003" ? "Nguyễn Văn A" : ""),
-    ngayXuLy: existing?.ngayXuLy ?? todayInputValue(),
-    nguoiKyDuyet: existing?.nguoiKyDuyet ?? "",
-    ngayKyDuyet: existing?.ngayKyDuyet ?? "",
-    ketQua: existing?.ketQua ?? "Chờ xử lý",
-    ghiChu: existing?.ghiChu ?? "",
+    buocWorkflow: existing?.buocWorkflow ?? activeStepName,
+    nguoiXuLy: existing?.nguoiXuLy ?? (readonlyMode ? "K/p mua sắm" : id === "GT2025-003" ? "Nguyễn Văn A" : ""),
+    ngayXuLy: existing?.ngayXuLy ?? (readonlyMode ? "2025-03-12" : todayInputValue()),
+    nguoiKyDuyet: existing?.nguoiKyDuyet ?? (readonlyMode ? "Trần Văn B" : ""),
+    ngayKyDuyet: existing?.ngayKyDuyet ?? (readonlyMode ? "2025-03-12" : ""),
+    ketQua: existing?.ketQua ?? (readonlyMode ? "Duyệt" : "Chờ xử lý"),
+    ghiChu: existing?.ghiChu ?? (readonlyMode ? "Bước đã hoàn thành theo cấu hình workflow." : ""),
     lyDoKhongDuyet: existing?.lyDoKhongDuyet ?? "",
     taiLieuDinhKem: existing?.taiLieuDinhKem ?? [],
     thoiGianXuLy: existing?.thoiGianXuLy,
@@ -138,6 +164,7 @@ export default function XuLyBuocGoiThau() {
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState(existing?.lyDoKhongDuyet ?? "");
+  const [locked, setLocked] = useState(initialLocked);
 
   if (!goiThau) {
     return (
@@ -160,6 +187,13 @@ export default function XuLyBuocGoiThau() {
     if (!form.ngayXuLy) next.ngayXuLy = "Vui lòng chọn ngày xử lý";
     if (!form.nguoiKyDuyet.trim()) next.nguoiKyDuyet = "Vui lòng nhập người ký duyệt";
     if (!form.ngayKyDuyet) next.ngayKyDuyet = "Vui lòng chọn ngày ký duyệt";
+    if (
+      form.ngayXuLy &&
+      form.ngayKyDuyet &&
+      form.ngayKyDuyet < form.ngayXuLy
+    ) {
+      next.ngayKyDuyet = "Ngày ký duyệt không được trước ngày xử lý";
+    }
     if (extra === "reject" && !rejectReason.trim()) {
       next.lyDoKhongDuyet = "Vui lòng nhập lý do không duyệt";
     }
@@ -168,10 +202,14 @@ export default function XuLyBuocGoiThau() {
   }
 
   function saveResult(ketQua: KetQuaXuLy, lyDoKhongDuyet = "") {
+    const nextWorkflowStep =
+      ketQua === "Duyệt"
+        ? getNextStep(form.buocWorkflow)
+        : getPreviousStep(form.buocWorkflow);
     const nextStep =
       ketQua === "Duyệt"
-        ? `Chuyển sang bước "${getNextStep(id)}"`
-        : stepAfterReject();
+        ? `Chuyển sang bước "${nextWorkflowStep}"`
+        : `Trả về bước "${nextWorkflowStep}" theo cấu hình workflow`;
     const record: XuLyBuocRecord = {
       ...form,
       ketQua,
@@ -184,10 +222,11 @@ export default function XuLyBuocGoiThau() {
       thoiGianXuLy: formatDateTime(),
       thaoTacHeThong: nextStep,
     };
-    saveXuLyBuoc(record);
-    setForm(record);
 
     if (ketQua === "Duyệt") {
+      completeXuLyBuoc(record, nextWorkflowStep);
+      setForm(record);
+      setLocked(true);
       const total = Number(goiThau.detail.buoc.split("/")[1]) || 14;
       const current = Number(goiThau.detail.buoc.split("/")[0]) || 0;
       const next = Math.min(current + 1, total);
@@ -200,8 +239,23 @@ export default function XuLyBuocGoiThau() {
           pct: `${Math.round((next / total) * 100)}%`,
         },
       });
-      toast.success(`Duyệt thành công. Đã chuyển sang bước: ${getNextStep(id)}`);
+      toast.success(`Duyệt thành công. Đã chuyển sang bước: ${nextWorkflowStep}`);
     } else {
+      const total = Number(goiThau.detail.buoc.split("/")[1]) || 14;
+      const current = Number(goiThau.detail.buoc.split("/")[0]) || 1;
+      const previous = Math.max(current - 1, 1);
+      completeXuLyBuoc(record, nextWorkflowStep);
+      setForm(record);
+      setLocked(true);
+      updateGoiThau({
+        ...goiThau,
+        trangThai: "Đang xử lý",
+        detail: {
+          ...goiThau.detail,
+          buoc: `${previous}/${total}`,
+          pct: `${Math.round((previous / total) * 100)}%`,
+        },
+      });
       toast.success("Cập nhật kết quả không duyệt thành công.");
     }
   }
@@ -212,7 +266,7 @@ export default function XuLyBuocGoiThau() {
   }
 
   function requestReject() {
-    if (!validateBase("reject")) return;
+    if (!validateBase("approve")) return;
     setRejectOpen(true);
   }
 
@@ -229,7 +283,7 @@ export default function XuLyBuocGoiThau() {
             <i className="fa-solid fa-arrow-left text-sm" />
           </button>
           <h1 className="text-[17px] font-bold text-slate-900">
-            Chi tiết xử lý bước
+            {readonlyMode ? "Chi tiết kết quả xử lý bước" : "Chi tiết xử lý bước"}
           </h1>
         </div>
         <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -269,7 +323,7 @@ export default function XuLyBuocGoiThau() {
         <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-5">
           {locked && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-              Bước này đã có kết quả xử lý. Thông tin bên dưới chỉ dùng để tra cứu.
+              Bước này chỉ hiển thị để tra cứu, không cho phép chỉnh sửa kết quả xử lý.
             </div>
           )}
 

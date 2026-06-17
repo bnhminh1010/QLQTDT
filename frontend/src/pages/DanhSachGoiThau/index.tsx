@@ -4,7 +4,9 @@ import { toast } from "sonner";
 import { getUserGoiThauList } from "./goiThauService";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 import {
+  getCurrentStepName,
   getXuLyBuoc,
+  getXuLyBuocByStep,
   getXuLyBuocHistory,
   type XuLyBuocRecord,
 } from "./xuLyBuocService";
@@ -302,7 +304,7 @@ function getMergedGoiThauList() {
 function Dot({ state }: { state: DotState }) {
   return (
     <div
-      className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[9px] ${DOT_CLS[state]}`}
+      className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[9px] ${DOT_CLS[state]}`}
     >
       {state === "done" && <i className="fa-solid fa-check" />}
       {state === "warn" && <i className="fa-solid fa-triangle-exclamation" />}
@@ -576,9 +578,32 @@ export default function DanhSachGoiThau() {
     toast.error("Gói thầu ở trạng thái này không còn thao tác xử lý bước");
   }
 
+  function goToCurrentStep(item: GoiThau) {
+    if (!canUpdateCurrentStep(item)) {
+      toast.error("Gói thầu ở trạng thái này không còn thao tác xử lý bước");
+      return;
+    }
+    navigate(`/xu-ly-buoc/${encodeURIComponent(item.id)}`);
+  }
+
+  function goToStepResult(item: GoiThau, stepName: string) {
+    navigate(
+      `/xu-ly-buoc/${encodeURIComponent(item.id)}?mode=view&step=${encodeURIComponent(stepName)}`,
+    );
+  }
+
+  function showTenderDetail(item: GoiThau) {
+    if (canEditGoiThau(item)) {
+      goToEdit(item);
+      return;
+    }
+    toast.info("Chi tiết gói thầu đang hiển thị ở panel bên phải");
+  }
+
   /* ─ Detail panel content ─ */
   function DetailPanel() {
     const detailInfo = DETAIL_INFO_BY_ID[selected.id] ?? DEFAULT_DETAIL_INFO;
+    const currentStepName = getCurrentStepName(selected.id, detailInfo.buocHienTai);
     const processingInfo = getXuLyBuoc(selected.id);
     const progressStatus =
       selected.trangThai === "Trễ hạn"
@@ -586,6 +611,39 @@ export default function DanhSachGoiThau() {
         : selected.trangThai === "Chờ duyệt"
           ? "Sắp quá hạn"
           : "Đúng hạn";
+    const displaySteps = detailInfo.steps.map((step) => {
+      const stepRecord = getXuLyBuocByStep(selected.id, step.ten);
+      const isCurrent = step.ten === currentStepName;
+      if (!isCurrent) {
+        if (stepRecord?.ketQua === "Duyệt") {
+          return {
+            ...step,
+            state: "done" as DotState,
+            current: false,
+          };
+        }
+        return {
+          ...step,
+          current: false,
+        };
+      }
+      if (stepRecord?.ketQua === "Duyệt") {
+        return {
+          ...step,
+          state: "done" as DotState,
+          current: false,
+        };
+      }
+      return {
+        ...step,
+        state: canUpdateCurrentStep(selected) ? ("warn" as DotState) : step.state,
+        current: true,
+        nguoiXuLy: processingInfo
+          ? processingInfo.nguoiXuLy
+          : step.nguoiXuLy || detailInfo.nguoiXuLy,
+        slaText: progressStatus,
+      };
+    });
 
     return (
       <>
@@ -625,7 +683,7 @@ export default function DanhSachGoiThau() {
         <div className="space-y-2 mb-5">
           {(
             [
-              ["Bước hiện tại", detailInfo.buocHienTai],
+              ["Bước hiện tại", currentStepName],
               ["Giá trị", formatCurrencyDisplay(selected.giaTriStr)],
               ["Nguồn vốn", selected.detail.nguonVon],
               ["Ngày tạo", selected.detail.ngayTao],
@@ -663,7 +721,12 @@ export default function DanhSachGoiThau() {
           </p>
           <div className="space-y-2 text-xs">
             {[
-              ["Người xử lý", processingInfo?.nguoiXuLy || detailInfo.nguoiXuLy || "—"],
+              [
+                "Người xử lý",
+                processingInfo
+                  ? processingInfo.nguoiXuLy || "—"
+                  : detailInfo.nguoiXuLy || "—",
+              ],
               ["Ngày xử lý", processingInfo?.ngayXuLy || "—"],
               ["Người ký", processingInfo?.nguoiKyDuyet || "—"],
               ["Ngày ký", processingInfo?.ngayKyDuyet || "—"],
@@ -682,28 +745,53 @@ export default function DanhSachGoiThau() {
           CÁC BƯỚC QUY TRÌNH
         </div>
         <div className="space-y-3 mb-5">
-          {detailInfo.steps.map((step) => (
+          {displaySteps.map((step) => (
             <div
               key={step.ten}
               className={`flex items-start gap-2.5 rounded-xl ${
                 step.current
                   ? "border border-amber-200 bg-amber-50 p-2 -mx-2"
-                  : ""
+                  : "p-1.5 -mx-1.5 hover:bg-slate-50"
               }`}
             >
               <Dot state={step.state} />
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <div className="text-xs font-medium text-slate-800">
-                    {step.ten}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {step.current && (
+                        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+                          BƯỚC HIỆN TẠI
+                        </span>
+                      )}
+                      <div className="text-xs font-medium text-slate-800">
+                        {step.ten}
+                      </div>
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-400">
+                      Đơn vị/Vai trò xử lý:{" "}
+                      <span className="font-medium text-slate-500">{step.donVi}</span>
+                    </div>
                   </div>
                   {step.current && (
-                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
-                      BƯỚC HIỆN TẠI
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => goToCurrentStep(selected)}
+                      className="shrink-0 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
+                    >
+                      Cập nhật
+                    </button>
+                  )}
+                  {!step.current && step.state === "done" && (
+                    <button
+                      type="button"
+                      onClick={() => goToStepResult(selected, step.ten)}
+                      className="shrink-0 rounded-lg border border-blue-100 bg-white px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50"
+                    >
+                      Xem
+                    </button>
                   )}
                 </div>
-                <div className="text-[11px] text-slate-400">{step.donVi}</div>
                 {step.current && (
                   <div className="mt-1 space-y-0.5 text-[11px]">
                     {step.nguoiXuLy && (
@@ -713,8 +801,19 @@ export default function DanhSachGoiThau() {
                       </div>
                     )}
                     {step.slaText && (
-                      <div className="font-semibold text-red-600">
-                        {step.slaText}
+                      <div className="text-slate-600">
+                        Tình trạng tiến độ:{" "}
+                        <span
+                          className={`font-semibold ${
+                            step.slaText.includes("Quá hạn")
+                              ? "text-red-600"
+                              : step.slaText.includes("Sắp")
+                                ? "text-amber-600"
+                                : "text-emerald-600"
+                          }`}
+                        >
+                          {step.slaText}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -727,19 +826,31 @@ export default function DanhSachGoiThau() {
         {/* Actions */}
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
           <button
-            onClick={() => handlePrimaryAction(selected)}
-            disabled={!canEditGoiThau(selected) && !canUpdateCurrentStep(selected)}
+            onClick={() => goToCurrentStep(selected)}
+            disabled={!canUpdateCurrentStep(selected)}
             title={
-              canEditGoiThau(selected)
-                ? "Chỉnh sửa gói thầu"
-                : canUpdateCurrentStep(selected)
-                  ? "Cập nhật bước hiện tại"
-                  : "Không còn thao tác xử lý"
+              canUpdateCurrentStep(selected)
+                ? "Xử lý bước hiện tại"
+                : "Không còn thao tác xử lý"
             }
             className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
           >
-            <i className={`fa-solid ${canEditGoiThau(selected) ? "fa-pen" : "fa-clipboard-list"} text-xs`} />
-            {canEditGoiThau(selected) ? "Chỉnh sửa gói thầu" : "Cập nhật bước hiện tại"}
+            <i className="fa-solid fa-clipboard-list text-xs" />
+            Xử lý bước hiện tại
+          </button>
+          <button
+            onClick={() => showTenderDetail(selected)}
+            title="Chi tiết gói thầu"
+            className="w-full flex items-center justify-center gap-2 text-sm text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 transition-colors"
+          >
+            <i className="fa-solid fa-file-lines text-xs" />
+            Chi tiết gói thầu
+          </button>
+          <button
+            onClick={() => setHistoryTarget(selected)}
+            className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
+          >
+            <i className="fa-solid fa-clock-rotate-left text-xs" /> Lịch sử xử lý
           </button>
           {selected.trangThai !== "Đã hủy" &&
             selected.trangThai !== "Hoàn thành" && (
@@ -750,12 +861,6 @@ export default function DanhSachGoiThau() {
                 <i className="fa-solid fa-ban text-xs" /> Hủy gói thầu
               </button>
             )}
-          <button
-            onClick={() => setHistoryTarget(selected)}
-            className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
-          >
-            <i className="fa-solid fa-clock-rotate-left text-xs" /> Xem lịch sử xử lý
-          </button>
           <button
             onClick={() => setDeleteTarget(selected)}
             className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
