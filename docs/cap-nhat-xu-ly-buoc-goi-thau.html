@@ -207,8 +207,8 @@
           <li>Hiển thị icon xanh hoàn thành.</li>
           <li>Hiển thị tên bước.</li>
           <li>Hiển thị <code>Đơn vị/Vai trò xử lý</code>.</li>
-          <li>Bổ sung nút <code>Xem</code>.</li>
-          <li>Khi bấm <code>Xem</code>, mở màn <code>Chi tiết kết quả xử lý bước</code>.</li>
+          <li>Bỏ nút <code>Xem</code> riêng.</li>
+          <li>Có thể click trực tiếp vào dòng bước để mở <code>Chi tiết kết quả xử lý bước</code>.</li>
           <li>Màn xem kết quả ở chế độ chỉ đọc, không cho chỉnh sửa.</li>
         </ul>
 
@@ -228,7 +228,6 @@
         <p>Đã đổi thứ tự nút theo yêu cầu tester:</p>
         <ol>
           <li><code>Xử lý bước hiện tại</code></li>
-          <li><code>Chi tiết gói thầu</code></li>
           <li><code>Lịch sử xử lý</code></li>
           <li><code>Hủy gói thầu</code></li>
           <li><code>Xóa gói thầu</code></li>
@@ -260,11 +259,13 @@
       <section>
         <h2>4. Logic Không duyệt</h2>
         <ul>
-          <li>Bấm <code>Không duyệt</code> sẽ mở popup nhập lý do.</li>
-          <li><code>Lý do không duyệt</code> chỉ bị validate khi bấm <code>Xác nhận không duyệt</code>.</li>
+          <li>Form xử lý bước đổi sang trường <code>Kết quả duyệt *</code> gồm 2 lựa chọn: <code>Duyệt</code> và <code>Không duyệt</code>.</li>
+          <li>Khi chọn <code>Không duyệt</code>, hiển thị ô nhập <code>Lý do không duyệt *</code>.</li>
+          <li><code>Lý do không duyệt</code> chỉ bị validate khi bấm <code>Lưu cập nhật</code>.</li>
           <li>Khi xác nhận, lưu kết quả <code>Không duyệt</code>, người ký, ngày ký, lý do và tài liệu đính kèm.</li>
           <li>Form bị khóa sau khi đã có kết quả xử lý.</li>
           <li>Workflow mock tự trả về bước trước theo cấu hình giả lập và cập nhật lại tiến độ.</li>
+          <li>Nút cuối form đổi thành <code>Hủy</code> và <code>Lưu cập nhật</code>; bấm <code>Hủy</code> có popup xác nhận.</li>
         </ul>
       </section>
 

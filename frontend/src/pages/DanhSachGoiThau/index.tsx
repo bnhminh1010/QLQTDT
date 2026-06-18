@@ -592,14 +592,6 @@ export default function DanhSachGoiThau() {
     );
   }
 
-  function showTenderDetail(item: GoiThau) {
-    if (canEditGoiThau(item)) {
-      goToEdit(item);
-      return;
-    }
-    toast.info("Chi tiết gói thầu đang hiển thị ở panel bên phải");
-  }
-
   /* ─ Detail panel content ─ */
   function DetailPanel() {
     const detailInfo = DETAIL_INFO_BY_ID[selected.id] ?? DEFAULT_DETAIL_INFO;
@@ -748,10 +740,19 @@ export default function DanhSachGoiThau() {
           {displaySteps.map((step) => (
             <div
               key={step.ten}
+              role="button"
+              tabIndex={0}
+              onClick={() => goToStepResult(selected, step.ten)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  goToStepResult(selected, step.ten);
+                }
+              }}
               className={`flex items-start gap-2.5 rounded-xl ${
                 step.current
-                  ? "border border-amber-200 bg-amber-50 p-2 -mx-2"
-                  : "p-1.5 -mx-1.5 hover:bg-slate-50"
+                  ? "border border-amber-200 bg-amber-50 p-2 -mx-2 cursor-pointer"
+                  : "p-1.5 -mx-1.5 hover:bg-slate-50 cursor-pointer"
               }`}
             >
               <Dot state={step.state} />
@@ -776,19 +777,13 @@ export default function DanhSachGoiThau() {
                   {step.current && (
                     <button
                       type="button"
-                      onClick={() => goToCurrentStep(selected)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        goToCurrentStep(selected);
+                      }}
                       className="shrink-0 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
                     >
                       Cập nhật
-                    </button>
-                  )}
-                  {!step.current && step.state === "done" && (
-                    <button
-                      type="button"
-                      onClick={() => goToStepResult(selected, step.ten)}
-                      className="shrink-0 rounded-lg border border-blue-100 bg-white px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50"
-                    >
-                      Xem
                     </button>
                   )}
                 </div>
@@ -837,14 +832,6 @@ export default function DanhSachGoiThau() {
           >
             <i className="fa-solid fa-clipboard-list text-xs" />
             Xử lý bước hiện tại
-          </button>
-          <button
-            onClick={() => showTenderDetail(selected)}
-            title="Chi tiết gói thầu"
-            className="w-full flex items-center justify-center gap-2 text-sm text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 transition-colors"
-          >
-            <i className="fa-solid fa-file-lines text-xs" />
-            Chi tiết gói thầu
           </button>
           <button
             onClick={() => setHistoryTarget(selected)}

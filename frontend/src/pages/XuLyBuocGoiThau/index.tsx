@@ -136,6 +136,7 @@ export default function XuLyBuocGoiThau() {
   const activeStepName = readonlyMode
     ? viewingStep
     : getCurrentStepName(id, getCurrentStep(id));
+  const currentWorkflowStepName = getCurrentStepName(id, getCurrentStep(id));
   const existing = id
     ? readonlyMode
       ? getXuLyBuocByStep(id, activeStepName)
@@ -153,18 +154,26 @@ export default function XuLyBuocGoiThau() {
     ngayXuLy: existing?.ngayXuLy ?? (readonlyMode ? "2025-03-12" : todayInputValue()),
     nguoiKyDuyet: existing?.nguoiKyDuyet ?? (readonlyMode ? "Trần Văn B" : ""),
     ngayKyDuyet: existing?.ngayKyDuyet ?? (readonlyMode ? "2025-03-12" : ""),
-    ketQua: existing?.ketQua ?? (readonlyMode ? "Duyệt" : "Chờ xử lý"),
-    ghiChu: existing?.ghiChu ?? (readonlyMode ? "Bước đã hoàn thành theo cấu hình workflow." : ""),
+    ketQua:
+      existing?.ketQua ??
+      (readonlyMode && activeStepName !== currentWorkflowStepName ? "Duyệt" : "Chờ xử lý"),
+    ghiChu:
+      existing?.ghiChu ??
+      (readonlyMode && activeStepName !== currentWorkflowStepName
+        ? "Bước đã hoàn thành theo cấu hình workflow."
+        : ""),
     lyDoKhongDuyet: existing?.lyDoKhongDuyet ?? "",
     taiLieuDinhKem: existing?.taiLieuDinhKem ?? [],
     thoiGianXuLy: existing?.thoiGianXuLy,
     thaoTacHeThong: existing?.thaoTacHeThong,
   }));
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [approveOpen, setApproveOpen] = useState(false);
-  const [rejectOpen, setRejectOpen] = useState(false);
+  const [decision, setDecision] = useState<"" | KetQuaXuLy>(
+    existing && existing.ketQua !== "Chờ xử lý" ? existing.ketQua : "",
+  );
   const [rejectReason, setRejectReason] = useState(existing?.lyDoKhongDuyet ?? "");
   const [locked, setLocked] = useState(initialLocked);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   if (!goiThau) {
     return (
@@ -196,6 +205,9 @@ export default function XuLyBuocGoiThau() {
     }
     if (extra === "reject" && !rejectReason.trim()) {
       next.lyDoKhongDuyet = "Vui lòng nhập lý do không duyệt";
+    }
+    if (!decision) {
+      next.ketQua = "Vui lòng chọn kết quả duyệt";
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -260,14 +272,17 @@ export default function XuLyBuocGoiThau() {
     }
   }
 
-  function requestApprove() {
-    if (!validateBase("approve")) return;
-    setApproveOpen(true);
-  }
-
-  function requestReject() {
-    if (!validateBase("approve")) return;
-    setRejectOpen(true);
+  function saveUpdate() {
+    if (!decision) {
+      setErrors((prev) => ({
+        ...prev,
+        ketQua: "Vui lòng chọn kết quả duyệt",
+      }));
+      return;
+    }
+    const mode = decision === "Không duyệt" ? "reject" : "approve";
+    if (!validateBase(mode)) return;
+    saveResult(decision, decision === "Không duyệt" ? rejectReason.trim() : "");
   }
 
   const disabled = locked;
@@ -334,7 +349,7 @@ export default function XuLyBuocGoiThau() {
             </div>
             <div>
               <label className={labelCls}>
-                Người xử lý <span className="text-red-500">*</span>
+                Người xử lý hồ sơ <span className="text-red-500">*</span>
               </label>
               <input
                 disabled={disabled}
@@ -384,8 +399,34 @@ export default function XuLyBuocGoiThau() {
               {errors.ngayKyDuyet && <p className="mt-1 text-xs text-red-500">{errors.ngayKyDuyet}</p>}
             </div>
             <div>
-              <label className={labelCls}>Kết quả xử lý</label>
-              <input readOnly value={form.ketQua} className={readonlyCls} />
+              <label className={labelCls}>
+                Kết quả duyệt <span className="text-red-500">*</span>
+              </label>
+              {locked ? (
+                <input readOnly value={form.ketQua} className={readonlyCls} />
+              ) : (
+                <div className="min-h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+                  <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+                    {(["Duyệt", "Không duyệt"] as KetQuaXuLy[]).map((value) => (
+                      <label key={value} className="inline-flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="ketQuaDuyet"
+                          value={value}
+                          checked={decision === value}
+                          onChange={() => {
+                            setDecision(value);
+                            setErrors((prev) => ({ ...prev, ketQua: "", lyDoKhongDuyet: "" }));
+                          }}
+                          className="h-4 w-4 text-blue-600"
+                        />
+                        <span>{value}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {errors.ketQua && <p className="mt-1 text-xs text-red-500">{errors.ketQua}</p>}
             </div>
           </div>
 
@@ -405,6 +446,25 @@ export default function XuLyBuocGoiThau() {
             <div>
               <label className={labelCls}>Lý do không duyệt</label>
               <textarea readOnly rows={3} value={form.lyDoKhongDuyet} className={`${readonlyCls} resize-none`} />
+            </div>
+          )}
+
+          {!locked && decision === "Không duyệt" && (
+            <div>
+              <label className={labelCls}>
+                Lý do không duyệt <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => {
+                  setRejectReason(e.target.value);
+                  setErrors((prev) => ({ ...prev, lyDoKhongDuyet: "" }));
+                }}
+                className={`${errors.lyDoKhongDuyet ? inputErrCls : inputCls} resize-none`}
+                placeholder="Nhập lý do không duyệt..."
+              />
+              {errors.lyDoKhongDuyet && <p className="mt-1 text-xs text-red-500">{errors.lyDoKhongDuyet}</p>}
             </div>
           )}
 
@@ -467,80 +527,42 @@ export default function XuLyBuocGoiThau() {
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4">
               <button
                 type="button"
-                onClick={requestReject}
-                className="h-10 px-5 rounded-xl border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50"
+                onClick={() => setCancelConfirmOpen(true)}
+                className="h-10 px-5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50"
               >
-                Không duyệt
+                Hủy
               </button>
               <button
                 type="button"
-                onClick={requestApprove}
+                onClick={saveUpdate}
                 className="h-10 px-5 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Duyệt
+                Lưu cập nhật
               </button>
             </div>
           )}
         </section>
       </main>
 
-      {approveOpen && (
+      {cancelConfirmOpen && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-sm font-bold text-slate-900">Xác nhận duyệt bước này?</h3>
+            <h3 className="text-sm font-bold text-slate-900">Xác nhận hủy cập nhật?</h3>
             <p className="mt-2 text-sm text-slate-500">
-              Hệ thống sẽ lưu thông tin xử lý và chuyển sang bước tiếp theo.
+              Thông tin chưa lưu sẽ không được cập nhật. Bạn có chắc muốn hủy không?
             </p>
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setApproveOpen(false)} className="h-9 px-4 rounded-xl border border-slate-200 text-sm text-slate-600">
-                Hủy
+              <button onClick={() => setCancelConfirmOpen(false)} className="h-9 px-4 rounded-xl border border-slate-200 text-sm text-slate-600">
+                Tiếp tục chỉnh sửa
               </button>
               <button
                 onClick={() => {
-                  setApproveOpen(false);
-                  saveResult("Duyệt");
-                }}
-                className="h-9 px-5 rounded-xl bg-blue-600 text-sm font-semibold text-white"
-              >
-                Xác nhận
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {rejectOpen && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-sm font-bold text-slate-900">Xác nhận không duyệt</h3>
-            <div className="mt-4">
-              <label className={labelCls}>
-                Lý do không duyệt <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                rows={4}
-                value={rejectReason}
-                onChange={(e) => {
-                  setRejectReason(e.target.value);
-                  setErrors((prev) => ({ ...prev, lyDoKhongDuyet: "" }));
-                }}
-                className={`${errors.lyDoKhongDuyet ? inputErrCls : inputCls} resize-none`}
-              />
-              {errors.lyDoKhongDuyet && <p className="mt-1 text-xs text-red-500">{errors.lyDoKhongDuyet}</p>}
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setRejectOpen(false)} className="h-9 px-4 rounded-xl border border-slate-200 text-sm text-slate-600">
-                Hủy
-              </button>
-              <button
-                onClick={() => {
-                  if (!validateBase("reject")) return;
-                  setRejectOpen(false);
-                  saveResult("Không duyệt", rejectReason.trim());
+                  setCancelConfirmOpen(false);
+                  navigate("/danh-sach-goi-thau");
                 }}
                 className="h-9 px-5 rounded-xl bg-red-500 text-sm font-semibold text-white"
               >
-                Xác nhận không duyệt
+                Hủy cập nhật
               </button>
             </div>
           </div>
