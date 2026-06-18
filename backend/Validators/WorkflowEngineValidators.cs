@@ -52,6 +52,46 @@ public class TraVeStepValidator : AbstractValidator<TraVeStepRequest>
     }
 }
 
+public class RollbackStepValidator : AbstractValidator<RollbackStepRequest>
+{
+    public RollbackStepValidator()
+    {
+        RuleFor(x => x.RowVersion)
+            .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
+
+        RuleFor(x => x.GhiChu)
+            .NotEmpty().WithMessage("Lý do rollback là bắt buộc.")
+            .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+    }
+}
+
+public class SkipStepValidator : AbstractValidator<SkipStepRequest>
+{
+    public SkipStepValidator()
+    {
+        RuleFor(x => x.RowVersion)
+            .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
+
+        RuleFor(x => x.GhiChu)
+            .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+    }
+}
+
+public class ReassignStepValidator : AbstractValidator<ReassignStepRequest>
+{
+    public ReassignStepValidator()
+    {
+        RuleFor(x => x.RowVersion)
+            .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
+
+        RuleFor(x => x.NguoiDuocGiaoId)
+            .GreaterThan(0).WithMessage("NguoiDuocGiaoId phải lớn hơn 0.");
+
+        RuleFor(x => x.GhiChu)
+            .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+    }
+}
+
 public class ProcessStepValidator : AbstractValidator<ProcessStepRequest>
 {
     private static readonly string[] AllowedActions =

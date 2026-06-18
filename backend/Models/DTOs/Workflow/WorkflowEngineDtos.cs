@@ -82,3 +82,31 @@ public class TraVeStepRequest
     public string GhiChu { get; set; } = null!;
     public byte[]? RowVersion { get; set; }
 }
+
+/// <summary>
+/// Rollback bước hiện tại về bước trước (POST /rollback) — GhiChu bắt buộc
+/// </summary>
+public class RollbackStepRequest
+{
+    public string GhiChu { get; set; } = null!;
+    public byte[]? RowVersion { get; set; }
+}
+
+/// <summary>
+/// Bỏ qua bước hiện tại (POST /skip) — GhiChu không bắt buộc
+/// </summary>
+public class SkipStepRequest
+{
+    public string? GhiChu { get; set; }
+    public byte[]? RowVersion { get; set; }
+}
+
+/// <summary>
+/// Chuyển giao bước cho người khác (POST /reassign) — NguoiDuocGiaoId bắt buộc
+/// </summary>
+public class ReassignStepRequest
+{
+    public int NguoiDuocGiaoId { get; set; }
+    public string? GhiChu { get; set; }
+    public byte[]? RowVersion { get; set; }
+}
