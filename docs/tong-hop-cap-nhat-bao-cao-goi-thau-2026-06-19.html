@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tổng hợp cập nhật báo cáo và gói thầu - 19/06/2026</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f4f7fb;
+        color: #0f172a;
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 36px 20px 56px;
+      }
+      section {
+        margin-top: 20px;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        background: #fff;
+        padding: 22px 24px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      h2 {
+        margin: 0 0 12px;
+        font-size: 20px;
+      }
+      ul {
+        margin: 8px 0 0 20px;
+        padding: 0;
+      }
+      li {
+        margin: 6px 0;
+      }
+      .meta {
+        color: #64748b;
+        font-size: 14px;
+      }
+      .tag {
+        display: inline-block;
+        margin: 4px 6px 4px 0;
+        border-radius: 999px;
+        background: #eaf2ff;
+        color: #1d4ed8;
+        padding: 4px 10px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      code {
+        border-radius: 6px;
+        background: #eef2f7;
+        padding: 2px 6px;
+      }
+      table {
+        width: 100%;
+        margin-top: 12px;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        border: 1px solid #dbe3ef;
+        padding: 10px 12px;
+        text-align: left;
+      }
+      th {
+        background: #f8fafc;
+        color: #475569;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tổng hợp các cập nhật đã chỉnh sửa</h1>
+      <div class="meta">Ngày cập nhật: 19/06/2026</div>
+
+      <section>
+        <h2>1. Trang Báo cáo & Thống kê</h2>
+        <span class="tag">ADMIN</span>
+        <span class="tag">BGĐ</span>
+        <span class="tag">PHÒNG QLĐT</span>
+        <span class="tag">K/P Khoa Nội</span>
+        <span class="tag">BCN Khoa Nội</span>
+        <table>
+          <thead>
+            <tr>
+              <th>Role kiểm thử</th>
+              <th>Tài khoản</th>
+              <th>Mật khẩu</th>
+              <th>Quyền dữ liệu</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ADMIN</td>
+              <td><code>admin</code></td>
+              <td><code>Admin@1234</code></td>
+              <td>Xem toàn bộ bệnh viện, đủ filter và export theo bộ lọc.</td>
+            </tr>
+            <tr>
+              <td>BGĐ</td>
+              <td><code>bgd</code></td>
+              <td><code>Bgd@1234</code></td>
+              <td>Xem báo cáo tổng hợp toàn bệnh viện, đủ filter và export.</td>
+            </tr>
+            <tr>
+              <td>PHÒNG QLĐT</td>
+              <td><code>qldt</code></td>
+              <td><code>Qldt@1234</code></td>
+              <td>Giống BGĐ, xem toàn hệ thống theo Permission Matrix.</td>
+            </tr>
+            <tr>
+              <td>K/P - Khoa Nội</td>
+              <td><code>kp_noi</code></td>
+              <td><code>Kpnoi@1234</code></td>
+              <td>Chỉ xem dữ liệu Khoa Nội, không chọn được khoa/phòng khác.</td>
+            </tr>
+            <tr>
+              <td>BCN - Khoa Nội</td>
+              <td><code>bcn_noi</code></td>
+              <td><code>Bcnnoi@1234</code></td>
+              <td>Chỉ xem dữ liệu Khoa Nội do mình phụ trách, export chỉ Khoa Nội.</td>
+            </tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>Bổ sung bộ tài khoản đăng nhập mock để kiểm thử phân quyền báo cáo: <code>admin/Admin@1234</code>, <code>bgd/Bgd@1234</code>, <code>qldt/Qldt@1234</code>, <code>kp_noi/Kpnoi@1234</code>, <code>bcn_noi/Bcnnoi@1234</code>.</li>
+          <li>Khi đăng nhập thành công, hệ thống lưu role mock vào localStorage để trang báo cáo tự nhận đúng account đang test.</li>
+          <li>Khi đăng xuất, hệ thống xóa <code>accessToken</code> và role mock để tránh giữ nhầm quyền giữa các lần test.</li>
+          <li>Bổ sung tài khoản mock theo role để tester đổi nhanh ngữ cảnh kiểm thử.</li>
+          <li>ADMIN, BGĐ và PHÒNG QLĐT được xem dữ liệu toàn bệnh viện.</li>
+          <li>K/P và BCN Khoa Nội chỉ xem được dữ liệu của Khoa Nội, không thấy dữ liệu Khoa Dược, Khoa Ngoại hoặc P.HCQT.</li>
+          <li>Thêm thanh lọc gồm Đơn vị/Khoa phòng, Thời gian thống kê, Trạng thái, Loại hình đấu thầu, nút Áp dụng và Đặt lại.</li>
+          <li>Với K/P và BCN, trường Đơn vị hiển thị <code>Khoa Nội</code> dạng read-only, không cho chọn khoa/phòng khác.</li>
+          <li>KPI, biểu đồ tháng, phân bố hình thức, bảng và panel phải tự tính lại theo role và bộ lọc hiện tại.</li>
+          <li>Bảng của role toàn quyền giữ dạng thống kê theo đơn vị.</li>
+          <li>Bảng của K/P và BCN đổi thành <code>Báo cáo gói thầu</code> với các cột: Mã gói, Tên gói, Hình thức, Giá trị, Trạng thái, Tiến độ.</li>
+          <li>Nút Xuất Excel/PDF dùng đúng số dòng trong bộ lọc hiện tại; Excel tải file CSV có dữ liệu đang xem.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>2. Trang Danh sách gói thầu</h2>
+        <ul>
+          <li>Panel chi tiết giữ danh sách bước quy trình và chỉ hiển thị nút <code>Cập nhật</code> tại bước hiện tại.</li>
+          <li>Các bước khác chỉ cho xem thông tin/lịch sử xử lý khi click vào bước.</li>
+          <li>Cụm nút cuối panel đã bỏ nút <code>Chi tiết gói thầu</code> theo yêu cầu mới.</li>
+          <li>Khi bước hiện tại được duyệt, service lưu bước vừa xử lý thành hoàn thành và chuyển current step sang bước kế tiếp.</li>
+          <li>Khi mở lại thao tác cập nhật, hệ thống lấy bước hiện tại mới, không mở lại bước đã duyệt.</li>
+          <li>Bước chưa xử lý khi mở ở chế độ xem không còn tự điền dữ liệu giả như đã duyệt; form để trống và chỉ hiển thị trạng thái chờ xử lý.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. Trang Tạo/Chỉnh sửa gói thầu</h2>
+        <ul>
+          <li>Fix lỗi mở lại bản nháp bị báo sai định dạng trường <code>Giá trị gói thầu (VNĐ)</code>.</li>
+          <li>Giá trị đã lưu được chuẩn hóa lại qua hàm format tiền trước khi reset vào form chỉnh sửa.</li>
+          <li>Người dùng mở bản nháp hợp lệ sẽ không thấy lỗi validation cho đến khi nhập giá trị không hợp lệ.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. File liên quan</h2>
+        <ul>
+          <li><code>frontend/src/pages/BaoCao/index.tsx</code></li>
+          <li><code>frontend/src/pages/Login/index.tsx</code></li>
+          <li><code>frontend/src/components/Sidebar/index.tsx</code></li>
+          <li><code>frontend/src/util/mockReportAccounts.ts</code></li>
+          <li><code>frontend/src/pages/DanhSachGoiThau/index.tsx</code></li>
+          <li><code>frontend/src/pages/DanhSachGoiThau/xuLyBuocService.ts</code></li>
+          <li><code>frontend/src/pages/XuLyBuocGoiThau/index.tsx</code></li>
+          <li><code>frontend/src/pages/TaoGoiThau/index.tsx</code></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

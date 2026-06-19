@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { MOCK_REPORT_AUTH_KEY } from "@/util/mockReportAccounts";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
@@ -177,6 +178,8 @@ export default function Sidebar() {
             <button
               onClick={() => {
                 setUserMenuOpen(false);
+                localStorage.removeItem("accessToken");
+                localStorage.removeItem(MOCK_REPORT_AUTH_KEY);
                 navigate("/login");
               }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"

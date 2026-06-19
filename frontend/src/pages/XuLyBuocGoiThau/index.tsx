@@ -115,6 +115,12 @@ function getPreviousStep(currentStepName: string) {
   return WORKFLOW_STEPS[idx - 1];
 }
 
+function isStepBefore(stepName: string, currentStepName: string) {
+  const stepIdx = WORKFLOW_STEPS.indexOf(stepName);
+  const currentIdx = WORKFLOW_STEPS.indexOf(currentStepName);
+  return stepIdx >= 0 && currentIdx >= 0 && stepIdx < currentIdx;
+}
+
 const inputCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500";
 const inputErrCls =
@@ -142,6 +148,8 @@ export default function XuLyBuocGoiThau() {
       ? getXuLyBuocByStep(id, activeStepName)
       : getXuLyBuoc(id)
     : null;
+  const isHistoricalStep =
+    readonlyMode && !existing && isStepBefore(activeStepName, currentWorkflowStepName);
   const initialLocked = readonlyMode || (!!existing && existing.ketQua !== "Chờ xử lý");
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
@@ -174,6 +182,25 @@ export default function XuLyBuocGoiThau() {
   const [rejectReason, setRejectReason] = useState(existing?.lyDoKhongDuyet ?? "");
   const [locked, setLocked] = useState(initialLocked);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+
+  if (
+    readonlyMode &&
+    !existing &&
+    !isHistoricalStep &&
+    (form.nguoiXuLy || form.ngayXuLy || form.nguoiKyDuyet || form.ngayKyDuyet || form.ghiChu)
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      nguoiXuLy: "",
+      ngayXuLy: "",
+      nguoiKyDuyet: "",
+      ngayKyDuyet: "",
+      ketQua: "Chờ xử lý",
+      ghiChu: "",
+      lyDoKhongDuyet: "",
+      taiLieuDinhKem: [],
+    }));
+  }
 
   if (!goiThau) {
     return (

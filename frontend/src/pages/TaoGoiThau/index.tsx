@@ -30,6 +30,11 @@ const MOCK_CURRENT_USER = {
   donVi: "P.HCQT",
 };
 
+function normalizeMoneyDisplay(value?: string | number) {
+  const digits = String(value ?? "").replace(/[^\d]/g, "");
+  return digits ? formatVND(digits) : "";
+}
+
 const HT_BADGE: Partial<Record<HinhThuc, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
   "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
@@ -447,7 +452,7 @@ export default function TaoGoiThau() {
       loaiGoiThau: editingGoiThau.loaiGoiThau ?? inferLoaiGoiThau(editingGoiThau.hinhThuc),
       hinhThuc: editingGoiThau.hinhThuc,
       nguonVon: editingGoiThau.detail.nguonVon,
-      giaTriStr: editingGoiThau.giaTriStr,
+      giaTriStr: normalizeMoneyDisplay(editingGoiThau.giaTriStr || editingGoiThau.giaTriNum),
       donVi: editingGoiThau.donVi || MOCK_CURRENT_USER.donVi,
       ngayTao: toDateInputValue(editingGoiThau.detail.ngayTao),
       ghiChu: "",
