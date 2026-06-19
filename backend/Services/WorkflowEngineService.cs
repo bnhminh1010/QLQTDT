@@ -532,9 +532,9 @@ public class WorkflowEngineService : IWorkflowEngineService
         {
             WorkflowInstanceId = instance.Id,
             BuocWorkflowId = rollbackTransition.TuBuoc.Id,
-                HanXuLy = rollbackTransition.TuBuoc.SoNgayLapHoSo > 0
-                    ? DateTime.UtcNow.AddDays(rollbackTransition.TuBuoc.SoNgayLapHoSo)
-                    : null,
+            HanXuLy = rollbackTransition.TuBuoc.SoNgayLapHoSo > 0
+                ? DateTime.UtcNow.AddDays(rollbackTransition.TuBuoc.SoNgayLapHoSo)
+                : null,
             TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
             PhaHienTai = "LAP_HO_SO",
             NgayBatDau = DateTime.UtcNow,
