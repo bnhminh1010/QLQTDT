@@ -23,6 +23,14 @@ public class DuyetStepValidator : AbstractValidator<DuyetStepRequest>
 
         RuleFor(x => x.GhiChu)
             .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+
+        RuleFor(x => x.NgayKyDuyet)
+            .GreaterThanOrEqualTo(x => x.NgayXuLy)
+            .When(x => x.NgayXuLy.HasValue && x.NgayKyDuyet.HasValue)
+            .WithMessage("Ngày ký duyệt phải lớn hơn hoặc bằng ngày xử lý.");
+
+        RuleFor(x => x.TaiLieuDinhKem)
+            .MaximumLength(500).WithMessage("Tài liệu đính kèm không được vượt quá 500 ký tự.");
     }
 }
 
@@ -36,6 +44,14 @@ public class KhongDuyetStepValidator : AbstractValidator<KhongDuyetStepRequest>
         RuleFor(x => x.GhiChu)
             .NotEmpty().WithMessage("Lý do từ chối là bắt buộc khi không duyệt bước.")
             .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+
+        RuleFor(x => x.NgayKyDuyet)
+            .GreaterThanOrEqualTo(x => x.NgayXuLy)
+            .When(x => x.NgayXuLy.HasValue && x.NgayKyDuyet.HasValue)
+            .WithMessage("Ngày ký duyệt phải lớn hơn hoặc bằng ngày xử lý.");
+
+        RuleFor(x => x.TaiLieuDinhKem)
+            .MaximumLength(500).WithMessage("Tài liệu đính kèm không được vượt quá 500 ký tự.");
     }
 }
 

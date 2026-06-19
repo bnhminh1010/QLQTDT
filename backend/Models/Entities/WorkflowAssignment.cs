@@ -10,6 +10,9 @@ public class WorkflowAssignment
     public DateTime? NgayXuLy { get; set; }
     public string? GhiChu { get; set; }
 
+    // Hỗ trợ ký song song: mỗi assignment xử lý 1 phiếu
+    public string? PhieuKyDuyet { get; set; }
+
     // Navigation
     public WorkflowStepInstance? WorkflowStepInstance { get; set; }
     public NguoiDung? NguoiDuocGiao { get; set; }

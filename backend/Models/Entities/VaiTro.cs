@@ -12,6 +12,10 @@ public class VaiTro
     public string? MoTa { get; set; }
     public bool DaXoa { get; set; }
 
+    // FK to NhomVaiTro — replaces UuTien (priority lives in NhomVaiTro.DoUuTien)
+    public int? NhomVaiTroId { get; set; }
+    public NhomVaiTro? NhomVaiTro { get; set; }
+
     public ICollection<VaiTroQuyen> VaiTroQuyens { get; set; } = [];
     public ICollection<NguoiDungKhoaPhongVaiTro> NguoiDungKhoaPhongVaiTros { get; set; } = [];
 }

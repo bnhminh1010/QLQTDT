@@ -49,13 +49,17 @@ public static class WorkflowStepTrangThai
     public const string YEU_CAU_KIEM_TRA = "YEU_CAU_KIEM_TRA";
     public const string TRE_HAN = "TRE_HAN";
 
+    // 2-pha tracking
+    public const string CHO_LAP_HO_SO = "CHO_LAP_HO_SO";
+    public const string CHO_KY_DUYET = "CHO_KY_DUYET";
+
     // Legacy aliases (consistency layer, will be removed after full migration)
     public const string PENDING = DANG_XU_LY;
     public const string APPROVED = HOAN_TAT;
     public const string REJECTED = TRA_VE;
     public const string ROLLED_BACK = TRA_VE;
 
-    public static readonly string[] All = [DANG_XU_LY, CHO_DUYET, HOAN_TAT, TRA_VE, SKIPPED, YEU_CAU_KIEM_TRA, TRE_HAN];
+    public static readonly string[] All = [DANG_XU_LY, CHO_DUYET, HOAN_TAT, TRA_VE, SKIPPED, YEU_CAU_KIEM_TRA, TRE_HAN, CHO_LAP_HO_SO, CHO_KY_DUYET];
 }
 
 public class GoiThau : IBaseEntity
@@ -75,4 +79,7 @@ public class GoiThau : IBaseEntity
     public bool TrangThaiHoatDong { get; set; } = true;
     public DateTime NgayTao { get; set; }
     public DateTime? NgayCapNhat { get; set; }
+
+    /// <summary>JSON array theo dõi: ["KP:1","VT:3"]</summary>
+    public string? TheoDoi { get; set; }
 }

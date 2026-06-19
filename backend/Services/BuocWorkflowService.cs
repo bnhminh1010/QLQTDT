@@ -43,11 +43,15 @@ public class BuocWorkflowService : IBuocWorkflowService
                 MaBuoc = b.MaBuoc,
                 TenBuoc = b.TenBuoc,
                 LoaiBuoc = b.LoaiBuoc,
-                VaiTroXuLyId = b.VaiTroXuLyId,
-                KhoaPhongXuLyId = b.KhoaPhongXuLyId,
+                VaiTroXuLyHoSoId = b.VaiTroXuLyHoSoId,
+                SoNgayLapHoSo = b.SoNgayLapHoSo,
+                VaiTroKyDuyetId = b.VaiTroKyDuyetId,
+                SoNgayXuLy = b.SoNgayXuLy,
+                LoaiHan = b.LoaiHan,
+                NhomSongSong = b.NhomSongSong,
+                LaBuocJoin = b.LaBuocJoin,
                 ChoPhepTuChoi = b.ChoPhepTuChoi,
-                ChoPhepBoQua = b.ChoPhepBoQua,
-                SoNgaySLA = b.SoNgaySLA
+                ChoPhepBoQua = b.ChoPhepBoQua
             })
             .ToListAsync();
     }
@@ -58,18 +62,18 @@ public class BuocWorkflowService : IBuocWorkflowService
         if (!workflowExists)
             throw new NotFoundException($"Workflow not found: {workflowId}");
 
-        if (request.VaiTroXuLyId.HasValue)
+        if (request.VaiTroXuLyHoSoId.HasValue)
         {
-            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyId.Value);
+            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyHoSoId.Value);
             if (!roleExists)
-                throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyId.Value}");
+                throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyHoSoId.Value}");
         }
 
-        if (request.KhoaPhongXuLyId.HasValue)
+        if (request.VaiTroKyDuyetId.HasValue)
         {
-            var exists = await _context.KhoaPhongs.AnyAsync(r => r.Id == request.KhoaPhongXuLyId.Value);
-            if (!exists)
-                throw new NotFoundException($"KhoaPhong not found: {request.KhoaPhongXuLyId.Value}");
+            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroKyDuyetId.Value);
+            if (!roleExists)
+                throw new NotFoundException($"VaiTro not found: {request.VaiTroKyDuyetId.Value}");
         }
 
         var duplicate = await _context.BuocWorkflows.AnyAsync(b =>
@@ -83,11 +87,15 @@ public class BuocWorkflowService : IBuocWorkflowService
             MaBuoc = request.MaBuoc,
             TenBuoc = request.TenBuoc,
             LoaiBuoc = request.LoaiBuoc,
-            VaiTroXuLyId = request.VaiTroXuLyId,
+            VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = request.SoNgayLapHoSo,
+            VaiTroKyDuyetId = request.VaiTroKyDuyetId,
+            SoNgayXuLy = request.SoNgayXuLy,
+            LoaiHan = request.LoaiHan,
+            NhomSongSong = request.NhomSongSong,
+            LaBuocJoin = request.LaBuocJoin,
             ChoPhepTuChoi = request.ChoPhepTuChoi,
-            ChoPhepBoQua = request.ChoPhepBoQua,
-            SoNgaySLA = request.SoNgaySLA,
-            KhoaPhongXuLyId = request.KhoaPhongXuLyId
+            ChoPhepBoQua = request.ChoPhepBoQua
         };
 
         _context.BuocWorkflows.Add(entity);
@@ -102,11 +110,15 @@ public class BuocWorkflowService : IBuocWorkflowService
             MaBuoc = entity.MaBuoc,
             TenBuoc = entity.TenBuoc,
             LoaiBuoc = entity.LoaiBuoc,
-            VaiTroXuLyId = entity.VaiTroXuLyId,
+            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = entity.SoNgayLapHoSo,
+            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
+            SoNgayXuLy = entity.SoNgayXuLy,
+            LoaiHan = entity.LoaiHan,
+            NhomSongSong = entity.NhomSongSong,
+            LaBuocJoin = entity.LaBuocJoin,
             ChoPhepTuChoi = entity.ChoPhepTuChoi,
-            ChoPhepBoQua = entity.ChoPhepBoQua,
-            SoNgaySLA = entity.SoNgaySLA,
-            KhoaPhongXuLyId = entity.KhoaPhongXuLyId
+            ChoPhepBoQua = entity.ChoPhepBoQua
         };
     }
 
@@ -121,42 +133,56 @@ public class BuocWorkflowService : IBuocWorkflowService
         if (request.LoaiBuoc != null)
             entity.LoaiBuoc = request.LoaiBuoc;
 
-        if (request.VaiTroXuLyId.HasValue)
+        if (request.VaiTroXuLyHoSoId.HasValue)
         {
-            if (request.VaiTroXuLyId.Value == 0)
+            if (request.VaiTroXuLyHoSoId.Value == 0)
             {
-                entity.VaiTroXuLyId = null;
+                entity.VaiTroXuLyHoSoId = null;
             }
             else
             {
-                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyId.Value);
+                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyHoSoId.Value);
                 if (!roleExists)
-                    throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyId.Value}");
-                entity.VaiTroXuLyId = request.VaiTroXuLyId;
+                    throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyHoSoId.Value}");
+                entity.VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId;
             }
         }
+
+        if (request.VaiTroKyDuyetId.HasValue)
+        {
+            if (request.VaiTroKyDuyetId.Value == 0)
+            {
+                entity.VaiTroKyDuyetId = null;
+            }
+            else
+            {
+                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroKyDuyetId.Value);
+                if (!roleExists)
+                    throw new NotFoundException($"VaiTro not found: {request.VaiTroKyDuyetId.Value}");
+                entity.VaiTroKyDuyetId = request.VaiTroKyDuyetId;
+            }
+        }
+
+        if (request.SoNgayLapHoSo.HasValue)
+            entity.SoNgayLapHoSo = request.SoNgayLapHoSo.Value;
+
+        if (request.SoNgayXuLy.HasValue)
+            entity.SoNgayXuLy = request.SoNgayXuLy.Value;
+
+        if (request.LoaiHan != null)
+            entity.LoaiHan = request.LoaiHan;
+
+        if (request.NhomSongSong != null)
+            entity.NhomSongSong = request.NhomSongSong;
+
+        if (request.LaBuocJoin.HasValue)
+            entity.LaBuocJoin = request.LaBuocJoin.Value;
 
         if (request.ChoPhepTuChoi.HasValue)
             entity.ChoPhepTuChoi = request.ChoPhepTuChoi.Value;
 
         if (request.ChoPhepBoQua.HasValue)
             entity.ChoPhepBoQua = request.ChoPhepBoQua.Value;
-
-        if (request.SoNgaySLA.HasValue)
-            entity.SoNgaySLA = request.SoNgaySLA.Value;
-
-        if (request.KhoaPhongXuLyId.HasValue)
-        {
-            if (request.KhoaPhongXuLyId.Value == 0)
-                entity.KhoaPhongXuLyId = null;
-            else
-            {
-                var exists = await _context.KhoaPhongs.AnyAsync(r => r.Id == request.KhoaPhongXuLyId.Value);
-                if (!exists)
-                    throw new NotFoundException($"KhoaPhong not found: {request.KhoaPhongXuLyId.Value}");
-                entity.KhoaPhongXuLyId = request.KhoaPhongXuLyId.Value;
-            }
-        }
 
         await _context.SaveChangesAsync();
 
