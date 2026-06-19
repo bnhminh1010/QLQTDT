@@ -159,7 +159,7 @@ const TABLE_ROWS: TableRow[] = [
     nguonVon: "Tự chủ tài chính",
     ngayTao: "15/01/2025",
     hanHT: "28/02/2025",
-    hinhThuc: "Chỉ định thầu tự quyết định",
+    hinhThuc: "Chỉ định thầu tự quyết định LNCT",
     currentStep: "Hoàn tất",
     currentProcessor: "Ban giám đốc",
     currentProcessDate: "28/02/2025",

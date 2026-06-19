@@ -11,7 +11,7 @@ import {
 
 const HT_BADGE: Record<string, string> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
-  "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
+  "Chỉ định thầu tự quyết định LNCT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
   "Đấu thầu rộng rãi": "bg-purple-100 text-purple-700",

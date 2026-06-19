@@ -13,7 +13,6 @@ export type TrangThai =
 
 export type HinhThuc =
   | "Chỉ định thầu rút gọn"
-  | "Chỉ định thầu tự quyết định"
   | "Chỉ định thầu tự quyết định LCNT"
   | "Chỉ định thầu thông thường"
   | "Chào hàng cạnh tranh"

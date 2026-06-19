@@ -12,6 +12,7 @@ import {
   type NhanhSongSong,
   type HinhThucQT,
   HINH_THUC_OPTIONS,
+  QUY_TRINH_TEMPLATE_INFO,
   addQuyTrinh,
   updateQuyTrinh,
   getQuyTrinhById,
@@ -54,6 +55,12 @@ const LOAI_BUOC_OPTIONS: LoaiBuoc[] = [
   "Đăng tải",
   "Đánh giá/kiểm tra",
   "Hợp đồng",
+  "Kết thúc",
+];
+
+const STEP_MODAL_LOAI_BUOC: LoaiBuoc[] = [
+  "Bắt đầu",
+  "Thường",
   "Kết thúc",
 ];
 
@@ -121,9 +128,22 @@ const DIEU_KIEN_KICH_HOAT_OPTIONS: DieuKienKichHoat[] = [
 
 const KET_QUA_OPTIONS = ["Đạt", "Không đạt", "Cần bổ sung"];
 
+const BUOC_LIBRARY = [
+  "Đề xuất mua sắm/sửa chữa",
+  "Tờ trình chủ trương",
+  "Đăng tải yêu cầu báo giá",
+  "Biên bản kiểm tra báo giá",
+  "Lập hồ sơ mời thầu",
+  "Phát hành hồ sơ mời thầu",
+  "Mở thầu Online",
+  "Báo cáo đánh giá HSDT",
+  "Hợp đồng",
+] as const;
+
+type BuocLibraryItem = (typeof BUOC_LIBRARY)[number];
+
 const HT_BADGE: Partial<Record<HinhThucQT, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
-  "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu tự quyết định LCNT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
@@ -213,6 +233,12 @@ export default function LapQuyTrinh() {
 
   /* ── Delete confirm ── */
   const [deleteTarget, setDeleteTarget] = useState<Buoc | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [libraryFilter, setLibraryFilter] = useState("");
+
+  const selectedTemplate = hinhThuc ? QUY_TRINH_TEMPLATE_INFO[hinhThuc] : undefined;
 
   /* ── Load existing if editing ── */
   useEffect(() => {
@@ -241,6 +267,16 @@ export default function LapQuyTrinh() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
+
+  /* ── Auto-update nhomGiaiDoan when step name changes ── */
+  useEffect(() => {
+    if (stepModal && stepForm.ten.trim()) {
+      const autoNhom = getAutoNhomGiaiDoan(stepForm.ten);
+      if (autoNhom && autoNhom !== stepForm.nhomGiaiDoan) {
+        setStepForm((f) => ({ ...f, nhomGiaiDoan: autoNhom }));
+      }
+    }
+  }, [stepForm.ten, stepModal]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
 
@@ -364,6 +400,150 @@ export default function LapQuyTrinh() {
     setStepModal(null);
   }
 
+  /* ── Auto-assign Nhóm giai đoạn based on step name ── */
+  function getAutoNhomGiaiDoan(ten: string): string {
+    const lowerName = ten.toLowerCase();
+    if (/pháp lý|chủ trương|hồ sơ yêu cầu/i.test(lowerName))
+      return "Pháp lý gói thầu";
+    if (/tư vấn LCNT|dự toán|kế hoạch LCNT/i.test(lowerName))
+      return "Tư vấn LCNT";
+    if (/thẩm định|kiểm tra|tổ chuyên gia|đánh giá/i.test(lowerName))
+      return "Tư vấn thẩm định";
+    if (/lựa chọn|báo giá|yêu cầu báo giá|hồ sơ đề xuất/i.test(lowerName))
+      return "Lựa chọn nhà thầu";
+    if (/hợp đồng/i.test(lowerName)) return "Hợp đồng";
+    if (/nghiệm thu|thanh lý|quyết toán|quản lý/i.test(lowerName))
+      return "Nghiệm thu/Thanh lý/Quyết toán";
+    return "";
+  }
+
+  function makeLibraryBuoc(id: string, ten: string): Buoc {
+    const requiresKyDuyet = /quyết định|phê duyệt|ký kết|phê duyệt kết quả|đăng tải kết quả|phê duyệt kế hoạch|phê duyệt dự toán/i.test(
+      ten.toLowerCase(),
+    );
+
+    return {
+      id,
+      ten,
+      loai: "Thường",
+      nhomGiaiDoan: getAutoNhomGiaiDoan(ten),
+      donViPhuTrach: "K/P mua sắm",
+      vaiTroXuLy: "Nhân viên K/P mua sắm",
+      slaNgay: 1,
+      loaiThoiHan: "Chỉ cảnh báo quá hạn",
+      trangThaiMacDinh: "Chưa bắt đầu",
+      coKyDuyet: requiresKyDuyet,
+      donViKyHoSo: requiresKyDuyet ? "Giám đốc BV" : "",
+      vaiTroKyDuyet: requiresKyDuyet ? "Giám đốc BV" : "",
+      soNgayKyDuyet: requiresKyDuyet ? 1 : undefined,
+      batBuocKyTruocChuyenBuoc: true,
+      dieuKienChuyenTiep: [],
+      coNhanhSongSong: false,
+      nhanhList: [],
+      dieuKienHopNhat: "all",
+      soNhanhHopNhatToiThieu: 2,
+      buocSauHopNhatId: "",
+      moTa: "",
+      dieuKienChuyen: ["Duyệt"],
+      buocTiepTheoId: "",
+    };
+  }
+
+  function makeTemplateBuoc(
+    id: string,
+    ten: string,
+    index: number,
+    total: number,
+  ): Buoc {
+    const isFirst = index === 0;
+    const isLast = index === total - 1;
+    const requiresKyDuyet = /quyết định|phê duyệt|ký kết|phê duyệt kết quả|đăng tải kết quả|phê duyệt kế hoạch|phê duyệt dự toán/i.test(
+      ten.toLowerCase(),
+    );
+
+    return {
+      id,
+      ten,
+      loai: isFirst ? "Bắt đầu" : isLast ? "Kết thúc" : "Thường",
+      nhomGiaiDoan: getAutoNhomGiaiDoan(ten),
+      donViPhuTrach: "K/P mua sắm",
+      vaiTroXuLy: "Nhân viên K/P mua sắm",
+      slaNgay: 1,
+      loaiThoiHan: "Chỉ cảnh báo quá hạn",
+      trangThaiMacDinh: "Chưa bắt đầu",
+      coKyDuyet: requiresKyDuyet,
+      donViKyHoSo: requiresKyDuyet ? "Giám đốc BV" : "",
+      vaiTroKyDuyet: requiresKyDuyet ? "Giám đốc BV" : "",
+      soNgayKyDuyet: requiresKyDuyet ? 1 : undefined,
+      batBuocKyTruocChuyenBuoc: true,
+      dieuKienChuyenTiep: isLast
+        ? []
+        : [
+            {
+              id: `${id}-DKCT`,
+              hanhDong: "Hoàn thành / Duyệt",
+              buocChuyenDenId: `${id.split("-B")[0]}-B${index + 2}`,
+              dieuKienKichHoat: "Luôn",
+              batBuocGhiChu: false,
+              batBuocUpload: false,
+            },
+          ],
+      coNhanhSongSong: false,
+      nhanhList: [],
+      dieuKienHopNhat: "all",
+      soNhanhHopNhatToiThieu: 2,
+      buocSauHopNhatId: "",
+      moTa: "",
+      dieuKienChuyen: isLast ? [] : ["Duyệt"],
+      buocTiepTheoId: isLast ? "" : `${id.split("-B")[0]}-B${index + 2}`,
+    };
+  }
+
+  function makeTemplateBuocList(hinhThuc: HinhThucQT) {
+    const template = QUY_TRINH_TEMPLATE_INFO[hinhThuc];
+    if (!template) return [];
+    const prefix = `QT-TEMPLATE-${Date.now()}`;
+    return template.steps.map((ten, index) =>
+      makeTemplateBuoc(`${prefix}-B${index + 1}`, ten, index, template.steps.length),
+    );
+  }
+
+  function handleGenerateTemplate() {
+    if (!hinhThuc) {
+      setHinhThucErr("Vui lòng chọn loại hình đấu thầu");
+      return;
+    }
+    if (buocList.length > 0) {
+      if (
+        !window.confirm(
+          "Danh sách bước hiện tại sẽ bị thay thế bằng quy trình mẫu. Tiếp tục?",
+        )
+      ) {
+        return;
+      }
+    }
+
+    const next = makeTemplateBuocList(hinhThuc);
+    if (next.length === 0) {
+      toast.error(
+        "Không tìm thấy template quy trình cho loại hình đấu thầu này.",
+      );
+      return;
+    }
+    setBuocList(next);
+    markDirty();
+    toast.success("Đã tạo quy trình mẫu từ loại hình đấu thầu đã chọn.");
+  }
+
+  function addLibraryStep(ten: string) {
+    const newStep = makeLibraryBuoc(Date.now().toString(), ten);
+    setBuocList((prev) => [...prev, newStep]);
+    setShowLibrary(false);
+    setLibraryFilter("");
+    markDirty();
+    toast.success("Đã thêm bước từ thư viện");
+  }
+
   function doDelete() {
     if (!deleteTarget) return;
     setBuocList((prev) => prev.filter((b) => b.id !== deleteTarget.id));
@@ -399,7 +579,7 @@ export default function LapQuyTrinh() {
     if (tenErrMsg) return;
 
     if (!hinhThuc) {
-      setHinhThucErr("Vui lòng chọn hình thức đấu thầu");
+      setHinhThucErr("Vui lòng chọn loại hình đấu thầu");
       return;
     }
     setHinhThucErr("");
@@ -467,6 +647,9 @@ export default function LapQuyTrinh() {
   const startCount = buocList.filter((b) => b.loai === "Bắt đầu").length;
   const endCount = buocList.filter((b) => b.loai === "Kết thúc").length;
   const tenLen = tenQuyTrinh.trim().length;
+
+  const templatePreviewSteps = selectedTemplate?.steps ?? [];
+  const previewListSteps = buocList.length > 0 ? buocList.map((b) => b.ten) : templatePreviewSteps;
 
   // Orphan: not "Bắt đầu" and not pointed to by any step
   const pointedToIds = new Set(
@@ -573,7 +756,7 @@ export default function LapQuyTrinh() {
             {/* Hình thức */}
             <div>
               <label className={labelCls}>
-                Hình thức đấu thầu áp dụng{" "}
+                Loại hình đấu thầu{" "}
                 <span className="text-red-500">*</span>
               </label>
               <select
@@ -585,7 +768,7 @@ export default function LapQuyTrinh() {
                   markDirty();
                 }}
               >
-                <option value="">-- Chọn hình thức --</option>
+                <option value="">-- Chọn loại hình đấu thầu --</option>
                 {HINH_THUC_OPTIONS.map((ht) => (
                   <option key={ht} value={ht}>
                     {ht}
@@ -595,16 +778,106 @@ export default function LapQuyTrinh() {
               {hinhThucErr && (
                 <p className="text-xs text-red-500 mt-1">{hinhThucErr}</p>
               )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewOpen(true)}
+                  disabled={!hinhThuc}
+                  className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-colors disabled:opacity-40"
+                >
+                  Xem trước quy trình
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerateTemplate}
+                  disabled={!hinhThuc}
+                  className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-40"
+                >
+                  Tạo quy trình
+                </button>
+              </div>
             </div>
           </div>
 
-          {hinhThuc && (
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${HT_BADGE[hinhThuc] ?? "bg-slate-100 text-slate-600"}`}
-            >
-              {hinhThuc}
-            </span>
+          {selectedTemplate && (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mt-4">
+              <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                      Quy trình chuẩn
+                    </p>
+                    <p className="text-sm font-semibold text-slate-800 mt-1">
+                      {hinhThuc}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                      Số bước
+                    </p>
+                    <p className="text-sm text-slate-800 mt-1">
+                      {selectedTemplate.soBuoc}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                      Áp dụng
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {selectedTemplate.apDung.map((item) => (
+                        <span
+                          key={item}
+                          className="text-[11px] px-2 py-1 bg-white border border-slate-200 rounded-full"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {selectedTemplate.khongApDung ? (
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                        Không áp dụng
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {selectedTemplate.khongApDung.map((item) => (
+                          <span
+                            key={item}
+                            className="text-[11px] px-2 py-1 bg-slate-100 border border-slate-200 rounded-full text-slate-500"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                    Mô tả
+                  </p>
+                  <p className="text-sm text-slate-700 mt-1 leading-6">
+                    {selectedTemplate.moTa}
+                  </p>
+                </div>
+                {selectedTemplate.ghiChu ? (
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                      Ghi chú
+                    </p>
+                    <p className="text-sm text-slate-700 mt-1">
+                      {selectedTemplate.ghiChu}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           )}
+
         </section>
 
         {/* DANH SÁCH BƯỚC */}
@@ -619,13 +892,41 @@ export default function LapQuyTrinh() {
                 </span>
               )}
             </h2>
-            <button
-              onClick={openAdd}
-              className="h-8 px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
-            >
-              <i className="fa-solid fa-plus" />
-              Thêm bước
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setAddMenuOpen((prev) => !prev)}
+                className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
+              >
+                <i className="fa-solid fa-plus" />
+                Thêm bước
+                <i className="fa-solid fa-chevron-down text-[10px]" />
+              </button>
+              {addMenuOpen && (
+                <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowLibrary(true);
+                      setAddMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-50 text-sm text-slate-700"
+                  >
+                    Từ thư viện bước
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openAdd();
+                      setAddMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-50 text-sm text-slate-700"
+                  >
+                    Tạo bước mới
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Start/End indicator */}
@@ -822,6 +1123,67 @@ export default function LapQuyTrinh() {
           )}
         </section>
 
+        {showLibrary && (
+          <div className="fixed inset-0 z-[190] flex items-start justify-center bg-black/40 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 space-y-4 my-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">
+                    Từ thư viện bước
+                  </p>
+                  <h3 className="text-lg font-semibold text-slate-800 mt-1">
+                    Chọn bước nghiệp vụ có sẵn
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowLibrary(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className={labelCls}>Tìm bước...</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    value={libraryFilter}
+                    onChange={(e) => setLibraryFilter(e.target.value)}
+                    placeholder="Ví dụ: Đề xuất mua sắm, Lập HSMT, Mở thầu..."
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  {BUOC_LIBRARY.filter((ten) =>
+                    ten.toLowerCase().includes(libraryFilter.toLowerCase().trim()),
+                  ).map((ten) => (
+                    <button
+                      key={ten}
+                      type="button"
+                      onClick={() => addLibraryStep(ten)}
+                      className="w-full text-left px-4 py-3 rounded-2xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    >
+                      <p className="text-sm font-semibold text-slate-800">{ten}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Thêm bước có sẵn với dữ liệu mặc định.
+                      </p>
+                    </button>
+                  ))}
+                  {BUOC_LIBRARY.filter((ten) =>
+                    ten.toLowerCase().includes(libraryFilter.toLowerCase().trim()),
+                  ).length === 0 && (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                      Không tìm thấy bước phù hợp.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* FLOW PREVIEW */}
         {buocList.length > 0 && (
           <section className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
@@ -897,6 +1259,51 @@ export default function LapQuyTrinh() {
       </div>
 
       {/* ── STEP MODAL (Add + Edit) ───────────────────────────── */}
+      {previewOpen && (
+        <div className="fixed inset-0 z-[190] flex items-start justify-center bg-black/40 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 space-y-4 my-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500 uppercase tracking-wide">
+                  Xem trước quy trình
+                </p>
+                <h3 className="text-lg font-semibold text-slate-800">
+                  {hinhThuc || "Quy trình mẫu"}
+                </h3>
+              </div>
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {(previewListSteps.length > 0 ? previewListSteps : ["Không có bước để hiển thị."]).map(
+                (ten, idx) => (
+                  <div key={`${ten}-${idx}`} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-semibold">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-800">{ten}</p>
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {stepModal && (
         <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/40 p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 space-y-4 my-6">
@@ -945,7 +1352,7 @@ export default function LapQuyTrinh() {
                   Loại bước <span className="text-red-500">*</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {LOAI_BUOC_OPTIONS.map((l) => (
+                  {STEP_MODAL_LOAI_BUOC.map((l) => (
                     <button
                       key={l}
                       type="button"
@@ -959,15 +1366,7 @@ export default function LapQuyTrinh() {
                             ? "bg-emerald-500 text-white border-emerald-500"
                             : l === "Kết thúc"
                               ? "bg-red-500 text-white border-red-500"
-                              : l === "Ký duyệt"
-                                ? "bg-purple-600 text-white border-purple-600"
-                                : l === "Đăng tải"
-                                  ? "bg-cyan-600 text-white border-cyan-600"
-                                  : l === "Đánh giá/kiểm tra"
-                                    ? "bg-amber-500 text-white border-amber-500"
-                                    : l === "Hợp đồng"
-                                      ? "bg-indigo-600 text-white border-indigo-600"
-                                      : "bg-blue-600 text-white border-blue-600"
+                              : "bg-blue-600 text-white border-blue-600"
                           : "border-slate-200 text-slate-600 hover:bg-slate-50"
                       }`}
                     >
@@ -983,18 +1382,11 @@ export default function LapQuyTrinh() {
               {/* Nhóm giai đoạn */}
               <div>
                 <label className={labelCls}>Nhóm giai đoạn</label>
-                <select
+                <input
                   className={inputCls}
-                  value={stepForm.nhomGiaiDoan ?? ""}
-                  onChange={(e) =>
-                    setStepForm((f) => ({ ...f, nhomGiaiDoan: e.target.value }))
-                  }
-                >
-                  <option value="">-- Không xác định --</option>
-                  {NHOM_GIAI_DOAN_OPTIONS.map((n) => (
-                    <option key={n}>{n}</option>
-                  ))}
-                </select>
+                  value={stepForm.nhomGiaiDoan || "-- Tự động theo tên bước --"}
+                  disabled
+                />
               </div>
 
               {/* Mô tả */}
@@ -1074,23 +1466,12 @@ export default function LapQuyTrinh() {
                 </div>
               </div>
               <div>
-                <label className={labelCls}>
-                  Trạng thái mặc định <span className="text-red-500">*</span>
-                </label>
-                <select
+                <label className={labelCls}>Trạng thái mặc định</label>
+                <input
                   className={inputCls}
-                  value={stepForm.trangThaiMacDinh}
-                  onChange={(e) =>
-                    setStepForm((f) => ({
-                      ...f,
-                      trangThaiMacDinh: e.target.value as TrangThaiBuoc,
-                    }))
-                  }
-                >
-                  {TRANG_THAI_BUOC_OPTIONS.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
+                  value="Chưa bắt đầu"
+                  disabled
+                />
               </div>
             </div>
 

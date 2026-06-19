@@ -51,7 +51,6 @@ const BADGE: Record<TrangThai, string> = {
 };
 const HT_BADGE: Partial<Record<HinhThuc, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
-  "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu tự quyết định LCNT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
@@ -97,7 +96,7 @@ const INITIAL_DATA: GoiThau[] = [
   {
     id: "GT2025-002",
     ten: "Sửa chữa hệ thống điện tầng 3",
-    hinhThuc: "Chỉ định thầu tự quyết định",
+    hinhThuc: "Chỉ định thầu tự quyết định LCNT",
     giaTriStr: "38,000,000",
     giaTriNum: 38000000,
     donVi: "P.HCQT",
@@ -923,7 +922,7 @@ export default function DanhSachGoiThau() {
             >
               <option value="">Tất cả hình thức</option>
               <option>Chỉ định thầu rút gọn</option>
-              <option>Chỉ định thầu tự quyết định</option>
+              <option>Chỉ định thầu tự quyết định LNCT</option>
               <option>Chỉ định thầu thông thường</option>
               <option>Chào hàng cạnh tranh</option>
               <option>Đấu thầu rộng rãi</option>

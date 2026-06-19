@@ -32,7 +32,6 @@ const MOCK_CURRENT_USER = {
 
 const HT_BADGE: Partial<Record<HinhThuc, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
-  "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu tự quyết định LCNT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
@@ -231,13 +230,6 @@ const DEFAULT_WORKFLOWS: Record<HinhThuc, QuyTrinh> = {
     "Biên bản kiểm tra báo giá",
     "Tờ trình phê duyệt dự toán",
     "Quyết định phê duyệt dự toán",
-    "Quyết định chỉ định nhà thầu",
-  ]),
-  "Chỉ định thầu tự quyết định": makeDefaultWorkflow("QT-MACDINH-CDT-TQD", "Chỉ định thầu tự quyết định", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Lập hồ sơ mời thầu",
-    "Phê duyệt hồ sơ mời thầu",
     "Quyết định chỉ định nhà thầu",
   ]),
   "Chỉ định thầu thông thường": makeDefaultWorkflow("QT-MACDINH-CDT-TT", "Chỉ định thầu thông thường", [
