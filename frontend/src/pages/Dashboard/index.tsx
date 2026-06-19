@@ -31,6 +31,20 @@ type WorkflowStep = {
   reason?: string;
 };
 
+type ParallelInfo = {
+  title: string;
+  condition: string;
+  branches: {
+    name: string;
+    progress: string;
+    status: string;
+    currentStep: string;
+    processor: string;
+  }[];
+  mergeStatus: string;
+  lockedStage: string;
+};
+
 const BADGE: Record<BadgeStatus, string> = {
   "Đang xử lý": "bg-blue-100 text-blue-700",
   "Hoàn thành": "bg-emerald-100 text-emerald-700",
@@ -70,6 +84,7 @@ type TableRow = {
   currentResult: string;
   progressStatus: "Đúng hạn" | "Sắp quá hạn" | "Quá hạn";
   steps: WorkflowStep[];
+  parallelInfo?: ParallelInfo;
 };
 
 const TABLE_ROWS: TableRow[] = [
@@ -362,6 +377,91 @@ const TABLE_ROWS: TableRow[] = [
       },
     ],
   },
+  {
+    code: "GT2025-015",
+    name: "Mua sắm thiết bị chẩn đoán hình ảnh",
+    unit: "P.HCQT",
+    status: "Đang xử lý",
+    color: "blue",
+    pct: "50%",
+    txt: "18/36",
+    nguonVon: "Ngân sách BV",
+    ngayTao: "05/03/2025",
+    hanHT: "20/04/2025",
+    hinhThuc: "Chỉ định thầu rút gọn",
+    currentStep: "Giai đoạn tư vấn (Nhánh song song)",
+    currentProcessor: "K/P mua sắm",
+    currentProcessDate: "19/03/2025",
+    currentSigner: "Chưa cập nhật",
+    currentSignedDate: "--",
+    currentResult: "Đang xử lý",
+    progressStatus: "Đúng hạn",
+    parallelInfo: {
+      title: "Nhánh song song tư vấn",
+      condition:
+        "Chỉ khi cả Nhánh II và Nhánh III hoàn thành hoặc đã bỏ qua thì hệ thống mới mở khóa Giai đoạn IV.",
+      branches: [
+        {
+          name: "Nhánh II - Tư vấn lập HSMT",
+          progress: "3/7",
+          status: "Hoàn thành nhánh hiện tại",
+          currentStep: "Tờ trình nội bộ",
+          processor: "Nguyễn Văn A",
+        },
+        {
+          name: "Nhánh III - Tư vấn thẩm định HSMT",
+          progress: "2/7",
+          status: "Đang xử lý",
+          currentStep: "Báo giá + Hồ sơ năng lực",
+          processor: "Trần Văn B",
+        },
+      ],
+      mergeStatus:
+        "Chưa đủ điều kiện chuyển sang Giai đoạn IV vì Nhánh III đang xử lý.",
+      lockedStage: "Giai đoạn IV - Lập Hồ sơ mời thầu đang bị khóa",
+    },
+    steps: [
+      {
+        state: "done",
+        name: "Giai đoạn I - Chuẩn bị hồ sơ (12/12)",
+        processor: "K/P mua sắm",
+        status: "Hoàn tất",
+        sla: "Hoàn thành",
+      },
+      {
+        state: "warn",
+        name: "Giai đoạn II - Tư vấn lập HSMT (3/7)",
+        processor: "K/P mua sắm",
+        status: "Đang xử lý",
+        sla: "Đúng hạn",
+        ngayXuLy: "19/03/2025",
+        ketQua: "Đang xử lý",
+      },
+      {
+        state: "warn",
+        name: "Giai đoạn III - Tư vấn thẩm định HSMT (2/7)",
+        processor: "K/P mua sắm",
+        status: "Đang xử lý",
+        sla: "Đúng hạn",
+        ngayXuLy: "19/03/2025",
+        ketQua: "Đang xử lý",
+      },
+      {
+        state: "idle",
+        name: "Giai đoạn IV - Lựa chọn nhà thầu",
+        processor: "K/P mua sắm",
+        status: "Chưa bắt đầu",
+        sla: "Đang khóa",
+      },
+      {
+        state: "idle",
+        name: "Giai đoạn V - Ký kết hợp đồng",
+        processor: "Chủ đầu tư",
+        status: "Chưa bắt đầu",
+        sla: "Đang khóa",
+      },
+    ],
+  },
 ];
 
 const NOTIFICATIONS = [
@@ -477,7 +577,10 @@ function Dot({ state }: { state: DotState }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [selectedIdx, setSelectedIdx] = useState(2);
+  const [selectedIdx, setSelectedIdx] = useState(() => {
+    const idx = TABLE_ROWS.findIndex((row) => row.code === "GT2025-015");
+    return idx >= 0 ? idx : 2;
+  });
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState(NOTIFICATIONS);
   const [search, setSearch] = useState("");
@@ -934,6 +1037,56 @@ export default function Dashboard() {
           <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">
             CÁC BƯỚC QUY TRÌNH
           </div>
+          {selected.parallelInfo && (
+            <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
+              <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
+                <i className="fa-solid fa-code-branch text-[11px]" />
+                {selected.parallelInfo.title}
+              </div>
+              <p className="mb-3 leading-relaxed text-slate-600">
+                {selected.parallelInfo.condition}
+              </p>
+              <div className="space-y-2">
+                {selected.parallelInfo.branches.map((branch) => (
+                  <div
+                    key={branch.name}
+                    className="rounded-lg border border-white bg-white/80 p-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-800">
+                        {branch.name}
+                      </span>
+                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                        {branch.progress}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[11px] text-slate-500">
+                      Bước hiện tại:{" "}
+                      <span className="font-semibold text-slate-700">
+                        {branch.currentStep}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Người xử lý:{" "}
+                      <span className="font-semibold text-slate-700">
+                        {branch.processor}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[11px] font-semibold text-amber-700">
+                      {branch.status}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 rounded-lg bg-amber-50 px-2 py-2 text-[11px] font-semibold text-amber-700">
+                {selected.parallelInfo.mergeStatus}
+              </div>
+              <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
+                <i className="fa-solid fa-lock mr-1 text-[10px]" />
+                {selected.parallelInfo.lockedStage}
+              </div>
+            </div>
+          )}
           <div className="space-y-3 mb-5">
             {selected.steps.map((step) => (
               <div

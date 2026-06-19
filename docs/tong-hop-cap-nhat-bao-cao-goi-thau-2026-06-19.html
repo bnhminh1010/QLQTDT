@@ -164,6 +164,12 @@
           <li>Trường <code>Giá trị gói thầu (VNĐ)</code> ở form Tạo/Chỉnh sửa gói thầu được chuẩn hóa khi rời ô nhập và khi lưu; bản nháp mở lại không tự báo lỗi định dạng với giá trị dạng <code>320.000.000</code>.</li>
           <li>Bổ sung đủ cấu trúc điều kiện chuyển tiếp khi tạo quy trình từ Danh mục thực hiện để không còn lỗi type ở dữ liệu bước workflow.</li>
           <li>Đã chạy <code>npm exec tsc -- --noEmit --pretty false</code> trong thư mục <code>frontend</code> và typecheck đã pass.</li>
+          <li>Tạo thêm gói thầu mock <code>GT2025-015</code> - <code>Mua sắm thiết bị chẩn đoán hình ảnh</code>, đơn vị <code>P.HCQT</code>, hình thức <code>Chỉ định thầu rút gọn</code>, trạng thái <code>Đang xử lý</code>, tiến độ <code>18/36 bước (50%)</code>.</li>
+          <li>Gói <code>GT2025-015</code> có bước hiện tại là <code>Giai đoạn tư vấn (Nhánh song song)</code>, nguồn vốn <code>Ngân sách BV</code>, ngày tạo <code>05/03/2025</code>, hạn hoàn thành <code>20/04/2025</code>, tình trạng tiến độ <code>Đúng hạn</code>.</li>
+          <li>Dashboard đã được cập nhật để hiển thị và chọn sẵn gói <code>GT2025-015</code> khi mở trang, giúp tester thấy ngay dữ liệu gói thầu có nhánh song song.</li>
+          <li>Panel phải của Dashboard hiển thị khối <code>Nhánh song song tư vấn</code>, gồm Nhánh II - Tư vấn lập HSMT và Nhánh III - Tư vấn thẩm định HSMT, tiến độ từng nhánh, bước hiện tại, người xử lý và trạng thái hợp nhất.</li>
+          <li>Trang Danh sách gói thầu cũng bổ sung gói <code>GT2025-015</code> và panel chi tiết tương ứng, có khối nhánh song song, điều kiện hợp nhất và trạng thái khóa Giai đoạn IV khi chưa đủ điều kiện.</li>
+          <li>Đã chạy lại <code>npm exec tsc -- --noEmit --pretty false</code> sau khi thêm gói thầu nhánh song song và typecheck tiếp tục pass.</li>
         </ul>
       </section>
 
