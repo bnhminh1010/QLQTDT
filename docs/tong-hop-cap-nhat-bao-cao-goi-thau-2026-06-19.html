@@ -120,77 +120,355 @@
               <td>K/P - Khoa Nội</td>
               <td><code>kp_noi</code></td>
               <td><code>Kpnoi@1234</code></td>
-              <td>Chỉ xem dữ liệu Khoa Nội, không chọn được khoa/phòng khác.</td>
+              <td>
+                Chỉ xem dữ liệu Khoa Nội, không chọn được khoa/phòng khác.
+              </td>
             </tr>
             <tr>
               <td>BCN - Khoa Nội</td>
               <td><code>bcn_noi</code></td>
               <td><code>Bcnnoi@1234</code></td>
-              <td>Chỉ xem dữ liệu Khoa Nội do mình phụ trách, export chỉ Khoa Nội.</td>
+              <td>
+                Chỉ xem dữ liệu Khoa Nội do mình phụ trách, export chỉ Khoa Nội.
+              </td>
             </tr>
           </tbody>
         </table>
         <ul>
-          <li>Bổ sung bộ tài khoản đăng nhập mock để kiểm thử phân quyền báo cáo: <code>admin/Admin@1234</code>, <code>bgd/Bgd@1234</code>, <code>qldt/Qldt@1234</code>, <code>kp_noi/Kpnoi@1234</code>, <code>bcn_noi/Bcnnoi@1234</code>.</li>
-          <li>Khi đăng nhập thành công, hệ thống lưu role mock vào localStorage để trang báo cáo tự nhận đúng account đang test.</li>
-          <li>Khi đăng xuất, hệ thống xóa <code>accessToken</code> và role mock để tránh giữ nhầm quyền giữa các lần test.</li>
-          <li>Bổ sung tài khoản mock theo role để tester đổi nhanh ngữ cảnh kiểm thử.</li>
+          <li>
+            Bổ sung bộ tài khoản đăng nhập mock để kiểm thử phân quyền báo cáo:
+            <code>admin/Admin@1234</code>, <code>bgd/Bgd@1234</code>,
+            <code>qldt/Qldt@1234</code>, <code>kp_noi/Kpnoi@1234</code>,
+            <code>bcn_noi/Bcnnoi@1234</code>.
+          </li>
+          <li>
+            Khi đăng nhập thành công, hệ thống lưu role mock vào localStorage để
+            trang báo cáo tự nhận đúng account đang test.
+          </li>
+          <li>
+            Khi đăng xuất, hệ thống xóa <code>accessToken</code> và role mock để
+            tránh giữ nhầm quyền giữa các lần test.
+          </li>
+          <li>
+            Bổ sung tài khoản mock theo role để tester đổi nhanh ngữ cảnh kiểm
+            thử.
+          </li>
           <li>ADMIN, BGĐ và PHÒNG QLĐT được xem dữ liệu toàn bệnh viện.</li>
-          <li>K/P và BCN Khoa Nội chỉ xem được dữ liệu của Khoa Nội, không thấy dữ liệu Khoa Dược, Khoa Ngoại hoặc P.HCQT.</li>
-          <li>Thêm thanh lọc gồm Đơn vị/Khoa phòng, Thời gian thống kê, Trạng thái, Loại hình đấu thầu, nút Áp dụng và Đặt lại.</li>
-          <li>Với K/P và BCN, trường Đơn vị hiển thị <code>Khoa Nội</code> dạng read-only, không cho chọn khoa/phòng khác.</li>
-          <li>KPI, biểu đồ tháng, phân bố hình thức, bảng và panel phải tự tính lại theo role và bộ lọc hiện tại.</li>
+          <li>
+            K/P và BCN Khoa Nội chỉ xem được dữ liệu của Khoa Nội, không thấy dữ
+            liệu Khoa Dược, Khoa Ngoại hoặc P.HCQT.
+          </li>
+          <li>
+            Thêm thanh lọc gồm Đơn vị/Khoa phòng, Thời gian thống kê, Trạng
+            thái, Loại hình đấu thầu, nút Áp dụng và Đặt lại.
+          </li>
+          <li>
+            Với K/P và BCN, trường Đơn vị hiển thị <code>Khoa Nội</code> dạng
+            read-only, không cho chọn khoa/phòng khác.
+          </li>
+          <li>
+            KPI, biểu đồ tháng, phân bố hình thức, bảng và panel phải tự tính
+            lại theo role và bộ lọc hiện tại.
+          </li>
           <li>Bảng của role toàn quyền giữ dạng thống kê theo đơn vị.</li>
-          <li>Bảng của K/P và BCN đổi thành <code>Báo cáo gói thầu</code> với các cột: Mã gói, Tên gói, Hình thức, Giá trị, Trạng thái, Tiến độ.</li>
-          <li>Nút Xuất Excel/PDF dùng đúng số dòng trong bộ lọc hiện tại; Excel tải file CSV có dữ liệu đang xem.</li>
+          <li>
+            Bảng của K/P và BCN đổi thành <code>Báo cáo gói thầu</code> với các
+            cột: Mã gói, Tên gói, Hình thức, Giá trị, Trạng thái, Tiến độ.
+          </li>
+          <li>
+            Nút Xuất Excel/PDF dùng đúng số dòng trong bộ lọc hiện tại; Excel
+            tải file CSV có dữ liệu đang xem.
+          </li>
         </ul>
       </section>
 
       <section>
         <h2>2. Cập nhật mới trong lượt gần nhất</h2>
         <ul>
-          <li>Bỏ nút <code>+ Tạo báo cáo</code> ở header trang Báo cáo & Thống kê theo yêu cầu tester.</li>
-          <li>Dọn state và render modal tạo báo cáo trong <code>frontend/src/pages/BaoCao/index.tsx</code> vì không còn dùng nút tạo báo cáo.</li>
-          <li>Thêm component dropdown dùng chung <code>frontend/src/components/ui/select.tsx</code> theo style shadcn/Radix Select.</li>
-          <li>Thay toàn bộ dropdown native <code>&lt;select&gt;</code> trong <code>frontend/src</code> sang shadcn Select.</li>
-          <li>Các dropdown filter, dropdown trong modal và dropdown trong form không còn lộ viền/mũi tên native của trình duyệt.</li>
-          <li>Đã rà lại bằng tìm kiếm và hiện không còn thẻ <code>&lt;select&gt;</code> / <code>&lt;/select&gt;</code> trong các file <code>.tsx</code> thuộc <code>frontend/src</code>.</li>
-          <li>Các khu vực đã thay dropdown gồm: Báo cáo, Dashboard, Danh sách gói thầu, Danh sách quy trình, Danh mục thực hiện, Tạo gói thầu, Lập quy trình, Khoa/phòng, Người dùng và các modal Thêm/Sửa liên quan.</li>
-          <li>Bỏ trường <code>Trạng thái</code> khỏi modal Thêm/Sửa Khoa/Phòng và Thêm/Sửa Người dùng; khi thêm mới hệ thống tự mặc định là đang hoạt động, còn bật/tắt trạng thái dùng nút thao tác bên ngoài danh sách/panel.</li>
-          <li>Trang Hồ sơ cá nhân bổ sung popup xác nhận đăng xuất đúng luồng: <code>Hủy</code> / <code>Đăng xuất</code>; khi xác nhận sẽ xóa token đăng nhập và tài khoản mock báo cáo trước khi về màn hình login.</li>
-          <li>Dòng thông báo trong tab Thông báo của Hồ sơ cá nhân đã có hover/click; khi click sẽ đánh dấu đã đọc và điều hướng sang <code>Danh sách gói thầu</code> với đúng mã gói thầu liên quan.</li>
-          <li>Trang Danh sách gói thầu đọc query <code>goiThauId</code> để tự chọn đúng gói thầu và mở panel chi tiết bên phải khi đi từ thông báo.</li>
-          <li>Tab Thông tin cá nhân bổ sung <code>Lần đăng nhập gần nhất</code> và <code>Ngày cập nhật gần nhất</code>.</li>
-          <li>Trường <code>Giá trị gói thầu (VNĐ)</code> ở form Tạo/Chỉnh sửa gói thầu được chuẩn hóa khi rời ô nhập và khi lưu; bản nháp mở lại không tự báo lỗi định dạng với giá trị dạng <code>320.000.000</code>.</li>
-          <li>Bổ sung đủ cấu trúc điều kiện chuyển tiếp khi tạo quy trình từ Danh mục thực hiện để không còn lỗi type ở dữ liệu bước workflow.</li>
-          <li>Đã chạy <code>npm exec tsc -- --noEmit --pretty false</code> trong thư mục <code>frontend</code> và typecheck đã pass.</li>
-          <li>Tạo thêm gói thầu mock <code>GT2025-015</code> - <code>Mua sắm thiết bị chẩn đoán hình ảnh</code>, đơn vị <code>P.HCQT</code>, hình thức <code>Chỉ định thầu rút gọn</code>, trạng thái <code>Đang xử lý</code>, tiến độ <code>18/36 bước (50%)</code>.</li>
-          <li>Gói <code>GT2025-015</code> có bước hiện tại là <code>Giai đoạn tư vấn (Nhánh song song)</code>, nguồn vốn <code>Ngân sách BV</code>, ngày tạo <code>05/03/2025</code>, hạn hoàn thành <code>20/04/2025</code>, tình trạng tiến độ <code>Đúng hạn</code>.</li>
-          <li>Dashboard đã được cập nhật để hiển thị và chọn sẵn gói <code>GT2025-015</code> khi mở trang, giúp tester thấy ngay dữ liệu gói thầu có nhánh song song.</li>
-          <li>Panel phải của Dashboard hiển thị khối <code>Nhánh song song tư vấn</code>, gồm Nhánh II - Tư vấn lập HSMT và Nhánh III - Tư vấn thẩm định HSMT, tiến độ từng nhánh, bước hiện tại, người xử lý và trạng thái hợp nhất.</li>
-          <li>Trang Danh sách gói thầu cũng bổ sung gói <code>GT2025-015</code> và panel chi tiết tương ứng, có khối nhánh song song, điều kiện hợp nhất và trạng thái khóa Giai đoạn IV khi chưa đủ điều kiện.</li>
-          <li>Đã chạy lại <code>npm exec tsc -- --noEmit --pretty false</code> sau khi thêm gói thầu nhánh song song và typecheck tiếp tục pass.</li>
+          <li>
+            Bỏ nút <code>+ Tạo báo cáo</code> ở header trang Báo cáo & Thống kê
+            theo yêu cầu tester.
+          </li>
+          <li>
+            Dọn state và render modal tạo báo cáo trong
+            <code>frontend/src/pages/BaoCao/index.tsx</code> vì không còn dùng
+            nút tạo báo cáo.
+          </li>
+          <li>
+            Thêm component dropdown dùng chung
+            <code>frontend/src/components/ui/select.tsx</code> theo style
+            shadcn/Radix Select.
+          </li>
+          <li>
+            Thay toàn bộ dropdown native <code>&lt;select&gt;</code> trong
+            <code>frontend/src</code> sang shadcn Select.
+          </li>
+          <li>
+            Các dropdown filter, dropdown trong modal và dropdown trong form
+            không còn lộ viền/mũi tên native của trình duyệt.
+          </li>
+          <li>
+            Đã rà lại bằng tìm kiếm và hiện không còn thẻ
+            <code>&lt;select&gt;</code> / <code>&lt;/select&gt;</code> trong các
+            file <code>.tsx</code> thuộc <code>frontend/src</code>.
+          </li>
+          <li>
+            Các khu vực đã thay dropdown gồm: Báo cáo, Dashboard, Danh sách gói
+            thầu, Danh sách quy trình, Danh mục thực hiện, Tạo gói thầu, Lập quy
+            trình, Khoa/phòng, Người dùng và các modal Thêm/Sửa liên quan.
+          </li>
+          <li>
+            Bỏ trường <code>Trạng thái</code> khỏi modal Thêm/Sửa Khoa/Phòng và
+            Thêm/Sửa Người dùng; khi thêm mới hệ thống tự mặc định là đang hoạt
+            động, còn bật/tắt trạng thái dùng nút thao tác bên ngoài danh
+            sách/panel.
+          </li>
+          <li>
+            Trang Hồ sơ cá nhân bổ sung popup xác nhận đăng xuất đúng luồng:
+            <code>Hủy</code> / <code>Đăng xuất</code>; khi xác nhận sẽ xóa token
+            đăng nhập và tài khoản mock báo cáo trước khi về màn hình login.
+          </li>
+          <li>
+            Dòng thông báo trong tab Thông báo của Hồ sơ cá nhân đã có
+            hover/click; khi click sẽ đánh dấu đã đọc và điều hướng sang
+            <code>Danh sách gói thầu</code> với đúng mã gói thầu liên quan.
+          </li>
+          <li>
+            Trang Danh sách gói thầu đọc query <code>goiThauId</code> để tự chọn
+            đúng gói thầu và mở panel chi tiết bên phải khi đi từ thông báo.
+          </li>
+          <li>
+            Tab Thông tin cá nhân bổ sung <code>Lần đăng nhập gần nhất</code> và
+            <code>Ngày cập nhật gần nhất</code>.
+          </li>
+          <li>
+            Trường <code>Giá trị gói thầu (VNĐ)</code> ở form Tạo/Chỉnh sửa gói
+            thầu được chuẩn hóa khi rời ô nhập và khi lưu; bản nháp mở lại không
+            tự báo lỗi định dạng với giá trị dạng <code>320.000.000</code>.
+          </li>
+          <li>
+            Bổ sung đủ cấu trúc điều kiện chuyển tiếp khi tạo quy trình từ Danh
+            mục thực hiện để không còn lỗi type ở dữ liệu bước workflow.
+          </li>
+          <li>
+            Đã chạy <code>npm exec tsc -- --noEmit --pretty false</code> trong
+            thư mục <code>frontend</code> và typecheck đã pass.
+          </li>
+          <li>
+            Tạo thêm gói thầu mock <code>GT2025-015</code> -
+            <code>Mua sắm thiết bị chẩn đoán hình ảnh</code>, đơn vị
+            <code>P.HCQT</code>, hình thức <code>Chỉ định thầu rút gọn</code>,
+            trạng thái <code>Đang xử lý</code>, tiến độ
+            <code>18/36 bước (50%)</code>.
+          </li>
+          <li>
+            Gói <code>GT2025-015</code> có bước hiện tại là hai bước đang xử lý
+            song song: <code>Nhánh II: Tờ trình nội bộ</code> và
+            <code>Nhánh III: Báo giá + Hồ sơ năng lực</code>, nguồn vốn
+            <code>Ngân sách BV</code>, ngày tạo <code>05/03/2025</code>, hạn
+            hoàn thành <code>20/04/2025</code>, tình trạng tiến độ
+            <code>Đúng hạn</code>.
+          </li>
+          <li>
+            Dashboard đã được cập nhật để hiển thị và chọn sẵn gói
+            <code>GT2025-015</code> khi mở trang, giúp tester thấy ngay dữ liệu
+            gói thầu có nhánh song song.
+          </li>
+          <li>
+            Panel phải của Dashboard hiển thị khối
+            <code>Nhánh song song tư vấn</code>, gồm Nhánh II - Tư vấn lập HSMT
+            và Nhánh III - Tư vấn thẩm định HSMT, tiến độ từng nhánh, bước hiện
+            tại, người xử lý và trạng thái hợp nhất.
+          </li>
+          <li>
+            Trang Danh sách gói thầu cũng bổ sung gói <code>GT2025-015</code> và
+            panel chi tiết tương ứng, có khối nhánh song song, điều kiện hợp
+            nhất và trạng thái khóa bước tiếp theo khi chưa đủ điều kiện.
+          </li>
+          <li>
+            Đã chạy lại <code>npm exec tsc -- --noEmit --pretty false</code> sau
+            khi thêm gói thầu nhánh song song và typecheck tiếp tục pass.
+          </li>
+          <li>
+            Điều chỉnh lại vị trí hiển thị nhánh song song theo góp ý tester:
+            khối <code>NHÁNH SONG SONG</code> không còn nằm tách riêng ngay đầu
+            danh sách bước, mà được đặt đúng trong luồng
+            <code>CÁC BƯỚC QUY TRÌNH</code>, ngay sau bước số 12
+            <code>Quyết định thành lập Tổ chuyên gia & Tổ thẩm định</code>.
+          </li>
+          <li>
+            Dashboard của gói <code>GT2025-015</code> đã đổi từ 5 nhóm rút gọn
+            sang danh sách 12 bước hoàn thành trước nhánh, sau đó mới hiển thị
+            hai nhánh tư vấn, điều kiện hợp nhất và bước
+            <code>Lập Hồ sơ mời thầu</code> đang khóa.
+          </li>
+          <li>
+            Trang Danh sách gói thầu cũng áp dụng cùng cách hiển thị: nhánh song
+            song xuất hiện đúng vị trí trong timeline quy trình, có nút
+            <code>Cập nhật</code> và <code>Bỏ qua</code> tại từng nhánh hiện
+            tại.
+          </li>
+          <li>
+            Đã chạy lại <code>npm exec tsc -- --noEmit --pretty false</code> sau
+            chỉnh sửa vị trí nhánh song song và typecheck pass.
+          </li>
+          <li>
+            Bỏ hẳn step giả
+            <code>BƯỚC HIỆN TẠI - Tư vấn (Nhánh song song)</code> theo phản hồi
+            tester; sau bước
+            <code>Quyết định thành lập Tổ chuyên gia & Tổ thẩm định</code> hệ
+            thống chuyển trực tiếp sang khối nhánh song song.
+          </li>
+          <li>
+            Khối <code>NHÁNH SONG SONG</code> hiện được gắn ngay sau bước số 12
+            trong cả Dashboard và Danh sách gói thầu; các nút
+            <code>Cập nhật</code>/<code>Bỏ qua</code> chỉ nằm trong từng nhánh
+            II/III, không còn nằm ở một bước tổng giả.
+          </li>
+          <li>
+            Đã chạy lại <code>npm exec tsc -- --noEmit --pretty false</code> sau
+            khi bỏ step giả và typecheck pass.
+          </li>
+          <li>
+            Làm rõ rule chuyển tiếp nhánh song song: sau khi hoàn thành Phần I,
+            hệ thống mở đồng thời Nhánh II và Nhánh III; chỉ khi cả hai nhánh
+            đều ở trạng thái <code>Hoàn thành</code> hoặc
+            <code>Đã bỏ qua</code> thì mới mở khóa bước tiếp theo.
+          </li>
+          <li>
+            Cập nhật trạng thái mock của Nhánh II từ
+            <code>Hoàn thành nhánh hiện tại</code> sang
+            <code>Đang xử lý</code> vì tiến độ đang là <code>3/7</code>, tránh
+            hiểu nhầm là nhánh đã hoàn thành.
+          </li>
+          <li>
+            Bổ sung ghi chú trong block nhánh song song: có thể bỏ qua một nhánh
+            hoặc cả hai nhánh nếu cấu hình cho phép, nhưng cả Nhánh II và Nhánh
+            III đều phải có kết quả cuối trước khi sang bước tiếp theo.
+          </li>
+          <li>
+            Đã chạy lại <code>npm exec tsc -- --noEmit --pretty false</code> sau
+            khi chỉnh rule nhánh song song và typecheck pass.
+          </li>
+          <li>
+            Cập nhật wording theo yêu cầu tester: bỏ hai câu giải thích dài ở
+            đầu block nhánh song song và chỉ giữ câu
+            <code
+              >Hai nhánh được thực hiện đồng thời. Sau khi cả hai nhánh hoàn
+              thành hoặc đã bỏ qua, quy trình sẽ tiếp tục sang bước tiếp
+              theo.</code
+            >
+          </li>
+          <li>
+            Đổi thông báo vàng trong block nhánh song song thành
+            <code
+              >Chưa đủ điều kiện chuyển sang bước tiếp theo vì Nhánh III vẫn
+              đang xử lý</code
+            >.
+          </li>
+          <li>
+            Đổi dòng khóa bên dưới thành
+            <code>
+              Bước "Lập Hồ sơ mời thầu" sẽ được mở sau khi hai nhánh hoàn
+              thành hoặc đã bỏ qua.</code
+            >
+          </li>
+          <li>Bỏ icon ổ khóa màu vàng/xám ở dòng thông báo bước <code>Lập Hồ sơ mời thầu</code> đang chờ mở.</li>
+          <li>
+            Đã chạy lại <code>npm exec tsc -- --noEmit --pretty false</code> sau
+            khi đổi nội dung text và typecheck pass.
+          </li>
+          <li>
+            Rút gọn hiển thị nhánh song song để tránh rối: mỗi nhánh chỉ hiện
+            tóm tắt tiến độ, bước hiện tại, người xử lý và link
+            <code>Xem chi tiết các bước trong nhánh</code>; danh sách bước con
+            được thu gọn trong từng nhánh.
+          </li>
+          <li>
+            Gắn route cho nút <code>Cập nhật</code> trong Nhánh II/III để mở
+            đúng màn hình <code>Chi tiết xử lý bước</code> theo bước hiện tại
+            của nhánh.
+          </li>
+          <li>
+            Click từng bước con trong nhánh sẽ mở màn hình xem chi tiết kết quả
+            xử lý bước ở chế độ chỉ đọc.
+          </li>
+          <li>
+            Đổi <code>Bước hiện tại</code> tổng của gói
+            <code>GT2025-015</code> thành danh sách hai bước đang xử lý thật:
+            <code>Nhánh II: Tờ trình nội bộ</code> và
+            <code>Nhánh III: Báo giá + Hồ sơ năng lực</code>, không còn dùng tên
+            giai đoạn tổng.
+          </li>
+          <li>
+            Áp dụng đồng bộ các thay đổi trên ở cả Dashboard và Danh sách gói
+            thầu; đã chạy lại
+            <code>npm exec tsc -- --noEmit --pretty false</code> và typecheck
+            pass.
+          </li>
+          <li>
+            Đổi label <code>Xem chi tiết các bước trong nhánh</code> thành
+            <code>Các bước trong nhánh</code> theo yêu cầu tester.
+          </li>
+          <li>
+            Đổi cách hiển thị bước hiện tại trong nhánh: bỏ badge riêng
+            <code>BƯỚC HIỆN TẠI</code>, thay bằng dòng có chấm cam và tên bước dạng
+            <code>Tờ trình nội bộ (Bước hiện tại)</code>.
+          </li>
+          <li>Đổi tiến độ nhánh từ dạng <code>3/7</code> sang <code>3/7 bước</code>.</li>
+          <li>Tăng khoảng cách các dòng trong danh sách bước con của từng nhánh để dễ đọc hơn.</li>
+          <li>
+            Đã chạy lại <code>npm exec tsc -- --noEmit --pretty false</code> sau
+            khi chỉnh nội dung/spacing nhánh và typecheck pass.
+          </li>
         </ul>
       </section>
 
       <section>
         <h2>3. Trang Danh sách gói thầu</h2>
         <ul>
-          <li>Panel chi tiết giữ danh sách bước quy trình và chỉ hiển thị nút <code>Cập nhật</code> tại bước hiện tại.</li>
-          <li>Các bước khác chỉ cho xem thông tin/lịch sử xử lý khi click vào bước.</li>
-          <li>Cụm nút cuối panel đã bỏ nút <code>Chi tiết gói thầu</code> theo yêu cầu mới.</li>
-          <li>Khi bước hiện tại được duyệt, service lưu bước vừa xử lý thành hoàn thành và chuyển current step sang bước kế tiếp.</li>
-          <li>Khi mở lại thao tác cập nhật, hệ thống lấy bước hiện tại mới, không mở lại bước đã duyệt.</li>
-          <li>Bước chưa xử lý khi mở ở chế độ xem không còn tự điền dữ liệu giả như đã duyệt; form để trống và chỉ hiển thị trạng thái chờ xử lý.</li>
+          <li>
+            Panel chi tiết giữ danh sách bước quy trình và chỉ hiển thị nút
+            <code>Cập nhật</code> tại bước hiện tại.
+          </li>
+          <li>
+            Các bước khác chỉ cho xem thông tin/lịch sử xử lý khi click vào
+            bước.
+          </li>
+          <li>
+            Cụm nút cuối panel đã bỏ nút <code>Chi tiết gói thầu</code> theo yêu
+            cầu mới.
+          </li>
+          <li>
+            Khi bước hiện tại được duyệt, service lưu bước vừa xử lý thành hoàn
+            thành và chuyển current step sang bước kế tiếp.
+          </li>
+          <li>
+            Khi mở lại thao tác cập nhật, hệ thống lấy bước hiện tại mới, không
+            mở lại bước đã duyệt.
+          </li>
+          <li>
+            Bước chưa xử lý khi mở ở chế độ xem không còn tự điền dữ liệu giả
+            như đã duyệt; form để trống và chỉ hiển thị trạng thái chờ xử lý.
+          </li>
         </ul>
       </section>
 
       <section>
         <h2>4. Trang Tạo/Chỉnh sửa gói thầu</h2>
         <ul>
-          <li>Fix lỗi mở lại bản nháp bị báo sai định dạng trường <code>Giá trị gói thầu (VNĐ)</code>.</li>
-          <li>Giá trị đã lưu được chuẩn hóa lại qua hàm format tiền trước khi reset vào form chỉnh sửa.</li>
-          <li>Người dùng mở bản nháp hợp lệ sẽ không thấy lỗi validation cho đến khi nhập giá trị không hợp lệ.</li>
+          <li>
+            Fix lỗi mở lại bản nháp bị báo sai định dạng trường
+            <code>Giá trị gói thầu (VNĐ)</code>.
+          </li>
+          <li>
+            Giá trị đã lưu được chuẩn hóa lại qua hàm format tiền trước khi
+            reset vào form chỉnh sửa.
+          </li>
+          <li>
+            Người dùng mở bản nháp hợp lệ sẽ không thấy lỗi validation cho đến
+            khi nhập giá trị không hợp lệ.
+          </li>
         </ul>
       </section>
 
@@ -204,18 +482,28 @@
           <li><code>frontend/src/pages/DanhMucThucHien/index.tsx</code></li>
           <li><code>frontend/src/pages/DanhSachQuyTrinh/index.tsx</code></li>
           <li><code>frontend/src/pages/KhoaPhong/index.tsx</code></li>
-          <li><code>frontend/src/pages/KhoaPhong/ThemKhoaPhongModal.tsx</code></li>
-          <li><code>frontend/src/pages/KhoaPhong/SuaKhoaPhongModal.tsx</code></li>
+          <li>
+            <code>frontend/src/pages/KhoaPhong/ThemKhoaPhongModal.tsx</code>
+          </li>
+          <li>
+            <code>frontend/src/pages/KhoaPhong/SuaKhoaPhongModal.tsx</code>
+          </li>
           <li><code>frontend/src/pages/LapQuyTrinh/index.tsx</code></li>
           <li><code>frontend/src/pages/NguoiDung/index.tsx</code></li>
-          <li><code>frontend/src/pages/NguoiDung/ThemNguoiDungModal.tsx</code></li>
-          <li><code>frontend/src/pages/NguoiDung/SuaNguoiDungModal.tsx</code></li>
+          <li>
+            <code>frontend/src/pages/NguoiDung/ThemNguoiDungModal.tsx</code>
+          </li>
+          <li>
+            <code>frontend/src/pages/NguoiDung/SuaNguoiDungModal.tsx</code>
+          </li>
           <li><code>frontend/src/pages/UserProfile/index.tsx</code></li>
           <li><code>frontend/src/pages/Login/index.tsx</code></li>
           <li><code>frontend/src/components/Sidebar/index.tsx</code></li>
           <li><code>frontend/src/util/mockReportAccounts.ts</code></li>
           <li><code>frontend/src/pages/DanhSachGoiThau/index.tsx</code></li>
-          <li><code>frontend/src/pages/DanhSachGoiThau/xuLyBuocService.ts</code></li>
+          <li>
+            <code>frontend/src/pages/DanhSachGoiThau/xuLyBuocService.ts</code>
+          </li>
           <li><code>frontend/src/pages/XuLyBuocGoiThau/index.tsx</code></li>
           <li><code>frontend/src/pages/TaoGoiThau/index.tsx</code></li>
         </ul>

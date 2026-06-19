@@ -141,7 +141,7 @@ export default function XuLyBuocGoiThau() {
   );
   const activeStepName = readonlyMode
     ? viewingStep
-    : getCurrentStepName(id, getCurrentStep(id));
+    : viewingStep || getCurrentStepName(id, getCurrentStep(id));
   const currentWorkflowStepName = getCurrentStepName(id, getCurrentStep(id));
   const existing = id
     ? readonlyMode

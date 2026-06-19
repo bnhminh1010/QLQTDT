@@ -41,6 +41,10 @@ type ParallelInfo = {
     status: string;
     currentStep: string;
     processor: string;
+    steps: {
+      name: string;
+      state: "done" | "current" | "idle" | "skipped";
+    }[];
   }[];
   mergeStatus: string;
   lockedStage: string;
@@ -311,21 +315,30 @@ const DETAIL_INFO_BY_ID: Record<string, GoiThauDetailInfo> = {
     ],
   },
   "GT2025-015": {
-    buocHienTai: "Giai đoạn tư vấn (Nhánh song song)",
+    buocHienTai: "Nhánh II: Tờ trình nội bộ / Nhánh III: Báo giá + Hồ sơ năng lực",
     nguoiXuLy: "Nguyễn Văn A / Trần Văn B",
     donViXuLy: "K/P mua sắm",
     sla: "Đúng hạn",
     parallelInfo: {
       title: "Nhánh song song tư vấn",
       condition:
-        "Hai nhánh được thực hiện đồng thời. Chỉ khi Nhánh II và Nhánh III hoàn thành hoặc đã bỏ qua thì hệ thống mới mở khóa Giai đoạn IV.",
+        "Hai nhánh được thực hiện đồng thời. Sau khi cả hai nhánh hoàn thành hoặc đã bỏ qua, quy trình sẽ tiếp tục sang bước tiếp theo.",
       branches: [
         {
           name: "Nhánh II - Tư vấn lập HSMT",
           progress: "3/7",
-          status: "Hoàn thành nhánh hiện tại",
+          status: "Đang xử lý",
           currentStep: "Tờ trình nội bộ",
           processor: "Nguyễn Văn A",
+          steps: [
+            { name: "Thư mời quan tâm", state: "done" },
+            { name: "Báo giá + Hồ sơ năng lực", state: "done" },
+            { name: "Tờ trình nội bộ", state: "current" },
+            { name: "Dự thảo hợp đồng", state: "idle" },
+            { name: "Quyết định phê duyệt", state: "idle" },
+            { name: "Hợp đồng tư vấn", state: "idle" },
+            { name: "Đăng tải kết quả LCNT", state: "idle" },
+          ],
         },
         {
           name: "Nhánh III - Tư vấn thẩm định HSMT",
@@ -333,11 +346,20 @@ const DETAIL_INFO_BY_ID: Record<string, GoiThauDetailInfo> = {
           status: "Đang xử lý",
           currentStep: "Báo giá + Hồ sơ năng lực",
           processor: "Trần Văn B",
+          steps: [
+            { name: "Thư mời quan tâm", state: "done" },
+            { name: "Báo giá + Hồ sơ năng lực", state: "current" },
+            { name: "Tờ trình nội bộ", state: "idle" },
+            { name: "Dự thảo hợp đồng", state: "idle" },
+            { name: "Quyết định phê duyệt", state: "idle" },
+            { name: "Hợp đồng tư vấn", state: "idle" },
+            { name: "Đăng tải kết quả LCNT", state: "idle" },
+          ],
         },
       ],
       mergeStatus:
-        "Chưa đủ điều kiện chuyển sang Giai đoạn IV vì Nhánh III đang xử lý.",
-      lockedStage: "Giai đoạn IV - Lập Hồ sơ mời thầu đang bị khóa",
+        "Chưa đủ điều kiện chuyển sang bước tiếp theo vì Nhánh III vẫn đang xử lý",
+      lockedStage: "Bước \"Lập Hồ sơ mời thầu\" sẽ được mở sau khi hai nhánh hoàn thành hoặc đã bỏ qua.",
     },
     steps: [
       { state: "done", ten: "Đề xuất mua sắm", donVi: "K/P mua sắm" },
@@ -352,15 +374,7 @@ const DETAIL_INFO_BY_ID: Record<string, GoiThauDetailInfo> = {
       { state: "done", ten: "Quyết định phê duyệt KHLCNT", donVi: "Giám đốc BV" },
       { state: "done", ten: "Đăng tải KHLCNT", donVi: "K/P mua sắm" },
       { state: "done", ten: "Quyết định thành lập Tổ chuyên gia & Tổ thẩm định", donVi: "K/P mua sắm" },
-      {
-        state: "warn",
-        ten: "Giai đoạn tư vấn (Nhánh song song)",
-        donVi: "K/P mua sắm",
-        current: true,
-        nguoiXuLy: "Nguyễn Văn A / Trần Văn B",
-        slaText: "Đúng hạn",
-      },
-      { state: "idle", ten: "Giai đoạn IV - Lập Hồ sơ mời thầu", donVi: "K/P mua sắm" },
+      { state: "idle", ten: "Lập Hồ sơ mời thầu", donVi: "K/P mua sắm" },
       { state: "idle", ten: "Chủ đầu tư góp ý Hồ sơ mời thầu", donVi: "Chủ đầu tư" },
       { state: "idle", ten: "Ký kết hợp đồng", donVi: "Chủ đầu tư" },
     ],
@@ -833,77 +847,27 @@ export default function DanhSachGoiThau() {
         <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">
           CÁC BƯỚC QUY TRÌNH
         </div>
-        {detailInfo.parallelInfo && (
-          <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
-            <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
-              <i className="fa-solid fa-code-branch text-[11px]" />
-              {detailInfo.parallelInfo.title}
-            </div>
-            <p className="mb-3 leading-relaxed text-slate-600">
-              {detailInfo.parallelInfo.condition}
-            </p>
-            <div className="space-y-2">
-              {detailInfo.parallelInfo.branches.map((branch) => (
-                <div
-                  key={branch.name}
-                  className="rounded-lg border border-white bg-white/80 p-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-slate-800">
-                      {branch.name}
-                    </span>
-                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                      {branch.progress}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-[11px] text-slate-500">
-                    Bước hiện tại:{" "}
-                    <span className="font-semibold text-slate-700">
-                      {branch.currentStep}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-500">
-                    Người xử lý:{" "}
-                    <span className="font-semibold text-slate-700">
-                      {branch.processor}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-[11px] font-semibold text-amber-700">
-                    {branch.status}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 rounded-lg bg-amber-50 px-2 py-2 text-[11px] font-semibold text-amber-700">
-              {detailInfo.parallelInfo.mergeStatus}
-            </div>
-            <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
-              <i className="fa-solid fa-lock mr-1 text-[10px]" />
-              {detailInfo.parallelInfo.lockedStage}
-            </div>
-          </div>
-        )}
         <div className="space-y-3 mb-5">
           {displaySteps.map((step) => (
-            <div
-              key={step.ten}
-              role="button"
-              tabIndex={0}
-              onClick={() => goToStepResult(selected, step.ten)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  goToStepResult(selected, step.ten);
-                }
-              }}
-              className={`flex items-start gap-2.5 rounded-xl ${
-                step.current
-                  ? "border border-amber-200 bg-amber-50 p-2 -mx-2 cursor-pointer"
-                  : "p-1.5 -mx-1.5 hover:bg-slate-50 cursor-pointer"
-              }`}
-            >
-              <Dot state={step.state} />
-              <div className="min-w-0 flex-1">
+            <div key={step.ten}>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => goToStepResult(selected, step.ten)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    goToStepResult(selected, step.ten);
+                  }
+                }}
+                className={`flex items-start gap-2.5 rounded-xl ${
+                  step.current
+                    ? "border border-amber-200 bg-amber-50 p-2 -mx-2 cursor-pointer"
+                    : "p-1.5 -mx-1.5 hover:bg-slate-50 cursor-pointer"
+                }`}
+              >
+                <Dot state={step.state} />
+                <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -961,6 +925,98 @@ export default function DanhSachGoiThau() {
                   </div>
                 )}
               </div>
+              </div>
+              {detailInfo.parallelInfo && step.ten.includes("Tổ chuyên gia") && (
+                <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
+                  <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
+                    <i className="fa-solid fa-code-branch text-[11px]" />
+                    NHÁNH SONG SONG
+                  </div>
+                  <p className="mb-3 leading-relaxed text-slate-600">
+                    {detailInfo.parallelInfo.condition}
+                  </p>
+                  <div className="space-y-2">
+                    {detailInfo.parallelInfo.branches.map((branch) => (
+                      <div key={branch.name} className="rounded-lg border border-white bg-white/80 p-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-slate-800">{branch.name}</span>
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">{branch.progress} bước</span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          Bước hiện tại: <span className="font-semibold text-slate-700">{branch.currentStep}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Người xử lý: <span className="font-semibold text-slate-700">{branch.processor}</span>
+                        </div>
+                        <details className="mt-2 rounded-lg border border-slate-100 bg-slate-50/70 px-2 py-1">
+                          <summary className="cursor-pointer select-none text-[11px] font-semibold text-blue-700">
+                            Các bước trong nhánh
+                          </summary>
+                          <div className="mt-2 space-y-2.5">
+                            {branch.steps.map((branchStep) => (
+                              <button
+                                key={branchStep.name}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  goToStepResult(selected, branchStep.name);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] hover:bg-white"
+                              >
+                                <span
+                                  className={`h-2.5 w-2.5 rounded-full ${
+                                    branchStep.state === "done"
+                                      ? "bg-emerald-500"
+                                      : branchStep.state === "current"
+                                        ? "bg-amber-500"
+                                        : branchStep.state === "skipped"
+                                          ? "bg-slate-400"
+                                          : "bg-slate-300"
+                                  }`}
+                                />
+                                <span className="flex-1 text-slate-700">
+                                  {branchStep.name}
+                                  {branchStep.state === "current" && (
+                                    <span className="font-semibold text-amber-700"> (Bước hiện tại)</span>
+                                  )}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </details>
+                        <div className="mt-2 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(
+                                `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}`,
+                              );
+                            }}
+                            className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700"
+                          >
+                            Cập nhật
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
+                          >
+                            Bỏ qua
+                          </button>
+                        </div>
+                        <div className="mt-1 text-[11px] font-semibold text-amber-700">{branch.status}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 rounded-lg bg-amber-50 px-2 py-2 text-[11px] font-semibold text-amber-700">
+                    {detailInfo.parallelInfo.mergeStatus}
+                  </div>
+                  <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
+                    {detailInfo.parallelInfo.lockedStage}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

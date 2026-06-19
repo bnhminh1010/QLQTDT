@@ -40,6 +40,10 @@ type ParallelInfo = {
     status: string;
     currentStep: string;
     processor: string;
+    steps: {
+      name: string;
+      state: "done" | "current" | "idle" | "skipped";
+    }[];
   }[];
   mergeStatus: string;
   lockedStage: string;
@@ -389,8 +393,8 @@ const TABLE_ROWS: TableRow[] = [
     ngayTao: "05/03/2025",
     hanHT: "20/04/2025",
     hinhThuc: "Chỉ định thầu rút gọn",
-    currentStep: "Giai đoạn tư vấn (Nhánh song song)",
-    currentProcessor: "K/P mua sắm",
+    currentStep: "Nhánh II: Tờ trình nội bộ / Nhánh III: Báo giá + Hồ sơ năng lực",
+    currentProcessor: "Nguyễn Văn A / Trần Văn B",
     currentProcessDate: "19/03/2025",
     currentSigner: "Chưa cập nhật",
     currentSignedDate: "--",
@@ -399,14 +403,23 @@ const TABLE_ROWS: TableRow[] = [
     parallelInfo: {
       title: "Nhánh song song tư vấn",
       condition:
-        "Chỉ khi cả Nhánh II và Nhánh III hoàn thành hoặc đã bỏ qua thì hệ thống mới mở khóa Giai đoạn IV.",
+        "Hai nhánh được thực hiện đồng thời. Sau khi cả hai nhánh hoàn thành hoặc đã bỏ qua, quy trình sẽ tiếp tục sang bước tiếp theo.",
       branches: [
         {
           name: "Nhánh II - Tư vấn lập HSMT",
           progress: "3/7",
-          status: "Hoàn thành nhánh hiện tại",
+          status: "Đang xử lý",
           currentStep: "Tờ trình nội bộ",
           processor: "Nguyễn Văn A",
+          steps: [
+            { name: "Thư mời quan tâm", state: "done" },
+            { name: "Báo giá + Hồ sơ năng lực", state: "done" },
+            { name: "Tờ trình nội bộ", state: "current" },
+            { name: "Dự thảo hợp đồng", state: "idle" },
+            { name: "Quyết định phê duyệt", state: "idle" },
+            { name: "Hợp đồng tư vấn", state: "idle" },
+            { name: "Đăng tải kết quả LCNT", state: "idle" },
+          ],
         },
         {
           name: "Nhánh III - Tư vấn thẩm định HSMT",
@@ -414,52 +427,40 @@ const TABLE_ROWS: TableRow[] = [
           status: "Đang xử lý",
           currentStep: "Báo giá + Hồ sơ năng lực",
           processor: "Trần Văn B",
+          steps: [
+            { name: "Thư mời quan tâm", state: "done" },
+            { name: "Báo giá + Hồ sơ năng lực", state: "current" },
+            { name: "Tờ trình nội bộ", state: "idle" },
+            { name: "Dự thảo hợp đồng", state: "idle" },
+            { name: "Quyết định phê duyệt", state: "idle" },
+            { name: "Hợp đồng tư vấn", state: "idle" },
+            { name: "Đăng tải kết quả LCNT", state: "idle" },
+          ],
         },
       ],
       mergeStatus:
-        "Chưa đủ điều kiện chuyển sang Giai đoạn IV vì Nhánh III đang xử lý.",
-      lockedStage: "Giai đoạn IV - Lập Hồ sơ mời thầu đang bị khóa",
+        "Chưa đủ điều kiện chuyển sang bước tiếp theo vì Nhánh III vẫn đang xử lý",
+      lockedStage: "Bước \"Lập Hồ sơ mời thầu\" sẽ được mở sau khi hai nhánh hoàn thành hoặc đã bỏ qua.",
     },
     steps: [
-      {
-        state: "done",
-        name: "Giai đoạn I - Chuẩn bị hồ sơ (12/12)",
-        processor: "K/P mua sắm",
-        status: "Hoàn tất",
-        sla: "Hoàn thành",
-      },
-      {
-        state: "warn",
-        name: "Giai đoạn II - Tư vấn lập HSMT (3/7)",
-        processor: "K/P mua sắm",
-        status: "Đang xử lý",
-        sla: "Đúng hạn",
-        ngayXuLy: "19/03/2025",
-        ketQua: "Đang xử lý",
-      },
-      {
-        state: "warn",
-        name: "Giai đoạn III - Tư vấn thẩm định HSMT (2/7)",
-        processor: "K/P mua sắm",
-        status: "Đang xử lý",
-        sla: "Đúng hạn",
-        ngayXuLy: "19/03/2025",
-        ketQua: "Đang xử lý",
-      },
-      {
-        state: "idle",
-        name: "Giai đoạn IV - Lựa chọn nhà thầu",
-        processor: "K/P mua sắm",
-        status: "Chưa bắt đầu",
-        sla: "Đang khóa",
-      },
-      {
-        state: "idle",
-        name: "Giai đoạn V - Ký kết hợp đồng",
-        processor: "Chủ đầu tư",
-        status: "Chưa bắt đầu",
-        sla: "Đang khóa",
-      },
+      { state: "done", name: "1. Đề xuất mua sắm", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "2. Tờ trình chủ trương", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "3. Đăng tải yêu cầu báo giá", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "4. Biên bản kiểm tra báo giá", processor: "Tổ kiểm tra giá", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "5. Tờ trình phê duyệt dự toán", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "6. Quyết định phê duyệt dự toán", processor: "Giám đốc BV", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "7. Quyết định thành lập tổ thẩm định", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "8. Tờ trình phê duyệt KHLCNT", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "9. Báo cáo thẩm định KHLCNT", processor: "Tổ thẩm định", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "10. Quyết định phê duyệt KHLCNT", processor: "Giám đốc BV", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "11. Đăng tải KHLCNT", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "done", name: "12. Quyết định thành lập Tổ chuyên gia & Tổ thẩm định", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
+      { state: "idle", name: "Lập Hồ sơ mời thầu", processor: "K/P mua sắm", status: "Chưa bắt đầu", sla: "Đang khóa" },
+      { state: "idle", name: "Chủ đầu tư góp ý Hồ sơ mời thầu", processor: "Chủ đầu tư", status: "Chưa bắt đầu", sla: "Đang khóa" },
+      { state: "idle", name: "Tờ trình phê duyệt Hồ sơ mời thầu", processor: "K/P mua sắm", status: "Chưa bắt đầu", sla: "Đang khóa" },
+      { state: "idle", name: "Báo cáo thẩm định Hồ sơ mời thầu", processor: "Tổ thẩm định", status: "Chưa bắt đầu", sla: "Đang khóa" },
+      { state: "idle", name: "Quyết định phê duyệt Hồ sơ mời thầu", processor: "Giám đốc BV", status: "Chưa bắt đầu", sla: "Đang khóa" },
+      { state: "idle", name: "Đăng tải Hồ sơ mời thầu", processor: "K/P mua sắm", status: "Chưa bắt đầu", sla: "Đang khóa" },
     ],
   },
 ];
@@ -1037,64 +1038,12 @@ export default function Dashboard() {
           <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">
             CÁC BƯỚC QUY TRÌNH
           </div>
-          {selected.parallelInfo && (
-            <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
-              <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
-                <i className="fa-solid fa-code-branch text-[11px]" />
-                {selected.parallelInfo.title}
-              </div>
-              <p className="mb-3 leading-relaxed text-slate-600">
-                {selected.parallelInfo.condition}
-              </p>
-              <div className="space-y-2">
-                {selected.parallelInfo.branches.map((branch) => (
-                  <div
-                    key={branch.name}
-                    className="rounded-lg border border-white bg-white/80 p-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-slate-800">
-                        {branch.name}
-                      </span>
-                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                        {branch.progress}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-[11px] text-slate-500">
-                      Bước hiện tại:{" "}
-                      <span className="font-semibold text-slate-700">
-                        {branch.currentStep}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Người xử lý:{" "}
-                      <span className="font-semibold text-slate-700">
-                        {branch.processor}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-[11px] font-semibold text-amber-700">
-                      {branch.status}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 rounded-lg bg-amber-50 px-2 py-2 text-[11px] font-semibold text-amber-700">
-                {selected.parallelInfo.mergeStatus}
-              </div>
-              <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
-                <i className="fa-solid fa-lock mr-1 text-[10px]" />
-                {selected.parallelInfo.lockedStage}
-              </div>
-            </div>
-          )}
           <div className="space-y-3 mb-5">
             {selected.steps.map((step) => (
-              <div
-                key={step.name}
-                className="flex items-start gap-2.5 rounded-lg p-1.5 -m-1.5"
-              >
-                <Dot state={step.state} />
-                <div className="min-w-0 flex-1">
+              <div key={step.name}>
+                <div className="flex items-start gap-2.5 rounded-lg p-1.5 -m-1.5">
+                  <Dot state={step.state} />
+                  <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium text-slate-800">
                     {step.name}
                   </div>
@@ -1150,6 +1099,41 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
+                </div>
+                {selected.parallelInfo && step.name.includes("Tổ chuyên gia") && (
+                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
+                    <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
+                      <i className="fa-solid fa-code-branch text-[11px]" />
+                      NHÁNH SONG SONG
+                    </div>
+                    <p className="mb-3 leading-relaxed text-slate-600">
+                      {selected.parallelInfo.condition}
+                    </p>
+                    <div className="space-y-2">
+                      {selected.parallelInfo.branches.map((branch) => (
+                        <div key={branch.name} className="rounded-lg border border-white bg-white/80 p-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-800">{branch.name}</span>
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">{branch.progress} bước</span>
+                          </div>
+                          <div className="mt-1 text-[11px] text-slate-500">
+                            Bước hiện tại: <span className="font-semibold text-slate-700">{branch.currentStep}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            Người xử lý: <span className="font-semibold text-slate-700">{branch.processor}</span>
+                          </div>
+                          <div className="mt-1 text-[11px] font-semibold text-amber-700">{branch.status}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 rounded-lg bg-amber-50 px-2 py-2 text-[11px] font-semibold text-amber-700">
+                      {selected.parallelInfo.mergeStatus}
+                    </div>
+                    <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
+                      {selected.parallelInfo.lockedStage}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
