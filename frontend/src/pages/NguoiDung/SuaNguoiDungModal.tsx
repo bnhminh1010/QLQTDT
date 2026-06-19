@@ -1,5 +1,6 @@
 import { useForm } from "react-hook-form";
-import type { User, UserEditFormValues } from "./types";
+import { SelectField } from "@/components/ui/select";
+import type { User, UserEditFormValues, VaiTro } from "./types";
 import { PHONG_OPTIONS, VAI_TRO_OPTIONS } from "./types";
 
 type Props = {
@@ -24,6 +25,8 @@ export function SuaNguoiDungModal({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<UserEditFormValues>({
     defaultValues: {
@@ -35,6 +38,7 @@ export function SuaNguoiDungModal({
       trangThai: user.trangThai,
     },
   });
+  const watched = watch();
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
@@ -156,17 +160,20 @@ export function SuaNguoiDungModal({
               <label className={labelCls}>
                 Khoa/phòng <span className="text-red-500">*</span>
               </label>
-              <select
-                className={errors.phong ? inputErrCls : inputCls}
-                {...register("phong", { required: "Vui lòng chọn khoa/phòng" })}
-              >
-                <option value="">-- Chọn khoa/phòng --</option>
-                {PHONG_OPTIONS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+              <SelectField
+                value={watched.phong || "__empty"}
+                onValueChange={(value) =>
+                  setValue("phong", value === "__empty" ? "" : value, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                options={[
+                  { value: "__empty", label: "-- Chọn khoa/phòng --" },
+                  ...PHONG_OPTIONS.map((p) => ({ value: p, label: p })),
+                ]}
+                triggerClassName={errors.phong ? inputErrCls : inputCls}
+              />
               {errors.phong && (
                 <p className="text-xs text-red-500 mt-1">
                   {errors.phong.message}
@@ -177,44 +184,26 @@ export function SuaNguoiDungModal({
               <label className={labelCls}>
                 Vai trò <span className="text-red-500">*</span>
               </label>
-              <select
-                className={errors.vaiTro ? inputErrCls : inputCls}
-                {...register("vaiTro", { required: "Vui lòng chọn vai trò" })}
-              >
-                {VAI_TRO_OPTIONS.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
+              <SelectField
+                value={watched.vaiTro || "__empty"}
+                onValueChange={(value) =>
+                  setValue("vaiTro", value === "__empty" ? ("" as VaiTro) : (value as VaiTro), {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                options={[
+                  { value: "__empty", label: "-- Chọn vai trò --" },
+                  ...VAI_TRO_OPTIONS.map((v) => ({ value: v, label: v })),
+                ]}
+                triggerClassName={errors.vaiTro ? inputErrCls : inputCls}
+              />
               {errors.vaiTro && (
                 <p className="text-xs text-red-500 mt-1">
                   {errors.vaiTro.message}
                 </p>
               )}
             </div>
-          </div>
-
-          {/* Trạng thái */}
-          <div>
-            <label className={labelCls}>
-              Trạng thái <span className="text-red-500">*</span>
-            </label>
-            <select
-              className={errors.trangThai ? inputErrCls : inputCls}
-              {...register("trangThai", {
-                required: "Vui lòng chọn trạng thái",
-              })}
-            >
-              <option value="Hoạt động">Hoạt động</option>
-              <option value="Bị khóa">Bị khóa</option>
-              <option value="Ngưng hoạt động">Ngưng hoạt động</option>
-            </select>
-            {errors.trangThai && (
-              <p className="text-xs text-red-500 mt-1">
-                {errors.trangThai.message}
-              </p>
-            )}
           </div>
 
           {/* Actions */}

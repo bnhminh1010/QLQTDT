@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { SelectField } from "@/components/ui/select";
 import {
   type Buoc,
   type LoaiBuoc,
@@ -576,22 +577,19 @@ export default function LapQuyTrinh() {
                 Hình thức đấu thầu áp dụng{" "}
                 <span className="text-red-500">*</span>
               </label>
-              <select
-                className={hinhThucErr ? inputErrCls : inputCls}
-                value={hinhThuc}
-                onChange={(e) => {
-                  setHinhThuc(e.target.value as HinhThucQT);
+              <SelectField
+                value={hinhThuc || "__empty"}
+                onValueChange={(value) => {
+                  setHinhThuc(value === "__empty" ? "" : (value as HinhThucQT));
                   setHinhThucErr("");
                   markDirty();
                 }}
-              >
-                <option value="">-- Chọn hình thức --</option>
-                {HINH_THUC_OPTIONS.map((ht) => (
-                  <option key={ht} value={ht}>
-                    {ht}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: "__empty", label: "-- Chọn hình thức --" },
+                  ...HINH_THUC_OPTIONS.map((ht) => ({ value: ht, label: ht })),
+                ]}
+                triggerClassName={hinhThucErr ? inputErrCls : inputCls}
+              />
               {hinhThucErr && (
                 <p className="text-xs text-red-500 mt-1">{hinhThucErr}</p>
               )}
@@ -983,18 +981,20 @@ export default function LapQuyTrinh() {
               {/* Nhóm giai đoạn */}
               <div>
                 <label className={labelCls}>Nhóm giai đoạn</label>
-                <select
-                  className={inputCls}
-                  value={stepForm.nhomGiaiDoan ?? ""}
-                  onChange={(e) =>
-                    setStepForm((f) => ({ ...f, nhomGiaiDoan: e.target.value }))
+                <SelectField
+                  value={stepForm.nhomGiaiDoan || "__none"}
+                  onValueChange={(value) =>
+                    setStepForm((f) => ({
+                      ...f,
+                      nhomGiaiDoan: value === "__none" ? "" : value,
+                    }))
                   }
-                >
-                  <option value="">-- Không xác định --</option>
-                  {NHOM_GIAI_DOAN_OPTIONS.map((n) => (
-                    <option key={n}>{n}</option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "__none", label: "-- Không xác định --" },
+                    ...NHOM_GIAI_DOAN_OPTIONS.map((n) => ({ value: n, label: n })),
+                  ]}
+                  triggerClassName={inputCls}
+                />
               </div>
 
               {/* Mô tả */}
@@ -1024,22 +1024,21 @@ export default function LapQuyTrinh() {
                     Đơn vị phụ trách / Soạn hồ sơ{" "}
                     <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    className={stepErrs.donViPhuTrach ? inputErrCls : inputCls}
-                    value={stepForm.donViPhuTrach}
-                    onChange={(e) => {
+                  <SelectField
+                    value={stepForm.donViPhuTrach || "__empty"}
+                    onValueChange={(value) => {
                       setStepForm((f) => ({
                         ...f,
-                        donViPhuTrach: e.target.value,
+                        donViPhuTrach: value === "__empty" ? "" : value,
                       }));
                       setStepErrs((e2) => ({ ...e2, donViPhuTrach: "" }));
                     }}
-                  >
-                    <option value="">-- Chọn đơn vị --</option>
-                    {DON_VI_OPTIONS.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: "__empty", label: "-- Chọn đơn vị --" },
+                      ...DON_VI_OPTIONS.map((d) => ({ value: d, label: d })),
+                    ]}
+                    triggerClassName={stepErrs.donViPhuTrach ? inputErrCls : inputCls}
+                  />
                   {stepErrs.donViPhuTrach && (
                     <p className="text-xs text-red-500 mt-1">
                       {stepErrs.donViPhuTrach}
@@ -1050,22 +1049,21 @@ export default function LapQuyTrinh() {
                   <label className={labelCls}>
                     Vai trò xử lý <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    className={stepErrs.vaiTroXuLy ? inputErrCls : inputCls}
-                    value={stepForm.vaiTroXuLy}
-                    onChange={(e) => {
+                  <SelectField
+                    value={stepForm.vaiTroXuLy || "__empty"}
+                    onValueChange={(value) => {
                       setStepForm((f) => ({
                         ...f,
-                        vaiTroXuLy: e.target.value,
+                        vaiTroXuLy: value === "__empty" ? "" : value,
                       }));
                       setStepErrs((e2) => ({ ...e2, vaiTroXuLy: "" }));
                     }}
-                  >
-                    <option value="">-- Chọn vai trò --</option>
-                    {VAI_TRO_OPTIONS.map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: "__empty", label: "-- Chọn vai trò --" },
+                      ...VAI_TRO_OPTIONS.map((v) => ({ value: v, label: v })),
+                    ]}
+                    triggerClassName={stepErrs.vaiTroXuLy ? inputErrCls : inputCls}
+                  />
                   {stepErrs.vaiTroXuLy && (
                     <p className="text-xs text-red-500 mt-1">
                       {stepErrs.vaiTroXuLy}
@@ -1077,20 +1075,17 @@ export default function LapQuyTrinh() {
                 <label className={labelCls}>
                   Trạng thái mặc định <span className="text-red-500">*</span>
                 </label>
-                <select
-                  className={inputCls}
+                <SelectField
                   value={stepForm.trangThaiMacDinh}
-                  onChange={(e) =>
+                  onValueChange={(value) =>
                     setStepForm((f) => ({
                       ...f,
-                      trangThaiMacDinh: e.target.value as TrangThaiBuoc,
+                      trangThaiMacDinh: value as TrangThaiBuoc,
                     }))
                   }
-                >
-                  {TRANG_THAI_BUOC_OPTIONS.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
+                  options={TRANG_THAI_BUOC_OPTIONS.map((t) => ({ value: t, label: t }))}
+                  triggerClassName={inputCls}
+                />
               </div>
             </div>
 
@@ -1201,24 +1196,21 @@ export default function LapQuyTrinh() {
                         Đơn vị kiểm tra/ký hồ sơ{" "}
                         <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        className={
-                          stepErrs.donViKyHoSo ? inputErrCls : inputCls
-                        }
-                        value={stepForm.donViKyHoSo ?? ""}
-                        onChange={(e) => {
+                      <SelectField
+                        value={stepForm.donViKyHoSo || "__empty"}
+                        onValueChange={(value) => {
                           setStepForm((f) => ({
                             ...f,
-                            donViKyHoSo: e.target.value,
+                            donViKyHoSo: value === "__empty" ? "" : value,
                           }));
                           setStepErrs((e2) => ({ ...e2, donViKyHoSo: "" }));
                         }}
-                      >
-                        <option value="">-- Chọn đơn vị --</option>
-                        {DON_VI_KY_OPTIONS.map((d) => (
-                          <option key={d}>{d}</option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: "__empty", label: "-- Chọn đơn vị --" },
+                          ...DON_VI_KY_OPTIONS.map((d) => ({ value: d, label: d })),
+                        ]}
+                        triggerClassName={stepErrs.donViKyHoSo ? inputErrCls : inputCls}
+                      />
                       {stepErrs.donViKyHoSo && (
                         <p className="text-xs text-red-500 mt-1">
                           {stepErrs.donViKyHoSo}
@@ -1229,24 +1221,21 @@ export default function LapQuyTrinh() {
                       <label className={labelCls}>
                         Vai trò ký duyệt <span className="text-red-500">*</span>
                       </label>
-                      <select
-                        className={
-                          stepErrs.vaiTroKyDuyet ? inputErrCls : inputCls
-                        }
-                        value={stepForm.vaiTroKyDuyet ?? ""}
-                        onChange={(e) => {
+                      <SelectField
+                        value={stepForm.vaiTroKyDuyet || "__empty"}
+                        onValueChange={(value) => {
                           setStepForm((f) => ({
                             ...f,
-                            vaiTroKyDuyet: e.target.value,
+                            vaiTroKyDuyet: value === "__empty" ? "" : value,
                           }));
                           setStepErrs((e2) => ({ ...e2, vaiTroKyDuyet: "" }));
                         }}
-                      >
-                        <option value="">-- Chọn vai trò --</option>
-                        {VAI_TRO_KY_OPTIONS.map((v) => (
-                          <option key={v}>{v}</option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: "__empty", label: "-- Chọn vai trò --" },
+                          ...VAI_TRO_KY_OPTIONS.map((v) => ({ value: v, label: v })),
+                        ]}
+                        triggerClassName={stepErrs.vaiTroKyDuyet ? inputErrCls : inputCls}
+                      />
                       {stepErrs.vaiTroKyDuyet && (
                         <p className="text-xs text-red-500 mt-1">
                           {stepErrs.vaiTroKyDuyet}
@@ -1350,12 +1339,10 @@ export default function LapQuyTrinh() {
                       <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
                         <div>
                           <label className={labelCls}>Hành động</label>
-                          <select
-                            className={inputCls}
+                          <SelectField
                             value={row.hanhDong}
-                            onChange={(e) => {
-                              const newHanhDong = e.target
-                                .value as HanhDongChuyen;
+                            onValueChange={(value) => {
+                              const newHanhDong = value as HanhDongChuyen;
                               const forceGhiChu = [
                                 "Không duyệt",
                                 "Trả về",
@@ -1378,22 +1365,26 @@ export default function LapQuyTrinh() {
                                 dieuKienChuyenTiep: updated,
                               }));
                             }}
-                          >
-                            {HANH_DONG_OPTIONS.map((h) => (
-                              <option key={h}>{h}</option>
-                            ))}
-                          </select>
+                            options={HANH_DONG_OPTIONS.map((h) => ({
+                              value: h,
+                              label: h,
+                            }))}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>Bước chuyển đến</label>
-                          <select
-                            className={inputCls}
-                            value={row.buocChuyenDenId}
-                            onChange={(e) => {
+                          <SelectField
+                            value={row.buocChuyenDenId || "__empty"}
+                            onValueChange={(value) => {
                               const updated = stepForm.dieuKienChuyenTiep.map(
                                 (r, i) =>
                                   i === idx
-                                    ? { ...r, buocChuyenDenId: e.target.value }
+                                    ? {
+                                        ...r,
+                                        buocChuyenDenId:
+                                          value === "__empty" ? "" : value,
+                                      }
                                     : r,
                               );
                               setStepForm((f) => ({
@@ -1401,32 +1392,29 @@ export default function LapQuyTrinh() {
                                 dieuKienChuyenTiep: updated,
                               }));
                             }}
-                          >
-                            <option value="">-- Chọn bước --</option>
-                            {buocList
-                              .filter((b) => b.id !== stepModal?.targetId)
-                              .map((b) => (
-                                <option key={b.id} value={b.id}>
-                                  {b.ten}
-                                </option>
-                              ))}
-                          </select>
+                            options={[
+                              { value: "__empty", label: "-- Chọn bước --" },
+                              ...buocList
+                                .filter((b) => b.id !== stepModal?.targetId)
+                                .map((b) => ({ value: b.id, label: b.ten })),
+                            ]}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>
                             Điều kiện kích hoạt
                           </label>
-                          <select
-                            className={inputCls}
+                          <SelectField
                             value={row.dieuKienKichHoat}
-                            onChange={(e) => {
+                            onValueChange={(value) => {
                               const updated = stepForm.dieuKienChuyenTiep.map(
                                 (r, i) =>
                                   i === idx
                                     ? {
                                         ...r,
-                                        dieuKienKichHoat: e.target
-                                          .value as DieuKienKichHoat,
+                                        dieuKienKichHoat:
+                                          value as DieuKienKichHoat,
                                         ketQuaApDung: "",
                                         vaiTroApDung: "",
                                       }
@@ -1437,11 +1425,12 @@ export default function LapQuyTrinh() {
                                 dieuKienChuyenTiep: updated,
                               }));
                             }}
-                          >
-                            {DIEU_KIEN_KICH_HOAT_OPTIONS.map((d) => (
-                              <option key={d}>{d}</option>
-                            ))}
-                          </select>
+                            options={DIEU_KIEN_KICH_HOAT_OPTIONS.map((d) => ({
+                              value: d,
+                              label: d,
+                            }))}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                         <button
                           type="button"
@@ -1465,14 +1454,17 @@ export default function LapQuyTrinh() {
                             Kết quả áp dụng{" "}
                             <span className="text-red-500">*</span>
                           </label>
-                          <select
-                            className={inputCls}
-                            value={row.ketQuaApDung ?? ""}
-                            onChange={(e) => {
+                          <SelectField
+                            value={row.ketQuaApDung || "__empty"}
+                            onValueChange={(value) => {
                               const updated = stepForm.dieuKienChuyenTiep.map(
                                 (r, i) =>
                                   i === idx
-                                    ? { ...r, ketQuaApDung: e.target.value }
+                                    ? {
+                                        ...r,
+                                        ketQuaApDung:
+                                          value === "__empty" ? "" : value,
+                                      }
                                     : r,
                               );
                               setStepForm((f) => ({
@@ -1480,12 +1472,15 @@ export default function LapQuyTrinh() {
                                 dieuKienChuyenTiep: updated,
                               }));
                             }}
-                          >
-                            <option value="">-- Chọn kết quả --</option>
-                            {KET_QUA_OPTIONS.map((k) => (
-                              <option key={k}>{k}</option>
-                            ))}
-                          </select>
+                            options={[
+                              { value: "__empty", label: "-- Chọn kết quả --" },
+                              ...KET_QUA_OPTIONS.map((k) => ({
+                                value: k,
+                                label: k,
+                              })),
+                            ]}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                       )}
                       {row.dieuKienKichHoat === "Theo vai trò" && (
@@ -1494,14 +1489,17 @@ export default function LapQuyTrinh() {
                             Vai trò áp dụng{" "}
                             <span className="text-red-500">*</span>
                           </label>
-                          <select
-                            className={inputCls}
-                            value={row.vaiTroApDung ?? ""}
-                            onChange={(e) => {
+                          <SelectField
+                            value={row.vaiTroApDung || "__empty"}
+                            onValueChange={(value) => {
                               const updated = stepForm.dieuKienChuyenTiep.map(
                                 (r, i) =>
                                   i === idx
-                                    ? { ...r, vaiTroApDung: e.target.value }
+                                    ? {
+                                        ...r,
+                                        vaiTroApDung:
+                                          value === "__empty" ? "" : value,
+                                      }
                                     : r,
                               );
                               setStepForm((f) => ({
@@ -1509,12 +1507,15 @@ export default function LapQuyTrinh() {
                                 dieuKienChuyenTiep: updated,
                               }));
                             }}
-                          >
-                            <option value="">-- Chọn vai trò --</option>
-                            {VAI_TRO_OPTIONS.map((v) => (
-                              <option key={v}>{v}</option>
-                            ))}
-                          </select>
+                            options={[
+                              { value: "__empty", label: "-- Chọn vai trò --" },
+                              ...VAI_TRO_OPTIONS.map((v) => ({
+                                value: v,
+                                label: v,
+                              })),
+                            ]}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                       )}
                       <div className="flex gap-5">
@@ -1692,13 +1693,16 @@ export default function LapQuyTrinh() {
                         </div>
                         <div>
                           <label className={labelCls}>Bước đầu tiên</label>
-                          <select
-                            className={inputCls}
-                            value={nhanh.buocDauTienId}
-                            onChange={(e) => {
+                          <SelectField
+                            value={nhanh.buocDauTienId || "__empty"}
+                            onValueChange={(value) => {
                               const updated = stepForm.nhanhList.map((n, i) =>
                                 i === idx
-                                  ? { ...n, buocDauTienId: e.target.value }
+                                  ? {
+                                      ...n,
+                                      buocDauTienId:
+                                        value === "__empty" ? "" : value,
+                                    }
                                   : n,
                               );
                               setStepForm((f) => ({
@@ -1706,46 +1710,40 @@ export default function LapQuyTrinh() {
                                 nhanhList: updated,
                               }));
                             }}
-                          >
-                            <option value="">-- Chọn bước --</option>
-                            {buocList
-                              .filter((b) => b.id !== stepModal?.targetId)
-                              .map((b) => (
-                                <option key={b.id} value={b.id}>
-                                  {b.ten}
-                                </option>
-                              ))}
-                          </select>
+                            options={[
+                              { value: "__empty", label: "-- Chọn bước --" },
+                              ...buocList
+                                .filter((b) => b.id !== stepModal?.targetId)
+                                .map((b) => ({ value: b.id, label: b.ten })),
+                            ]}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>Đơn vị</label>
-                          <select
-                            className={inputCls}
+                          <SelectField
                             value={nhanh.donVi}
-                            onChange={(e) => {
+                            onValueChange={(value) => {
                               const updated = stepForm.nhanhList.map((n, i) =>
-                                i === idx ? { ...n, donVi: e.target.value } : n,
+                                i === idx ? { ...n, donVi: value } : n,
                               );
                               setStepForm((f) => ({
                                 ...f,
                                 nhanhList: updated,
                               }));
                             }}
-                          >
-                            {DON_VI_OPTIONS.map((d) => (
-                              <option key={d}>{d}</option>
-                            ))}
-                          </select>
+                            options={DON_VI_OPTIONS.map((d) => ({ value: d, label: d }))}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>Vai trò</label>
-                          <select
-                            className={inputCls}
+                          <SelectField
                             value={nhanh.vaiTro}
-                            onChange={(e) => {
+                            onValueChange={(value) => {
                               const updated = stepForm.nhanhList.map((n, i) =>
                                 i === idx
-                                  ? { ...n, vaiTro: e.target.value }
+                                  ? { ...n, vaiTro: value }
                                   : n,
                               );
                               setStepForm((f) => ({
@@ -1753,11 +1751,9 @@ export default function LapQuyTrinh() {
                                 nhanhList: updated,
                               }));
                             }}
-                          >
-                            {VAI_TRO_OPTIONS.map((v) => (
-                              <option key={v}>{v}</option>
-                            ))}
-                          </select>
+                            options={VAI_TRO_OPTIONS.map((v) => ({ value: v, label: v }))}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>Thời hạn (ngày)</label>
@@ -1783,16 +1779,14 @@ export default function LapQuyTrinh() {
                         </div>
                         <div>
                           <label className={labelCls}>Loại thời hạn</label>
-                          <select
-                            className={inputCls}
+                          <SelectField
                             value={nhanh.loaiThoiHan}
-                            onChange={(e) => {
+                            onValueChange={(value) => {
                               const updated = stepForm.nhanhList.map((n, i) =>
                                 i === idx
                                   ? {
                                       ...n,
-                                      loaiThoiHan: e.target
-                                        .value as LoaiThoiHan,
+                                      loaiThoiHan: value as LoaiThoiHan,
                                     }
                                   : n,
                               );
@@ -1801,14 +1795,18 @@ export default function LapQuyTrinh() {
                                 nhanhList: updated,
                               }));
                             }}
-                          >
-                            <option value="Chỉ cảnh báo quá hạn">
-                              Chỉ cảnh báo quá hạn
-                            </option>
-                            <option value="Bắt buộc hoàn thành trước hạn">
-                              Bắt buộc hoàn thành trước hạn
-                            </option>
-                          </select>
+                            options={[
+                              {
+                                value: "Chỉ cảnh báo quá hạn",
+                                label: "Chỉ cảnh báo quá hạn",
+                              },
+                              {
+                                value: "Bắt buộc hoàn thành trước hạn",
+                                label: "Bắt buộc hoàn thành trước hạn",
+                              },
+                            ]}
+                            triggerClassName={inputCls}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1879,25 +1877,23 @@ export default function LapQuyTrinh() {
                           Bước sau khi hợp nhất{" "}
                           <span className="text-red-500">*</span>
                         </label>
-                        <select
-                          className={inputCls}
-                          value={stepForm.buocSauHopNhatId ?? ""}
-                          onChange={(e) =>
+                        <SelectField
+                          value={stepForm.buocSauHopNhatId || "__empty"}
+                          onValueChange={(value) =>
                             setStepForm((f) => ({
                               ...f,
-                              buocSauHopNhatId: e.target.value,
+                              buocSauHopNhatId:
+                                value === "__empty" ? "" : value,
                             }))
                           }
-                        >
-                          <option value="">-- Chọn bước --</option>
-                          {buocList
-                            .filter((b) => b.id !== stepModal?.targetId)
-                            .map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.ten}
-                              </option>
-                            ))}
-                        </select>
+                          options={[
+                            { value: "__empty", label: "-- Chọn bước --" },
+                            ...buocList
+                              .filter((b) => b.id !== stepModal?.targetId)
+                              .map((b) => ({ value: b.id, label: b.ten })),
+                          ]}
+                          triggerClassName={inputCls}
+                        />
                         {stepErrs.buocSauHopNhatId && (
                           <p className="text-xs text-red-500 mt-1">
                             {stepErrs.buocSauHopNhatId}

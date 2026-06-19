@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { SelectField } from "@/components/ui/select";
 
 /* ─── Types ─────────────────────────────────────────── */
 type LoaiBaoCao =
@@ -57,6 +58,7 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
@@ -69,7 +71,7 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
     },
   });
 
-  const tuThang = watch("tuThang");
+  const watched = watch();
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
@@ -122,16 +124,17 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
             <label className={labelCls}>
               Loại báo cáo <span className="text-red-500">*</span>
             </label>
-            <select
-              className={errors.loai ? inputErrCls : inputCls}
-              {...register("loai", { required: "Vui lòng chọn loại báo cáo" })}
-            >
-              {LOAI_OPTIONS.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
+            <SelectField
+              value={watched.loai}
+              onValueChange={(value) =>
+                setValue("loai", value as LoaiBaoCao, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              options={LOAI_OPTIONS.map((l) => ({ value: l, label: l }))}
+              triggerClassName={errors.loai ? inputErrCls : inputCls}
+            />
             {errors.loai && (
               <p className="text-xs text-red-500 mt-1">{errors.loai.message}</p>
             )}
@@ -143,16 +146,17 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
               <label className={labelCls}>
                 Năm <span className="text-red-500">*</span>
               </label>
-              <select
-                className={errors.nam ? inputErrCls : inputCls}
-                {...register("nam", { required: "Chọn năm" })}
-              >
-                {NAM_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+              <SelectField
+                value={watched.nam}
+                onValueChange={(value) =>
+                  setValue("nam", value, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                options={NAM_OPTIONS.map((n) => ({ value: n, label: n }))}
+                triggerClassName={errors.nam ? inputErrCls : inputCls}
+              />
               {errors.nam && (
                 <p className="text-xs text-red-500 mt-1">
                   {errors.nam.message}
@@ -162,30 +166,38 @@ export function TaoBaoCaoModal({ onSave, onClose }: Props) {
 
             <div>
               <label className={labelCls}>Từ tháng</label>
-              <select className={inputCls} {...register("tuThang")}>
-                {THANG_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    Tháng {t}
-                  </option>
-                ))}
-              </select>
+              <SelectField
+                value={watched.tuThang}
+                onValueChange={(value) =>
+                  setValue("tuThang", value, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                options={THANG_OPTIONS.map((t) => ({
+                  value: t,
+                  label: `Tháng ${t}`,
+                }))}
+                triggerClassName={inputCls}
+              />
             </div>
 
             <div>
               <label className={labelCls}>Đến tháng</label>
-              <select
-                className={errors.denThang ? inputErrCls : inputCls}
-                {...register("denThang", {
-                  validate: (v) =>
-                    parseInt(v) >= parseInt(tuThang) || "Phải ≥ tháng bắt đầu",
-                })}
-              >
-                {THANG_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    Tháng {t}
-                  </option>
-                ))}
-              </select>
+              <SelectField
+                value={watched.denThang}
+                onValueChange={(value) =>
+                  setValue("denThang", value, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                options={THANG_OPTIONS.map((t) => ({
+                  value: t,
+                  label: `Tháng ${t}`,
+                }))}
+                triggerClassName={errors.denThang ? inputErrCls : inputCls}
+              />
               {errors.denThang && (
                 <p className="text-xs text-red-500 mt-1">
                   {errors.denThang.message}

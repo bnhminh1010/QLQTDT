@@ -133,11 +133,11 @@ export const taoGoiThauSchema = yup.object({
     .string()
     .trim()
     .required("Vui lòng nhập giá trị gói thầu")
-    .matches(/^-?[\d,]+$/, "Giá trị không đúng định dạng (VD: 320,000,000)")
+    .matches(/^[\d,.]+$/, "Giá trị không đúng định dạng (VD: 320.000.000 hoặc 320,000,000)")
     .test(
       "greater-than-zero",
       "Giá trị gói thầu phải lớn hơn 0",
-      (val) => Number((val ?? "").replace(/,/g, "")) > 0,
+      (val) => Number((val ?? "").replace(/[^\d]/g, "")) > 0,
     ),
   nguonVon: yup.string().required("Vui lòng chọn nguồn vốn"),
   donVi: yup.string().required("Vui lòng chọn đơn vị đề xuất"),

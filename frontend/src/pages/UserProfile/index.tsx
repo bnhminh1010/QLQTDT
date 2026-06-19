@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { MOCK_REPORT_AUTH_KEY } from "@/util/mockReportAccounts";
 
 /* ─ Mock current user ─ */
 const MOCK_USER = {
@@ -12,6 +13,8 @@ const MOCK_USER = {
   vaiTro: "Quản lý",
   trangThai: "Hoạt động",
   ngayTao: "01/01/2024",
+  lanDangNhapGanNhat: "19/06/2026 08:30",
+  ngayCapNhatGanNhat: "19/06/2026 08:30",
 };
 
 type NotifItem = {
@@ -21,6 +24,7 @@ type NotifItem = {
   title: string;
   time: string;
   read: boolean;
+  goiThauId: string;
 };
 
 const INITIAL_NOTIFS: NotifItem[] = [
@@ -31,6 +35,7 @@ const INITIAL_NOTIFS: NotifItem[] = [
     title: "GT2025-003 trễ hạn 21 ngày",
     time: "Vừa xong",
     read: false,
+    goiThauId: "GT2025-003",
   },
   {
     id: 2,
@@ -39,6 +44,7 @@ const INITIAL_NOTIFS: NotifItem[] = [
     title: "GT2025-002 đã hoàn thành",
     time: "2 giờ trước",
     read: false,
+    goiThauId: "GT2025-002",
   },
   {
     id: 3,
@@ -47,6 +53,7 @@ const INITIAL_NOTIFS: NotifItem[] = [
     title: "GT2025-001 cần duyệt tờ trình",
     time: "5 giờ trước",
     read: true,
+    goiThauId: "GT2025-001",
   },
 ];
 
@@ -111,8 +118,17 @@ export default function UserProfile() {
   }
 
   function handleLogout() {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem(MOCK_REPORT_AUTH_KEY);
     toast.success("Đã đăng xuất");
     navigate("/login");
+  }
+
+  function handleOpenNotification(item: NotifItem) {
+    setNotifs((prev) =>
+      prev.map((x) => (x.id === item.id ? { ...x, read: true } : x)),
+    );
+    navigate(`/danh-sach-goi-thau?goiThauId=${encodeURIComponent(item.goiThauId)}`);
   }
 
   const BADGE_CLS: Record<string, string> = {
@@ -255,6 +271,22 @@ export default function UserProfile() {
                 <input
                   readOnly
                   value={MOCK_USER.vaiTro}
+                  className={inputReadonlyCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Lần đăng nhập gần nhất</label>
+                <input
+                  readOnly
+                  value={MOCK_USER.lanDangNhapGanNhat}
+                  className={inputReadonlyCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Ngày cập nhật gần nhất</label>
+                <input
+                  readOnly
+                  value={MOCK_USER.ngayCapNhatGanNhat}
                   className={inputReadonlyCls}
                 />
               </div>
@@ -428,13 +460,7 @@ export default function UserProfile() {
               {notifs.map((n) => (
                 <div
                   key={n.id}
-                  onClick={() =>
-                    setNotifs((prev) =>
-                      prev.map((x) =>
-                        x.id === n.id ? { ...x, read: true } : x,
-                      ),
-                    )
-                  }
+                  onClick={() => handleOpenNotification(n)}
                   className={`flex items-start gap-3 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? "bg-blue-50/40" : ""}`}
                 >
                   <div
@@ -482,7 +508,7 @@ export default function UserProfile() {
                 onClick={() => setLogoutConfirm(false)}
                 className="h-9 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50"
               >
-                Ở lại
+                Hủy
               </button>
               <button
                 onClick={handleLogout}

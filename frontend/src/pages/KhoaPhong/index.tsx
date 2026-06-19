@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { SelectField } from "@/components/ui/select";
 import { ThemKhoaPhongModal } from "./ThemKhoaPhongModal";
 import { SuaKhoaPhongModal } from "./SuaKhoaPhongModal";
 import type { Phong, LoaiPhong, TrangThai, PhongFormValues } from "./types";
@@ -195,11 +196,9 @@ function ConfirmModal({
 
 /* ─── Sort icon ───────────────────────────────────────── */
 function SortIcon({
-  col,
   active,
   dir,
 }: {
-  col: SortCol;
   active: boolean;
   dir: "asc" | "desc";
 }) {
@@ -231,7 +230,6 @@ export default function KhoaPhong() {
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
   const [auditLog, setAuditLog] = useState<KPAuditEntry[]>(INITIAL_KP_AUDIT);
   const [pageSizeOpt, setPageSizeOpt] = useState(PAGE_SIZE);
-  const [staffTarget, setStaffTarget] = useState<Phong | null>(null);
 
   // Loading / error mock
   const [loading, setLoading] = useState(true);
@@ -317,7 +315,7 @@ export default function KhoaPhong() {
       soGoiThau: 0,
       email: values.email.trim(),
       sdt: values.sdt.trim(),
-      trangThai: values.trangThai as TrangThai,
+      trangThai: "Đang hoạt động",
       donViCha: values.donViCha.trim(),
       moTa: values.moTa.trim(),
     };
@@ -339,7 +337,7 @@ export default function KhoaPhong() {
       soNhanVien: values.soNhanVien,
       email: values.email.trim(),
       sdt: values.sdt.trim(),
-      trangThai: values.trangThai as TrangThai,
+      trangThai: editTarget.trangThai,
       donViCha: values.donViCha.trim(),
       moTa: values.moTa.trim(),
     };
@@ -348,39 +346,6 @@ export default function KhoaPhong() {
     addKPAudit(updated.id, `Cập nhật thông tin "${updated.ten}"`);
     toast.success(`Đã cập nhật "${updated.ten}"`);
     setEditTarget(null);
-  }
-
-  function handleDelete() {
-    if (!deleteTarget) return;
-    setData((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-    if (selected.id === deleteTarget.id) {
-      const remaining = data.filter((p) => p.id !== deleteTarget.id);
-      if (remaining.length > 0) setSelected(remaining[0]);
-    }
-    addKPAudit(deleteTarget.id, `Xóa khoa/phòng "${deleteTarget.ten}"`);
-    toast.success(`Đã xóa "${deleteTarget.ten}"`);
-    setDeleteTarget(null);
-  }
-
-  function handleToggle() {
-    if (!toggleTarget) return;
-    const next: TrangThai =
-      toggleTarget.trangThai === "Đang hoạt động"
-        ? "Ngưng hoạt động"
-        : "Đang hoạt động";
-    setData((prev) =>
-      prev.map((p) =>
-        p.id === toggleTarget.id ? { ...p, trangThai: next } : p,
-      ),
-    );
-    if (selected.id === toggleTarget.id)
-      setSelected({ ...selected, trangThai: next });
-    addKPAudit(
-      toggleTarget.id,
-      `${next === "Ngưng hoạt động" ? "Ngưng hoạt động" : "Kích hoạt lại"} "${toggleTarget.ten}"`,
-    );
-    toast.success(`"${toggleTarget.ten}" chuyển sang ${next}`);
-    setToggleTarget(null);
   }
 
   const existingIds = data.map((p) => p.id.toUpperCase());
@@ -499,25 +464,27 @@ export default function KhoaPhong() {
                   </button>
                 )}
               </div>
-              <select
-                value={filterLoai}
-                onChange={(e) => setFilterLoai(e.target.value)}
-                className="border border-slate-200 rounded-xl text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Tất cả loại</option>
-                <option>Khoa lâm sàng</option>
-                <option>Khoa cận lâm sàng</option>
-                <option>Phòng chức năng</option>
-              </select>
-              <select
-                value={filterTrangThai}
-                onChange={(e) => setFilterTrangThai(e.target.value)}
-                className="border border-slate-200 rounded-xl text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option>Đang hoạt động</option>
-                <option>Ngưng hoạt động</option>
-              </select>
+              <SelectField
+                value={filterLoai || "__all"}
+                onValueChange={(value) => setFilterLoai(value === "__all" ? "" : value)}
+                options={[
+                  { value: "__all", label: "Tất cả loại" },
+                  { value: "Khoa lâm sàng", label: "Khoa lâm sàng" },
+                  { value: "Khoa cận lâm sàng", label: "Khoa cận lâm sàng" },
+                  { value: "Phòng chức năng", label: "Phòng chức năng" },
+                ]}
+                triggerClassName="h-10 min-w-[170px] bg-white"
+              />
+              <SelectField
+                value={filterTrangThai || "__all"}
+                onValueChange={(value) => setFilterTrangThai(value === "__all" ? "" : value)}
+                options={[
+                  { value: "__all", label: "Tất cả trạng thái" },
+                  { value: "Đang hoạt động", label: "Đang hoạt động" },
+                  { value: "Ngưng hoạt động", label: "Ngưng hoạt động" },
+                ]}
+                triggerClassName="h-10 min-w-[180px] bg-white"
+              />
             </div>
 
             {/* Loading state */}
@@ -555,11 +522,7 @@ export default function KhoaPhong() {
                         onClick={() => toggleSort("ten")}
                       >
                         Tên khoa/phòng
-                        <SortIcon
-                          col="ten"
-                          active={sortCol === "ten"}
-                          dir={sortDir}
-                        />
+                        <SortIcon active={sortCol === "ten"} dir={sortDir} />
                       </th>
                       <th className="px-5 py-3 text-left min-w-[170px]">
                         Loại
@@ -570,22 +533,14 @@ export default function KhoaPhong() {
                         onClick={() => toggleSort("soNhanVien")}
                       >
                         Nhân viên
-                        <SortIcon
-                          col="soNhanVien"
-                          active={sortCol === "soNhanVien"}
-                          dir={sortDir}
-                        />
+                        <SortIcon active={sortCol === "soNhanVien"} dir={sortDir} />
                       </th>
                       <th
                         className="px-5 py-3 text-center cursor-pointer hover:text-slate-600 select-none"
                         onClick={() => toggleSort("soGoiThau")}
                       >
                         Gói thầu
-                        <SortIcon
-                          col="soGoiThau"
-                          active={sortCol === "soGoiThau"}
-                          dir={sortDir}
-                        />
+                        <SortIcon active={sortCol === "soGoiThau"} dir={sortDir} />
                       </th>
                       <th className="px-5 py-3 text-center min-w-[170px]">
                         Trạng thái
@@ -733,18 +688,19 @@ export default function KhoaPhong() {
                   {filtered.length} kết quả
                 </span>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={pageSizeOpt}
-                    onChange={(e) => {
-                      setPageSizeOpt(Number(e.target.value));
+                  <SelectField
+                    value={String(pageSizeOpt)}
+                    onValueChange={(value) => {
+                      setPageSizeOpt(Number(value));
                       setPage(1);
                     }}
-                    className="border border-slate-200 rounded-lg text-xs px-2 py-1.5 bg-white focus:outline-none"
-                  >
-                    <option value={8}>8 / trang</option>
-                    <option value={15}>15 / trang</option>
-                    <option value={25}>25 / trang</option>
-                  </select>
+                    options={[
+                      { value: "8", label: "8 / trang" },
+                      { value: "15", label: "15 / trang" },
+                      { value: "25", label: "25 / trang" },
+                    ]}
+                    triggerClassName="h-8 min-w-[100px] rounded-lg bg-white px-2 text-xs"
+                  />
                   <button
                     disabled={page === 1}
                     onClick={() => setPage((p) => p - 1)}

@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { SelectField } from "@/components/ui/select";
 import type { LoaiPhong, PhongFormValues } from "./types";
 
 /* ─── Constants ─────────────────────────────────────── */
@@ -31,6 +32,8 @@ export function ThemKhoaPhongModal({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PhongFormValues>({
     defaultValues: {
@@ -46,6 +49,7 @@ export function ThemKhoaPhongModal({
       moTa: "",
     },
   });
+  const watched = watch();
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
@@ -125,45 +129,29 @@ export function ThemKhoaPhongModal({
             </div>
           </div>
 
-          {/* Loại + Trạng thái */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Loại */}
+          <div>
             <div>
               <label className={labelCls}>
                 Loại <span className="text-red-500">*</span>
               </label>
-              <select
-                className={errors.loai ? inputErrCls : inputCls}
-                {...register("loai", { required: "Vui lòng chọn loại" })}
-              >
-                <option value="">-- Chọn loại khoa/phòng --</option>
-                {LOAI_OPTIONS.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
+              <SelectField
+                value={watched.loai || "__empty"}
+                onValueChange={(value) =>
+                  setValue("loai", value === "__empty" ? ("" as LoaiPhong) : (value as LoaiPhong), {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                options={[
+                  { value: "__empty", label: "-- Chọn loại khoa/phòng --" },
+                  ...LOAI_OPTIONS.map((l) => ({ value: l, label: l })),
+                ]}
+                triggerClassName={errors.loai ? inputErrCls : inputCls}
+              />
               {errors.loai && (
                 <p className="text-xs text-red-500 mt-1">
                   {errors.loai.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className={labelCls}>
-                Trạng thái <span className="text-red-500">*</span>
-              </label>
-              <select
-                className={errors.trangThai ? inputErrCls : inputCls}
-                {...register("trangThai", {
-                  required: "Vui lòng chọn trạng thái",
-                })}
-              >
-                <option value="Đang hoạt động">Đang hoạt động</option>
-                <option value="Ngưng hoạt động">Ngưng hoạt động</option>
-              </select>
-              {errors.trangThai && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.trangThai.message}
                 </p>
               )}
             </div>
@@ -237,14 +225,20 @@ export function ThemKhoaPhongModal({
           {/* Đơn vị cha */}
           <div>
             <label className={labelCls}>Đơn vị cha</label>
-            <select className={inputCls} {...register("donViCha")}>
-              <option value="">-- Không có đơn vị cha --</option>
-              {existingNames.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+            <SelectField
+              value={watched.donViCha || "__none"}
+              onValueChange={(value) =>
+                setValue("donViCha", value === "__none" ? "" : value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              options={[
+                { value: "__none", label: "-- Không có đơn vị cha --" },
+                ...existingNames.map((n) => ({ value: n, label: n })),
+              ]}
+              triggerClassName={inputCls}
+            />
           </div>
 
           {/* Email + SĐT */}

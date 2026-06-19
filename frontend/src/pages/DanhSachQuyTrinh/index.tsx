@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { SelectField } from "@/components/ui/select";
 import {
   getQuyTrinhList,
   deleteQuyTrinh,
@@ -158,33 +159,31 @@ export default function DanhSachQuyTrinh() {
               className="pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 w-full"
             />
           </div>
-          <select
-            value={filterStatus}
-            onChange={(e) => {
-              setFilterStatus(e.target.value as TrangThaiQT | "");
+          <SelectField
+            value={filterStatus || "__all"}
+            onValueChange={(value) => {
+              setFilterStatus(value === "__all" ? "" : (value as TrangThaiQT));
               setPage(1);
             }}
-            className="border border-slate-200 rounded-xl text-xs px-3 py-2 bg-white focus:outline-none"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="Đang hoạt động">Đang hoạt động</option>
-            <option value="Đã tắt">Đã tắt</option>
-          </select>
-          <select
-            value={filterHT}
-            onChange={(e) => {
-              setFilterHT(e.target.value);
+            options={[
+              { value: "__all", label: "Tất cả trạng thái" },
+              { value: "Đang hoạt động", label: "Đang hoạt động" },
+              { value: "Đã tắt", label: "Đã tắt" },
+            ]}
+            triggerClassName="h-9 min-w-[160px] rounded-xl bg-white text-xs"
+          />
+          <SelectField
+            value={filterHT || "__all"}
+            onValueChange={(value) => {
+              setFilterHT(value === "__all" ? "" : value);
               setPage(1);
             }}
-            className="border border-slate-200 rounded-xl text-xs px-3 py-2 bg-white focus:outline-none"
-          >
-            <option value="">Tất cả hình thức</option>
-            {Object.keys(HT_BADGE).map((ht) => (
-              <option key={ht} value={ht}>
-                {ht}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "__all", label: "Tất cả hình thức" },
+              ...Object.keys(HT_BADGE).map((ht) => ({ value: ht, label: ht })),
+            ]}
+            triggerClassName="h-9 min-w-[190px] rounded-xl bg-white text-xs"
+          />
           {(search || filterStatus || filterHT) && (
             <button
               onClick={() => {

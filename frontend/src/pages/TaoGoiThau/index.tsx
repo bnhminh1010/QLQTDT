@@ -7,6 +7,13 @@ import { taoGoiThauSchema } from "@/util/validate";
 import type { InferType } from "yup";
 import { useFileAttachment } from "@/hooks/useFileAttachment";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   formatBytes,
   fileIcon,
   openFile,
@@ -201,7 +208,28 @@ function makeWorkflowStep(
     donViPhuTrach: index >= total - 3 ? "Giám đốc BV" : "K/p mua sắm",
     vaiTroXuLy: index >= total - 3 ? "Quản lý" : "Nhân viên",
     slaNgay,
-    trangThaiMacDinh: index === 0 ? "Đang xử lý" : "Chờ duyệt",
+    loaiThoiHan: "Chỉ cảnh báo quá hạn",
+    trangThaiMacDinh: index === 0 ? "Đang xử lý" : "Chờ ký duyệt",
+    coKyDuyet: index >= total - 3,
+    donViKyHoSo: index >= total - 3 ? "Giám đốc BV" : "",
+    vaiTroKyDuyet: index >= total - 3 ? "Quản lý" : "",
+    soNgayKyDuyet: index >= total - 3 ? 1 : 0,
+    batBuocKyTruocChuyenBuoc: index >= total - 3,
+    dieuKienChuyenTiep: [
+      {
+        id: `${id}-DK1`,
+        hanhDong: "Hoàn thành / Duyệt",
+        buocChuyenDenId: index < total - 1 ? `${id.split("-B")[0]}-B${index + 2}` : "",
+        dieuKienKichHoat: "Luôn",
+        batBuocGhiChu: false,
+        batBuocUpload: false,
+      },
+    ],
+    coNhanhSongSong: false,
+    nhanhList: [],
+    dieuKienHopNhat: "all",
+    soNhanhHopNhatToiThieu: 0,
+    buocSauHopNhatId: "",
     dieuKienChuyen: ["Duyệt"],
     buocTiepTheoId: index < total - 1 ? `${id.split("-B")[0]}-B${index + 2}` : "",
     moTa: "",
@@ -367,6 +395,13 @@ export default function TaoGoiThau() {
   });
 
   const watched = watch();
+  function normalizeGiaTriField() {
+    const normalized = normalizeMoneyDisplay(watch("giaTriStr"));
+    setValue("giaTriStr", normalized, {
+      shouldDirty: true,
+      shouldValidate: Boolean(normalized),
+    });
+  }
   const selectedLoaiGoiThau = watched.loaiGoiThau as LoaiGoiThau | "";
   const filteredQuyTrinhOptions = selectedLoaiGoiThau
     ? QUY_TRINH_BY_LOAI[selectedLoaiGoiThau]
@@ -400,7 +435,7 @@ export default function TaoGoiThau() {
     );
     const soBuocCanDuyet = selectedQT.buocList.filter(
       (buoc) =>
-        buoc.trangThaiMacDinh === "Chờ duyệt" ||
+        buoc.trangThaiMacDinh === "Chờ ký duyệt" ||
         buoc.dieuKienChuyen.includes("Duyệt"),
     ).length;
 
@@ -461,14 +496,15 @@ export default function TaoGoiThau() {
   }, [canEditCurrent, editingGoiThau, isEditMode, navigate, reset]);
 
   function buildGoiThauFromForm(data: FormData, trangThai: GoiThau["trangThai"]) {
-    const num = parseInt(data.giaTriStr.replace(/[^\d]/g, ""), 10) || 0;
+    const normalizedGiaTri = normalizeMoneyDisplay(data.giaTriStr);
+    const num = parseInt(normalizedGiaTri.replace(/[^\d]/g, ""), 10) || 0;
     return {
       id: editingGoiThau?.id ?? generateGoiThauId(),
       ten: data.ten.trim(),
       loaiGoiThau: data.loaiGoiThau as LoaiGoiThau,
       hinhThuc: data.hinhThuc as HinhThuc,
       theoDoi: theoDoiList,
-      giaTriStr: formatVND(data.giaTriStr),
+      giaTriStr: normalizedGiaTri,
       giaTriNum: num,
       donVi: data.donVi,
       trangThai,
@@ -519,15 +555,16 @@ export default function TaoGoiThau() {
       return;
     }
     setSavingDraft(true);
+    const normalizedGiaTri = normalizeMoneyDisplay(values.giaTriStr);
     const num =
-      parseInt((values.giaTriStr ?? "").replace(/[^\d]/g, ""), 10) || 0;
+      parseInt((normalizedGiaTri ?? "").replace(/[^\d]/g, ""), 10) || 0;
     addGoiThau({
       id: generateGoiThauId(),
       ten: values.ten.trim(),
       loaiGoiThau: (values.loaiGoiThau || "Hàng hóa") as LoaiGoiThau,
       hinhThuc: (values.hinhThuc || "Chỉ định thầu rút gọn") as HinhThuc,
       theoDoi: theoDoiList,
-      giaTriStr: values.giaTriStr ? formatVND(values.giaTriStr) : "0",
+      giaTriStr: normalizedGiaTri || "0",
       giaTriNum: num,
       donVi: values.donVi || "—",
       trangThai: "Nháp",
@@ -608,14 +645,32 @@ export default function TaoGoiThau() {
                 <label className={labelCls}>
                   Loại gói thầu <span className="text-red-500">*</span>
                 </label>
-                <select {...register("loaiGoiThau")} className={cls("loaiGoiThau")}>
-                  <option value="">-- Chọn loại gói thầu --</option>
-                  {LOAI_GOI_THAU_OPTIONS.map((loai) => (
-                    <option key={loai} value={loai}>
-                      {loai}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={watched.loaiGoiThau || ""}
+                  onValueChange={(value) =>
+                    setValue("loaiGoiThau", value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    className={
+                      errors.loaiGoiThau
+                        ? "border-red-400 focus:border-red-400 focus:ring-red-400/20"
+                        : ""
+                    }
+                  >
+                    <SelectValue placeholder="-- Chọn loại gói thầu --" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOAI_GOI_THAU_OPTIONS.map((loai) => (
+                      <SelectItem key={loai} value={loai}>
+                        {loai}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.loaiGoiThau && (
                   <p className="text-xs text-red-500 mt-1">
                     {errors.loaiGoiThau.message}
@@ -629,24 +684,39 @@ export default function TaoGoiThau() {
                   <label className={labelCls}>
                     Quy trình đấu thầu <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    {...register("hinhThuc")}
+                  <Select
+                    value={watched.hinhThuc || ""}
                     disabled={!selectedLoaiGoiThau}
-                    className={`${cls("hinhThuc")} ${
-                      !selectedLoaiGoiThau ? "cursor-not-allowed opacity-70" : ""
-                    }`}
+                    onValueChange={(value) =>
+                      setValue("hinhThuc", value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
                   >
-                    <option value="">
-                      {selectedLoaiGoiThau
-                        ? "-- Chọn quy trình đấu thầu --"
-                        : "Vui lòng chọn loại gói thầu trước"}
-                    </option>
-                    {filteredQuyTrinhOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      className={`${
+                        errors.hinhThuc
+                          ? "border-red-400 focus:border-red-400 focus:ring-red-400/20"
+                          : ""
+                      } ${!selectedLoaiGoiThau ? "cursor-not-allowed opacity-70" : ""}`}
+                    >
+                      <SelectValue
+                        placeholder={
+                          selectedLoaiGoiThau
+                            ? "-- Chọn quy trình đấu thầu --"
+                            : "Vui lòng chọn loại gói thầu trước"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredQuyTrinhOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {errors.hinhThuc && (
                     <p className="text-xs text-red-500 mt-1">
                       {errors.hinhThuc.message}
@@ -657,12 +727,32 @@ export default function TaoGoiThau() {
                   <label className={labelCls}>
                     Nguồn vốn <span className="text-red-500">*</span>
                   </label>
-                  <select {...register("nguonVon")} className={cls("nguonVon")}>
-                    <option value="">-- Chọn nguồn vốn --</option>
-                    {NGUON_VON.map((n) => (
-                      <option key={n}>{n}</option>
-                    ))}
-                  </select>
+                  <Select
+                    value={watched.nguonVon || ""}
+                    onValueChange={(value) =>
+                      setValue("nguonVon", value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                  >
+                    <SelectTrigger
+                      className={
+                        errors.nguonVon
+                          ? "border-red-400 focus:border-red-400 focus:ring-red-400/20"
+                          : ""
+                      }
+                    >
+                      <SelectValue placeholder="-- Chọn nguồn vốn --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NGUON_VON.map((n) => (
+                        <SelectItem key={n} value={n}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {errors.nguonVon && (
                     <p className="text-xs text-red-500 mt-1">
                       {errors.nguonVon.message}
@@ -748,8 +838,9 @@ export default function TaoGoiThau() {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="VD: 320,000,000"
+                      placeholder="VD: 320.000.000"
                       {...register("giaTriStr")}
+                      onBlur={normalizeGiaTriField}
                       className={cls("giaTriStr")}
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">

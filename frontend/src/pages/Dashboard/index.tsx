@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { SelectField } from "@/components/ui/select";
 
 /* ─ RBAC ─ */
 const MOCK_CURRENT_ROLE = "Admin"; // "Admin" | "Quản lý" | "Nhân viên"
@@ -690,19 +691,20 @@ export default function Dashboard() {
                     className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 w-52"
                   />
                 </div>
-                <select
-                  value={filterStatus}
-                  onChange={(e) =>
-                    setFilterStatus(e.target.value as BadgeStatus | "")
+                <SelectField
+                  value={filterStatus || "__all"}
+                  onValueChange={(value) =>
+                    setFilterStatus(value === "__all" ? "" : (value as BadgeStatus))
                   }
-                  className="border border-slate-200 rounded-lg text-xs px-2 py-1.5 bg-white focus:outline-none"
-                >
-                  <option value="">Tất cả trạng thái</option>
-                  <option value="Đang xử lý">Đang xử lý</option>
-                  <option value="Hoàn thành">Hoàn thành</option>
-                  <option value="Trễ hạn">Trễ hạn</option>
-                  <option value="Chờ duyệt">Chờ duyệt</option>
-                </select>
+                  options={[
+                    { value: "__all", label: "Tất cả trạng thái" },
+                    { value: "Đang xử lý", label: "Đang xử lý" },
+                    { value: "Hoàn thành", label: "Hoàn thành" },
+                    { value: "Trễ hạn", label: "Trễ hạn" },
+                    { value: "Chờ duyệt", label: "Chờ duyệt" },
+                  ]}
+                  triggerClassName="h-8 min-w-[150px] rounded-lg bg-white px-2 text-xs"
+                />
               </div>
             </div>
             <div className="overflow-x-auto">

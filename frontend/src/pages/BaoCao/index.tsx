@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { TaoBaoCaoModal } from "./TaoBaoCaoModal";
+import { SelectField } from "@/components/ui/select";
 import {
   getCurrentMockReportAccount,
   getMockReportAccountByKey,
@@ -215,7 +215,6 @@ function downloadCsv(rows: PackageReport[], fileName: string) {
 }
 
 export default function BaoCao() {
-  const [modalOpen, setModalOpen] = useState(false);
   const [accountKey, setAccountKey] = useState<RoleKey>(
     () => getCurrentMockReportAccount().key as RoleKey,
   );
@@ -356,23 +355,15 @@ export default function BaoCao() {
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200 h-14 flex items-center justify-between px-6 shrink-0">
         <h1 className="text-[17px] font-bold text-slate-900">Báo cáo &amp; Thống kê</h1>
         <div className="flex items-center gap-3">
-          <select
+          <SelectField
             value={accountKey}
-            onChange={(event) => handleAccountChange(event.target.value as RoleKey)}
-            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700"
-          >
-            {ACCOUNTS.map((item) => (
-              <option key={item.key} value={item.key}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <i className="fa-solid fa-plus text-xs" /> Tạo báo cáo
-          </button>
+            onValueChange={(value) => handleAccountChange(value as RoleKey)}
+            options={ACCOUNTS.map((item) => ({
+              value: item.key,
+              label: item.label,
+            }))}
+            triggerClassName="h-9 rounded-lg bg-white font-medium text-slate-700"
+          />
         </div>
       </header>
 
@@ -383,19 +374,18 @@ export default function BaoCao() {
               <div>
                 <label className="text-xs font-semibold text-slate-500">Đơn vị/Khoa phòng</label>
                 {account.canViewAll ? (
-                  <select
+                  <SelectField
                     value={unitFilter}
-                    onChange={(event) => {
-                      setUnitFilter(event.target.value);
-                      if (event.target.value !== "Tất cả") setSelectedUnit(event.target.value);
+                    onValueChange={(value) => {
+                      setUnitFilter(value);
+                      if (value !== "Tất cả") setSelectedUnit(value);
                     }}
-                    className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-                  >
-                    <option>Tất cả</option>
-                    {UNITS.map((unit) => (
-                      <option key={unit}>{unit}</option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: "Tất cả", label: "Tất cả" },
+                      ...UNITS.map((unit) => ({ value: unit, label: unit })),
+                    ]}
+                    triggerClassName="mt-1 h-10 bg-white"
+                  />
                 ) : (
                   <div className="mt-1 h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 flex items-center">
                     {account.unit}
@@ -423,15 +413,24 @@ export default function BaoCao() {
                     </label>
                     {timeMode === "month" && (
                       <>
-                        <select value={month} onChange={(e) => setMonth(e.target.value)} className="h-8 rounded-lg border border-slate-200 px-2">
-                          {Array.from({ length: 12 }, (_, i) => `${i + 1}`).map((item) => (
-                            <option key={item} value={item}>Tháng {item}</option>
-                          ))}
-                        </select>
-                        <select value={year} onChange={(e) => setYear(e.target.value)} className="h-8 rounded-lg border border-slate-200 px-2">
-                          <option>2025</option>
-                          <option>2026</option>
-                        </select>
+                        <SelectField
+                          value={month}
+                          onValueChange={setMonth}
+                          options={Array.from({ length: 12 }, (_, i) => `${i + 1}`).map((item) => ({
+                            value: item,
+                            label: `Tháng ${item}`,
+                          }))}
+                          triggerClassName="h-8 w-[112px] rounded-lg bg-white px-2"
+                        />
+                        <SelectField
+                          value={year}
+                          onValueChange={setYear}
+                          options={["2025", "2026"].map((item) => ({
+                            value: item,
+                            label: item,
+                          }))}
+                          triggerClassName="h-8 w-[92px] rounded-lg bg-white px-2"
+                        />
                       </>
                     )}
                     <label className="flex items-center gap-1.5">
@@ -439,10 +438,15 @@ export default function BaoCao() {
                       Theo năm
                     </label>
                     {timeMode === "year" && (
-                      <select value={year} onChange={(e) => setYear(e.target.value)} className="h-8 rounded-lg border border-slate-200 px-2">
-                        <option>2025</option>
-                        <option>2026</option>
-                      </select>
+                      <SelectField
+                        value={year}
+                        onValueChange={setYear}
+                        options={["2025", "2026"].map((item) => ({
+                          value: item,
+                          label: item,
+                        }))}
+                        triggerClassName="h-8 w-[92px] rounded-lg bg-white px-2"
+                      />
                     )}
                   </div>
                 </div>
@@ -450,18 +454,28 @@ export default function BaoCao() {
 
               <div>
                 <label className="text-xs font-semibold text-slate-500">Trạng thái</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-                  <option>Tất cả</option>
-                  {STATUSES.map((item) => <option key={item}>{item}</option>)}
-                </select>
+                <SelectField
+                  value={statusFilter}
+                  onValueChange={setStatusFilter}
+                  options={[
+                    { value: "Tất cả", label: "Tất cả" },
+                    ...STATUSES.map((item) => ({ value: item, label: item })),
+                  ]}
+                  triggerClassName="mt-1 h-10 bg-white"
+                />
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-slate-500">Loại hình đấu thầu</label>
-                <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value)} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
-                  <option>Tất cả</option>
-                  {METHODS.map((item) => <option key={item}>{item}</option>)}
-                </select>
+                <SelectField
+                  value={methodFilter}
+                  onValueChange={setMethodFilter}
+                  options={[
+                    { value: "Tất cả", label: "Tất cả" },
+                    ...METHODS.map((item) => ({ value: item, label: item })),
+                  ]}
+                  triggerClassName="mt-1 h-10 bg-white"
+                />
               </div>
 
               <div className="flex gap-2">
@@ -631,15 +645,6 @@ export default function BaoCao() {
         </aside>
       </div>
 
-      {modalOpen && (
-        <TaoBaoCaoModal
-          onSave={(values) => {
-            toast.success(`Đã tạo báo cáo "${values.tenBaoCao}"`);
-            setModalOpen(false);
-          }}
-          onClose={() => setModalOpen(false)}
-        />
-      )}
     </>
   );
 }

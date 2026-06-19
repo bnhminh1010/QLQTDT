@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { SelectField } from "@/components/ui/select";
 import { AddModal } from "./AddModal";
 import { EditModal } from "./EditModal";
 import { DeleteModal } from "./DeleteModal";
@@ -603,11 +604,29 @@ export default function DanhMucThucHien() {
           donViPhuTrach: step.donVi,
           vaiTroXuLy: step.donVi,
           slaNgay: parseInt(step.thoiHan.replace(/[^\d]/g, ""), 10) || 1,
+          loaiThoiHan: "Chỉ cảnh báo quá hạn",
           trangThaiMacDinh: (step.state === "done"
             ? "Hoàn tất"
             : step.state === "warn"
               ? "Chờ duyệt"
               : "Đang xử lý") as TrangThaiBuoc,
+          coKyDuyet: false,
+          batBuocKyTruocChuyenBuoc: false,
+          dieuKienChuyenTiep: [
+            {
+              id: `${buocIds[index]}-DK1`,
+              hanhDong: "Hoàn thành / Duyệt",
+              buocChuyenDenId: buocIds[index + 1] ?? "",
+              dieuKienKichHoat: "Theo kết quả xử lý",
+              ketQuaApDung: "Duyệt",
+              batBuocGhiChu: false,
+              batBuocUpload: false,
+            },
+          ],
+          coNhanhSongSong: false,
+          nhanhList: [],
+          dieuKienHopNhat: "all",
+          soNhanhHopNhatToiThieu: 0,
           dieuKienChuyen: ["Duyệt"],
           buocTiepTheoId: buocIds[index + 1] ?? "",
           moTa: "",
@@ -686,18 +705,19 @@ export default function DanhMucThucHien() {
                     className="pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
                   />
                 </div>
-                <select
-                  value={filterActive}
-                  onChange={(e) => {
-                    setFilterActive(e.target.value as "" | "true" | "false");
+                <SelectField
+                  value={filterActive || "__all"}
+                  onValueChange={(value) => {
+                    setFilterActive(value === "__all" ? "" : (value as "true" | "false"));
                     setPage(1);
                   }}
-                  className="border border-slate-200 rounded-lg text-xs px-2 py-1.5 bg-white focus:outline-none"
-                >
-                  <option value="">Tất cả trạng thái</option>
-                  <option value="true">Đang hoạt động</option>
-                  <option value="false">Đã ẩn</option>
-                </select>
+                  options={[
+                    { value: "__all", label: "Tất cả trạng thái" },
+                    { value: "true", label: "Đang hoạt động" },
+                    { value: "false", label: "Đã ẩn" },
+                  ]}
+                  triggerClassName="h-8 min-w-[150px] rounded-lg bg-white px-2 text-xs"
+                />
                 {(search || filterActive) && (
                   <button
                     onClick={() => {

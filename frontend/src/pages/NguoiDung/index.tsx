@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { SelectField } from "@/components/ui/select";
 import { ThemNguoiDungModal } from "./ThemNguoiDungModal";
 import { SuaNguoiDungModal } from "./SuaNguoiDungModal";
 import type {
@@ -336,7 +337,7 @@ export default function NguoiDung() {
       sdt: v.sdt.trim(),
       phong: v.phong,
       vaiTro: v.vaiTro,
-      trangThai: v.trangThai,
+      trangThai: "Hoạt động",
       ngayTao: new Date().toLocaleDateString("vi-VN"),
     };
     setData((prev) => [newUser, ...prev]);
@@ -355,7 +356,7 @@ export default function NguoiDung() {
       sdt: values.sdt.trim(),
       phong: values.phong,
       vaiTro: values.vaiTro,
-      trangThai: values.trangThai,
+      trangThai: editTarget.trangThai,
     };
     setData((prev) => prev.map((u) => (u.id === editTarget.id ? updated : u)));
     if (selected.id === editTarget.id) setSelected(updated);
@@ -493,39 +494,42 @@ export default function NguoiDung() {
                   </button>
                 )}
               </div>
-              <select
-                value={filterVaiTro}
-                onChange={(e) => setFilterVaiTro(e.target.value)}
-                className="border border-slate-200 rounded-xl text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Tất cả vai trò</option>
-                <option>Admin</option>
-                <option>Quản lý</option>
-                <option>Nhân viên</option>
-              </select>
-              <select
-                value={filterTT}
-                onChange={(e) => setFilterTT(e.target.value)}
-                className="border border-slate-200 rounded-xl text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option>Hoạt động</option>
-                <option>Bị khóa</option>
-                <option>Ngưng hoạt động</option>
-              </select>
-              <select
-                value={pageSizeOpt}
-                onChange={(e) => {
-                  setPageSizeOpt(Number(e.target.value));
+              <SelectField
+                value={filterVaiTro || "__all"}
+                onValueChange={(value) => setFilterVaiTro(value === "__all" ? "" : value)}
+                options={[
+                  { value: "__all", label: "Tất cả vai trò" },
+                  { value: "Admin", label: "Admin" },
+                  { value: "Quản lý", label: "Quản lý" },
+                  { value: "Nhân viên", label: "Nhân viên" },
+                ]}
+                triggerClassName="h-10 min-w-[150px] bg-white"
+              />
+              <SelectField
+                value={filterTT || "__all"}
+                onValueChange={(value) => setFilterTT(value === "__all" ? "" : value)}
+                options={[
+                  { value: "__all", label: "Tất cả trạng thái" },
+                  { value: "Hoạt động", label: "Hoạt động" },
+                  { value: "Bị khóa", label: "Bị khóa" },
+                  { value: "Ngưng hoạt động", label: "Ngưng hoạt động" },
+                ]}
+                triggerClassName="h-10 min-w-[170px] bg-white"
+              />
+              <SelectField
+                value={String(pageSizeOpt)}
+                onValueChange={(value) => {
+                  setPageSizeOpt(Number(value));
                   setPage(1);
                 }}
-                className="border border-slate-200 rounded-xl text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={8}>8 / trang</option>
-                <option value={15}>15 / trang</option>
-                <option value={25}>25 / trang</option>
-                <option value={50}>50 / trang</option>
-              </select>
+                options={[
+                  { value: "8", label: "8 / trang" },
+                  { value: "15", label: "15 / trang" },
+                  { value: "25", label: "25 / trang" },
+                  { value: "50", label: "50 / trang" },
+                ]}
+                triggerClassName="h-10 min-w-[110px] bg-white"
+              />
             </div>
 
             {/* Loading */}

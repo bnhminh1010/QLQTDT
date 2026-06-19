@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { SelectField } from "@/components/ui/select";
 import { getUserGoiThauList } from "./goiThauService";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 import {
@@ -466,6 +467,7 @@ function HistoryModal({ goiThau, entries, processEntries, onClose }: HistoryModa
 /* ─── Main component ──────────────────────────────────── */
 export default function DanhSachGoiThau() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState<GoiThau[]>(() => getMergedGoiThauList());
   const [selected, setSelected] = useState<GoiThau>(() => {
     const list = getMergedGoiThauList();
@@ -498,6 +500,15 @@ export default function DanhSachGoiThau() {
   useEffect(() => {
     return simulateLoad();
   }, [simulateLoad]);
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("goiThauId");
+    if (!id) return;
+    const target = data.find((item) => item.id === id);
+    if (target) {
+      setSelected(target);
+      setDetailOpen(true);
+    }
+  }, [data, location.search]);
   useEffect(() => {
     setPage(1);
   }, [search, filterHT, filterTT, sortCol, sortDir]);
@@ -916,31 +927,33 @@ export default function DanhSachGoiThau() {
                 </button>
               )}
             </div>
-            <select
-              value={filterHT}
-              onChange={(e) => setFilterHT(e.target.value)}
-              className="border border-slate-200 rounded-xl text-sm px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Tất cả hình thức</option>
-              <option>Chỉ định thầu rút gọn</option>
-              <option>Chỉ định thầu tự quyết định</option>
-              <option>Chỉ định thầu thông thường</option>
-              <option>Chào hàng cạnh tranh</option>
-              <option>Đấu thầu rộng rãi</option>
-            </select>
-            <select
-              value={filterTT}
-              onChange={(e) => setFilterTT(e.target.value)}
-              className="border border-slate-200 rounded-xl text-sm px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option>Đang xử lý</option>
-              <option>Hoàn thành</option>
-              <option>Trễ hạn</option>
-              <option>Chờ duyệt</option>
-              <option>Đã hủy</option>
-              <option>Nháp</option>
-            </select>
+            <SelectField
+              value={filterHT || "__all"}
+              onValueChange={(value) => setFilterHT(value === "__all" ? "" : value)}
+              options={[
+                { value: "__all", label: "Tất cả hình thức" },
+                { value: "Chỉ định thầu rút gọn", label: "Chỉ định thầu rút gọn" },
+                { value: "Chỉ định thầu tự quyết định", label: "Chỉ định thầu tự quyết định" },
+                { value: "Chỉ định thầu thông thường", label: "Chỉ định thầu thông thường" },
+                { value: "Chào hàng cạnh tranh", label: "Chào hàng cạnh tranh" },
+                { value: "Đấu thầu rộng rãi", label: "Đấu thầu rộng rãi" },
+              ]}
+              triggerClassName="h-[42px] min-w-[190px] bg-white"
+            />
+            <SelectField
+              value={filterTT || "__all"}
+              onValueChange={(value) => setFilterTT(value === "__all" ? "" : value)}
+              options={[
+                { value: "__all", label: "Tất cả trạng thái" },
+                { value: "Đang xử lý", label: "Đang xử lý" },
+                { value: "Hoàn thành", label: "Hoàn thành" },
+                { value: "Trễ hạn", label: "Trễ hạn" },
+                { value: "Chờ duyệt", label: "Chờ duyệt" },
+                { value: "Đã hủy", label: "Đã hủy" },
+                { value: "Nháp", label: "Nháp" },
+              ]}
+              triggerClassName="h-[42px] min-w-[180px] bg-white"
+            />
           </div>
 
           {/* TABLE CARD */}

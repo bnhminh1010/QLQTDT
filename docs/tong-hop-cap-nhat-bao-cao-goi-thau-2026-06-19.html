@@ -147,7 +147,28 @@
       </section>
 
       <section>
-        <h2>2. Trang Danh sách gói thầu</h2>
+        <h2>2. Cập nhật mới trong lượt gần nhất</h2>
+        <ul>
+          <li>Bỏ nút <code>+ Tạo báo cáo</code> ở header trang Báo cáo & Thống kê theo yêu cầu tester.</li>
+          <li>Dọn state và render modal tạo báo cáo trong <code>frontend/src/pages/BaoCao/index.tsx</code> vì không còn dùng nút tạo báo cáo.</li>
+          <li>Thêm component dropdown dùng chung <code>frontend/src/components/ui/select.tsx</code> theo style shadcn/Radix Select.</li>
+          <li>Thay toàn bộ dropdown native <code>&lt;select&gt;</code> trong <code>frontend/src</code> sang shadcn Select.</li>
+          <li>Các dropdown filter, dropdown trong modal và dropdown trong form không còn lộ viền/mũi tên native của trình duyệt.</li>
+          <li>Đã rà lại bằng tìm kiếm và hiện không còn thẻ <code>&lt;select&gt;</code> / <code>&lt;/select&gt;</code> trong các file <code>.tsx</code> thuộc <code>frontend/src</code>.</li>
+          <li>Các khu vực đã thay dropdown gồm: Báo cáo, Dashboard, Danh sách gói thầu, Danh sách quy trình, Danh mục thực hiện, Tạo gói thầu, Lập quy trình, Khoa/phòng, Người dùng và các modal Thêm/Sửa liên quan.</li>
+          <li>Bỏ trường <code>Trạng thái</code> khỏi modal Thêm/Sửa Khoa/Phòng và Thêm/Sửa Người dùng; khi thêm mới hệ thống tự mặc định là đang hoạt động, còn bật/tắt trạng thái dùng nút thao tác bên ngoài danh sách/panel.</li>
+          <li>Trang Hồ sơ cá nhân bổ sung popup xác nhận đăng xuất đúng luồng: <code>Hủy</code> / <code>Đăng xuất</code>; khi xác nhận sẽ xóa token đăng nhập và tài khoản mock báo cáo trước khi về màn hình login.</li>
+          <li>Dòng thông báo trong tab Thông báo của Hồ sơ cá nhân đã có hover/click; khi click sẽ đánh dấu đã đọc và điều hướng sang <code>Danh sách gói thầu</code> với đúng mã gói thầu liên quan.</li>
+          <li>Trang Danh sách gói thầu đọc query <code>goiThauId</code> để tự chọn đúng gói thầu và mở panel chi tiết bên phải khi đi từ thông báo.</li>
+          <li>Tab Thông tin cá nhân bổ sung <code>Lần đăng nhập gần nhất</code> và <code>Ngày cập nhật gần nhất</code>.</li>
+          <li>Trường <code>Giá trị gói thầu (VNĐ)</code> ở form Tạo/Chỉnh sửa gói thầu được chuẩn hóa khi rời ô nhập và khi lưu; bản nháp mở lại không tự báo lỗi định dạng với giá trị dạng <code>320.000.000</code>.</li>
+          <li>Bổ sung đủ cấu trúc điều kiện chuyển tiếp khi tạo quy trình từ Danh mục thực hiện để không còn lỗi type ở dữ liệu bước workflow.</li>
+          <li>Đã chạy <code>npm exec tsc -- --noEmit --pretty false</code> trong thư mục <code>frontend</code> và typecheck đã pass.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. Trang Danh sách gói thầu</h2>
         <ul>
           <li>Panel chi tiết giữ danh sách bước quy trình và chỉ hiển thị nút <code>Cập nhật</code> tại bước hiện tại.</li>
           <li>Các bước khác chỉ cho xem thông tin/lịch sử xử lý khi click vào bước.</li>
@@ -159,7 +180,7 @@
       </section>
 
       <section>
-        <h2>3. Trang Tạo/Chỉnh sửa gói thầu</h2>
+        <h2>4. Trang Tạo/Chỉnh sửa gói thầu</h2>
         <ul>
           <li>Fix lỗi mở lại bản nháp bị báo sai định dạng trường <code>Giá trị gói thầu (VNĐ)</code>.</li>
           <li>Giá trị đã lưu được chuẩn hóa lại qua hàm format tiền trước khi reset vào form chỉnh sửa.</li>
@@ -168,9 +189,22 @@
       </section>
 
       <section>
-        <h2>4. File liên quan</h2>
+        <h2>5. File liên quan</h2>
         <ul>
+          <li><code>frontend/src/components/ui/select.tsx</code></li>
           <li><code>frontend/src/pages/BaoCao/index.tsx</code></li>
+          <li><code>frontend/src/pages/BaoCao/TaoBaoCaoModal.tsx</code></li>
+          <li><code>frontend/src/pages/Dashboard/index.tsx</code></li>
+          <li><code>frontend/src/pages/DanhMucThucHien/index.tsx</code></li>
+          <li><code>frontend/src/pages/DanhSachQuyTrinh/index.tsx</code></li>
+          <li><code>frontend/src/pages/KhoaPhong/index.tsx</code></li>
+          <li><code>frontend/src/pages/KhoaPhong/ThemKhoaPhongModal.tsx</code></li>
+          <li><code>frontend/src/pages/KhoaPhong/SuaKhoaPhongModal.tsx</code></li>
+          <li><code>frontend/src/pages/LapQuyTrinh/index.tsx</code></li>
+          <li><code>frontend/src/pages/NguoiDung/index.tsx</code></li>
+          <li><code>frontend/src/pages/NguoiDung/ThemNguoiDungModal.tsx</code></li>
+          <li><code>frontend/src/pages/NguoiDung/SuaNguoiDungModal.tsx</code></li>
+          <li><code>frontend/src/pages/UserProfile/index.tsx</code></li>
           <li><code>frontend/src/pages/Login/index.tsx</code></li>
           <li><code>frontend/src/components/Sidebar/index.tsx</code></li>
           <li><code>frontend/src/util/mockReportAccounts.ts</code></li>
