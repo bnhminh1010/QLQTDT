@@ -25,23 +25,23 @@ export type LoaiThoiHan =
   | "Chỉ cảnh báo quá hạn"
   | "Bắt buộc hoàn thành trước hạn";
 export type HanhDongChuyen =
-  | "Hoàn thành / Duyệt"
+  | "Duyệt"
   | "Không duyệt"
-  | "Trả về"
-  | "Yêu cầu bổ sung"
-  | "Bỏ qua bước";
-export type DieuKienKichHoat = "Luôn" | "Theo vai trò" | "Theo kết quả xử lý";
 export type TrangThaiQT = "Đang hoạt động" | "Đã tắt";
 
 export type DieuKienChuyenTiep = {
-  id: string;
-  hanhDong: HanhDongChuyen;
-  buocChuyenDenId: string;
-  dieuKienKichHoat: DieuKienKichHoat;
-  ketQuaApDung?: string;
-  vaiTroApDung?: string;
-  batBuocGhiChu: boolean;
-  batBuocUpload: boolean;
+  khiDuyet: {
+    buocTiepTheoId?: string;
+  };
+  khiKhongDuyet: {
+    xuLy: "Trả về bước trước" | "Dừng quy trình";
+  };
+  yeuCauBatBuoc: {
+    ghiChu: boolean;
+    uploadTaiLieu: boolean;
+    kyDuyet: boolean;
+    hoanThanhTruocSLA: boolean;
+  };
 };
 
 export type NhanhSongSong = {
@@ -450,7 +450,7 @@ export type Buoc = {
   /** Bắt buộc ký trước khi chuyển bước */
   batBuocKyTruocChuyenBuoc: boolean;
   /** Bảng điều kiện chuyển tiếp */
-  dieuKienChuyenTiep: DieuKienChuyenTiep[];
+  dieuKienChuyenTiep: DieuKienChuyenTiep;
   /** Có tạo nhánh song song */
   coNhanhSongSong: boolean;
   /** Danh sách nhánh song song */

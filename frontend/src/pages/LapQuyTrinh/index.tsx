@@ -7,7 +7,6 @@ import {
   type TrangThaiBuoc,
   type LoaiThoiHan,
   type HanhDongChuyen,
-  type DieuKienKichHoat,
   type DieuKienChuyenTiep,
   type NhanhSongSong,
   type HinhThucQT,
@@ -46,16 +45,6 @@ const VAI_TRO_OPTIONS = [
   "Chủ đầu tư",
   "Nhà thầu",
   "CĐT + Nhà thầu",
-];
-
-const LOAI_BUOC_OPTIONS: LoaiBuoc[] = [
-  "Bắt đầu",
-  "Thường",
-  "Ký duyệt",
-  "Đăng tải",
-  "Đánh giá/kiểm tra",
-  "Hợp đồng",
-  "Kết thúc",
 ];
 
 const STEP_MODAL_LOAI_BUOC: LoaiBuoc[] = [
@@ -113,17 +102,8 @@ const VAI_TRO_KY_OPTIONS = [
 ];
 
 const HANH_DONG_OPTIONS: HanhDongChuyen[] = [
-  "Hoàn thành / Duyệt",
+  "Duyệt",
   "Không duyệt",
-  "Trả về",
-  "Yêu cầu bổ sung",
-  "Bỏ qua bước",
-];
-
-const DIEU_KIEN_KICH_HOAT_OPTIONS: DieuKienKichHoat[] = [
-  "Luôn",
-  "Theo vai trò",
-  "Theo kết quả xử lý",
 ];
 
 const KET_QUA_OPTIONS = ["Đạt", "Không đạt", "Cần bổ sung"];
@@ -187,7 +167,20 @@ function emptyStep(): Omit<Buoc, "id"> {
     vaiTroKyDuyet: "",
     soNgayKyDuyet: undefined,
     batBuocKyTruocChuyenBuoc: true,
-    dieuKienChuyenTiep: [],
+    dieuKienChuyenTiep: {
+      khiDuyet: {
+        buocTiepTheoId: "",
+      },
+      khiKhongDuyet: {
+        xuLy: "Trả về bước trước",
+      },
+      yeuCauBatBuoc: {
+        ghiChu: false,
+        uploadTaiLieu: false,
+        kyDuyet: false,
+        hoanThanhTruocSLA: false,
+      },
+    },
     coNhanhSongSong: false,
     nhanhList: [],
     dieuKienHopNhat: "all",
@@ -314,33 +307,44 @@ export default function LapQuyTrinh() {
   }
 
   function openEdit(b: Buoc) {
-    setStepForm({
-      ten: b.ten,
-      loai: b.loai,
-      nhomGiaiDoan: b.nhomGiaiDoan ?? "",
-      donViPhuTrach: b.donViPhuTrach,
-      vaiTroXuLy: b.vaiTroXuLy,
-      slaNgay: b.slaNgay,
-      loaiThoiHan: b.loaiThoiHan ?? "Chỉ cảnh báo quá hạn",
-      trangThaiMacDinh: b.trangThaiMacDinh,
-      coKyDuyet: b.coKyDuyet ?? false,
-      donViKyHoSo: b.donViKyHoSo ?? "",
-      vaiTroKyDuyet: b.vaiTroKyDuyet ?? "",
-      soNgayKyDuyet: b.soNgayKyDuyet,
-      batBuocKyTruocChuyenBuoc: b.batBuocKyTruocChuyenBuoc ?? true,
-      dieuKienChuyenTiep: b.dieuKienChuyenTiep ? [...b.dieuKienChuyenTiep] : [],
-      coNhanhSongSong: b.coNhanhSongSong ?? false,
-      nhanhList: b.nhanhList ? [...b.nhanhList] : [],
-      dieuKienHopNhat: b.dieuKienHopNhat ?? "all",
-      soNhanhHopNhatToiThieu: b.soNhanhHopNhatToiThieu ?? 2,
-      buocSauHopNhatId: b.buocSauHopNhatId ?? "",
-      moTa: b.moTa,
-      dieuKienChuyen: [...(b.dieuKienChuyen ?? ["Duyệt"])],
-      buocTiepTheoId: b.buocTiepTheoId ?? "",
-    });
-    setStepErrs({});
-    setStepModal({ mode: "edit", targetId: b.id });
-  }
+  setStepForm({
+    ten: b.ten,
+    loai: b.loai,
+    nhomGiaiDoan: b.nhomGiaiDoan ?? "",
+    donViPhuTrach: b.donViPhuTrach,
+    vaiTroXuLy: b.vaiTroXuLy,
+    slaNgay: b.slaNgay,
+    loaiThoiHan: b.loaiThoiHan ?? "Chỉ cảnh báo quá hạn",
+    trangThaiMacDinh: b.trangThaiMacDinh,
+    coKyDuyet: b.coKyDuyet ?? false,
+    donViKyHoSo: b.donViKyHoSo ?? "",
+    vaiTroKyDuyet: b.vaiTroKyDuyet ?? "",
+    soNgayKyDuyet: b.soNgayKyDuyet,
+    batBuocKyTruocChuyenBuoc: b.batBuocKyTruocChuyenBuoc ?? true,
+    dieuKienChuyenTiep: {
+      khiDuyet: {
+        ...b.dieuKienChuyenTiep.khiDuyet,
+      },
+      khiKhongDuyet: {
+        ...b.dieuKienChuyenTiep.khiKhongDuyet,
+      },
+      yeuCauBatBuoc: {
+        ...b.dieuKienChuyenTiep.yeuCauBatBuoc,
+      },
+    },
+    coNhanhSongSong: b.coNhanhSongSong ?? false,
+    nhanhList: b.nhanhList ? [...b.nhanhList] : [],
+    dieuKienHopNhat: b.dieuKienHopNhat ?? "all",
+    soNhanhHopNhatToiThieu: b.soNhanhHopNhatToiThieu ?? 2,
+    buocSauHopNhatId: b.buocSauHopNhatId ?? "",
+    moTa: b.moTa,
+    dieuKienChuyen: [...(b.dieuKienChuyen ?? ["Duyệt"])],
+    buocTiepTheoId: b.buocTiepTheoId ?? "",
+  });
+
+  setStepErrs({});
+  setStepModal({ mode: "edit", targetId: b.id });
+}
 
   function validateStep(): boolean {
     const errs: typeof stepErrs = {};
@@ -370,14 +374,6 @@ export default function LapQuyTrinh() {
       !stepForm.buocSauHopNhatId
     )
       errs.buocSauHopNhatId = "Vui lòng chọn bước sau khi hợp nhất";
-    const hasInvalidDk = stepForm.dieuKienChuyenTiep.some(
-      (r) =>
-        (r.dieuKienKichHoat === "Theo kết quả xử lý" && !r.ketQuaApDung) ||
-        (r.dieuKienKichHoat === "Theo vai trò" && !r.vaiTroApDung),
-    );
-    if (hasInvalidDk)
-      errs.dieuKienChuyenTiep =
-        "Vui lòng chọn đầy đủ giá trị điều kiện kích hoạt cho từng điều kiện chuyển tiếp";
     setStepErrs(errs);
     return Object.keys(errs).length === 0;
   }
@@ -437,8 +433,20 @@ export default function LapQuyTrinh() {
       vaiTroKyDuyet: requiresKyDuyet ? "Giám đốc BV" : "",
       soNgayKyDuyet: requiresKyDuyet ? 1 : undefined,
       batBuocKyTruocChuyenBuoc: true,
-      dieuKienChuyenTiep: [],
-      coNhanhSongSong: false,
+      dieuKienChuyenTiep: {
+      khiDuyet: {
+        buocTiepTheoId: "",
+      },
+      khiKhongDuyet: {
+        xuLy: "Trả về bước trước",
+      },
+      yeuCauBatBuoc: {
+        ghiChu: false,
+        uploadTaiLieu: false,
+        kyDuyet: requiresKyDuyet,
+        hoanThanhTruocSLA: false,
+      },
+    },      coNhanhSongSong: false,
       nhanhList: [],
       dieuKienHopNhat: "all",
       soNhanhHopNhatToiThieu: 2,
@@ -476,18 +484,20 @@ export default function LapQuyTrinh() {
       vaiTroKyDuyet: requiresKyDuyet ? "Giám đốc BV" : "",
       soNgayKyDuyet: requiresKyDuyet ? 1 : undefined,
       batBuocKyTruocChuyenBuoc: true,
-      dieuKienChuyenTiep: isLast
-        ? []
-        : [
-            {
-              id: `${id}-DKCT`,
-              hanhDong: "Hoàn thành / Duyệt",
-              buocChuyenDenId: `${id.split("-B")[0]}-B${index + 2}`,
-              dieuKienKichHoat: "Luôn",
-              batBuocGhiChu: false,
-              batBuocUpload: false,
-            },
-          ],
+      dieuKienChuyenTiep: {
+        khiDuyet: {
+          buocTiepTheoId: isLast? undefined : `${id.split("-B")[0]}-B${index + 2}`,
+        },
+        khiKhongDuyet: {
+          xuLy: isFirst ? "Dừng quy trình" : "Trả về bước trước",
+        },
+        yeuCauBatBuoc: {
+          ghiChu: false,
+          uploadTaiLieu: false,
+          kyDuyet: requiresKyDuyet,
+          hoanThanhTruocSLA: false,
+        },
+      },
       coNhanhSongSong: false,
       nhanhList: [],
       dieuKienHopNhat: "all",
@@ -512,6 +522,11 @@ export default function LapQuyTrinh() {
     if (!hinhThuc) {
       setHinhThucErr("Vui lòng chọn loại hình đấu thầu");
       return;
+    }
+      const template = QUY_TRINH_TEMPLATE_INFO[hinhThuc];
+      if (!template || template.steps.length === 0) {
+        toast.error("Chưa có quy trình chuẩn cho loại hình đấu thầu này.");
+        return;
     }
     if (buocList.length > 0) {
       if (
@@ -544,8 +559,13 @@ export default function LapQuyTrinh() {
     toast.success("Đã thêm bước từ thư viện");
   }
 
-  function doDelete() {
+function doDelete() {
     if (!deleteTarget) return;
+    if (deleteTarget.loai === "Bắt đầu" || deleteTarget.loai === "Kết thúc") {
+      toast.error("Không thể xóa bước Bắt đầu hoặc Kết thúc.");
+      setDeleteTarget(null);
+      return;
+    }
     setBuocList((prev) => prev.filter((b) => b.id !== deleteTarget.id));
     setDeleteTarget(null);
     markDirty();
@@ -656,9 +676,8 @@ export default function LapQuyTrinh() {
     buocList.flatMap((b) => {
       const ids: string[] = [];
       if (b.buocTiepTheoId) ids.push(b.buocTiepTheoId);
-      (b.dieuKienChuyenTiep ?? []).forEach((d) => {
-        if (d.buocChuyenDenId) ids.push(d.buocChuyenDenId);
-      });
+      const nextId = b.dieuKienChuyenTiep?.khiDuyet?.buocTiepTheoId;
+      if (nextId) { ids.push(nextId); }
       return ids;
     }),
   );
@@ -966,8 +985,7 @@ export default function LapQuyTrinh() {
               {buocList.map((b, idx) => {
                 const primaryId =
                   b.buocTiepTheoId ||
-                  b.dieuKienChuyenTiep?.[0]?.buocChuyenDenId;
-                const nextStep = primaryId
+                  b.dieuKienChuyenTiep?.khiDuyet?.buocTiepTheoId;                const nextStep = primaryId
                   ? buocList.find((x) => x.id === primaryId)
                   : null;
                 return (
@@ -1055,15 +1073,6 @@ export default function LapQuyTrinh() {
                             Ký duyệt
                           </span>
                         )}
-                        {b.dieuKienChuyenTiep &&
-                          b.dieuKienChuyenTiep.length > 0 && (
-                            <span className="text-[11px] text-slate-400">
-                              →{" "}
-                              {b.dieuKienChuyenTiep
-                                .map((d) => d.hanhDong)
-                                .join(", ")}
-                            </span>
-                          )}
                         {nextStep && (
                           <span className="text-[11px] text-blue-500 flex items-center gap-1">
                             <i className="fa-solid fa-arrow-right text-[10px]" />
@@ -1108,12 +1117,13 @@ export default function LapQuyTrinh() {
                         <i className="fa-solid fa-pen text-xs" />
                       </button>
                       <button
-                        type="button"
-                        title="Xóa"
-                        onClick={() => setDeleteTarget(b)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <i className="fa-solid fa-trash text-xs" />
+                      type="button"
+                      title={b.loai === "Bắt đầu" || b.loai === "Kết thúc" ? "Không thể xóa bước này" : "Xóa"}
+                          disabled={b.loai === "Bắt đầu" || b.loai === "Kết thúc"}
+                              onClick={() => setDeleteTarget(b)}
+                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${b.loai === "Bắt đầu" || b.loai === "Kết thúc" ? "text-slate-300 cursor-not-allowed" : "text-slate-400 hover:text-red-500 hover:bg-red-50"}`}
+                        >
+                          <i className="fa-solid fa-trash text-xs" />
                       </button>
                     </div>
                   </li>
@@ -1686,295 +1696,138 @@ export default function LapQuyTrinh() {
               )}
             </div>
 
-            {/* ── 5. Điều kiện chuyển tiếp ── */}
-            <div className="border border-slate-200 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                  <i className="fa-solid fa-arrow-right-arrow-left text-blue-400" />
-                  5. Điều kiện chuyển tiếp
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newRow: DieuKienChuyenTiep = {
-                      id: Date.now().toString(),
-                      hanhDong: "Hoàn thành / Duyệt",
-                      buocChuyenDenId: "",
-                      dieuKienKichHoat: "Luôn",
-                      ketQuaApDung: "",
-                      vaiTroApDung: "",
-                      batBuocGhiChu: false,
-                      batBuocUpload: false,
-                    };
+{/* ── 5. Điều kiện chuyển tiếp ── */}
+<div className="border border-slate-200 rounded-xl p-4 space-y-3">
+  <div className="flex items-center justify-between">
+    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+      <i className="fa-solid fa-arrow-right-arrow-left text-blue-400" />
+      5. Điều kiện chuyển tiếp
+    </p>
+  </div>
+
+  {/* ─ Bước tiếp theo (xác định tự động) ─ */}
+  {(() => {
+    const currentIdx = buocList.findIndex(
+      (b) => b.id === stepModal?.targetId
+    );
+    const nextStep = currentIdx >= 0 ? buocList[currentIdx + 1] : undefined;
+    const nextStepName = nextStep?.ten ?? "Không có bước tiếp theo";
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* ── Card KHI DUYỆT ── */}
+        <div className="border border-emerald-200 rounded-xl p-4 bg-emerald-50/30 space-y-3">
+          <div className="flex items-center gap-2 text-emerald-700">
+            <i className="fa-solid fa-circle-check text-lg" />
+            <span className="font-bold text-sm">KHI DUYỆT</span>
+          </div>
+
+          {/* Bước tiếp theo*/}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">
+              Bước tiếp theo
+            </label>
+            <div className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700">
+              {nextStepName}
+            </div>
+          </div>
+
+        </div>
+
+        {/* ─ Card KHI KHÔNG DUYỆT ─ */}
+        <div className="border border-rose-200 rounded-xl p-4 bg-rose-50/30 space-y-3">
+          <div className="flex items-center gap-2 text-rose-700">
+            <i className="fa-solid fa-circle-xmark text-lg" />
+            <span className="font-bold text-sm">KHI KHÔNG DUYỆT</span>
+          </div>
+
+          {/* Hướng xử lý */}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">
+              Hướng xử lý <span className="text-red-500">*</span>
+            </label>
+            <select
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={stepForm.dieuKienChuyenTiep?.khiKhongDuyet?.xuLy ?? ""}
+              onChange={(e) => {
+                const value = e.target.value as "Trả về bước trước" | "Dừng quy trình";
+                setStepForm((f) => ({
+                  ...f, dieuKienChuyenTiep: {
+                    ...f.dieuKienChuyenTiep, khiKhongDuyet: {
+                      ...f.dieuKienChuyenTiep?.khiKhongDuyet, xuLy: value,
+                    },
+                  },
+                }));
+                }}
+            >
+              <option value="">-- Chọn hướng xử lý --</option>
+              <option value="Trả về bước trước">Trả về bước trước</option>
+              <option value="Dừng quy trình">Dừng quy trình</option>
+            </select>
+          </div>
+        </div>
+
+        {/* YÊU CẦU BẮT BUỘC */}
+        <div className="border border-slate-200 rounded-xl p-4 bg-white">
+          <p className="text-xs font-bold text-slate-500 uppercase mb-2">
+            YÊU CẦU BẮT BUỘC
+          </p>
+          <div className="space-y-2">
+            {[
+              {
+                key: "ghiChu",
+                label: "Bắt buộc ghi chú",
+                checked: stepForm.dieuKienChuyenTiep?.yeuCauBatBuoc?.ghiChu ?? false,
+              },
+              {
+                key: "uploadTaiLieu",
+                label: "Bắt buộc upload tài liệu",
+                checked: stepForm.dieuKienChuyenTiep?.yeuCauBatBuoc?.uploadTaiLieu ?? false,
+              },
+              {
+                key: "kyDuyet",
+                label: "Bắt buộc ký duyệt",
+                checked: stepForm.dieuKienChuyenTiep?.yeuCauBatBuoc?.kyDuyet ?? false,
+              },
+              {
+                key: "hoanThanhTruocSLA",
+                label: "Bắt buộc hoàn thành trước SLA",
+                checked: stepForm.dieuKienChuyenTiep?.yeuCauBatBuoc?.hoanThanhTruocSLA ?? false,
+              },
+            ].map((item) => (
+              <label key={item.key} className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={(e) =>
                     setStepForm((f) => ({
                       ...f,
-                      dieuKienChuyenTiep: [...f.dieuKienChuyenTiep, newRow],
-                    }));
-                  }}
-                  className="h-7 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold rounded-lg flex items-center gap-1 transition-colors"
-                >
-                  <i className="fa-solid fa-plus text-[10px]" />
-                  Thêm điều kiện
-                </button>
-              </div>
-              {stepForm.dieuKienChuyenTiep.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-2">
-                  Chưa có điều kiện nào. Nhấn "Thêm điều kiện" để bắt đầu.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {stepForm.dieuKienChuyenTiep.map((row, idx) => (
-                    <div
-                      key={row.id}
-                      className="border border-slate-100 rounded-lg p-3 bg-slate-50 space-y-2"
-                    >
-                      <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
-                        <div>
-                          <label className={labelCls}>Hành động</label>
-                          <select
-                            className={inputCls}
-                            value={row.hanhDong}
-                            onChange={(e) => {
-                              const newHanhDong = e.target
-                                .value as HanhDongChuyen;
-                              const forceGhiChu = [
-                                "Không duyệt",
-                                "Trả về",
-                                "Yêu cầu bổ sung",
-                              ].includes(newHanhDong);
-                              const updated = stepForm.dieuKienChuyenTiep.map(
-                                (r, i) =>
-                                  i === idx
-                                    ? {
-                                        ...r,
-                                        hanhDong: newHanhDong,
-                                        batBuocGhiChu: forceGhiChu
-                                          ? true
-                                          : r.batBuocGhiChu,
-                                      }
-                                    : r,
-                              );
-                              setStepForm((f) => ({
-                                ...f,
-                                dieuKienChuyenTiep: updated,
-                              }));
-                            }}
-                          >
-                            {HANH_DONG_OPTIONS.map((h) => (
-                              <option key={h}>{h}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={labelCls}>Bước chuyển đến</label>
-                          <select
-                            className={inputCls}
-                            value={row.buocChuyenDenId}
-                            onChange={(e) => {
-                              const updated = stepForm.dieuKienChuyenTiep.map(
-                                (r, i) =>
-                                  i === idx
-                                    ? { ...r, buocChuyenDenId: e.target.value }
-                                    : r,
-                              );
-                              setStepForm((f) => ({
-                                ...f,
-                                dieuKienChuyenTiep: updated,
-                              }));
-                            }}
-                          >
-                            <option value="">-- Chọn bước --</option>
-                            {buocList
-                              .filter((b) => b.id !== stepModal?.targetId)
-                              .map((b) => (
-                                <option key={b.id} value={b.id}>
-                                  {b.ten}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={labelCls}>
-                            Điều kiện kích hoạt
-                          </label>
-                          <select
-                            className={inputCls}
-                            value={row.dieuKienKichHoat}
-                            onChange={(e) => {
-                              const updated = stepForm.dieuKienChuyenTiep.map(
-                                (r, i) =>
-                                  i === idx
-                                    ? {
-                                        ...r,
-                                        dieuKienKichHoat: e.target
-                                          .value as DieuKienKichHoat,
-                                        ketQuaApDung: "",
-                                        vaiTroApDung: "",
-                                      }
-                                    : r,
-                              );
-                              setStepForm((f) => ({
-                                ...f,
-                                dieuKienChuyenTiep: updated,
-                              }));
-                            }}
-                          >
-                            {DIEU_KIEN_KICH_HOAT_OPTIONS.map((d) => (
-                              <option key={d}>{d}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStepForm((f) => ({
-                              ...f,
-                              dieuKienChuyenTiep: f.dieuKienChuyenTiep.filter(
-                                (_, i) => i !== idx,
-                              ),
-                            }));
-                          }}
-                          className="mb-0.5 w-7 h-[38px] flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                        >
-                          <i className="fa-solid fa-trash text-xs" />
-                        </button>
-                      </div>
-                      {/* Conditional sub-field based on Điều kiện kích hoạt */}
-                      {row.dieuKienKichHoat === "Theo kết quả xử lý" && (
-                        <div>
-                          <label className={labelCls}>
-                            Kết quả áp dụng{" "}
-                            <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            className={inputCls}
-                            value={row.ketQuaApDung ?? ""}
-                            onChange={(e) => {
-                              const updated = stepForm.dieuKienChuyenTiep.map(
-                                (r, i) =>
-                                  i === idx
-                                    ? { ...r, ketQuaApDung: e.target.value }
-                                    : r,
-                              );
-                              setStepForm((f) => ({
-                                ...f,
-                                dieuKienChuyenTiep: updated,
-                              }));
-                            }}
-                          >
-                            <option value="">-- Chọn kết quả --</option>
-                            {KET_QUA_OPTIONS.map((k) => (
-                              <option key={k}>{k}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      {row.dieuKienKichHoat === "Theo vai trò" && (
-                        <div>
-                          <label className={labelCls}>
-                            Vai trò áp dụng{" "}
-                            <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            className={inputCls}
-                            value={row.vaiTroApDung ?? ""}
-                            onChange={(e) => {
-                              const updated = stepForm.dieuKienChuyenTiep.map(
-                                (r, i) =>
-                                  i === idx
-                                    ? { ...r, vaiTroApDung: e.target.value }
-                                    : r,
-                              );
-                              setStepForm((f) => ({
-                                ...f,
-                                dieuKienChuyenTiep: updated,
-                              }));
-                            }}
-                          >
-                            <option value="">-- Chọn vai trò --</option>
-                            {VAI_TRO_OPTIONS.map((v) => (
-                              <option key={v}>{v}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      <div className="flex gap-5">
-                        {(() => {
-                          const forcedGhiChu = [
-                            "Không duyệt",
-                            "Trả về",
-                            "Yêu cầu bổ sung",
-                          ].includes(row.hanhDong);
-                          return (
-                            <label
-                              className={`flex items-center gap-1.5 ${forcedGhiChu ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={forcedGhiChu || row.batBuocGhiChu}
-                                disabled={forcedGhiChu}
-                                onChange={(e) => {
-                                  if (forcedGhiChu) return;
-                                  const updated =
-                                    stepForm.dieuKienChuyenTiep.map((r, i) =>
-                                      i === idx
-                                        ? {
-                                            ...r,
-                                            batBuocGhiChu: e.target.checked,
-                                          }
-                                        : r,
-                                    );
-                                  setStepForm((f) => ({
-                                    ...f,
-                                    dieuKienChuyenTiep: updated,
-                                  }));
-                                }}
-                              />
-                              <span className="text-xs text-slate-600">
-                                Bắt buộc ghi chú
-                                {forcedGhiChu && (
-                                  <span className="ml-1 text-orange-500 text-[10px]">
-                                    (tự động)
-                                  </span>
-                                )}
-                              </span>
-                            </label>
-                          );
-                        })()}
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={row.batBuocUpload}
-                            onChange={(e) => {
-                              const updated = stepForm.dieuKienChuyenTiep.map(
-                                (r, i) =>
-                                  i === idx
-                                    ? { ...r, batBuocUpload: e.target.checked }
-                                    : r,
-                              );
-                              setStepForm((f) => ({
-                                ...f,
-                                dieuKienChuyenTiep: updated,
-                              }));
-                            }}
-                          />
-                          <span className="text-xs text-slate-600">
-                            Bắt buộc upload tài liệu
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {stepErrs.dieuKienChuyenTiep && (
-                <p className="text-xs text-red-500 mt-1">
-                  {stepErrs.dieuKienChuyenTiep}
-                </p>
-              )}
-            </div>
+                      dieuKienChuyenTiep: {
+                        ...f.dieuKienChuyenTiep,
+                        yeuCauBatBuoc: {
+                          ...f.dieuKienChuyenTiep.yeuCauBatBuoc,
+                          [item.key]: e.target.checked,
+                        },
+                      },
+                    }))
+                  }
+                />
+                <span className="text-xs text-slate-600">{item.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  })()}
 
+  {/* Lỗi validate chung cho điều kiện chuyển tiếp */}
+  {stepErrs.dieuKienChuyenTiep && (
+    <p className="text-xs text-red-500 mt-1">{stepErrs.dieuKienChuyenTiep}</p>
+  )}
+</div>
             {/* ── 6. Nhánh song song ── */}
+            {stepModal.mode === "edit" && (
             <div className="border border-slate-200 rounded-xl p-4 space-y-3">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
                 <i className="fa-solid fa-code-branch text-blue-400" />
@@ -2295,6 +2148,7 @@ export default function LapQuyTrinh() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Footer */}
             <div className="flex justify-end gap-2 pt-1">
