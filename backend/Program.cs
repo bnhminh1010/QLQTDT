@@ -225,6 +225,7 @@ builder.Services.AddScoped<IGoiThauService, GoiThauService>();
 builder.Services.AddScoped<ITaiLieuService, TaiLieuService>();
 builder.Services.AddScoped<IDeXuatService, DeXuatService>();
 builder.Services.AddScoped<IHoSoDuThauService, HoSoDuThauService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IHopDongService, HopDongService>();
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 
