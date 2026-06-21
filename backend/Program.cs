@@ -2,6 +2,7 @@ using FluentValidation;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QLQTDT.Api.Config;
@@ -182,11 +183,15 @@ builder.Services.Configure<GoogleAuthConfig>(options =>
 });
 
 // CORS
+var allowedOrigins = Environment.GetEnvironmentVariable("CORS_ORIGINS")?
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    ?? ["http://localhost:5173"];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -198,6 +203,11 @@ builder.Services.AddHttpContextAccessor();
 
 // MemoryCache (cho LoginAttemptGuard và rate limiting)
 builder.Services.AddMemoryCache();
+
+// DataProtection keys — persist trong container volume để cookie/token không mất sau restart
+builder.Services.AddDataProtection()
+    .SetApplicationName("QLQTDT")
+    .PersistKeysToFileSystem(new DirectoryInfo("/app/DataProtection-Keys"));
 
 // DI — Auth Services
 builder.Services.AddScoped<LoginAttemptGuard>();
@@ -226,6 +236,11 @@ builder.Services.AddScoped<ITaiLieuService, TaiLieuService>();
 builder.Services.AddScoped<IDeXuatService, DeXuatService>();
 builder.Services.AddScoped<IHoSoDuThauService, HoSoDuThauService>();
 builder.Services.AddScoped<IHopDongService, HopDongService>();
+builder.Services.AddScoped<IThongBaoService, ThongBaoService>();
+builder.Services.AddScoped<IWorkflowTemplateService, WorkflowTemplateService>();
+builder.Services.AddScoped<IParallelGroupService, ParallelGroupService>();
+builder.Services.AddScoped<IBaoCaoService, BaoCaoService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -264,6 +279,18 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/", () => Results.Ok(new
+{
+    message = "QLQTDT API is running",
+    environment = app.Environment.EnvironmentName,
+    health = "/health"
+})).AllowAnonymous();
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    environment = app.Environment.EnvironmentName,
+    time = DateTimeOffset.UtcNow
+})).AllowAnonymous();
 
 // Seed dữ liệu mặc định (vai trò + tài khoản admin gốc)
 if (!app.Environment.IsEnvironment("Testing"))

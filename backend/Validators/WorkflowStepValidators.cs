@@ -33,6 +33,12 @@ public class BuocWorkflowCreateRequestValidator : AbstractValidator<BuocWorkflow
         RuleFor(x => x.NhomSongSong)
             .MaximumLength(50).WithMessage("NhomSongSong toi da 50 ky tu");
 
+        RuleFor(x => x.NhomGiaiDoan)
+            .MaximumLength(100).WithMessage("NhomGiaiDoan toi da 100 ky tu");
+
+        RuleFor(x => x.MoTa)
+            .MaximumLength(1000).WithMessage("MoTa toi da 1000 ky tu");
+
         When(x => x.LaBuocJoin, () =>
         {
             RuleFor(x => x.NhomSongSong)
@@ -84,6 +90,18 @@ public class BuocWorkflowUpdateRequestValidator : AbstractValidator<BuocWorkflow
                 .MaximumLength(50).WithMessage("NhomSongSong toi da 50 ky tu");
         });
 
+        When(x => x.NhomGiaiDoan != null, () =>
+        {
+            RuleFor(x => x.NhomGiaiDoan)
+                .MaximumLength(100).WithMessage("NhomGiaiDoan toi da 100 ky tu");
+        });
+
+        When(x => x.MoTa != null, () =>
+        {
+            RuleFor(x => x.MoTa)
+                .MaximumLength(1000).WithMessage("MoTa toi da 1000 ky tu");
+        });
+
         When(x => x.LaBuocJoin == true, () =>
         {
             RuleFor(x => x.NhomSongSong)
@@ -109,5 +127,26 @@ public class ChuyenTiepWorkflowCreateRequestValidator : AbstractValidator<Chuyen
         RuleFor(x => x)
             .Must(x => x.TuBuocId != x.DenBuocId)
             .WithMessage("TuBuocId va DenBuocId phai khac nhau");
+
+        // Designer validation rules
+        RuleFor(x => x.DieuKienKichHoat)
+            .Must(v => v == "LUON" || v == "THEO_KET_QUA" || v == "THEO_VAI_TRO")
+            .WithMessage("DieuKienKichHoat phai la 'LUON', 'THEO_KET_QUA' hoac 'THEO_VAI_TRO'");
+
+        When(x => x.DieuKienKichHoat == "THEO_KET_QUA", () =>
+        {
+            RuleFor(x => x.KetQuaApDung)
+                .NotEmpty().WithMessage("KetQuaApDung la bat buoc khi DieuKienKichHoat = THEO_KET_QUA");
+        });
+
+        When(x => x.DieuKienKichHoat == "THEO_VAI_TRO", () =>
+        {
+            RuleFor(x => x.VaiTroApDungId)
+                .GreaterThan(0).WithMessage("VaiTroApDungId la bat buoc khi DieuKienKichHoat = THEO_VAI_TRO");
+        });
+
+        RuleFor(x => x.HuongXuLyKhongDuyet)
+            .Must(v => string.IsNullOrEmpty(v) || v == "TRA_VE_BUOC_TRUOC" || v == "DUNG_QUY_TRINH")
+            .WithMessage("HuongXuLyKhongDuyet phai la 'TRA_VE_BUOC_TRUOC' hoac 'DUNG_QUY_TRINH'");
     }
 }

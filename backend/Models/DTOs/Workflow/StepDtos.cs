@@ -16,6 +16,18 @@ public class BuocWorkflowListItemDto
     public string? NhomSongSong { get; set; }
     public bool LaBuocJoin { get; set; }
 
+    // Designer extensions
+    public int ThuTu { get; set; }
+    public string? NhomGiaiDoan { get; set; }
+    public string? MoTa { get; set; }
+    public int? DonViXuLyId { get; set; }
+    public int? DonViKyHoSoId { get; set; }
+    public bool BatBuocGhiChu { get; set; }
+    public bool BatBuocTaiLieu { get; set; }
+    public bool BatBuocKyTruocChuyenBuoc { get; set; }
+    public bool BatBuocDungSLA { get; set; }
+    public int? NhanhWorkflowId { get; set; }
+
     public bool ChoPhepTuChoi { get; set; }
     public bool ChoPhepBoQua { get; set; }
 }
@@ -35,6 +47,18 @@ public class BuocWorkflowCreateRequest
     public string? NhomSongSong { get; set; }
     public bool LaBuocJoin { get; set; }
 
+    // Designer extensions
+    public int ThuTu { get; set; }
+    public string? NhomGiaiDoan { get; set; }
+    public string? MoTa { get; set; }
+    public int? DonViXuLyId { get; set; }
+    public int? DonViKyHoSoId { get; set; }
+    public bool BatBuocGhiChu { get; set; }
+    public bool BatBuocTaiLieu { get; set; }
+    public bool BatBuocKyTruocChuyenBuoc { get; set; } = true;
+    public bool BatBuocDungSLA { get; set; }
+    public int? NhanhWorkflowId { get; set; }
+
     public bool ChoPhepTuChoi { get; set; } = true;
     public bool ChoPhepBoQua { get; set; }
 }
@@ -53,6 +77,18 @@ public class BuocWorkflowUpdateRequest
     public string? NhomSongSong { get; set; }
     public bool? LaBuocJoin { get; set; }
 
+    // Designer extensions
+    public int? ThuTu { get; set; }
+    public string? NhomGiaiDoan { get; set; }
+    public string? MoTa { get; set; }
+    public int? DonViXuLyId { get; set; }
+    public int? DonViKyHoSoId { get; set; }
+    public bool? BatBuocGhiChu { get; set; }
+    public bool? BatBuocTaiLieu { get; set; }
+    public bool? BatBuocKyTruocChuyenBuoc { get; set; }
+    public bool? BatBuocDungSLA { get; set; }
+    public int? NhanhWorkflowId { get; set; }
+
     public bool? ChoPhepTuChoi { get; set; }
     public bool? ChoPhepBoQua { get; set; }
 }
@@ -64,6 +100,14 @@ public class ChuyenTiepWorkflowListItemDto
     public int DenBuocId { get; set; }
     public string HanhDong { get; set; } = null!;
     public string? DieuKien { get; set; }
+
+    // Designer extensions
+    public string DieuKienKichHoat { get; set; } = "LUON";
+    public string? KetQuaApDung { get; set; }
+    public int? VaiTroApDungId { get; set; }
+    public bool BatBuocGhiChu { get; set; }
+    public bool BatBuocTaiLieu { get; set; }
+    public string? HuongXuLyKhongDuyet { get; set; }
 }
 
 public class ChuyenTiepWorkflowCreateRequest
@@ -72,4 +116,12 @@ public class ChuyenTiepWorkflowCreateRequest
     public int DenBuocId { get; set; }
     public string HanhDong { get; set; } = null!;
     public string? DieuKien { get; set; }
+
+    // Designer extensions
+    public string DieuKienKichHoat { get; set; } = "LUON";
+    public string? KetQuaApDung { get; set; }
+    public int? VaiTroApDungId { get; set; }
+    public bool BatBuocGhiChu { get; set; }
+    public bool BatBuocTaiLieu { get; set; }
+    public string? HuongXuLyKhongDuyet { get; set; }
 }

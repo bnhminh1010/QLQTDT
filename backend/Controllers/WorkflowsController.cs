@@ -15,10 +15,12 @@ namespace QLQTDT.Api.Controllers;
 public class WorkflowsController : ControllerBase
 {
     private readonly IWorkflowConfigService _workflowService;
+    private readonly IWorkflowTemplateService _templateService;
 
-    public WorkflowsController(IWorkflowConfigService workflowService)
+    public WorkflowsController(IWorkflowConfigService workflowService, IWorkflowTemplateService templateService)
     {
         _workflowService = workflowService;
+        _templateService = templateService;
     }
 
     [HttpGet]
@@ -85,6 +87,22 @@ public class WorkflowsController : ControllerBase
     {
         var version = await _workflowService.GetVersionByIdAsync(id, versionId);
         return Ok(ApiResponse<WorkflowVersionDetailDto>.Ok(version));
+    }
+
+    [HttpPost("generate-from-template")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<WorkflowTemplatePreviewDto>>> GenerateFromTemplate(
+        [FromBody] GenerateWorkflowFromTemplateRequest request,
+        [FromServices] IValidator<GenerateWorkflowFromTemplateRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToValidationError(validation));
+
+        var result = await _templateService.GenerateFromTemplateAsync(request, GetCurrentUserId());
+        return StatusCode(StatusCodes.Status201Created,
+            ApiResponse<WorkflowTemplatePreviewDto>.Ok(result, "Tạo quy trình từ template thành công"));
     }
 
     private int? GetCurrentUserId()

@@ -43,6 +43,9 @@ public class ProcessStepRequest
     public int? NguoiDuocGiaoId { get; set; }
     public byte[]? RowVersion { get; set; }
 
+    /// <summary>Step instance ID for multi-step (branch) context. Required when multiple active steps exist.</summary>
+    public long? WorkflowStepInstanceId { get; set; }
+
     // Fields for single-form submit (DUYET/KHONG_DUYET)
     public int? NguoiXuLyId { get; set; }
     public DateTime? NgayXuLy { get; set; }
@@ -62,6 +65,14 @@ public class ProcessStepResponse
     public string HanhDong { get; set; } = null!;
     public string Message { get; set; } = null!;
     public byte[]? NewRowVersion { get; set; }
+
+    // Branch-aware fields
+    public bool IsSplit { get; set; }
+    public bool IsMerge { get; set; }
+    public bool IsAwaitingMerge { get; set; }
+    public List<long> ActiveStepIds { get; set; } = [];
+    public int? TongSoNhanh { get; set; }
+    public int? SoNhanhHoanThanh { get; set; }
 
     // 2-pha response fields
     public string? PhaHienTai { get; set; }
@@ -96,7 +107,26 @@ public class WorkflowStateDto
     public int SoBuocHoanThanh { get; set; }
     public int TongSoBuoc { get; set; }
     public string? TinhTrangTienDo { get; set; }  // "DUNG_TIEN_DO" | "SAP_QUA_HAN" | "QUA_HAN"
+
+    /// <summary>Collection of currently active step instances. Multiple when in parallel branches.</summary>
+    public List<CurrentStepDto> CurrentSteps { get; set; } = [];
+
     public List<WorkflowStepStateDto> Steps { get; set; } = [];
+}
+
+/// <summary>Lightweight current-step DTO for parallel-aware state response.</summary>
+public class CurrentStepDto
+{
+    public long StepInstanceId { get; set; }
+    public int BuocWorkflowId { get; set; }
+    public string TenBuoc { get; set; } = null!;
+    public string TrangThai { get; set; } = null!;
+    public string PhaHienTai { get; set; } = null!;
+    public long? WorkflowInstanceId { get; set; }
+    public string? TenNhanh { get; set; }
+    public string? HanhDongChoPhep { get; set; }
+    public DateTime? HanXuLy { get; set; }
+    public string? TinhTrangTienDo { get; set; }
 }
 
 public class WorkflowStepStateDto

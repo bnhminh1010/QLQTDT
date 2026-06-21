@@ -46,6 +46,56 @@ public class WorkflowStepsController : ControllerBase
             ApiResponse<BuocWorkflowListItemDto>.Ok(created, "Step created successfully"));
     }
 
+    [HttpPost("{stepId}/insert-after")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<BuocWorkflowListItemDto>>> InsertAfter(
+        int workflowId, int stepId,
+        [FromBody] InsertStepAfterRequest request,
+        [FromServices] IValidator<InsertStepAfterRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToValidationError(validation));
+
+        var created = await _buocWorkflowService.InsertStepAfterAsync(workflowId, stepId, request);
+        return StatusCode(StatusCodes.Status201Created,
+            ApiResponse<BuocWorkflowListItemDto>.Ok(created, "Chèn bước thành công"));
+    }
+
+    [HttpPost("{stepId}/clone")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<BuocWorkflowListItemDto>>> Clone(
+        int workflowId, int stepId,
+        [FromBody] CloneStepRequest request,
+        [FromServices] IValidator<CloneStepRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToValidationError(validation));
+
+        var created = await _buocWorkflowService.CloneStepAsync(workflowId, stepId, request);
+        return StatusCode(StatusCodes.Status201Created,
+            ApiResponse<BuocWorkflowListItemDto>.Ok(created, "Nhân bản bước thành công"));
+    }
+
+    [HttpPost("reorder")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse>> Reorder(
+        int workflowId,
+        [FromBody] ReorderStepsRequest request,
+        [FromServices] IValidator<ReorderStepsRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToValidationError(validation));
+
+        await _buocWorkflowService.ReorderStepsAsync(workflowId, request);
+        return Ok(ApiResponse.Ok("Sắp xếp bước thành công"));
+    }
+
     private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()
     {
         Timestamp = DateTime.UtcNow,

@@ -8,6 +8,8 @@ public class UserDto
     public string Email { get; set; } = null!;
     public bool TrangThaiHoatDong { get; set; }
     public DateTime NgayTao { get; set; }
+    public DateTime? NgayDangNhapCuoi { get; set; }
+    public DateTime? NgayCapNhat { get; set; }
     public string? AvatarUrl { get; set; }
     public List<UserRoleDto> Roles { get; set; } = [];
     public List<string> Quyen { get; set; } = [];

@@ -21,6 +21,18 @@ public class BuocWorkflow : IBaseEntity
     public string? NhomSongSong { get; set; }
     public bool LaBuocJoin { get; set; }
 
+    // ── Designer extensions ────────────────────────────────
+    public int ThuTu { get; set; }
+    public string? NhomGiaiDoan { get; set; }
+    public string? MoTa { get; set; }
+    public int? DonViXuLyId { get; set; }           // FK → KhoaPhong
+    public int? DonViKyHoSoId { get; set; }          // FK → KhoaPhong
+    public bool BatBuocGhiChu { get; set; }
+    public bool BatBuocTaiLieu { get; set; }
+    public bool BatBuocKyTruocChuyenBuoc { get; set; } = true;
+    public bool BatBuocDungSLA { get; set; }
+    public int? NhanhWorkflowId { get; set; }         // nullable — steps inside a branch
+
     // ── Giữ nguyên ────────────────────────────────────────
     public bool ChoPhepTuChoi { get; set; } = true;
     public bool ChoPhepBoQua { get; set; }
@@ -31,6 +43,9 @@ public class BuocWorkflow : IBaseEntity
     public Workflow? Workflow { get; set; }
     public VaiTro? VaiTroXuLyHoSo { get; set; }
     public VaiTro? VaiTroKyDuyet { get; set; }
+    public KhoaPhong? DonViXuLy { get; set; }
+    public KhoaPhong? DonViKyHoSo { get; set; }
+    public NhanhWorkflow? NhanhWorkflow { get; set; }
     public ICollection<ChuyenTiepWorkflow> ChuyenTiepDi { get; set; } = [];
     public ICollection<ChuyenTiepWorkflow> ChuyenTiepDen { get; set; } = [];
     public ICollection<WorkflowStepInstance> WorkflowStepInstances { get; set; } = [];

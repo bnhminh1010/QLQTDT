@@ -1,0 +1,15 @@
+bin/
+obj/
+.omc/
+.git/
+.gitignore
+.env
+*.user
+*.suo
+*.cache
+*.log
+.vs/
+.vscode/
+Properties/launchSettings.json
+Dockerfile
+.dockerignore

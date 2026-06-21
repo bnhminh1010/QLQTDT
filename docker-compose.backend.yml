@@ -1,0 +1,14 @@
+services:
+  api:
+    image: qtdt-backend:local
+    container_name: qtdt-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - qtdt-dataprotection:/app/DataProtection-Keys
+
+volumes:
+  qtdt-dataprotection:

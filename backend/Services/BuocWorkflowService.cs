@@ -194,6 +194,12 @@ public class BuocWorkflowService : IBuocWorkflowService
         var entity = await _context.BuocWorkflows.FindAsync(id)
             ?? throw new NotFoundException($"BuocWorkflow not found: {id}");
 
+        // Không cho xóa bước BẮT ĐẦU hoặc KẾT THÚC
+        if (entity.LoaiBuoc == "BAT_DAU")
+            throw new AppException(400, "CANNOT_DELETE_START", "Không thể xóa bước Bắt đầu.");
+        if (entity.LoaiBuoc == "KET_THUC")
+            throw new AppException(400, "CANNOT_DELETE_END", "Không thể xóa bước Kết thúc.");
+
         var workflowActive = await _context.Workflows.AnyAsync(w => w.Id == entity.WorkflowId && w.TrangThaiHoatDong);
         if (workflowActive)
             throw new AppException(409, "WORKFLOW_ACTIVE",
@@ -295,5 +301,177 @@ public class BuocWorkflowService : IBuocWorkflowService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Deleted transition: id={TransId}", id);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  Step actions: insert-after, clone, reorder
+    // ══════════════════════════════════════════════════════════════════
+
+    public async Task<BuocWorkflowListItemDto> InsertStepAfterAsync(int workflowId, int stepId, InsertStepAfterRequest request)
+    {
+        var workflowExists = await _context.Workflows.AnyAsync(w => w.Id == workflowId);
+        if (!workflowExists)
+            throw new NotFoundException($"Workflow not found: {workflowId}");
+
+        var afterStep = await _context.BuocWorkflows.FindAsync(stepId)
+            ?? throw new NotFoundException($"Step not found: {stepId}");
+
+        if (afterStep.WorkflowId != workflowId)
+            throw new AppException(400, "CROSS_WORKFLOW", "Step does not belong to this workflow.");
+
+        // Shift ThuTu of later steps
+        await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == workflowId && b.ThuTu > afterStep.ThuTu)
+            .ExecuteUpdateAsync(set => set.SetProperty(b => b.ThuTu, b => b.ThuTu + 1));
+
+        var entity = new BuocWorkflow
+        {
+            WorkflowId = workflowId,
+            MaBuoc = request.MaBuoc,
+            TenBuoc = request.TenBuoc,
+            LoaiBuoc = request.LoaiBuoc,
+            ThuTu = afterStep.ThuTu + 1,
+            VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = request.SoNgayLapHoSo,
+            VaiTroKyDuyetId = request.VaiTroKyDuyetId,
+            SoNgayXuLy = request.SoNgayXuLy,
+            LoaiHan = request.LoaiHan,
+            ChoPhepTuChoi = true,
+            ChoPhepBoQua = false
+        };
+
+        _context.BuocWorkflows.Add(entity);
+        await _context.SaveChangesAsync();
+
+        // Create default DUYET transition to next step
+        if (request.CreateDefaultTransition)
+        {
+            var nextStep = await _context.BuocWorkflows
+                .Where(b => b.WorkflowId == workflowId && b.ThuTu == entity.ThuTu + 1)
+                .FirstOrDefaultAsync();
+
+            if (nextStep != null)
+            {
+                _context.ChuyenTiepWorkflows.Add(new ChuyenTiepWorkflow
+                {
+                    TuBuocId = entity.Id,
+                    DenBuocId = nextStep.Id,
+                    HanhDong = "DUYET",
+                    DieuKienKichHoat = "LUON"
+                });
+            }
+
+            // Update transition from afterStep to point to new step
+            var existingTransition = await _context.ChuyenTiepWorkflows
+                .Where(t => t.TuBuocId == afterStep.Id && t.HanhDong == "DUYET")
+                .FirstOrDefaultAsync();
+            if (existingTransition != null)
+                existingTransition.DenBuocId = entity.Id;
+
+            await _context.SaveChangesAsync();
+        }
+
+        _logger.LogInformation("Inserted step after {AfterStepId}: id={NewStepId}, ma={MaBuoc}",
+            stepId, entity.Id, SanitizeForLog(entity.MaBuoc));
+
+        return new BuocWorkflowListItemDto
+        {
+            Id = entity.Id,
+            MaBuoc = entity.MaBuoc,
+            TenBuoc = entity.TenBuoc,
+            LoaiBuoc = entity.LoaiBuoc,
+            ThuTu = entity.ThuTu,
+            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = entity.SoNgayLapHoSo,
+            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
+            SoNgayXuLy = entity.SoNgayXuLy,
+            LoaiHan = entity.LoaiHan,
+            ChoPhepTuChoi = entity.ChoPhepTuChoi,
+            ChoPhepBoQua = entity.ChoPhepBoQua
+        };
+    }
+
+    public async Task<BuocWorkflowListItemDto> CloneStepAsync(int workflowId, int stepId, CloneStepRequest request)
+    {
+        var source = await _context.BuocWorkflows.FindAsync(stepId)
+            ?? throw new NotFoundException($"Step not found: {stepId}");
+
+        if (source.WorkflowId != workflowId)
+            throw new AppException(400, "CROSS_WORKFLOW", "Step does not belong to this workflow.");
+
+        // Shift ThuTu
+        await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == workflowId && b.ThuTu > source.ThuTu)
+            .ExecuteUpdateAsync(set => set.SetProperty(b => b.ThuTu, b => b.ThuTu + 1));
+
+        var entity = new BuocWorkflow
+        {
+            WorkflowId = workflowId,
+            MaBuoc = request.MaBuocMoi,
+            TenBuoc = request.TenBuocMoi,
+            LoaiBuoc = source.LoaiBuoc,
+            ThuTu = source.ThuTu + 1,
+            VaiTroXuLyHoSoId = source.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = source.SoNgayLapHoSo,
+            VaiTroKyDuyetId = source.VaiTroKyDuyetId,
+            SoNgayXuLy = source.SoNgayXuLy,
+            LoaiHan = source.LoaiHan,
+            NhomSongSong = source.NhomSongSong,
+            LaBuocJoin = source.LaBuocJoin,
+            ChoPhepTuChoi = source.ChoPhepTuChoi,
+            ChoPhepBoQua = source.ChoPhepBoQua,
+            BatBuocGhiChu = source.BatBuocGhiChu,
+            BatBuocTaiLieu = source.BatBuocTaiLieu,
+            BatBuocKyTruocChuyenBuoc = source.BatBuocKyTruocChuyenBuoc,
+            BatBuocDungSLA = source.BatBuocDungSLA
+        };
+
+        _context.BuocWorkflows.Add(entity);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Cloned step {SourceId} -> new step id={NewId}, ma={MaBuoc}",
+            stepId, entity.Id, SanitizeForLog(entity.MaBuoc));
+
+        return new BuocWorkflowListItemDto
+        {
+            Id = entity.Id,
+            MaBuoc = entity.MaBuoc,
+            TenBuoc = entity.TenBuoc,
+            LoaiBuoc = entity.LoaiBuoc,
+            ThuTu = entity.ThuTu,
+            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = entity.SoNgayLapHoSo,
+            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
+            SoNgayXuLy = entity.SoNgayXuLy,
+            LoaiHan = entity.LoaiHan,
+            ChoPhepTuChoi = entity.ChoPhepTuChoi,
+            ChoPhepBoQua = entity.ChoPhepBoQua
+        };
+    }
+
+    public async Task ReorderStepsAsync(int workflowId, ReorderStepsRequest request)
+    {
+        var exists = await _context.Workflows.AnyAsync(w => w.Id == workflowId);
+        if (!exists)
+            throw new NotFoundException($"Workflow not found: {workflowId}");
+
+        var stepIds = request.Steps.Select(s => s.Id).ToHashSet();
+
+        var steps = await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == workflowId && stepIds.Contains(b.Id))
+            .ToListAsync();
+
+        if (steps.Count != request.Steps.Count)
+            throw new AppException(400, "INVALID_STEP", "One or more steps not found in this workflow.");
+
+        foreach (var stepDto in request.Steps)
+        {
+            var step = steps.First(s => s.Id == stepDto.Id);
+            step.ThuTu = stepDto.ThuTu;
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Reordered {Count} steps for workflow {WorkflowId}", request.Steps.Count, workflowId);
     }
 }

@@ -62,6 +62,10 @@ public class AuthService : IAuthService
 
         await _loginGuard.ResetAttemptsAsync(lockoutKey);
 
+        // Cập nhật lần đăng nhập gần nhất
+        user.NgayDangNhapCuoi = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
         // Lấy danh sách roles và permissions
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
@@ -85,10 +89,11 @@ public class AuthService : IAuthService
                 Email = user.Email,
                 TrangThaiHoatDong = user.TrangThaiHoatDong,
                 NgayTao = user.NgayTao,
+                NgayDangNhapCuoi = user.NgayDangNhapCuoi,
+                NgayCapNhat = user.NgayCapNhat,
                 AvatarUrl = user.AvatarUrl,
                 Roles = userRoles,
                 Quyen = permissionList
-
             }
         };
     }
@@ -112,6 +117,8 @@ public class AuthService : IAuthService
             Email = user.Email,
             TrangThaiHoatDong = user.TrangThaiHoatDong,
             NgayTao = user.NgayTao,
+            NgayDangNhapCuoi = user.NgayDangNhapCuoi,
+            NgayCapNhat = user.NgayCapNhat,
             AvatarUrl = user.AvatarUrl,
             Roles = userRoles,
             Quyen = permissions
