@@ -656,11 +656,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IdCongKhai).HasDefaultValueSql("NEWSEQUENTIALID()");
             entity.Property(e => e.LoaiThongBao).HasMaxLength(50);
             entity.Property(e => e.TieuDe).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.NoiDung).HasMaxLength(1000);
+            entity.Property(e => e.NoiDung).HasMaxLength(1000).IsRequired(false);
             entity.Property(e => e.DaDoc).HasDefaultValue(false);
             entity.Property(e => e.UrlDieuHuong).HasMaxLength(500);
             entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayDoc).HasColumnType("datetime2(3)");
+            entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => new { e.NguoiDungId, e.DaDoc });
             entity.HasOne(e => e.NguoiDung)
                 .WithMany()

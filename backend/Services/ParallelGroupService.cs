@@ -68,14 +68,19 @@ public class ParallelGroupService : IParallelGroupService
             ?? throw new NotFoundException($"Parallel group not found: {groupId}");
 
         if (request.TenNhom != null) group.TenNhom = request.TenNhom;
-        if (request.DieuKienHopNhat != null) group.DieuKienHopNhat = request.DieuKienHopNhat;
         if (request.BuocSauHopNhatId.HasValue) group.BuocSauHopNhatId = request.BuocSauHopNhatId.Value;
 
-        group.SoNhanhHopNhatToiThieu = request.DieuKienHopNhat == "COUNT"
-            ? request.SoNhanhHopNhatToiThieu
-            : (request.DieuKienHopNhat == null ? group.SoNhanhHopNhatToiThieu : null);
-        if (request.SoNhanhHopNhatToiThieu.HasValue && request.DieuKienHopNhat != "COUNT")
-            group.SoNhanhHopNhatToiThieu = null;
+        if (request.DieuKienHopNhat != null)
+        {
+            group.DieuKienHopNhat = request.DieuKienHopNhat;
+            group.SoNhanhHopNhatToiThieu = request.DieuKienHopNhat == "COUNT"
+                ? request.SoNhanhHopNhatToiThieu
+                : null;
+        }
+        else if (request.SoNhanhHopNhatToiThieu.HasValue && group.DieuKienHopNhat == "COUNT")
+        {
+            group.SoNhanhHopNhatToiThieu = request.SoNhanhHopNhatToiThieu;
+        }
 
         group.NgayCapNhat = DateTime.UtcNow;
         await _db.SaveChangesAsync();

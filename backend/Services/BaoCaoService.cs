@@ -17,7 +17,12 @@ public class BaoCaoService : IBaoCaoService
 
     public async Task<BaoCaoGoiThauResponse> GetGoiThauListAsync(int userId, BaoCaoGoiThauFilterDto filter)
     {
-        var (allowedKhoaPhongIds, isFullScope) = await ResolveScopeAsync(userId);
+        if (filter.Page < 1)
+            throw new BadRequestException("page phải lớn hơn hoặc bằng 1.");
+        if (filter.PageSize < 1 || filter.PageSize > 100)
+            throw new BadRequestException("pageSize phải từ 1 đến 100.");
+
+        var (allowedKhoaPhongIds, isFullScope) = await ScopeResolver.ResolveAsync(_db, userId);
 
         if (!isFullScope && filter.KhoaPhongId.HasValue && !allowedKhoaPhongIds.Contains(filter.KhoaPhongId.Value))
             throw new ForbiddenException("Bạn không có quyền xem dữ liệu của khoa/phòng này.");
@@ -50,28 +55,45 @@ public class BaoCaoService : IBaoCaoService
             .Take(filter.PageSize)
             .Select(g => new BaoCaoGoiThauItemDto
             {
+                Id = g.Id,
                 IdCongKhai = g.IdCongKhai,
                 MaGoiThau = g.MaGoiThau,
                 TenGoiThau = g.TenGoiThau,
-                TenHinhThuc = g.HinhThucId != null
-                    ? _db.HinhThucDauThaus.Where(h => h.Id == g.HinhThucId).Select(h => h.TenHinhThuc).FirstOrDefault()
-                    : null,
+                HinhThucId = g.HinhThucId,
                 GiaTri = g.NganSach,
                 TrangThai = g.TrangThai,
-                TongSoBuoc = _db.WorkflowInstances
-                    .Where(wi => wi.GoiThauId == g.Id)
-                    .SelectMany(wi => wi.WorkflowStepInstances)
-                    .Count(),
-                SoBuocHoanThanh = _db.WorkflowInstances
-                    .Where(wi => wi.GoiThauId == g.Id)
-                    .SelectMany(wi => wi.WorkflowStepInstances)
-                    .Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT)
             })
             .ToListAsync();
 
-        // Calculate percentage
+        // Batch resolve hinh thuc names
+        var hinhThucIds = items.Where(i => i.HinhThucId.HasValue).Select(i => i.HinhThucId!.Value).Distinct().ToList();
+        var hinhThucDict = hinhThucIds.Count > 0
+            ? await _db.HinhThucDauThaus.Where(h => hinhThucIds.Contains(h.Id)).ToDictionaryAsync(h => h.Id, h => h.TenHinhThuc)
+            : new Dictionary<int, string>();
+
+        // Batch resolve step counts
+        var goiThauIds = items.Select(g => g.Id).ToList();
+        var stepCountsRaw = await _db.WorkflowInstances
+            .Where(wi => goiThauIds.Contains(wi.GoiThauId))
+            .SelectMany(wi => wi.WorkflowStepInstances)
+            .GroupBy(wsi => wsi.WorkflowInstance!.GoiThauId)
+            .Select(g => new
+            {
+                GoiThauId = g.Key,
+                Total = g.Count(),
+                Completed = g.Count(wsi => wsi.TrangThai == QLQTDT.Api.Models.Entities.WorkflowStepTrangThai.HOAN_TAT)
+            })
+            .ToListAsync();
+        var stepCountDict = stepCountsRaw.ToDictionary(s => s.GoiThauId);
+
         foreach (var item in items)
         {
+            item.TenHinhThuc = item.HinhThucId.HasValue ? hinhThucDict.GetValueOrDefault(item.HinhThucId.Value) : null;
+            if (stepCountDict.TryGetValue(item.Id, out var counts))
+            {
+                item.TongSoBuoc = counts.Total;
+                item.SoBuocHoanThanh = counts.Completed;
+            }
             item.PhanTramHoanThanh = item.TongSoBuoc > 0
                 ? Math.Round((double)item.SoBuocHoanThanh / item.TongSoBuoc * 100, 1)
                 : 0;
@@ -88,7 +110,7 @@ public class BaoCaoService : IBaoCaoService
 
     public async Task<BaoCaoTongHopDto> GetTongHopAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
     {
-        var (allowedKhoaPhongIds, isFullScope) = await ResolveScopeAsync(userId);
+        var (allowedKhoaPhongIds, isFullScope) = await ScopeResolver.ResolveAsync(_db, userId);
 
         var query = _db.GoiThaus
             .Where(g => g.TrangThaiHoatDong)
@@ -176,21 +198,4 @@ public class BaoCaoService : IBaoCaoService
         };
     }
 
-    /// <summary>Resolve scope: returns (allowedKhoaPhongIds, isFullScope).
-    /// Full scope = user có role gắn với null KhoaPhongId (Admin/BGĐ/P.QLĐT toàn quyền).</summary>
-    private async Task<(HashSet<int> Ids, bool IsFull)> ResolveScopeAsync(int userId)
-    {
-        var assignments = await _db.NguoiDungKhoaPhongVaiTros
-            .Where(nkv => nkv.NguoiDungId == userId)
-            .Select(nkv => nkv.KhoaPhongId)
-            .Distinct()
-            .ToListAsync();
-
-        // User has any assignment with null KhoaPhongId = full scope (global role)
-        if (assignments.Any(id => id == null))
-            return ([], true);
-
-        var khoaPhongIds = assignments.Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
-        return (khoaPhongIds, false);
-    }
 }

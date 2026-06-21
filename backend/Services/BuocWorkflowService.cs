@@ -337,7 +337,13 @@ public class BuocWorkflowService : IBuocWorkflowService
             SoNgayXuLy = request.SoNgayXuLy,
             LoaiHan = request.LoaiHan,
             ChoPhepTuChoi = true,
-            ChoPhepBoQua = false
+            ChoPhepBoQua = false,
+            BatBuocGhiChu = request.BatBuocGhiChu,
+            BatBuocTaiLieu = request.BatBuocTaiLieu,
+            BatBuocKyTruocChuyenBuoc = request.BatBuocKyTruocChuyenBuoc,
+            BatBuocDungSLA = request.BatBuocDungSLA,
+            DonViXuLyId = request.DonViXuLyId,
+            DonViKyHoSoId = request.DonViKyHoSoId
         };
 
         _context.BuocWorkflows.Add(entity);

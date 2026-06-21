@@ -25,6 +25,7 @@ public class GoiThauHienTaiDto
     public int TongSoBuoc { get; set; }
     public int SoBuocHoanThanh { get; set; }
     public double PhanTramHoanThanh { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<NhanhSongSongDto>? NhanhSongSong { get; set; }
 }
 

@@ -64,18 +64,17 @@ public class ThongBaoService : IThongBaoService
         await _db.SaveChangesAsync();
     }
 
-    public async Task MarkAllReadAsync(int nguoiDungId)
+    public async Task<int> MarkAllReadAsync(int nguoiDungId)
     {
-        var unread = await _db.ThongBaos
+        var count = await _db.ThongBaos
+            .CountAsync(t => t.NguoiDungId == nguoiDungId && !t.DaDoc);
+
+        await _db.ThongBaos
             .Where(t => t.NguoiDungId == nguoiDungId && !t.DaDoc)
-            .ToListAsync();
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(t => t.DaDoc, true)
+                .SetProperty(t => t.NgayDoc, DateTime.UtcNow));
 
-        foreach (var thongBao in unread)
-        {
-            thongBao.DaDoc = true;
-            thongBao.NgayDoc = DateTime.UtcNow;
-        }
-
-        await _db.SaveChangesAsync();
+        return count;
     }
 }

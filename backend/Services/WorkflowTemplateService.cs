@@ -279,17 +279,11 @@ public class WorkflowTemplateService : IWorkflowTemplateService
         var year = DateTime.UtcNow.Year;
         var prefix = $"QT-{year}-";
 
-        var existingCodes = await _db.Workflows
+        var maxSuffix = await _db.Workflows
             .Where(w => w.MaWorkflow.StartsWith(prefix))
-            .Select(w => w.MaWorkflow)
-            .ToListAsync();
+            .MaxAsync(w => w.MaWorkflow) ?? prefix + "000";
 
-        var maxNumber = existingCodes
-            .Select(code => code.Length > prefix.Length ? code[prefix.Length..] : string.Empty)
-            .Select(suffix => int.TryParse(suffix, out var number) ? number : 0)
-            .DefaultIfEmpty(0)
-            .Max();
-
+        var maxNumber = maxSuffix.Length > prefix.Length && int.TryParse(maxSuffix[prefix.Length..], out var n) ? n : 0;
         return $"{prefix}{(maxNumber + 1).ToString().PadLeft(3, '0')}";
     }
 }

@@ -20,6 +20,7 @@ public class WorkflowTemplatesController : ControllerBase
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<List<WorkflowTemplateSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<List<WorkflowTemplateSummaryDto>>>> GetAll(
         [FromQuery] string? loaiHinh)
     {
@@ -28,6 +29,8 @@ public class WorkflowTemplatesController : ControllerBase
     }
 
     [HttpGet("{id}/preview")]
+    [ProducesResponseType(typeof(ApiResponse<WorkflowTemplatePreviewDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<WorkflowTemplatePreviewDto>>> Preview(int id)
     {
         var preview = await _templateService.PreviewAsync(id);

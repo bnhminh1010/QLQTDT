@@ -16,14 +16,7 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardTongQuanDto> GetTongQuanAsync(int userId)
     {
-        var assignments = await _db.NguoiDungKhoaPhongVaiTros
-            .Where(nkv => nkv.NguoiDungId == userId)
-            .Select(nkv => nkv.KhoaPhongId)
-            .Distinct()
-            .ToListAsync();
-
-        var isFullScope = assignments.Any(id => id == null);
-        var allowedKhoaPhongIds = assignments.Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
+        var (allowedKhoaPhongIds, isFullScope) = await ScopeResolver.ResolveAsync(_db, userId);
 
         var query = _db.GoiThaus
             .Where(g => g.TrangThaiHoatDong)

@@ -42,8 +42,8 @@ public class ThongBaoController : ControllerBase
     public async Task<IActionResult> MarkAllRead()
     {
         var userId = GetCurrentUserId();
-        await _thongBaoService.MarkAllReadAsync(userId);
-        return Ok(new { message = "Đã đánh dấu tất cả thông báo đã đọc." });
+        var count = await _thongBaoService.MarkAllReadAsync(userId);
+        return Ok(new { message = $"Đã đánh dấu {count} thông báo đã đọc.", count });
     }
 
     private int GetCurrentUserId()

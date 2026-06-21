@@ -15,10 +15,12 @@ public class BaoCaoGoiThauFilterDto
 /// <summary>Dòng trong bảng báo cáo gói thầu (dùng cho user bị giới hạn khoa/phòng)</summary>
 public class BaoCaoGoiThauItemDto
 {
+    public int Id { get; set; }
     public Guid IdCongKhai { get; set; }
     public string MaGoiThau { get; set; } = null!;
     public string TenGoiThau { get; set; } = null!;
     public string? TenHinhThuc { get; set; }
+    public int? HinhThucId { get; set; }
     public decimal? GiaTri { get; set; }
     public string TrangThai { get; set; } = null!;
     public int TongSoBuoc { get; set; }

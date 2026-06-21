@@ -6,5 +6,5 @@ public interface IThongBaoService
 {
     Task<ThongBaoListResponse> GetListAsync(int nguoiDungId, int page = 1, int pageSize = 20, bool? daDoc = null);
     Task MarkReadAsync(Guid idCongKhai, int nguoiDungId);
-    Task MarkAllReadAsync(int nguoiDungId);
+    Task<int> MarkAllReadAsync(int nguoiDungId);
 }
