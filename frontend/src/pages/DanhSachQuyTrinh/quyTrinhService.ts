@@ -45,13 +45,15 @@ export type DieuKienChuyenTiep = {
 };
 
 export type NhanhSongSong = {
+    /** Id nhánh */
   id: string;
   tenNhanh: string;
-  donVi: string;
-  vaiTro: string;
-  thoiHanNgay: number;
-  loaiThoiHan: LoaiThoiHan;
-  buocDauTienId: string;
+  buocList: Buoc[];
+  // donVi: string;
+  // vaiTro: string;
+  // thoiHanNgay: number;
+  // loaiThoiHan: LoaiThoiHan;
+  // buocDauTienId: string;
 };
 
 export const HINH_THUC_OPTIONS = [

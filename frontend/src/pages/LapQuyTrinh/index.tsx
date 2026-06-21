@@ -199,6 +199,11 @@ export default function LapQuyTrinh() {
   const editId = searchParams.get("id");
   const isEdit = !!editId;
 
+  const [selectedBranchStep, setSelectedBranchStep] = useState<{
+    branchId:string;
+     stepId:string;
+  } | null>(null);
+
   /* ── Form state ── */
   const [tenQuyTrinh, setTenQuyTrinh] = useState("");
   const [tenErr, setTenErr] = useState("");
@@ -218,6 +223,8 @@ export default function LapQuyTrinh() {
   const [stepModal, setStepModal] = useState<{
     mode: StepMode;
     targetId?: string;
+    parentType?: "parallel-branch";
+    branchId?: string;
   } | null>(null);
   const [stepForm, setStepForm] = useState<Omit<Buoc, "id">>(emptyStep());
   const [stepErrs, setStepErrs] = useState<
@@ -300,11 +307,26 @@ export default function LapQuyTrinh() {
   }
 
   /* ── Step modal helpers ── */
-  function openAdd() {
-    setStepForm(emptyStep());
-    setStepErrs({});
-    setStepModal({ mode: "add" });
+function openAdd(
+  config?: {
+    parentType?: "parallel-branch";
+    branchId?: string;
   }
+) {
+  if(config?.parentType === "parallel-branch") {
+    setStepForm(f => ({
+      ...f
+    }));
+  } else {
+    setStepForm(emptyStep());
+  }
+  setStepErrs({});
+
+  setStepModal({
+    mode:"add",
+    ...config
+  });
+}
 
   function openEdit(b: Buoc) {
   setStepForm({
@@ -380,11 +402,45 @@ export default function LapQuyTrinh() {
 
   function saveStep() {
     if (!validateStep()) return;
-    if (stepModal?.mode === "add") {
-      const newB: Buoc = { ...stepForm, id: Date.now().toString() };
+    const newB: Buoc = { ...stepForm, id: Date.now().toString() };
+    // Thêm bước vào nhánh song song
+ if (
+    stepModal?.mode === "add" &&
+    stepModal.parentType === "parallel-branch"
+  ) {
+    setBuocList((prev) =>
+      prev.map((b) => {
+        // không phải bước chứa nhánh
+        if (!b.nhanhList) return b;
+        return {
+          ...b,
+          nhanhList: b.nhanhList.map((nhanh) => {
+            // đúng nhánh cần thêm bước
+            if (
+              nhanh.id === stepModal.branchId
+            ) {
+              return {
+                ...nhanh,
+                buocList: [
+                  ...nhanh.buocList,
+                  newB,
+                ],
+              };
+            }
+            return nhanh;
+          }),
+          };
+        }),
+      );
+      toast.success("Đã thêm bước vào nhánh");
+    }
+    // Thêm bước
+    else if (stepModal?.mode === "add") {
       setBuocList((prev) => [...prev, newB]);
       toast.success("Đã thêm bước");
-    } else {
+    } 
+    // Chỉnh sửa bước
+    else {
       setBuocList((prev) =>
         prev.map((b) =>
           b.id === stepModal?.targetId ? { ...b, ...stepForm } : b,
@@ -1208,62 +1264,142 @@ function doDelete() {
                 nào). Kiểm tra lại điều kiện chuyển tiếp.
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-1.5">
-              {buocList.map((b, idx) => (
-                <div key={b.id} className="flex items-center gap-1.5">
-                  <div
-                    className={`flex flex-col items-center px-3 py-2 rounded-xl border text-center min-w-[80px] ${
-                      b.loai === "Bắt đầu"
-                        ? "bg-emerald-50 border-emerald-300"
-                        : b.loai === "Kết thúc"
-                          ? "bg-red-50 border-red-300"
-                          : b.loai === "Ký duyệt"
-                            ? "bg-purple-50 border-purple-300"
-                            : b.loai === "Đăng tải"
-                              ? "bg-cyan-50 border-cyan-300"
-                              : b.loai === "Đánh giá/kiểm tra"
-                                ? "bg-amber-50 border-amber-300"
-                                : b.loai === "Hợp đồng"
-                                  ? "bg-indigo-50 border-indigo-300"
-                                  : orphanIds.has(b.id)
-                                    ? "bg-amber-50 border-amber-300"
-                                    : "bg-blue-50 border-blue-200"
-                    }`}
-                  >
-                    <span
-                      className={`text-[10px] font-bold mb-0.5 ${
-                        b.loai === "Bắt đầu"
-                          ? "text-emerald-600"
-                          : b.loai === "Kết thúc"
-                            ? "text-red-600"
-                            : b.loai === "Ký duyệt"
-                              ? "text-purple-600"
-                              : b.loai === "Đăng tải"
-                                ? "text-cyan-600"
-                                : b.loai === "Đánh giá/kiểm tra"
-                                  ? "text-amber-600"
-                                  : b.loai === "Hợp đồng"
-                                    ? "text-indigo-600"
-                                    : orphanIds.has(b.id)
-                                      ? "text-amber-600"
-                                      : "text-blue-600"
-                      }`}
-                    >
-                      {idx + 1}
+<div className="space-y-3 max-w-2xl mx-auto">
+  {buocList.map((b, idx) => (
+    <div key={b.id} className="flex flex-col items-center">
+      {/* Bước thường */}
+      <div
+        className={`
+          w-full max-w-xs px-4 py-3 rounded-2xl border-2 text-center transition-all
+          ${
+            b.coNhanhSongSong
+              ? 'border-blue-300 bg-blue-50/70 shadow-sm shadow-blue-100/50'
+              : 'border-slate-200 bg-white hover:shadow-md'
+          }
+        `}
+      >
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-[11px] font-bold text-blue-500 bg-blue-100 px-2 py-0.5 rounded-full">
+            {idx + 1}
+          </span>
+          <span className="text-sm font-medium text-slate-700 truncate">
+            {b.ten}
+          </span>
+          {b.coNhanhSongSong && (
+            <span className="text-[10px] bg-blue-200 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <i className="fa-solid fa-code-branch" />
+              {b.nhanhList?.length || 0} nhánh
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Mũi tên nối (trừ bước cuối) */}
+      {!b.coNhanhSongSong && idx < buocList.length - 1 && (
+        <div className="text-slate-300 text-xl leading-none py-1">↓</div>
+      )}
+
+      {/* Khối nhánh song song */}
+      {b.coNhanhSongSong && b.nhanhList?.length > 0 && (
+        <div className="w-full mt-2 relative">
+          {/* Đường dọc nối từ bước vào khối nhánh */}
+          <div className="flex justify-center text-slate-300 text-xl leading-none">↓</div>
+
+          <div className="relative border-l-4 border-blue-300 pl-6 ml-4 py-2">
+            {/* Tiêu đề khối */}
+            <div className="flex items-center gap-2 mb-3">
+              <i className="fa-solid fa-code-branch text-blue-500 text-sm" />
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">
+                Nhánh song song
+              </span>
+              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                {b.nhanhList.length} nhánh
+              </span>
+            </div>
+
+            {/* Danh sách nhánh - dùng grid để căn đều */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {b.nhanhList.map((nhanh, nIndex) => (
+                <div
+                  key={nhanh.id}
+                  className="border border-blue-200 bg-white/80 rounded-xl shadow-sm overflow-hidden"
+                >
+                  {/* Header nhánh */}
+                  <div className="bg-blue-50/80 px-3 py-2 border-b border-blue-100 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                      <i className="fa-regular fa-circle-check text-blue-400" />
+                      Nhánh {nIndex + 1}
+                      {nhanh.tenNhanh && (
+                        <span className="font-normal text-slate-500">
+                          : {nhanh.tenNhanh}
+                        </span>
+                      )}
                     </span>
-                    <span className="text-[11px] font-medium text-slate-700 break-words max-w-[80px] leading-tight">
-                      {b.ten}
-                    </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">
-                      {b.slaNgay}N
+                    <span className="text-[10px] text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                      {nhanh.buocList.length} bước
                     </span>
                   </div>
-                  {idx < buocList.length - 1 && (
-                    <i className="fa-solid fa-arrow-right text-slate-300 text-xs" />
-                  )}
+
+                  {/* Danh sách bước trong nhánh */}
+                  <div className="p-3 space-y-1.5">
+                    {nhanh.buocList.length > 0 ? (
+                      nhanh.buocList.map((nb, i) => (
+                        <div
+                          key={nb.id}
+                          className="flex items-center gap-2 text-xs text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded-md border border-slate-100"
+                        >
+                          <span className="text-[10px] font-mono text-slate-400 w-4 text-right">
+                            {i + 1}.
+                          </span>
+                          <span className="truncate">{nb.ten}</span>
+                          {nb.donViPhuTrach && (
+                            <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full ml-auto flex-shrink-0">
+                              {nb.donViPhuTrach}
+                            </span>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-[11px] text-slate-400 py-2 italic">
+                        Chưa có bước nào
+                      </div>
+                    )}
+                    {/* Mũi tên nhỏ cuối nhánh */}
+                    {nhanh.buocList.length > 0 && (
+                      <div className="flex justify-center text-slate-300 text-xs py-0.5">↓</div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
+
+            {/* Vùng hợp nhất */}
+            <div className="mt-4 flex flex-col items-center">
+              <div className="flex items-center gap-2 text-xs font-semibold text-purple-600 bg-purple-50/70 px-4 py-1.5 rounded-full border border-purple-200">
+                <i className="fa-solid fa-code-merge" />
+                Điều kiện hợp nhất: {b.dieuKienHopNhat === 'all' && 'Đợi tất cả nhánh hoàn thành'}
+                {b.dieuKienHopNhat === 'any' && 'Chỉ cần một nhánh hoàn thành'}
+                {b.dieuKienHopNhat === 'count' && `Tối thiểu ${b.soNhanhHopNhatToiThieu} nhánh`}
+              </div>
+
+              {/* Mũi tên dẫn đến bước sau hợp nhất */}
+              <div className="text-slate-300 text-xl leading-none py-1">↓</div>
+
+              {b.buocSauHopNhatId && (
+                <div className="w-full max-w-xs px-4 py-2 rounded-xl border-2 border-purple-200 bg-purple-50/50 text-center text-sm font-medium text-slate-700">
+                  {buocList.find(x => x.id === b.buocSauHopNhatId)?.ten || 'Bước đã chọn'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mũi tên thoát khỏi khối (xuống bước tiếp theo) */}
+          <div className="flex justify-center text-slate-300 text-xl leading-none mt-2">↓</div>
+        </div>
+      )}
+    </div>
+  ))}
+</div>
           </section>
         )}
       </div>
@@ -1827,7 +1963,8 @@ function doDelete() {
   )}
 </div>
             {/* ── 6. Nhánh song song ── */}
-            {stepModal.mode === "edit" && (
+            {(stepModal.mode === "edit" ||
+            stepModal.parentType === "parallel-branch") && (
             <div className="border border-slate-200 rounded-xl p-4 space-y-3">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
                 <i className="fa-solid fa-code-branch text-blue-400" />
@@ -1863,12 +2000,13 @@ function doDelete() {
                     onClick={() => {
                       const newBranch: NhanhSongSong = {
                         id: Date.now().toString(),
-                        tenNhanh: "",
-                        donVi: DON_VI_OPTIONS[0],
-                        vaiTro: VAI_TRO_OPTIONS[0],
-                        thoiHanNgay: 1,
-                        loaiThoiHan: "Chỉ cảnh báo quá hạn",
-                        buocDauTienId: "",
+                        tenNhanh: `Nhánh ${stepForm.nhanhList.length + 1}`,
+                        buocList: [],
+                        // donVi: DON_VI_OPTIONS[0],
+                        // vaiTro: VAI_TRO_OPTIONS[0],
+                        // thoiHanNgay: 1,
+                        // loaiThoiHan: "Chỉ cảnh báo quá hạn",
+                        // buocDauTienId: "",
                       };
                       setStepForm((f) => ({
                         ...f,
@@ -1891,20 +2029,249 @@ function doDelete() {
                         </span>
                         <button
                           type="button"
-                          onClick={() =>
-                            setStepForm((f) => ({
-                              ...f,
-                              nhanhList: f.nhanhList.filter(
-                                (_, i) => i !== idx,
-                              ),
-                            }))
-                          }
+                            onClick={()=>{
+                              if(confirm("Xóa nhánh này?")){
+                                setStepForm(f=>({
+                                  ...f,
+                                 nhanhList:f.nhanhList.filter(
+                                  n=>n.id!==nhanh.id
+                                 )
+                                }))
+                              }
+                            }}
+                          // onClick={() =>
+                          //   setStepForm((f) => ({
+                          //     ...f,
+                          //     nhanhList: f.nhanhList.filter(
+                          //       (_, i) => i !== idx,
+                          //     ),
+                          //   }))
+                          // }
                           className="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:bg-red-50"
                         >
-                          <i className="fa-solid fa-xmark text-xs" />
+                          <i className="fa-solid fa-trash text-xs" />
+                          {/* <i className="fa-solid fa-xmark text-xs" /> */}
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-3">
+
+  {/* danh sách bước trong nhánh */}
+  {nhanh.buocList.length === 0 ? (
+<div className="flex gap-2">
+
+<select
+ className={inputCls}
+ value={
+   selectedBranchStep?.branchId === nhanh.id
+   ? selectedBranchStep.stepId
+   : ""
+ }
+ onChange={(e)=>{
+
+   setSelectedBranchStep({
+     branchId: nhanh.id,
+     stepId:e.target.value
+   });
+
+ }}
+>
+
+<option value="">
+ -- Chọn bước --
+</option>
+
+
+{buocList
+.filter(b =>
+  !nhanh.buocList.some(
+    nb=>nb.id===b.id
+  )
+)
+.map(b=>(
+<option
+ key={b.id}
+ value={b.id}
+>
+ {b.ten}
+</option>
+))}
+
+</select>
+
+
+<button
+ type="button"
+ className="px-3 bg-blue-50 text-blue-600 rounded-lg text-xs"
+ onClick={()=>{
+ const step =
+   buocList.find(
+    b=>b.id===selectedBranchStep?.stepId
+   );
+ if(!step) return;
+ setStepForm(f=>({
+   ...f,
+   nhanhList:f.nhanhList.map(n=>
+    n.id===nhanh.id
+    ?
+    {
+      ...n,
+
+      buocList:[
+        ...n.buocList,
+
+        {
+          ...step,
+          id:Date.now().toString()
+        }
+      ]
+    }
+    :
+    n
+   )
+ }));
+ setSelectedBranchStep(null);
+ }}
+>
+ Thêm
+</button>
+
+
+</div>
+  ) : (
+    <div className="space-y-2">
+
+      {nhanh.buocList.map((b, stepIndex)=>(
+        <div key={b.id}>
+
+          <div className="flex items-center justify-between bg-white border rounded-lg px-3 py-2">
+
+            <div className="flex items-center gap-2">
+
+              <i className="fa-solid fa-grip-lines text-slate-400"/>
+
+              <span className="text-xs font-medium">
+                {b.ten}
+              </span>
+
+            </div>
+
+
+            <div className="flex gap-2">
+
+              <button
+                onClick={()=>openEdit(b)}
+              >
+                <i className="fa-solid fa-pen text-xs"/>
+              </button>
+
+
+              <button
+                onClick={()=>{
+                  // delete step
+                }}
+              >
+                <i className="fa-solid fa-ellipsis text-xs"/>
+              </button>
+
+            </div>
+
+          </div>
+
+
+          {stepIndex !== nhanh.buocList.length-1 && (
+            <div className="text-center text-slate-400">
+              ↓
+            </div>
+          )}
+
+        </div>
+      ))}
+
+
+<div className="flex gap-2">
+
+<select
+ className={inputCls}
+ value={
+   selectedBranchStep?.branchId === nhanh.id
+   ? selectedBranchStep.stepId
+   : ""
+ }
+ onChange={(e)=>{
+
+   setSelectedBranchStep({
+     branchId: nhanh.id,
+     stepId:e.target.value
+   });
+
+ }}
+>
+
+<option value="">
+ -- Chọn bước --
+</option>
+
+
+{buocList
+.filter(b =>
+  !nhanh.buocList.some(
+    nb=>nb.id===b.id
+  )
+)
+.map(b=>(
+<option
+ key={b.id}
+ value={b.id}
+>
+ {b.ten}
+</option>
+))}
+
+</select>
+
+
+<button
+ type="button"
+ className="px-3 bg-blue-50 text-blue-600 rounded-lg text-xs"
+ onClick={()=>{
+ const step =
+   buocList.find(
+    b=>b.id===selectedBranchStep?.stepId
+   );
+ if(!step) return;
+ setStepForm(f=>({
+   ...f,
+   nhanhList:f.nhanhList.map(n=>
+    n.id===nhanh.id
+    ?
+    {
+      ...n,
+      buocList:[
+        ...n.buocList,
+        {
+          ...step,
+          id:Date.now().toString()
+        }
+      ]
+    }
+    :
+    n
+   )
+ }));
+ setSelectedBranchStep(null);
+ }}
+>
+ Thêm
+</button>
+
+
+</div>
+
+    </div>
+  )}
+
+</div>
+                      {/* <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className={labelCls}>Tên nhánh</label>
                           <input
@@ -2044,7 +2411,7 @@ function doDelete() {
                             </option>
                           </select>
                         </div>
-                      </div>
+                      </div> */}
                     </div>
                   ))}
                   {/* Điều kiện hợp nhất + Bước sau khi hợp nhất */}
@@ -2055,35 +2422,51 @@ function doDelete() {
                           Điều kiện hợp nhất{" "}
                           <span className="text-red-500">*</span>
                         </label>
-                        <div className="flex flex-col gap-2">
-                          {(["all", "any", "count"] as const).map((v) => (
-                            <label
-                              key={v}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <input
-                                type="radio"
-                                name="dieuKienHopNhat"
-                                value={v}
-                                checked={stepForm.dieuKienHopNhat === v}
-                                onChange={() =>
-                                  setStepForm((f) => ({
-                                    ...f,
-                                    dieuKienHopNhat: v,
-                                  }))
-                                }
-                              />
-                              <span className="text-xs text-slate-700">
-                                {v === "all"
-                                  ? "Đợi tất cả nhánh hoàn thành"
-                                  : v === "any"
-                                    ? "Chỉ cần một nhánh hoàn thành"
-                                    : "Theo số lượng hoàn thành"}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                        {stepForm.dieuKienHopNhat === "count" && (
+                          <div className="flex flex-col gap-2">
+  <label className="flex gap-2 items-center">
+    <input
+      type="radio"
+      name="dieuKienHopNhat"
+      checked={stepForm.dieuKienHopNhat === "all"}
+      onChange={() =>
+        setStepForm((f) => ({
+          ...f,
+          dieuKienHopNhat: "all",
+          soNhanhHopNhatToiThieu: f.nhanhList.length,
+        }))
+      }
+    />
+    <span className="text-xs text-slate-700">
+      Đợi tất cả nhánh hoàn thành
+    </span>
+  </label>
+label</div>
+                            {/* // <label
+                            //   key={v}
+                            //   className="flex items-center gap-2 cursor-pointer"
+                            // >
+                            //   <input
+                            //     type="radio"
+                            //     name="dieuKienHopNhat"
+                            //     value={v}
+                            //     checked={stepForm.dieuKienHopNhat === v}
+                            //     onChange={() =>
+                            //       setStepForm((f) => ({
+                            //         ...f,
+                            //         dieuKienHopNhat: v,
+                            //       }))
+                            //     }
+                            //   />
+                            //   <span className="text-xs text-slate-700">
+                            //     {v === "all"
+                            //       ? "Đợi tất cả nhánh hoàn thành"
+                            //       : v === "any"
+                            //         ? "Chỉ cần một nhánh hoàn thành"
+                            //         : "Theo số lượng hoàn thành"}
+                            //   </span>
+                            // </label> */}
+
+                        {stepForm.dieuKienHopNhat === "all" && (
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-slate-600">
                               Tối thiểu
