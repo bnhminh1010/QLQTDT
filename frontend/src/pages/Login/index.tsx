@@ -4,10 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
 import { useShowPassword } from "@/util/showPassword";
 import { loginSchema } from "@/util/validate";
-import {
-  MOCK_REPORT_ACCOUNTS,
-  setCurrentMockReportAccount,
-} from "@/util/mockReportAccounts";
+import { loginApi, setStoredToken } from "@/services/api";
 
 type LoginFormData = {
   username: string;
@@ -28,22 +25,19 @@ export default function Login() {
     defaultValues: { username: "", password: "", rememberMe: false },
   });
 
-  // TODO: thay bằng real API call khi có backend
-  // Mock account để tester có thể đăng nhập: admin / Admin@1234
   async function onSubmit(data: LoginFormData) {
-    const account = MOCK_REPORT_ACCOUNTS.find(
-      (item) =>
-        item.username.toLowerCase() === data.username.trim().toLowerCase() &&
-        item.password === data.password,
-    );
-
-    if (account) {
-      setCurrentMockReportAccount(account);
-      localStorage.setItem("accessToken", `mock-token-${account.key}`);
+    try {
+      const result = await loginApi({
+        username: data.username.trim(),
+        password: data.password,
+        rememberMe: data.rememberMe,
+      });
+      setStoredToken(`mock-token-${result.user.id}`);
       toast.success("Đăng nhập thành công");
       navigate("/dashboard");
-    } else {
-      toast.error("Tên đăng nhập hoặc mật khẩu không đúng");
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || "Tên đăng nhập hoặc mật khẩu không đúng";
+      toast.error(msg);
     }
   }
 
@@ -147,25 +141,9 @@ export default function Login() {
           <div className="flex gap-3 bg-blue-50 border border-blue-200 rounded-xl p-3.5 mb-6 text-sm text-slate-700">
             <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 shrink-0" />
             <span>
-              Tài khoản được cấp bởi Phòng Công nghệ thông tin. Liên hệ{" "}
-              <strong>ext. 1234</strong> nếu chưa có.
+              Sử dụng tài khoản được cấp bởi Phòng Công nghệ thông tin. Liên hệ{" "}
+              <strong>ext. 1234</strong> nếu chưa có tài khoản.
             </span>
-          </div>
-
-          <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-              Tài khoản mock báo cáo
-            </div>
-            <div className="grid grid-cols-1 gap-1.5 text-xs text-slate-600">
-              {MOCK_REPORT_ACCOUNTS.map((account) => (
-                <div key={account.key} className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-slate-700">{account.label}</span>
-                  <code className="rounded bg-white px-2 py-0.5 text-blue-700">
-                    {account.username} / {account.password}
-                  </code>
-                </div>
-              ))}
-            </div>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

@@ -96,290 +96,18 @@ const DOT_CLS: Record<DotState, string> = {
   idle: "bg-slate-200",
 };
 
-/* ─── Mock data ───────────────────────────────────────── */
-const INITIAL_DATA: GoiThau[] = [
-  {
-    id: "GT2025-001",
-    ten: "Mua sắm thiết bị y tế khoa Nội",
-    hinhThuc: "Chỉ định thầu rút gọn",
-    giaTriStr: "320,000,000",
-    giaTriNum: 320000000,
-    donVi: "Khoa Nội",
-    trangThai: "Đang xử lý",
-    detail: {
-      nguonVon: "Ngân sách BV",
-      ngayTao: "10/01/2025",
-      hanHT: "30/04/2025",
-      pct: "35.7%",
-      buoc: "5/14",
-    },
-  },
-  {
-    id: "GT2025-002",
-    ten: "Sửa chữa hệ thống điện tầng 3",
-    hinhThuc: "Chỉ định thầu tự quyết định",
-    giaTriStr: "38,000,000",
-    giaTriNum: 38000000,
-    donVi: "P.HCQT",
-    trangThai: "Hoàn thành",
-    detail: {
-      nguonVon: "Tự chủ tài chính",
-      ngayTao: "15/01/2025",
-      hanHT: "28/02/2025",
-      pct: "100%",
-      buoc: "7/7",
-    },
-  },
-  {
-    id: "GT2025-003",
-    ten: "Dịch vụ vệ sinh bệnh viện quý 3",
-    hinhThuc: "Chào hàng cạnh tranh",
-    giaTriStr: "850,000,000",
-    giaTriNum: 850000000,
-    donVi: "P.HCQT",
-    trangThai: "Trễ hạn",
-    detail: {
-      nguonVon: "Tự chủ tài chính",
-      ngayTao: "05/03/2025",
-      hanHT: "29/03/2025",
-      pct: "21%",
-      buoc: "3/14",
-    },
-  },
-  {
-    id: "GT2025-004",
-    ten: "Mua sắm thuốc điều trị ung thư",
-    hinhThuc: "Đấu thầu rộng rãi",
-    giaTriStr: "12,500,000,000",
-    giaTriNum: 12500000000,
-    donVi: "Khoa Dược",
-    trangThai: "Chờ duyệt",
-    detail: {
-      nguonVon: "Ngân sách Nhà nước",
-      ngayTao: "20/03/2025",
-      hanHT: "30/06/2025",
-      pct: "7.7%",
-      buoc: "2/26",
-    },
-  },
-  {
-    id: "GT2025-005",
-    ten: "Mua sắm vật tư tiêu hao khoa Ngoại",
-    hinhThuc: "Chỉ định thầu thông thường",
-    giaTriStr: "560,000,000",
-    giaTriNum: 560000000,
-    donVi: "Khoa Ngoại",
-    trangThai: "Đang xử lý",
-    detail: {
-      nguonVon: "Ngân sách BV",
-      ngayTao: "01/04/2025",
-      hanHT: "31/07/2025",
-      pct: "15%",
-      buoc: "2/14",
-    },
-  },
-  {
-    id: "GT2025-006",
-    ten: "Dịch vụ bảo trì thiết bị xét nghiệm",
-    hinhThuc: "Chỉ định thầu rút gọn",
-    giaTriStr: "75,000,000",
-    giaTriNum: 75000000,
-    donVi: "Khoa Xét nghiệm",
-    trangThai: "Chờ duyệt",
-    detail: {
-      nguonVon: "Tự chủ tài chính",
-      ngayTao: "10/04/2025",
-      hanHT: "10/05/2025",
-      pct: "0%",
-      buoc: "1/9",
-    },
-  },
-  {
-    id: "GT2025-015",
-    ten: "Mua sắm thiết bị chẩn đoán hình ảnh",
-    hinhThuc: "Chỉ định thầu rút gọn",
-    giaTriStr: "850,000,000",
-    giaTriNum: 850000000,
-    donVi: "P.HCQT",
-    trangThai: "Đang xử lý",
-    detail: {
-      nguonVon: "Ngân sách BV",
-      ngayTao: "05/03/2025",
-      hanHT: "20/04/2025",
-      pct: "50%",
-      buoc: "18/36",
-    },
-  },
-];
-
-const HISTORY_LOGS: LichSuGoiThau[] = [
-  {
-    id: "LS-001-1",
-    goiThauId: "GT2025-001",
-    thoiGian: "10/01/2025 08:30",
-    nguoiThucHien: "Nguyễn Văn A",
-    noiDung: "Tạo gói thầu",
-  },
-  {
-    id: "LS-001-2",
-    goiThauId: "GT2025-001",
-    thoiGian: "12/01/2025 09:15",
-    nguoiThucHien: "Trần Văn B",
-    noiDung: "Phê duyệt chủ trương",
-  },
-  {
-    id: "LS-001-3",
-    goiThauId: "GT2025-001",
-    thoiGian: "14/01/2025 16:00",
-    nguoiThucHien: "Hệ thống",
-    noiDung: 'Chuyển sang bước "Đăng tải yêu cầu báo giá"',
-  },
-  {
-    id: "LS-003-1",
-    goiThauId: "GT2025-003",
-    thoiGian: "05/03/2025 08:30",
-    nguoiThucHien: "Nguyễn Văn A",
-    noiDung: "Tạo gói thầu",
-  },
-  {
-    id: "LS-003-2",
-    goiThauId: "GT2025-003",
-    thoiGian: "07/03/2025 09:15",
-    nguoiThucHien: "Trần Văn B",
-    noiDung: "Phê duyệt chủ trương",
-  },
-  {
-    id: "LS-003-3",
-    goiThauId: "GT2025-003",
-    thoiGian: "10/03/2025 16:00",
-    nguoiThucHien: "Hệ thống",
-    noiDung: 'Chuyển sang bước "Đăng tải yêu cầu báo giá"',
-  },
-  {
-    id: "LS-003-4",
-    goiThauId: "GT2025-003",
-    thoiGian: "29/03/2025 17:30",
-    nguoiThucHien: "Hệ thống",
-    noiDung: 'Đánh dấu trễ hạn tại bước "Biên bản kiểm tra báo giá"',
-  },
-];
-
-const STEPS_TEMPLATE = [
-  ["done", "1. Đề xuất mua sắm", "K/p mua sắm"],
-  ["done", "2. Tờ trình chủ trương", "K/p mua sắm"],
-  ["done", "3. Đăng tải yêu cầu báo giá", "K/p mua sắm"],
-  ["warn", "4. Biên bản kiểm tra báo giá", "Tổ kiểm tra giá"],
-  ["idle", "5. Tờ trình phê duyệt dự toán", "K/p mua sắm"],
-  ["idle", "6. QĐ phê duyệt dự toán", "Giám đốc BV"],
-  ["idle", "7. Tờ trình kế hoạch LCNT", "K/p mua sắm"],
-  ["idle", "8. QĐ kế hoạch LCNT", "Giám đốc BV"],
-  ["idle", "9. Đăng tải kế hoạch LCNT", "K/p mua sắm"],
-];
+/* ─── Mock data (keep as fallback when API unavailable) ─── */
+const HISTORY_LOGS: LichSuGoiThau[] = [];
 
 const DEFAULT_DETAIL_INFO: GoiThauDetailInfo = {
-  buocHienTai: "Tờ trình phê duyệt dự toán",
-  nguoiXuLy: "K/p mua sắm",
-  donViXuLy: "K/p mua sắm",
+  buocHienTai: "",
+  nguoiXuLy: "",
+  donViXuLy: "",
   sla: "Đang theo dõi",
-  steps: STEPS_TEMPLATE.map(([state, ten, donVi]) => ({
-    state: state as DotState,
-    ten: ten.replace(/^\d+\.\s*/, ""),
-    donVi,
-  })),
+  steps: [],
 };
 
-const DETAIL_INFO_BY_ID: Record<string, GoiThauDetailInfo> = {
-  "GT2025-003": {
-    buocHienTai: "Biên bản kiểm tra báo giá",
-    nguoiXuLy: "Nguyễn Văn A",
-    donViXuLy: "Tổ kiểm tra giá",
-    sla: "Quá hạn 21 ngày",
-    lyDoTreHan: "Tổ kiểm tra giá chưa hoàn tất biên bản đánh giá báo giá",
-    steps: [
-      { state: "done", ten: "Đề xuất mua sắm", donVi: "K/p mua sắm" },
-      { state: "done", ten: "Tờ trình chủ trương", donVi: "K/p mua sắm" },
-      { state: "done", ten: "Đăng tải yêu cầu báo giá", donVi: "K/p mua sắm" },
-      {
-        state: "warn",
-        ten: "Biên bản kiểm tra báo giá",
-        donVi: "Tổ kiểm tra giá",
-        current: true,
-        nguoiXuLy: "Nguyễn Văn A",
-        slaText: "Quá hạn 21 ngày",
-      },
-      { state: "idle", ten: "Tờ trình phê duyệt dự toán", donVi: "K/p mua sắm" },
-      { state: "idle", ten: "QĐ phê duyệt dự toán", donVi: "Giám đốc BV" },
-      { state: "idle", ten: "Tờ trình kế hoạch LCNT", donVi: "K/p mua sắm" },
-      { state: "idle", ten: "QĐ kế hoạch LCNT", donVi: "Giám đốc BV" },
-      { state: "idle", ten: "Đăng tải kế hoạch LCNT", donVi: "K/p mua sắm" },
-    ],
-  },
-  "GT2025-015": {
-    buocHienTai: "Nhánh II: Tờ trình nội bộ / Nhánh III: Báo giá + Hồ sơ năng lực",
-    nguoiXuLy: "Nguyễn Văn A / Trần Văn B",
-    donViXuLy: "K/P mua sắm",
-    sla: "Đúng hạn",
-    parallelInfo: {
-      title: "Nhánh song song tư vấn",
-      condition:
-        "Hai nhánh được thực hiện đồng thời. Sau khi cả hai nhánh hoàn thành hoặc đã bỏ qua, quy trình sẽ tiếp tục sang bước tiếp theo.",
-      branches: [
-        {
-          name: "Nhánh II - Tư vấn lập HSMT",
-          progress: "3/7",
-          status: "Đang xử lý",
-          currentStep: "Tờ trình nội bộ",
-          processor: "Nguyễn Văn A",
-          steps: [
-            { name: "Thư mời quan tâm", state: "done" },
-            { name: "Báo giá + Hồ sơ năng lực", state: "done" },
-            { name: "Tờ trình nội bộ", state: "current" },
-            { name: "Dự thảo hợp đồng", state: "idle" },
-            { name: "Quyết định phê duyệt", state: "idle" },
-            { name: "Hợp đồng tư vấn", state: "idle" },
-            { name: "Đăng tải kết quả LCNT", state: "idle" },
-          ],
-        },
-        {
-          name: "Nhánh III - Tư vấn thẩm định HSMT",
-          progress: "2/7",
-          status: "Đang xử lý",
-          currentStep: "Báo giá + Hồ sơ năng lực",
-          processor: "Trần Văn B",
-          steps: [
-            { name: "Thư mời quan tâm", state: "done" },
-            { name: "Báo giá + Hồ sơ năng lực", state: "current" },
-            { name: "Tờ trình nội bộ", state: "idle" },
-            { name: "Dự thảo hợp đồng", state: "idle" },
-            { name: "Quyết định phê duyệt", state: "idle" },
-            { name: "Hợp đồng tư vấn", state: "idle" },
-            { name: "Đăng tải kết quả LCNT", state: "idle" },
-          ],
-        },
-      ],
-      mergeStatus:
-        "Chưa đủ điều kiện chuyển sang bước tiếp theo vì Nhánh III vẫn đang xử lý",
-      lockedStage: "Bước \"Lập Hồ sơ mời thầu\" sẽ được mở sau khi hai nhánh hoàn thành hoặc đã bỏ qua.",
-    },
-    steps: [
-      { state: "done", ten: "Đề xuất mua sắm", donVi: "K/P mua sắm" },
-      { state: "done", ten: "Tờ trình chủ trương", donVi: "K/P mua sắm" },
-      { state: "done", ten: "Đăng tải yêu cầu báo giá", donVi: "K/P mua sắm" },
-      { state: "done", ten: "Biên bản kiểm tra báo giá", donVi: "Tổ kiểm tra giá" },
-      { state: "done", ten: "Tờ trình phê duyệt dự toán", donVi: "K/P mua sắm" },
-      { state: "done", ten: "Quyết định phê duyệt dự toán", donVi: "Giám đốc BV" },
-      { state: "done", ten: "Quyết định thành lập tổ thẩm định", donVi: "K/P mua sắm" },
-      { state: "done", ten: "Tờ trình phê duyệt KHLCNT", donVi: "K/P mua sắm" },
-      { state: "done", ten: "Báo cáo thẩm định KHLCNT", donVi: "Tổ thẩm định" },
-      { state: "done", ten: "Quyết định phê duyệt KHLCNT", donVi: "Giám đốc BV" },
-      { state: "done", ten: "Đăng tải KHLCNT", donVi: "K/P mua sắm" },
-      { state: "done", ten: "Quyết định thành lập Tổ chuyên gia & Tổ thẩm định", donVi: "K/P mua sắm" },
-      { state: "idle", ten: "Lập Hồ sơ mời thầu", donVi: "K/P mua sắm" },
-      { state: "idle", ten: "Chủ đầu tư góp ý Hồ sơ mời thầu", donVi: "Chủ đầu tư" },
-      { state: "idle", ten: "Ký kết hợp đồng", donVi: "Chủ đầu tư" },
-    ],
-  },
-};
+const DETAIL_INFO_BY_ID: Record<string, GoiThauDetailInfo> = {};
 
 function formatCurrencyDisplay(value: string) {
   return value.replace(/,/g, ".") + " đ";
@@ -390,16 +118,10 @@ type SortCol = "id" | "ten" | "giaTriNum" | "trangThai";
 
 const EDITABLE_STATUSES: TrangThai[] = ["Nháp"];
 const STEP_UPDATE_STATUSES: TrangThai[] = ["Đang xử lý", "Chờ duyệt", "Trễ hạn"];
-const canEditGoiThau = (item: GoiThau) =>
-  EDITABLE_STATUSES.includes(item.trangThai);
-const canUpdateCurrentStep = (item: GoiThau) =>
-  STEP_UPDATE_STATUSES.includes(item.trangThai);
-
-function getMergedGoiThauList() {
-  const userList = getUserGoiThauList();
-  const userIds = new Set(userList.map((item) => item.id));
-  return [...userList, ...INITIAL_DATA.filter((item) => !userIds.has(item.id))];
-}
+const canEditGoiThau = (item?: GoiThau | null) =>
+  item ? EDITABLE_STATUSES.includes(item.trangThai) : false;
+const canUpdateCurrentStep = (item?: GoiThau | null) =>
+  item ? STEP_UPDATE_STATUSES.includes(item.trangThai) : false;
 
 /* ─── Sub-components ──────────────────────────────────── */
 function Dot({ state }: { state: DotState }) {
@@ -568,11 +290,13 @@ function HistoryModal({ goiThau, entries, processEntries, onClose }: HistoryModa
 export default function DanhSachGoiThau() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [data, setData] = useState<GoiThau[]>(() => getMergedGoiThauList());
-  const [selected, setSelected] = useState<GoiThau>(() => {
-    const list = getMergedGoiThauList();
-    return list.find((item) => item.id === "GT2025-003") ?? list[0];
-  });
+  const [data, setData] = useState<GoiThau[]>([]);
+  const [selected, setSelected] = useState<GoiThau>(() => ({
+    id: "", ten: "", tenGoiThau: "", maGoiThau: "", hinhThuc: "",
+    giaTriStr: "0", giaTriNum: 0, donVi: "",
+    trangThai: "Đang xử lý",
+    detail: { nguonVon: "--", ngayTao: "--", hanHT: "--", pct: "0%", buoc: "0/0" },
+  }));
   const [search, setSearch] = useState("");
   const [filterHT, setFilterHT] = useState("");
   const [filterTT, setFilterTT] = useState("");
@@ -581,25 +305,38 @@ export default function DanhSachGoiThau() {
   const [page, setPage] = useState(1);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // Loading / error mock
+  // Real loading from API
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Confirm modals
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GoiThau | null>(null);
   const [historyTarget, setHistoryTarget] = useState<GoiThau | null>(null);
 
-  const simulateLoad = useCallback(() => {
+  // Load data from API
+  const loadData = useCallback(async () => {
     setLoading(true);
-    setError(false);
-    const t = setTimeout(() => setLoading(false), 700);
-    return () => clearTimeout(t);
+    setError(null);
+    try {
+      const list = await getUserGoiThauList();
+      setData(list);
+      setSelected((prev) => {
+        if (prev && prev.id) return prev;
+        if (list.length > 0) return list[0];
+        return prev;
+      });
+    } catch (e: any) {
+      setError(e?.message || "Không thể tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    return simulateLoad();
-  }, [simulateLoad]);
+    loadData();
+  }, [loadData]);
+
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("goiThauId");
     if (!id) return;
@@ -1071,7 +808,7 @@ export default function DanhSachGoiThau() {
         </h1>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => simulateLoad()}
+            onClick={() => loadData()}
             title="Tải lại"
             className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
           >
@@ -1166,7 +903,7 @@ export default function DanhSachGoiThau() {
                   Không thể tải dữ liệu. Vui lòng thử lại.
                 </p>
                 <button
-                  onClick={() => simulateLoad()}
+                  onClick={() => loadData()}
                   className="mt-1 h-8 px-4 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 flex items-center gap-1.5"
                 >
                   <i className="fa-solid fa-rotate-right" /> Thử lại

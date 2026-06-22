@@ -1,11 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import {
-  formatVND,
-  getGoiThauById,
-  updateGoiThau,
-} from "@/pages/DanhSachGoiThau/goiThauService";
+import { formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
 import {
   completeXuLyBuoc,
@@ -19,57 +15,6 @@ import { useFileAttachment } from "@/hooks/useFileAttachment";
 import { fileIcon, formatBytes, openFile, downloadFile } from "@/util/fileAttachment";
 
 const MOCK_CURRENT_USER = "Trần Văn B";
-
-const FALLBACK_GOI_THAU: Record<string, GoiThau> = {
-  "GT2025-001": {
-    id: "GT2025-001",
-    ten: "Mua sắm thiết bị y tế khoa Nội",
-    hinhThuc: "Chỉ định thầu rút gọn",
-    giaTriStr: "320,000,000",
-    giaTriNum: 320000000,
-    donVi: "Khoa Nội",
-    trangThai: "Đang xử lý",
-    detail: {
-      nguonVon: "Ngân sách BV",
-      ngayTao: "10/01/2025",
-      hanHT: "30/04/2025",
-      pct: "35.7%",
-      buoc: "5/14",
-    },
-  },
-  "GT2025-003": {
-    id: "GT2025-003",
-    ten: "Dịch vụ vệ sinh bệnh viện quý 3",
-    hinhThuc: "Chào hàng cạnh tranh",
-    giaTriStr: "850,000,000",
-    giaTriNum: 850000000,
-    donVi: "P.HCQT",
-    trangThai: "Trễ hạn",
-    detail: {
-      nguonVon: "Tự chủ tài chính",
-      ngayTao: "05/03/2025",
-      hanHT: "29/03/2025",
-      pct: "21.4%",
-      buoc: "3/14",
-    },
-  },
-  "GT2025-004": {
-    id: "GT2025-004",
-    ten: "Mua sắm thuốc điều trị ung thư",
-    hinhThuc: "Đấu thầu rộng rãi",
-    giaTriStr: "12,500,000,000",
-    giaTriNum: 12500000000,
-    donVi: "Khoa Dược",
-    trangThai: "Chờ duyệt",
-    detail: {
-      nguonVon: "Ngân sách Nhà nước",
-      ngayTao: "20/03/2025",
-      hanHT: "30/06/2025",
-      pct: "7.7%",
-      buoc: "2/26",
-    },
-  },
-};
 
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
@@ -135,10 +80,12 @@ export default function XuLyBuocGoiThau() {
   const [searchParams] = useSearchParams();
   const readonlyMode = searchParams.get("mode") === "view";
   const viewingStep = searchParams.get("step") || "";
-  const goiThau = useMemo(
-    () => getGoiThauById(id) ?? FALLBACK_GOI_THAU[id],
-    [id],
-  );
+  const [goiThau] = useState<GoiThau>(() => ({
+    id, ten: "", tenGoiThau: "", maGoiThau: "",
+    hinhThuc: "", giaTriStr: "0", giaTriNum: 0, donVi: "",
+    trangThai: "Đang xử lý" as any,
+    detail: { nguonVon: "--", ngayTao: "--", hanHT: "--", pct: "0%", buoc: "0/0" },
+  }));
   const activeStepName = readonlyMode
     ? viewingStep
     : viewingStep || getCurrentStepName(id, getCurrentStep(id));
@@ -266,35 +213,11 @@ export default function XuLyBuocGoiThau() {
       completeXuLyBuoc(record, nextWorkflowStep);
       setForm(record);
       setLocked(true);
-      const total = Number(goiThau.detail.buoc.split("/")[1]) || 14;
-      const current = Number(goiThau.detail.buoc.split("/")[0]) || 0;
-      const next = Math.min(current + 1, total);
-      updateGoiThau({
-        ...goiThau,
-        trangThai: "Đang xử lý",
-        detail: {
-          ...goiThau.detail,
-          buoc: `${next}/${total}`,
-          pct: `${Math.round((next / total) * 100)}%`,
-        },
-      });
       toast.success(`Duyệt thành công. Đã chuyển sang bước: ${nextWorkflowStep}`);
     } else {
-      const total = Number(goiThau.detail.buoc.split("/")[1]) || 14;
-      const current = Number(goiThau.detail.buoc.split("/")[0]) || 1;
-      const previous = Math.max(current - 1, 1);
       completeXuLyBuoc(record, nextWorkflowStep);
       setForm(record);
       setLocked(true);
-      updateGoiThau({
-        ...goiThau,
-        trangThai: "Đang xử lý",
-        detail: {
-          ...goiThau.detail,
-          buoc: `${previous}/${total}`,
-          pct: `${Math.round((previous / total) * 100)}%`,
-        },
-      });
       toast.success("Cập nhật kết quả không duyệt thành công.");
     }
   }

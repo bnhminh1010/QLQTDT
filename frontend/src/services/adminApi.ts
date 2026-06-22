@@ -1,0 +1,84 @@
+/* ─────────────────────────────────────────────────────────────
+   Người dùng + Khoa phòng API
+───────────────────────────────────────────────────────────── */
+import http from "@/util/http";
+import type { ApiResponse, PagedResult } from "./types";
+
+/* ─── Người dùng ────────────────────────────────────────── */
+
+export type NguoiDung = {
+  id: number;
+  idCongKhai: string;
+  hoTen: string;
+  email: string;
+  tenDangNhap: string;
+  soDienThoai?: string;
+  trangThaiHoatDong: boolean;
+};
+
+export type CreateNguoiDungRequest = {
+  hoTen: string;
+  email: string;
+  tenDangNhap: string;
+  matKhau: string;
+  soDienThoai?: string;
+  vaiTroIds?: number[];
+};
+
+export async function getUsers(params?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}): Promise<PagedResult<NguoiDung>> {
+  const res = await http.get<any>("/admin/users", { params });
+  // Backend trả { data, totalCount, page, pageSize } — map về PagedResult
+  return {
+    items: res.data?.data ?? res.data?.items ?? [],
+    total: res.data?.totalCount ?? res.data?.total ?? 0,
+    page: res.data?.page ?? 1,
+    pageSize: res.data?.pageSize ?? 10,
+  };
+}
+
+export async function createUser(data: CreateNguoiDungRequest): Promise<NguoiDung> {
+  const res = await http.post<ApiResponse<NguoiDung>>("/admin/users", data);
+  return res.data;
+}
+
+export async function updateUser(id: number, data: Partial<CreateNguoiDungRequest>): Promise<NguoiDung> {
+  const res = await http.put<ApiResponse<NguoiDung>>(`/admin/users/${id}`, data);
+  return res.data;
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  await http.del(`/admin/users/${id}`);
+}
+
+/* ─── Khoa phòng ────────────────────────────────────────── */
+
+export type KhoaPhong = {
+  id: number;
+  idCongKhai: string;
+  tenKhoaPhong: string;
+  maKhoaPhong?: string;
+  trangThaiHoatDong: boolean;
+};
+
+export async function getKhoaPhongs(): Promise<KhoaPhong[]> {
+  const res = await http.get<ApiResponse<KhoaPhong[]>>("/khoa-phong");
+  return res.data;
+}
+
+export async function createKhoaPhong(data: { tenKhoaPhong: string; maKhoaPhong?: string }): Promise<KhoaPhong> {
+  const res = await http.post<ApiResponse<KhoaPhong>>("/khoa-phong", data);
+  return res.data;
+}
+
+export async function updateKhoaPhong(id: number, data: { tenKhoaPhong?: string; maKhoaPhong?: string }): Promise<KhoaPhong> {
+  const res = await http.put<ApiResponse<KhoaPhong>>(`/khoa-phong/${id}`, data);
+  return res.data;
+}
+
+export async function deleteKhoaPhong(id: number): Promise<void> {
+  await http.del(`/khoa-phong/${id}`);
+}

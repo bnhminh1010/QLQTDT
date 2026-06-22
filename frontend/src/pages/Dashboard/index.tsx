@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SelectField } from "@/components/ui/select";
+import { searchBaoCaoGoiThau } from "@/services/baoCaoApi";
 
 /* ─ RBAC ─ */
-const MOCK_CURRENT_ROLE = "Admin"; // "Admin" | "Quản lý" | "Nhân viên"
-const CAN_CREATE =
-  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
-const CAN_APPROVE =
-  MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý";
+const CAN_CREATE = true;
+const CAN_APPROVE = true;
 
 type BadgeStatus = "Đang xử lý" | "Hoàn thành" | "Trễ hạn" | "Chờ duyệt";
 type BarColor = "blue" | "green" | "red" | "amber";
@@ -91,458 +89,9 @@ type TableRow = {
   parallelInfo?: ParallelInfo;
 };
 
-const TABLE_ROWS: TableRow[] = [
-  {
-    code: "GT2025-001",
-    name: "Mua sắm thiết bị y tế khoa Nội",
-    unit: "Khoa Nội",
-    status: "Đang xử lý",
-    color: "blue",
-    pct: "35.7%",
-    txt: "5/14",
-    nguonVon: "Ngân sách BV",
-    ngayTao: "10/01/2025",
-    hanHT: "30/04/2025",
-    hinhThuc: "Chỉ định thầu rút gọn",
-    currentStep: "Tờ trình phê duyệt dự toán",
-    currentProcessor: "K/p mua sắm",
-    currentProcessDate: "10/04/2025",
-    currentSigner: "Chưa cập nhật",
-    currentSignedDate: "--",
-    currentResult: "Chờ ký duyệt",
-    progressStatus: "Đúng hạn",
-    steps: [
-      {
-        state: "done",
-        name: "1. Đề xuất mua sắm",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "2 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "08/01/2025",
-      },
-      {
-        state: "done",
-        name: "2. Tờ trình chủ trương",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "3 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "12/01/2025",
-      },
-      {
-        state: "done",
-        name: "3. Đăng tải yêu cầu báo giá",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "1 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "14/01/2025",
-      },
-      {
-        state: "done",
-        name: "4. Biên bản kiểm tra báo giá",
-        processor: "Tổ kiểm tra giá",
-        status: "Hoàn tất",
-        sla: "2 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "18/01/2025",
-      },
-      {
-        state: "warn",
-        name: "5. Tờ trình phê duyệt dự toán",
-        processor: "K/p mua sắm",
-        status: "Chờ ký duyệt",
-        sla: "2 ngày",
-        ngayXuLy: "10/04/2025",
-        nguoiKy: "Chưa cập nhật",
-        ngayKy: "--",
-        ketQua: "Chờ ký duyệt",
-      },
-      {
-        state: "idle",
-        name: "6. QĐ phê duyệt dự toán",
-        processor: "Giám đốc BV",
-        status: "Chưa bắt đầu",
-        sla: "1 ngày",
-      },
-    ],
-  },
-  {
-    code: "GT2025-002",
-    name: "Sửa chữa hệ thống điện tầng 3",
-    unit: "P.HCQT",
-    status: "Hoàn thành",
-    color: "green",
-    pct: "100%",
-    txt: "7/7",
-    nguonVon: "Tự chủ tài chính",
-    ngayTao: "15/01/2025",
-    hanHT: "28/02/2025",
-    hinhThuc: "Chỉ định thầu tự quyết định",
-    currentStep: "Hoàn tất",
-    currentProcessor: "Ban giám đốc",
-    currentProcessDate: "28/02/2025",
-    currentSigner: "Trần Văn B",
-    currentSignedDate: "28/02/2025",
-    currentResult: "Hoàn tất",
-    progressStatus: "Đúng hạn",
-    steps: [
-      {
-        state: "done",
-        name: "1. Đề xuất mua sắm",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "2 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "16/01/2025",
-      },
-      {
-        state: "done",
-        name: "2. Tờ trình chủ trương",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "3 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "18/01/2025",
-      },
-      {
-        state: "done",
-        name: "3. Đăng tải yêu cầu báo giá",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "1 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "20/01/2025",
-      },
-      {
-        state: "done",
-        name: "4. Biên bản kiểm tra báo giá",
-        processor: "Tổ kiểm tra giá",
-        status: "Hoàn tất",
-        sla: "2 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "24/01/2025",
-      },
-      {
-        state: "done",
-        name: "5. Tờ trình phê duyệt dự toán",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "2 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "26/01/2025",
-      },
-      {
-        state: "done",
-        name: "6. QĐ phê duyệt dự toán",
-        processor: "Giám đốc BV",
-        status: "Hoàn tất",
-        sla: "1 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "28/01/2025",
-      },
-      {
-        state: "done",
-        name: "7. Hoàn tất",
-        processor: "Ban giám đốc",
-        status: "Hoàn tất",
-        sla: "0 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "28/02/2025",
-      },
-    ],
-  },
-  {
-    code: "GT2025-003",
-    name: "Dịch vụ vệ sinh bệnh viện quý 3",
-    unit: "P.HCQT",
-    status: "Trễ hạn",
-    color: "red",
-    pct: "21.4%",
-    txt: "3/14",
-    nguonVon: "Tự chủ tài chính",
-    ngayTao: "05/03/2025",
-    hanHT: "29/03/2025",
-    hinhThuc: "Chào hàng cạnh tranh",
-    overdueReason:
-      "Chậm tại bước 4. Biên bản kiểm tra báo giá: Tổ kiểm tra giá chưa hoàn tất xử lý hồ sơ báo giá.",
-    currentStep: "Biên bản kiểm tra báo giá",
-    currentProcessor: "Tổ kiểm tra giá",
-    currentProcessDate: "20/03/2025",
-    currentSigner: "Chưa cập nhật",
-    currentSignedDate: "--",
-    currentResult: "Đang xử lý",
-    progressStatus: "Quá hạn",
-    steps: [
-      {
-        state: "done",
-        name: "1. Đề xuất mua sắm",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "2 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "08/03/2025",
-      },
-      {
-        state: "done",
-        name: "2. Tờ trình chủ trương",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "3 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "12/03/2025",
-      },
-      {
-        state: "done",
-        name: "3. Đăng tải yêu cầu báo giá",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "1 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "15/03/2025",
-      },
-      {
-        state: "warn",
-        name: "4. Biên bản kiểm tra báo giá",
-        processor: "Tổ kiểm tra giá",
-        status: "Đang xử lý",
-        sla: "Quá hạn",
-        ngayXuLy: "20/03/2025",
-        nguoiKy: "Chưa cập nhật",
-        ngayKy: "--",
-        ketQua: "Đang xử lý",
-        reason: "Quá hạn 21 ngày do chưa hoàn tất kiểm tra, đối chiếu báo giá.",
-      },
-      {
-        state: "idle",
-        name: "5. Tờ trình phê duyệt dự toán",
-        processor: "K/p mua sắm",
-        status: "Chờ ký duyệt",
-        sla: "2 ngày",
-        nguoiKy: "Chưa cập nhật",
-        ngayKy: "--",
-      },
-    ],
-  },
-  {
-    code: "GT2025-004",
-    name: "Mua sắm thuốc điều trị ung thư",
-    unit: "Khoa Dược",
-    status: "Chờ duyệt",
-    color: "amber",
-    pct: "7.7%",
-    txt: "2/26",
-    nguonVon: "Ngân sách Nhà nước",
-    ngayTao: "20/03/2025",
-    hanHT: "30/06/2025",
-    hinhThuc: "Đấu thầu rộng rãi",
-    currentStep: "Tờ trình chủ trương",
-    currentProcessor: "K/p mua sắm",
-    currentProcessDate: "25/03/2025",
-    currentSigner: "Chưa cập nhật",
-    currentSignedDate: "--",
-    currentResult: "Chờ ký duyệt",
-    progressStatus: "Sắp quá hạn",
-    steps: [
-      {
-        state: "done",
-        name: "1. Đề xuất mua sắm",
-        processor: "K/p mua sắm",
-        status: "Hoàn tất",
-        sla: "2 ngày",
-        nguoiKy: "Trần Văn B",
-        ngayKy: "22/03/2025",
-      },
-      {
-        state: "warn",
-        name: "2. Tờ trình chủ trương",
-        processor: "K/p mua sắm",
-        status: "Chờ ký duyệt",
-        sla: "3 ngày",
-        ngayXuLy: "25/03/2025",
-        nguoiKy: "Chưa cập nhật",
-        ngayKy: "--",
-        ketQua: "Chờ ký duyệt",
-      },
-      {
-        state: "idle",
-        name: "3. Đăng tải yêu cầu báo giá",
-        processor: "K/p mua sắm",
-        status: "Chưa bắt đầu",
-        sla: "1 ngày",
-      },
-      {
-        state: "idle",
-        name: "4. Biên bản kiểm tra báo giá",
-        processor: "Tổ kiểm tra giá",
-        status: "Chưa bắt đầu",
-        sla: "2 ngày",
-      },
-    ],
-  },
-  {
-    code: "GT2025-015",
-    name: "Mua sắm thiết bị chẩn đoán hình ảnh",
-    unit: "P.HCQT",
-    status: "Đang xử lý",
-    color: "blue",
-    pct: "50%",
-    txt: "18/36",
-    nguonVon: "Ngân sách BV",
-    ngayTao: "05/03/2025",
-    hanHT: "20/04/2025",
-    hinhThuc: "Chỉ định thầu rút gọn",
-    currentStep: "Nhánh II: Tờ trình nội bộ / Nhánh III: Báo giá + Hồ sơ năng lực",
-    currentProcessor: "Nguyễn Văn A / Trần Văn B",
-    currentProcessDate: "19/03/2025",
-    currentSigner: "Chưa cập nhật",
-    currentSignedDate: "--",
-    currentResult: "Đang xử lý",
-    progressStatus: "Đúng hạn",
-    parallelInfo: {
-      title: "Nhánh song song tư vấn",
-      condition:
-        "Hai nhánh được thực hiện đồng thời. Sau khi cả hai nhánh hoàn thành hoặc đã bỏ qua, quy trình sẽ tiếp tục sang bước tiếp theo.",
-      branches: [
-        {
-          name: "Nhánh II - Tư vấn lập HSMT",
-          progress: "3/7",
-          status: "Đang xử lý",
-          currentStep: "Tờ trình nội bộ",
-          processor: "Nguyễn Văn A",
-          steps: [
-            { name: "Thư mời quan tâm", state: "done" },
-            { name: "Báo giá + Hồ sơ năng lực", state: "done" },
-            { name: "Tờ trình nội bộ", state: "current" },
-            { name: "Dự thảo hợp đồng", state: "idle" },
-            { name: "Quyết định phê duyệt", state: "idle" },
-            { name: "Hợp đồng tư vấn", state: "idle" },
-            { name: "Đăng tải kết quả LCNT", state: "idle" },
-          ],
-        },
-        {
-          name: "Nhánh III - Tư vấn thẩm định HSMT",
-          progress: "2/7",
-          status: "Đang xử lý",
-          currentStep: "Báo giá + Hồ sơ năng lực",
-          processor: "Trần Văn B",
-          steps: [
-            { name: "Thư mời quan tâm", state: "done" },
-            { name: "Báo giá + Hồ sơ năng lực", state: "current" },
-            { name: "Tờ trình nội bộ", state: "idle" },
-            { name: "Dự thảo hợp đồng", state: "idle" },
-            { name: "Quyết định phê duyệt", state: "idle" },
-            { name: "Hợp đồng tư vấn", state: "idle" },
-            { name: "Đăng tải kết quả LCNT", state: "idle" },
-          ],
-        },
-      ],
-      mergeStatus:
-        "Chưa đủ điều kiện chuyển sang bước tiếp theo vì Nhánh III vẫn đang xử lý",
-      lockedStage: "Bước \"Lập Hồ sơ mời thầu\" sẽ được mở sau khi hai nhánh hoàn thành hoặc đã bỏ qua.",
-    },
-    steps: [
-      { state: "done", name: "1. Đề xuất mua sắm", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "2. Tờ trình chủ trương", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "3. Đăng tải yêu cầu báo giá", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "4. Biên bản kiểm tra báo giá", processor: "Tổ kiểm tra giá", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "5. Tờ trình phê duyệt dự toán", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "6. Quyết định phê duyệt dự toán", processor: "Giám đốc BV", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "7. Quyết định thành lập tổ thẩm định", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "8. Tờ trình phê duyệt KHLCNT", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "9. Báo cáo thẩm định KHLCNT", processor: "Tổ thẩm định", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "10. Quyết định phê duyệt KHLCNT", processor: "Giám đốc BV", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "11. Đăng tải KHLCNT", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "done", name: "12. Quyết định thành lập Tổ chuyên gia & Tổ thẩm định", processor: "K/P mua sắm", status: "Hoàn tất", sla: "Hoàn thành" },
-      { state: "idle", name: "Lập Hồ sơ mời thầu", processor: "K/P mua sắm", status: "Chưa bắt đầu", sla: "Đang khóa" },
-      { state: "idle", name: "Chủ đầu tư góp ý Hồ sơ mời thầu", processor: "Chủ đầu tư", status: "Chưa bắt đầu", sla: "Đang khóa" },
-      { state: "idle", name: "Tờ trình phê duyệt Hồ sơ mời thầu", processor: "K/P mua sắm", status: "Chưa bắt đầu", sla: "Đang khóa" },
-      { state: "idle", name: "Báo cáo thẩm định Hồ sơ mời thầu", processor: "Tổ thẩm định", status: "Chưa bắt đầu", sla: "Đang khóa" },
-      { state: "idle", name: "Quyết định phê duyệt Hồ sơ mời thầu", processor: "Giám đốc BV", status: "Chưa bắt đầu", sla: "Đang khóa" },
-      { state: "idle", name: "Đăng tải Hồ sơ mời thầu", processor: "K/P mua sắm", status: "Chưa bắt đầu", sla: "Đang khóa" },
-    ],
-  },
-];
-
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    icon: "fa-triangle-exclamation",
-    color: "text-red-500 bg-red-50",
-    title: "GT2025-003 trễ hạn 21 ngày",
-    time: "Vừa xong",
-    read: false,
-  },
-  {
-    id: 2,
-    icon: "fa-circle-check",
-    color: "text-emerald-500 bg-emerald-50",
-    title: "GT2025-002 đã hoàn thành",
-    time: "2 giờ trước",
-    read: false,
-  },
-  {
-    id: 3,
-    icon: "fa-file-lines",
-    color: "text-blue-500 bg-blue-50",
-    title: "GT2025-001 cần duyệt tờ trình",
-    time: "5 giờ trước",
-    read: true,
-  },
-  {
-    id: 4,
-    icon: "fa-bell",
-    color: "text-amber-500 bg-amber-50",
-    title: "GT2025-004 đang chờ phê duyệt",
-    time: "Hôm qua",
-    read: true,
-  },
-  {
-    id: 5,
-    icon: "fa-circle-info",
-    color: "text-slate-500 bg-slate-100",
-    title: "Hệ thống cập nhật v1.2.0",
-    time: "2 ngày trước",
-    read: true,
-  },
-];
-
-const APPROVAL_ITEMS = [
-  {
-    code: "GT2025-001",
-    color: "blue",
-    icon: "fa-regular fa-file-lines",
-    title: "Tờ trình phê duyệt dự toán",
-    handler: "Giám đốc BV",
-    unit: "Ban Giám đốc",
-    sla: "Tình trạng tiến độ: Đúng hạn",
-    status: "Chờ duyệt" as BadgeStatus,
-    overdue: false,
-  },
-  {
-    code: "GT2025-003",
-    color: "orange",
-    icon: "fa-solid fa-triangle-exclamation",
-    title: "Biên bản kiểm tra báo giá",
-    handler: "Tổ kiểm tra giá",
-    unit: "Tổ kiểm tra giá",
-    sla: "Tình trạng tiến độ: Quá hạn",
-    status: "Trễ hạn" as BadgeStatus,
-    overdue: true,
-  },
-  {
-    code: "GT2025-004",
-    color: "blue",
-    icon: "fa-regular fa-file-lines",
-    title: "Tờ trình chủ trương",
-    handler: "Giám đốc BV",
-    unit: "Ban Giám đốc",
-    sla: "Tình trạng tiến độ: Sắp quá hạn",
-    status: "Chờ duyệt" as BadgeStatus,
-    overdue: false,
-  },
-];
+const TABLE_ROWS: TableRow[] = []; void TABLE_ROWS;
+const NOTIFICATIONS: any[] = []; void NOTIFICATIONS;
+const APPROVAL_ITEMS: any[] = [];
 
 function Badge({ label }: { label: BadgeStatus }) {
   return (
@@ -578,20 +127,54 @@ function Dot({ state }: { state: DotState }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [selectedIdx, setSelectedIdx] = useState(() => {
-    const idx = TABLE_ROWS.findIndex((row) => row.code === "GT2025-015");
-    return idx >= 0 ? idx : 2;
-  });
+  const [tableRows, setTableRows] = useState<TableRow[]>([]);
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifs, setNotifs] = useState(NOTIFICATIONS);
+  const [notifs, setNotifs] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<BadgeStatus | "">("");
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const selected = TABLE_ROWS[selectedIdx];
-  const unreadCount = notifs.filter((n) => !n.read).length;
+  // Load data from API
+  useEffect(() => {
+    (async () => {
+      try {
+        const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 50 });
+        const rows: TableRow[] = result.items.map((item) => ({
+          code: item.maGoiThau || '',
+          name: item.tenGoiThau || '',
+          unit: item.tenKhoaPhong || '',
+          status: item.trangThai === 'HOAN_THANH' ? 'Hoàn thành' as BadgeStatus :
+                  item.trangThai === 'DANG_XU_LY' ? 'Đang xử lý' as BadgeStatus :
+                  item.trangThai === 'QUA_HAN' ? 'Trễ hạn' as BadgeStatus :
+                  'Chờ duyệt' as BadgeStatus,
+          color: 'blue' as BarColor,
+          pct: `${item.phanTramHoanThanh}%`,
+          txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
+          nguonVon: '',
+          ngayTao: item.ngayTao?.slice(0, 10) || '',
+          hanHT: '',
+          hinhThuc: item.tenHinhThuc || '',
+          currentStep: '',
+          currentProcessor: '',
+          currentProcessDate: '',
+          currentSigner: '',
+          currentSignedDate: '',
+          currentResult: '',
+          progressStatus: 'Đúng hạn' as const,
+          steps: [],
+        }));
+        setTableRows(rows);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, []);
 
-  const filteredRows = TABLE_ROWS.filter((r) => {
+  const selected = tableRows[selectedIdx] || tableRows[0];
+  const unreadCount = notifs.filter((n: any) => !n.read).length;
+
+  const filteredRows = tableRows.filter((r) => {
     const matchSearch =
       !search ||
       r.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -751,7 +334,7 @@ export default function Dashboard() {
                   setFilterStatus(status);
                   setSearch("");
                   const firstMatch = status
-                    ? TABLE_ROWS.findIndex((row) => row.status === status)
+                    ? tableRows.findIndex((row) => row.status === status)
                     : 0;
                   if (firstMatch >= 0) setSelectedIdx(firstMatch);
                 }}
@@ -834,7 +417,7 @@ export default function Dashboard() {
                     </tr>
                   ) : (
                     filteredRows.map((row) => {
-                      const idx = TABLE_ROWS.indexOf(row);
+                      const idx = tableRows.indexOf(row);
                       return (
                         <tr
                           key={row.code}
@@ -884,7 +467,7 @@ export default function Dashboard() {
                     key={item.code}
                     type="button"
                     onClick={() => {
-                      const idx = TABLE_ROWS.findIndex(
+                      const idx = tableRows.findIndex(
                         (row) => row.code === item.code,
                       );
                       if (idx >= 0) setSelectedIdx(idx);

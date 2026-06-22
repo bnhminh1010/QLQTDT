@@ -1,20 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { MOCK_REPORT_AUTH_KEY } from "@/util/mockReportAccounts";
 
-/* ─ Mock current user ─ */
-const MOCK_USER = {
-  hoTen: "Nguyễn Mạnh Tuấn",
-  tenDangNhap: "nmtuan",
-  email: "nmtuan@bvub.vn",
-  sdt: "0901234567",
-  donVi: "P.HCQT",
-  vaiTro: "Quản lý",
+/* ─ Current user — từ API sẽ load sau ─ */
+const CURRENT_USER = {
+  hoTen: localStorage.getItem("userHoTen") || "Người dùng",
+  tenDangNhap: localStorage.getItem("userTenDangNhap") || "user",
+  email: localStorage.getItem("userEmail") || "",
+  sdt: localStorage.getItem("userSdt") || "",
+  donVi: localStorage.getItem("userDonVi") || "",
+  vaiTro: localStorage.getItem("userVaiTro") || "Nhân viên",
   trangThai: "Hoạt động",
-  ngayTao: "01/01/2024",
-  lanDangNhapGanNhat: "19/06/2026 08:30",
-  ngayCapNhatGanNhat: "19/06/2026 08:30",
+  ngayTao: "—",
+  lanDangNhapGanNhat: localStorage.getItem("ngayDangNhapCuoi") || "—",
+  ngayCapNhatGanNhat: localStorage.getItem("ngayCapNhat") || "—",
 };
 
 type NotifItem = {
@@ -119,7 +118,6 @@ export default function UserProfile() {
 
   function handleLogout() {
     localStorage.removeItem("accessToken");
-    localStorage.removeItem(MOCK_REPORT_AUTH_KEY);
     toast.success("Đã đăng xuất");
     navigate("/login");
   }
@@ -164,23 +162,23 @@ export default function UserProfile() {
         {/* Avatar + name card */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
           <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shrink-0">
-            {MOCK_USER.hoTen.charAt(0)}
+            {CURRENT_USER.hoTen.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-lg font-bold text-slate-900">
-              {MOCK_USER.hoTen}
+              {CURRENT_USER.hoTen}
             </div>
             <div className="text-sm text-slate-500">
-              {MOCK_USER.donVi} · {MOCK_USER.vaiTro}
+              {CURRENT_USER.donVi} · {CURRENT_USER.vaiTro}
             </div>
             <div className="mt-1.5 flex gap-2 flex-wrap">
               <span
-                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BADGE_CLS[MOCK_USER.trangThai] ?? "bg-slate-100 text-slate-500"}`}
+                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${BADGE_CLS[CURRENT_USER.trangThai] ?? "bg-slate-100 text-slate-500"}`}
               >
-                {MOCK_USER.trangThai}
+                {CURRENT_USER.trangThai}
               </span>
               <span className="text-xs text-slate-400">
-                Tạo: {MOCK_USER.ngayTao}
+                Tạo: {CURRENT_USER.ngayTao}
               </span>
             </div>
           </div>
@@ -230,7 +228,7 @@ export default function UserProfile() {
                 <label className={labelCls}>Họ và tên</label>
                 <input
                   readOnly
-                  value={MOCK_USER.hoTen}
+                  value={CURRENT_USER.hoTen}
                   className={inputReadonlyCls}
                 />
               </div>
@@ -238,7 +236,7 @@ export default function UserProfile() {
                 <label className={labelCls}>Tên đăng nhập</label>
                 <input
                   readOnly
-                  value={MOCK_USER.tenDangNhap}
+                  value={CURRENT_USER.tenDangNhap}
                   className={inputReadonlyCls}
                 />
               </div>
@@ -246,7 +244,7 @@ export default function UserProfile() {
                 <label className={labelCls}>Email</label>
                 <input
                   readOnly
-                  value={MOCK_USER.email}
+                  value={CURRENT_USER.email}
                   className={inputReadonlyCls}
                 />
               </div>
@@ -254,7 +252,7 @@ export default function UserProfile() {
                 <label className={labelCls}>Số điện thoại</label>
                 <input
                   readOnly
-                  value={MOCK_USER.sdt}
+                  value={CURRENT_USER.sdt}
                   className={inputReadonlyCls}
                 />
               </div>
@@ -262,7 +260,7 @@ export default function UserProfile() {
                 <label className={labelCls}>Đơn vị</label>
                 <input
                   readOnly
-                  value={MOCK_USER.donVi}
+                  value={CURRENT_USER.donVi}
                   className={inputReadonlyCls}
                 />
               </div>
@@ -270,7 +268,7 @@ export default function UserProfile() {
                 <label className={labelCls}>Vai trò</label>
                 <input
                   readOnly
-                  value={MOCK_USER.vaiTro}
+                  value={CURRENT_USER.vaiTro}
                   className={inputReadonlyCls}
                 />
               </div>
@@ -278,7 +276,7 @@ export default function UserProfile() {
                 <label className={labelCls}>Lần đăng nhập gần nhất</label>
                 <input
                   readOnly
-                  value={MOCK_USER.lanDangNhapGanNhat}
+                  value={CURRENT_USER.lanDangNhapGanNhat}
                   className={inputReadonlyCls}
                 />
               </div>
@@ -286,7 +284,7 @@ export default function UserProfile() {
                 <label className={labelCls}>Ngày cập nhật gần nhất</label>
                 <input
                   readOnly
-                  value={MOCK_USER.ngayCapNhatGanNhat}
+                  value={CURRENT_USER.ngayCapNhatGanNhat}
                   className={inputReadonlyCls}
                 />
               </div>

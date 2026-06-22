@@ -240,7 +240,7 @@ function makeDefaultWorkflow(id: string, hinhThuc: HinhThuc, steps: string[]): Q
   return {
     id,
     ten: `Quy trình ${hinhThuc}`,
-    hinhThuc,
+    hinhThuc: hinhThuc as any,
     trangThai: "Đang hoạt động",
     ngayTao: new Date().toISOString(),
     buocList: steps.map((ten, index) =>
@@ -364,9 +364,8 @@ export default function TaoGoiThau() {
   const editId = searchParams.get("id") ?? "";
   const isEditMode = searchParams.get("mode") === "edit" && !!editId;
   const locationState = location.state as LocationState | null;
-  const editingGoiThau = useMemo(
-    () => (isEditMode ? (locationState?.goiThau ?? getGoiThauById(editId)) : undefined),
-    [editId, isEditMode, locationState?.goiThau],
+  const [editingGoiThau, setEditingGoiThau] = useState<GoiThau | undefined>(
+    isEditMode ? locationState?.goiThau : undefined
   );
   const canEditCurrent =
     !!editingGoiThau && EDITABLE_STATUSES.includes(editingGoiThau.trangThai);
@@ -377,6 +376,16 @@ export default function TaoGoiThau() {
   const [theoDoiList, setTheoDoiList] = useState<string[]>([]);
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
+
+  // Load edit data async
+  useEffect(() => {
+    if (isEditMode && editId && !locationState?.goiThau) {
+      (async () => {
+        const item = await getGoiThauById(editId);
+        setEditingGoiThau(item);
+      })();
+    }
+  }, [editId, isEditMode, locationState?.goiThau]);
 
   useEffect(() => {
     setQuyTrinhList(getQuyTrinhList().filter((qt) => qt.trangThai === "Đang hoạt động"));

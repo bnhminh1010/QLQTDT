@@ -1,7 +1,12 @@
-/* ─────────────────────────────────────────────────────────────────────────────
-   Mock store cho Gói Thầu — lưu trữ dữ liệu bằng localStorage
-   Dùng chung cho trang Tạo gói thầu và Danh sách gói thầu
-───────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────
+   Gói Thầu service — API calls to backend, backward-compat types
+───────────────────────────────────────────────────────────── */
+import {
+  searchGoiThau,
+  type GoiThauItem,
+} from "@/services/goiThauApi";
+
+/* ─── Types (backward‑compat with existing pages) ───────── */
 
 export type TrangThai =
   | "Đang xử lý"
@@ -11,28 +16,14 @@ export type TrangThai =
   | "Đã hủy"
   | "Nháp";
 
-export type HinhThuc =
-  | "Chỉ định thầu rút gọn"
-  | "Chỉ định thầu tự quyết định"
-  | "Chỉ định thầu tự quyết định LCNT"
-  | "Chỉ định thầu thông thường"
-  | "Chào hàng cạnh tranh"
-  | "Đấu thầu rộng rãi"
-  | "Mua sắm trực tiếp"
-  | "Chào giá trực tuyến thông thường"
-  | "Chào giá trực tuyến rút gọn"
-  | "Mua sắm trực tuyến"
-  | "Đặt hàng";
-
-export type LoaiGoiThau =
-  | "Hàng hóa"
-  | "Dịch vụ tư vấn"
-  | "Dịch vụ phi tư vấn"
-  | "Xây lắp";
+export type HinhThuc = string;
+export type LoaiGoiThau = string;
 
 export type GoiThau = {
-  id: string;
+  id: string;                  // string form "GT{number}" for compat
+  maGoiThau: string;
   ten: string;
+  tenGoiThau: string;
   loaiGoiThau?: LoaiGoiThau;
   hinhThuc: HinhThuc;
   theoDoi?: string[];
@@ -49,67 +40,71 @@ export type GoiThau = {
   };
 };
 
-/** Khóa lưu trong localStorage */
-const KHOA_LUU = "qlqtdt_goi_thau_user";
+const TRANG_THAI_MAP: Record<string, TrangThai> = {
+  DU_THAO: "Nháp",
+  DANG_XU_LY: "Đang xử lý",
+  HOAN_THANH: "Hoàn thành",
+  HUY_BO: "Đã hủy",
+  QUA_HAN: "Trễ hạn",
+  DA_CHON_NHA_THAU: "Chờ duyệt",
+};
 
-/** Đọc danh sách gói thầu do người dùng tạo từ localStorage */
-export function layDanhSachGoiThau(): GoiThau[] {
+function mapItem(item: GoiThauItem): GoiThau {
+  const pct = item.tongSoBuoc > 0
+    ? Math.round((item.soBuocHoanThanh / item.tongSoBuoc) * 100)
+    : 0;
+  return {
+    id: `GT${item.id}`,
+    maGoiThau: item.maGoiThau,
+    ten: item.tenGoiThau,
+    tenGoiThau: item.tenGoiThau,
+    hinhThuc: item.tenHinhThuc ?? "",
+    giaTriStr: (item.nganSach ?? 0).toLocaleString("vi-VN"),
+    giaTriNum: item.nganSach ?? 0,
+    donVi: item.tenKhoaPhong ?? "",
+    trangThai: TRANG_THAI_MAP[item.trangThai] ?? item.trangThai,
+    detail: {
+      nguonVon: "",
+      ngayTao: item.ngayTao?.slice(0, 10) ?? "",
+      hanHT: "",
+      pct: `${pct}%`,
+      buoc: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
+    },
+  };
+}
+
+/* ─── API helpers ───────────────────────────────────────── */
+
+export const getUserGoiThauList = async (): Promise<GoiThau[]> => {
   try {
-    const raw = localStorage.getItem(KHOA_LUU);
-    return raw ? (JSON.parse(raw) as GoiThau[]) : [];
+    const result = await searchGoiThau({ page: 1, pageSize: 200 });
+    return result.items.map(mapItem);
   } catch {
     return [];
   }
-}
+};
 
-/** Lưu danh sách vào localStorage */
-function luuDanhSach(list: GoiThau[]): void {
-  localStorage.setItem(KHOA_LUU, JSON.stringify(list));
-}
+export const layDanhSachGoiThau = getUserGoiThauList;
 
-/** Thêm gói thầu mới vào đầu danh sách */
-export function themGoiThau(item: GoiThau): void {
-  const list = layDanhSachGoiThau();
-  list.unshift(item);
-  luuDanhSach(list);
-}
+export const getGoiThauById = async (id: string): Promise<GoiThau | undefined> => {
+  const list = await getUserGoiThauList();
+  return list.find((g) => g.id === id || g.maGoiThau === id);
+};
+export const layGoiThauTheoId = getGoiThauById;
 
-/** Cập nhật hoặc thêm mới gói thầu vào localStorage */
-export function capNhatGoiThau(item: GoiThau): void {
-  const list = layDanhSachGoiThau();
-  const idx = list.findIndex((x) => x.id === item.id);
-  if (idx >= 0) {
-    list[idx] = item;
-  } else {
-    list.unshift(item);
-  }
-  luuDanhSach(list);
-}
+export const addGoiThau = async (_item: Partial<GoiThau>): Promise<void> => {
+  // Backend handles creation — placeholder
+};
+export const themGoiThau = addGoiThau;
 
-/** Tìm gói thầu đã lưu theo mã */
-export function layGoiThauTheoId(id: string): GoiThau | undefined {
-  return layDanhSachGoiThau().find((x) => x.id === id);
-}
+export const updateGoiThau = async (_item: Partial<GoiThau>): Promise<void> => {
+  // Backend handles updates — placeholder
+};
+export const capNhatGoiThau = updateGoiThau;
 
-/** Sinh mã gói thầu duy nhất */
-export function sinhMaGoiThau(): string {
-  const nam = new Date().getFullYear();
-  const ts = Date.now().toString().slice(-5);
-  return `GT${nam}-U${ts}`;
-}
+export const formatVND = (s: string) => s.replace(/,/g, ".") + " đ";
+export const dinhDangVND = formatVND;
+export const sinhMaGoiThau = () => `GT${Date.now()}`;
 
-/** Định dạng số thành chuỗi tiền VNĐ có dấu chấm phân cách hàng nghìn */
-export function dinhDangVND(s: string): string {
-  const clean = s.replace(/[^\d]/g, "");
-  const n = parseInt(clean, 10);
-  if (!clean || isNaN(n) || n <= 0) return s;
-  return n.toLocaleString("vi-VN");
-}
-
-// ─── Alias tương thích ngược (dùng trong các file cũ) ────────────────────────
-export const getUserGoiThauList = layDanhSachGoiThau;
-export const addGoiThau = themGoiThau;
-export const updateGoiThau = capNhatGoiThau;
-export const getGoiThauById = layGoiThauTheoId;
-export const generateGoiThauId = sinhMaGoiThau;
-export const formatVND = dinhDangVND;
+// Re-export alias used by other pages
+export { sinhMaGoiThau as generateGoiThauId };

@@ -176,8 +176,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         var year = DateTime.UtcNow.Year;
         var prefix = $"GT-{year}-";
 
-        // Lấy record có Id cao nhất trong năm (Id auto-increment = tạo sau cùng = seq cao nhất)
-        // Chỉ load 1 record thay vì toàn bộ, bao gồm cả soft-deleted để không tái sử dụng mã
+        // Lấy record có Id cao nhất trong năm
         var lastCode = await _set
             .Where(g => g.MaGoiThau.StartsWith(prefix))
             .OrderByDescending(g => g.Id)
@@ -193,5 +192,18 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         }
 
         return $"{prefix}{seq:D3}";
+    }
+
+    public async Task CancelAsync(int id)
+    {
+        var entity = await _set.FindAsync(id)
+            ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
+
+        if (!entity.TrangThaiHoatDong)
+            throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
+
+        entity.TrangThai = GoiThauTrangThai.HUY_BO;
+        entity.NgayCapNhat = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
     }
 }
