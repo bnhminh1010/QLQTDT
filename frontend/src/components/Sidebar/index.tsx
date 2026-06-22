@@ -27,8 +27,12 @@ export default function Sidebar() {
   return (
     <aside className="w-16 lg:w-[220px] bg-slate-950 flex flex-col fixed top-0 left-0 bottom-0 z-[100] overflow-y-auto overflow-x-hidden">
       <div className="flex items-center justify-center lg:justify-start gap-2.5 px-3.5 h-14 border-b border-white/[0.08] shrink-0">
-        <div className="w-[34px] h-[34px] bg-blue-600 rounded-lg flex items-center justify-center text-white text-sm shrink-0">
-          <i className="fa-solid fa-gavel" />
+        <div className="w-[34px] h-[34px] bg-white rounded-md flex items-center justify-center text-white text-sm shrink-0">
+          <img
+            src="/bvungbuouLogo_no_text.png"
+            alt="BV Ung Bướu TP.HCM"
+            className="w-8 h-10 object-contain"
+          />
         </div>
         <div className="hidden lg:block">
           <span className="block text-slate-100 text-[12.5px] font-bold whitespace-nowrap">

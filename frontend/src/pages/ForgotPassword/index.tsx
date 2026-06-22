@@ -25,16 +25,18 @@ const LeftPanel = () => (
     />
     <div className="relative z-10 max-w-sm w-full">
       <div className="flex items-center gap-3.5 mb-12">
-        <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-          <i className="fa-solid fa-gavel text-white text-xl" />
+        <div className="w-17 h-17 rounded-md bg-white border-3 border-blue-950 flex items-center justify-center shrink-0 overflow-hidden">
+          <img
+            src="/bvungbuouLogo_no_text.png"
+            alt="BV Ung Bướu TP.HCM"
+            className="w-16 h-17 object-contain"
+          />
         </div>
         <div>
-          <h1 className="text-white text-[17px] font-extrabold">
+          <h1 className="text-white text-[27px] font-extrabold">
             BV Ung Bướu TP.HCM
           </h1>
-          <p className="text-slate-400 text-xs mt-0.5">
-            Hệ thống Quản lý Đấu thầu
-          </p>
+          <p className="text-cyan-200 text-[19px]">Hệ thống Quản lý Đấu thầu</p>
         </div>
       </div>
       <h2 className="text-[34px] font-extrabold text-white leading-tight mb-4">
