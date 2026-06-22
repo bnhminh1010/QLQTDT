@@ -41,6 +41,12 @@ public class ParallelGroupService : IParallelGroupService
         if (!mergeStepExists)
             throw new NotFoundException("BuocSauHopNhat not found in this workflow.");
 
+        // Check duplicate group for same split step
+        var duplicate = await _db.NhomNhanhWorkflows.AnyAsync(g =>
+            g.WorkflowId == workflowId && g.BuocTachNhanhId == request.BuocTachNhanhId);
+        if (duplicate)
+            throw new ConflictException("Đã có nhóm nhánh cho bước tách này.");
+
         var entity = new NhomNhanhWorkflow
         {
             WorkflowId = workflowId,
@@ -68,7 +74,15 @@ public class ParallelGroupService : IParallelGroupService
             ?? throw new NotFoundException($"Parallel group not found: {groupId}");
 
         if (request.TenNhom != null) group.TenNhom = request.TenNhom;
-        if (request.BuocSauHopNhatId.HasValue) group.BuocSauHopNhatId = request.BuocSauHopNhatId.Value;
+        if (request.BuocSauHopNhatId.HasValue)
+        {
+            // Validate merge step belongs to same workflow
+            var mergeStepExists = await _db.BuocWorkflows.AnyAsync(b =>
+                b.Id == request.BuocSauHopNhatId.Value && b.WorkflowId == workflowId);
+            if (!mergeStepExists)
+                throw new NotFoundException("BuocSauHopNhat not found in this workflow.");
+            group.BuocSauHopNhatId = request.BuocSauHopNhatId.Value;
+        }
 
         if (request.DieuKienHopNhat != null)
         {

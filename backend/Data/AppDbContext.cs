@@ -40,6 +40,7 @@ public class AppDbContext : DbContext
     public DbSet<ThongBao> ThongBaos => Set<ThongBao>();
     public DbSet<NhomNhanhWorkflow> NhomNhanhWorkflows => Set<NhomNhanhWorkflow>();
     public DbSet<NhanhWorkflow> NhanhWorkflows => Set<NhanhWorkflow>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -533,6 +534,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.GhiChu).HasMaxLength(1000);
             entity.Property(e => e.NgayNop).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.Property(e => e.DiemDanhGia).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.NhanXet).HasMaxLength(1000);
             entity.HasIndex(e => new { e.GoiThauId, e.NhaThauId }).IsUnique();
             entity.HasOne(e => e.GoiThau)
                 .WithMany()

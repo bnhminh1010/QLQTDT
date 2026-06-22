@@ -27,6 +27,7 @@ public class GoiThauDto
     public decimal? NganSach { get; set; }
     public string TrangThai { get; set; } = null!;
     public DateTime NgayTao { get; set; }
+    public int? KhoaPhongId { get; set; }
 }
 
 public class GoiThauDetailDto

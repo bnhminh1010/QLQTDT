@@ -252,6 +252,8 @@ public class HoSoDuThauService : IHoSoDuThauService
                 GiaTrungThau = h.GiaTrungThau,
                 TrangThai = h.TrangThai,
                 GhiChu = h.GhiChu,
+                DiemDanhGia = h.DiemDanhGia,
+                NhanXet = h.NhanXet,
                 NgayNop = h.NgayNop,
                 NgayCapNhat = h.NgayCapNhat,
                 TaiLieus = h.TaiLieus
@@ -268,5 +270,57 @@ public class HoSoDuThauService : IHoSoDuThauService
             .FirstOrDefaultAsync();
 
         return dto ?? throw new NotFoundException($"Không tìm thấy hồ sơ dự thầu với Id = {id}");
+    }
+
+    public async Task EvaluateAsync(int id, EvaluateHoSoRequest request)
+    {
+        var entity = await _db.HoSoDuThaus.FindAsync(id)
+            ?? throw new NotFoundException($"Không tìm thấy hồ sơ dự thầu với Id = {id}");
+
+        if (entity.TrangThai == HoSoDuThauTrangThai.TRUNG_THAU)
+            throw new BadRequestException("Không thể đánh giá hồ sơ đã trúng thầu.");
+
+        if (request.DiemDanhGia < 0 || request.DiemDanhGia > 100)
+            throw new BadRequestException("Điểm đánh giá phải từ 0 đến 100.");
+
+        entity.DiemDanhGia = request.DiemDanhGia;
+        entity.NhanXet = request.NhanXet;
+        entity.NgayCapNhat = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<GoiThauKetQuaDto> GetKetQuaAsync(int goiThauId)
+    {
+        var goiThau = await _db.GoiThaus.FindAsync(goiThauId)
+            ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId}");
+
+        var danhSachHoSo = await _db.HoSoDuThaus
+            .Where(h => h.GoiThauId == goiThauId)
+            .Join(_db.NhaThaus, h => h.NhaThauId, n => n.Id,
+                (h, n) => new HoSoKetQuaDto
+                {
+                    Id = h.Id,
+                    TenNhaThau = n.TenCongTy,
+                    MaSoThue = n.MaSoThue,
+                    GiaDuThau = h.GiaDuThau,
+                    GiaTrungThau = h.GiaTrungThau,
+                    TrangThai = h.TrangThai,
+                    DiemDanhGia = h.DiemDanhGia,
+                    NhanXet = h.NhanXet,
+                    NgayNop = h.NgayNop
+                })
+            .OrderByDescending(h => h.DiemDanhGia ?? 0)
+            .ThenBy(h => h.GiaDuThau)
+            .ToListAsync();
+
+        return new GoiThauKetQuaDto
+        {
+            GoiThauId = goiThauId,
+            MaGoiThau = goiThau.MaGoiThau,
+            TenGoiThau = goiThau.TenGoiThau,
+            TrangThai = goiThau.TrangThai,
+            DanhSachHoSo = danhSachHoSo,
+            HoSoTrungThau = danhSachHoSo.FirstOrDefault(h => h.TrangThai == HoSoDuThauTrangThai.TRUNG_THAU)
+        };
     }
 }

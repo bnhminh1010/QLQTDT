@@ -43,6 +43,13 @@ public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhTh
         return Ok(ApiResponse<HinhThucDauThau>.Ok(updated, "Cập nhật hình thức đấu thầu thành công"));
     }
 
+    [HttpDelete("{id}")]
+    public async Task<ActionResult<ApiResponse>> DeleteHinhThuc(int id)
+    {
+        await _service.DeleteAsync(id);
+        return Ok(ApiResponse.Ok("Xóa hình thức đấu thầu thành công"));
+    }
+
     [NonAction]
     public override Task<ActionResult<ApiResponse<HinhThucDauThau>>> Create(HinhThucDauThau entity)
         => throw new NotSupportedException("Sử dụng CreateHinhThucDauThauDto thay vì entity trực tiếp.");

@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -34,11 +35,9 @@ public class JwtService
             new(JwtRegisteredClaimNames.Email, email),
             new(JwtRegisteredClaimNames.Name, fullName),
             new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            // Note: permissions param is already comma-joined from the IEnumerable<string> overload (line 21)
             new("permissions", permissions)
         };
 
-        // Thêm từng role vào claims
         foreach (var role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
@@ -53,5 +52,13 @@ public class JwtService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateRefreshToken()
+    {
+        var randomBytes = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomBytes);
+        return Convert.ToBase64String(randomBytes);
     }
 }

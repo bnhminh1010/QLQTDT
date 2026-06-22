@@ -20,6 +20,35 @@ public class AwardGoiThauRequest
     public decimal GiaTrungThau { get; set; }
 }
 
+public class EvaluateHoSoRequest
+{
+    public decimal DiemDanhGia { get; set; }
+    public string? NhanXet { get; set; }
+}
+
+public class GoiThauKetQuaDto
+{
+    public int GoiThauId { get; set; }
+    public string MaGoiThau { get; set; } = null!;
+    public string TenGoiThau { get; set; } = null!;
+    public string TrangThai { get; set; } = null!;
+    public List<HoSoKetQuaDto> DanhSachHoSo { get; set; } = [];
+    public HoSoKetQuaDto? HoSoTrungThau { get; set; }
+}
+
+public class HoSoKetQuaDto
+{
+    public int Id { get; set; }
+    public string TenNhaThau { get; set; } = null!;
+    public string MaSoThue { get; set; } = null!;
+    public decimal GiaDuThau { get; set; }
+    public decimal? GiaTrungThau { get; set; }
+    public string TrangThai { get; set; } = null!;
+    public decimal? DiemDanhGia { get; set; }
+    public string? NhanXet { get; set; }
+    public DateTime NgayNop { get; set; }
+}
+
 public class HoSoDuThauListItemDto
 {
     public int Id { get; set; }
@@ -54,6 +83,8 @@ public class HoSoDuThauDetailDto
     public decimal? GiaTrungThau { get; set; }
     public string TrangThai { get; set; } = null!;
     public string? GhiChu { get; set; }
+    public decimal? DiemDanhGia { get; set; }
+    public string? NhanXet { get; set; }
     public DateTime NgayNop { get; set; }
     public DateTime? NgayCapNhat { get; set; }
     public List<TaiLieuTomTatDto> TaiLieus { get; set; } = [];

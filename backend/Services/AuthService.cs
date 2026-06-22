@@ -72,15 +72,15 @@ public class AuthService : IAuthService
         var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
         var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
+        var refreshToken = await CreateRefreshTokenAsync(user.Id);
 
-        // Chuyển thành List<string> đã sort cho response
         var permissionList = permissionSet.OrderBy(q => q).ToList();
-
 
         return new LoginResponseDto
         {
             Message = "Đăng nhập thành công",
             Token = token,
+            RefreshToken = refreshToken,
             User = new UserDto
             {
                 IdCongKhai = user.IdCongKhai,
@@ -96,6 +96,82 @@ public class AuthService : IAuthService
                 Quyen = permissionList
             }
         };
+    }
+
+    public async Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken)
+    {
+        var storedToken = await _context.RefreshTokens
+            .Include(rt => rt.NguoiDung)
+            .FirstOrDefaultAsync(rt => rt.Token == refreshToken)
+            ?? throw new UnauthorizedException("Refresh token không hợp lệ.");
+
+        if (!storedToken.IsActive)
+            throw new UnauthorizedException("Refresh token đã hết hạn hoặc đã bị thu hồi.");
+
+        // Revoke old refresh token (rotation)
+        storedToken.RevokedAt = DateTime.UtcNow;
+
+        var user = storedToken.NguoiDung!;
+        if (!user.TrangThaiHoatDong)
+            throw new ForbiddenException("Tài khoản đã bị khóa.");
+
+        var userRoles = await GetUserRoles(user.Id);
+        var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
+
+        var newToken = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
+        var newRefreshToken = await CreateRefreshTokenAsync(user.Id);
+
+        await _context.SaveChangesAsync();
+
+        var permissionList = permissionSet.OrderBy(q => q).ToList();
+
+        return new RefreshTokenResponseDto
+        {
+            Message = "Cấp token mới thành công",
+            Token = newToken,
+            RefreshToken = newRefreshToken,
+            User = new UserDto
+            {
+                IdCongKhai = user.IdCongKhai,
+                TenDangNhap = user.TenDangNhap,
+                HoTen = user.HoTen,
+                Email = user.Email,
+                TrangThaiHoatDong = user.TrangThaiHoatDong,
+                NgayTao = user.NgayTao,
+                NgayDangNhapCuoi = user.NgayDangNhapCuoi,
+                NgayCapNhat = user.NgayCapNhat,
+                AvatarUrl = user.AvatarUrl,
+                Roles = userRoles,
+                Quyen = permissionList
+            }
+        };
+    }
+
+    public async Task RevokeRefreshTokenAsync(string refreshToken)
+    {
+        var storedToken = await _context.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
+
+        if (storedToken != null)
+        {
+            storedToken.RevokedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    private async Task<string> CreateRefreshTokenAsync(int userId)
+    {
+        var tokenString = _jwtService.GenerateRefreshToken();
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            Token = tokenString,
+            NguoiDungId = userId,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+        return tokenString;
     }
 
     public async Task<UserDto> GetCurrentUserAsync(int userId)

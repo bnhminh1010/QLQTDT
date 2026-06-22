@@ -4,12 +4,18 @@ using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.GoiThau;
 using QLQTDT.Api.Models.Entities;
+using System.Security.Claims;
 
 namespace QLQTDT.Api.Services;
 
 public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 {
-    public GoiThauService(AppDbContext db) : base(db) { }
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public GoiThauService(AppDbContext db, IHttpContextAccessor httpContextAccessor) : base(db)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
 
     public async Task<PagedResult<GoiThauDto>> SearchAsync(int page, int pageSize, string? trangThai)
     {
@@ -26,6 +32,11 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         if (!string.IsNullOrWhiteSpace(normalizedTrangThai))
             query = query.Where(g => g.TrangThai == normalizedTrangThai);
 
+        // Áp scope filter theo khoa/phòng cho user limited
+        var (allowedKhoaPhongIds, isFullScope) = await ResolveScopeAsync();
+        if (!isFullScope && allowedKhoaPhongIds.Count > 0)
+            query = query.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+
         var total = await query.CountAsync();
         var items = await query
             .OrderByDescending(g => g.NgayTao)
@@ -38,7 +49,8 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 TenGoiThau = g.TenGoiThau,
                 NganSach = g.NganSach,
                 TrangThai = g.TrangThai,
-                NgayTao = g.NgayTao
+                NgayTao = g.NgayTao,
+                KhoaPhongId = g.KhoaPhongId
             })
             .ToListAsync();
 
@@ -49,6 +61,30 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    private async Task<(HashSet<int> Ids, bool IsFull)> ResolveScopeAsync()
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue) return ([], true);
+
+        var assignments = await _db.NguoiDungKhoaPhongVaiTros
+            .Where(nkv => nkv.NguoiDungId == userId.Value)
+            .Select(nkv => nkv.KhoaPhongId)
+            .Distinct()
+            .ToListAsync();
+
+        if (assignments.Any(id => id == null))
+            return ([], true);
+
+        var khoaPhongIds = assignments.Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
+        return (khoaPhongIds, false);
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        return claim is not null && int.TryParse(claim.Value, out var id) ? id : null;
     }
 
     public override async Task<GoiThau?> GetByIdAsync(int id)
@@ -101,6 +137,13 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
     public async Task<GoiThau> CreateAsync(CreateGoiThauDto dto)
     {
+        if (dto.DeXuatId.HasValue)
+        {
+            var deXuatExists = await _db.DeXuatMuaSams.AnyAsync(d => d.Id == dto.DeXuatId.Value);
+            if (!deXuatExists)
+                throw new NotFoundException($"Không tìm thấy đề xuất với Id = {dto.DeXuatId.Value}");
+        }
+
         for (var attempt = 1; attempt <= 3; attempt++)
         {
             try
