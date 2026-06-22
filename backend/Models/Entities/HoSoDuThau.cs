@@ -21,6 +21,11 @@ public class HoSoDuThau
     public decimal? GiaTrungThau { get; set; }
     public string TrangThai { get; set; } = HoSoDuThauTrangThai.CHUA_XU_LY;
     public string? GhiChu { get; set; }
+
+    // Danh gia ho so
+    public decimal? DiemDanhGia { get; set; }
+    public string? NhanXet { get; set; }
+
     public DateTime NgayNop { get; set; }
     public DateTime? NgayCapNhat { get; set; }
 

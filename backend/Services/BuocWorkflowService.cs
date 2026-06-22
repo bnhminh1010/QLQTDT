@@ -87,6 +87,9 @@ public class BuocWorkflowService : IBuocWorkflowService
             MaBuoc = request.MaBuoc,
             TenBuoc = request.TenBuoc,
             LoaiBuoc = request.LoaiBuoc,
+            ThuTu = request.ThuTu,
+            NhomGiaiDoan = request.NhomGiaiDoan,
+            MoTa = request.MoTa,
             VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId,
             SoNgayLapHoSo = request.SoNgayLapHoSo,
             VaiTroKyDuyetId = request.VaiTroKyDuyetId,
@@ -95,7 +98,14 @@ public class BuocWorkflowService : IBuocWorkflowService
             NhomSongSong = request.NhomSongSong,
             LaBuocJoin = request.LaBuocJoin,
             ChoPhepTuChoi = request.ChoPhepTuChoi,
-            ChoPhepBoQua = request.ChoPhepBoQua
+            ChoPhepBoQua = request.ChoPhepBoQua,
+            DonViXuLyId = request.DonViXuLyId,
+            DonViKyHoSoId = request.DonViKyHoSoId,
+            BatBuocGhiChu = request.BatBuocGhiChu,
+            BatBuocTaiLieu = request.BatBuocTaiLieu,
+            BatBuocKyTruocChuyenBuoc = request.BatBuocKyTruocChuyenBuoc,
+            BatBuocDungSLA = request.BatBuocDungSLA,
+            NhanhWorkflowId = request.NhanhWorkflowId
         };
 
         _context.BuocWorkflows.Add(entity);
@@ -183,6 +193,24 @@ public class BuocWorkflowService : IBuocWorkflowService
 
         if (request.ChoPhepBoQua.HasValue)
             entity.ChoPhepBoQua = request.ChoPhepBoQua.Value;
+
+        // Designer extensions
+        if (request.NhomGiaiDoan != null)
+            entity.NhomGiaiDoan = request.NhomGiaiDoan;
+        if (request.MoTa != null)
+            entity.MoTa = request.MoTa;
+        if (request.DonViXuLyId.HasValue)
+            entity.DonViXuLyId = request.DonViXuLyId.Value == 0 ? null : request.DonViXuLyId;
+        if (request.DonViKyHoSoId.HasValue)
+            entity.DonViKyHoSoId = request.DonViKyHoSoId.Value == 0 ? null : request.DonViKyHoSoId;
+        if (request.BatBuocGhiChu.HasValue)
+            entity.BatBuocGhiChu = request.BatBuocGhiChu.Value;
+        if (request.BatBuocTaiLieu.HasValue)
+            entity.BatBuocTaiLieu = request.BatBuocTaiLieu.Value;
+        if (request.BatBuocKyTruocChuyenBuoc.HasValue)
+            entity.BatBuocKyTruocChuyenBuoc = request.BatBuocKyTruocChuyenBuoc.Value;
+        if (request.BatBuocDungSLA.HasValue)
+            entity.BatBuocDungSLA = request.BatBuocDungSLA.Value;
 
         await _context.SaveChangesAsync();
 
@@ -273,7 +301,13 @@ public class BuocWorkflowService : IBuocWorkflowService
             TuBuocId = request.TuBuocId,
             DenBuocId = request.DenBuocId,
             HanhDong = request.HanhDong,
-            DieuKien = request.DieuKien
+            DieuKien = request.DieuKien,
+            DieuKienKichHoat = request.DieuKienKichHoat ?? "LUON",
+            KetQuaApDung = request.KetQuaApDung,
+            VaiTroApDungId = request.VaiTroApDungId,
+            BatBuocGhiChu = request.BatBuocGhiChu,
+            BatBuocTaiLieu = request.BatBuocTaiLieu,
+            HuongXuLyKhongDuyet = request.HuongXuLyKhongDuyet
         };
 
         _context.ChuyenTiepWorkflows.Add(entity);
@@ -318,6 +352,12 @@ public class BuocWorkflowService : IBuocWorkflowService
 
         if (afterStep.WorkflowId != workflowId)
             throw new AppException(400, "CROSS_WORKFLOW", "Step does not belong to this workflow.");
+
+        // Check duplicate MaBuoc
+        var duplicateMa = await _context.BuocWorkflows.AnyAsync(b =>
+            b.WorkflowId == workflowId && b.MaBuoc == request.MaBuoc);
+        if (duplicateMa)
+            throw new ConflictException($"MaBuoc '{request.MaBuoc}' da ton tai trong workflow nay.");
 
         // Shift ThuTu of later steps
         await _context.BuocWorkflows
@@ -404,6 +444,12 @@ public class BuocWorkflowService : IBuocWorkflowService
 
         if (source.WorkflowId != workflowId)
             throw new AppException(400, "CROSS_WORKFLOW", "Step does not belong to this workflow.");
+
+        // Check duplicate MaBuoc
+        var duplicateMa = await _context.BuocWorkflows.AnyAsync(b =>
+            b.WorkflowId == workflowId && b.MaBuoc == request.MaBuocMoi);
+        if (duplicateMa)
+            throw new ConflictException($"MaBuoc '{request.MaBuocMoi}' da ton tai trong workflow nay.");
 
         // Shift ThuTu
         await _context.BuocWorkflows

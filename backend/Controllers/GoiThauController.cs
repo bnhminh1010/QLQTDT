@@ -65,6 +65,15 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<GoiThau>.Ok(updated, "Cập nhật gói thầu thành công"));
     }
 
+    /// <summary>Hủy gói thầu (chuyển trạng thái HUY_BO)</summary>
+    [HttpPost("{id}/cancel")]
+    [HasPermission("GOITHAU.EDIT")]
+    public async Task<ActionResult<ApiResponse>> Cancel(int id)
+    {
+        await _service.CancelAsync(id);
+        return Ok(ApiResponse.Ok("Hủy gói thầu thành công"));
+    }
+
     [HttpGet("{id}/chi-tiet")]
     [HasPermission("GOITHAU.VIEW")]
     public async Task<ActionResult<ApiResponse<GoiThauDetailDto>>> GetChiTiet(int id)

@@ -35,4 +35,22 @@ public class LoginResponseDto
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string Token { get; set; } = null!;
+
+    public string? RefreshToken { get; set; }
+}
+
+public class RefreshTokenRequestDto
+{
+    public string RefreshToken { get; set; } = null!;
+}
+
+public class RefreshTokenResponseDto
+{
+    public string Message { get; set; } = null!;
+    public UserDto User { get; set; } = null!;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Token { get; set; } = null!;
+
+    public string? RefreshToken { get; set; }
 }

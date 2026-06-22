@@ -4,6 +4,7 @@ using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models.DTOs.Admin;
 using QLQTDT.Api.Models.DTOs.Auth;
 using QLQTDT.Api.Models.Entities;
+using System.Security.Claims;
 
 namespace QLQTDT.Api.Services;
 
@@ -11,11 +12,13 @@ public class AdminService : IAdminService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<AdminService> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public AdminService(AppDbContext context, ILogger<AdminService> logger)
+    public AdminService(AppDbContext context, ILogger<AdminService> logger, IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<AdminUserListDto> GetUsersAsync(int page, int pageSize, bool? trangThai, string? search)
@@ -140,9 +143,29 @@ public class AdminService : IAdminService
         if (!user.TrangThaiHoatDong)
             throw new BadRequestException("Tài khoản này đã bị khóa trước đó.");
 
+        // Prevent self-block
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId.HasValue && user.Id == currentUserId.Value)
+            throw new BadRequestException("Không thể tự khóa tài khoản của chính mình.");
+
+        // Prevent blocking last admin
+        var adminCount = await _context.NguoiDungKhoaPhongVaiTros
+            .Where(r => r.VaiTro.TenVaiTro == "ADMIN" && r.NguoiDung.TrangThaiHoatDong)
+            .Select(r => r.NguoiDungId)
+            .Distinct()
+            .CountAsync();
+        if (adminCount <= 1)
+            throw new BadRequestException("Không thể khóa admin cuối cùng của hệ thống.");
+
         user.TrangThaiHoatDong = false;
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Admin đã khóa tài khoản: {TenDangNhap} (ID: {IdCongKhai})", user.TenDangNhap, idCongKhai);
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        return claim is not null && int.TryParse(claim.Value, out var id) ? id : null;
     }
 }

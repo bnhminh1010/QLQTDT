@@ -47,6 +47,15 @@ public partial class TaiLieuService : ITaiLieuService
         }
 
         var userId = GetCurrentUserId();
+
+        // Check GoiThau exists before FTP upload
+        if (goiThauId.HasValue)
+        {
+            var goiThauExists = await _db.GoiThaus.AnyAsync(g => g.Id == goiThauId.Value && g.TrangThaiHoatDong, ct);
+            if (!goiThauExists)
+                throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId.Value}");
+        }
+
         var entities = new List<TaiLieuHoSo>();
         var uploadedPaths = new List<string>();
 
@@ -107,6 +116,15 @@ public partial class TaiLieuService : ITaiLieuService
         if (entity is null || entity.DaXoa)
             throw new NotFoundException($"Không tìm thấy tài liệu với Id = {id}");
 
+        // IDOR guard: user must be owner or have full scope
+        var userId = GetCurrentUserId();
+        if (entity.NguoiUploadId != userId)
+        {
+            var isAdmin = _httpContextAccessor.HttpContext?.User?.IsInRole("ADMIN") == true;
+            if (!isAdmin)
+                throw new ForbiddenException("Bạn không có quyền truy cập tài liệu này.");
+        }
+
         var stream = await _ftp.DownloadAsync(entity.DuongDanFtp, ct);
         return (stream, entity.TenFile, entity.ContentType);
     }
@@ -118,6 +136,11 @@ public partial class TaiLieuService : ITaiLieuService
 
         if (entity is null || entity.DaXoa)
             throw new NotFoundException($"Không tìm thấy tài liệu với Id = {id}");
+
+        // IDOR guard: user must be owner
+        var userId = GetCurrentUserId();
+        if (entity.NguoiUploadId != userId)
+            throw new ForbiddenException("Bạn không có quyền xóa tài liệu này.");
 
         try
         {
@@ -140,7 +163,14 @@ public partial class TaiLieuService : ITaiLieuService
         if (!string.IsNullOrWhiteSpace(normalizedLoai) && !LoaiTaiLieu.All.Contains(normalizedLoai))
             throw new BadRequestException($"loaiTaiLieu không hợp lệ. Giá trị hợp lệ: {string.Join(", ", LoaiTaiLieu.All)}");
 
+        var userId = GetCurrentUserId();
+        var isAdmin = _httpContextAccessor.HttpContext?.User?.IsInRole("ADMIN") == true;
+
         var query = _db.TaiLieuHoSos.Where(t => !t.DaXoa);
+
+        // Non-admin users only see their own uploads
+        if (!isAdmin && userId.HasValue)
+            query = query.Where(t => t.NguoiUploadId == userId.Value);
 
         if (goiThauId.HasValue)
             query = query.Where(t => t.GoiThauId == goiThauId);

@@ -1,14 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
-import {
-  getQuyTrinhList,
-  deleteQuyTrinh,
-  updateQuyTrinh,
-  type QuyTrinh,
-  type TrangThaiQT,
-} from "./quyTrinhService";
+import { getWorkflows } from "@/services/workflowApi";
+import http from "@/util/http";
 
 const HT_BADGE: Record<string, string> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
@@ -23,31 +18,50 @@ const PAGE_SIZE = 10;
 type SortField = "ten" | "ngayTao" | "buocList" | "";
 type SortDir = "asc" | "desc";
 
+type LocalQuyTrinh = {
+  id: string;
+  ten: string;
+  hinhThuc: string;
+  buocList: any[];
+  trangThai: string;
+  ngayTao: string;
+};
+
 export default function DanhSachQuyTrinh() {
   const navigate = useNavigate();
-  const [list, setList] = useState<QuyTrinh[]>([]);
+  const [list, setList] = useState<LocalQuyTrinh[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteTarget, setDeleteTarget] = useState<QuyTrinh | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LocalQuyTrinh | null>(null);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<TrangThaiQT | "">("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterHT, setFilterHT] = useState("");
   const [sortField, setSortField] = useState<SortField>("");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
 
-  const reload = () => {
+  const reload = useCallback(async () => {
     setLoading(true);
-    const t = setTimeout(() => {
-      setList(getQuyTrinhList());
+    try {
+      const workflows = await getWorkflows();
+      const mapped: LocalQuyTrinh[] = workflows.map((w) => ({
+        id: String(w.id),
+        ten: w.tenWorkflow,
+        hinhThuc: '',
+        buocList: [],
+        trangThai: w.trangThaiHoatDong ? 'Đang hoạt động' : 'Đã tắt',
+        ngayTao: '',
+      }));
+      setList(mapped);
+    } catch {
+      setList([]);
+    } finally {
       setLoading(false);
-    }, 400);
-    return () => clearTimeout(t);
-  };
+    }
+  }, []);
 
   useEffect(() => {
-    return reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    reload();
+  }, [reload]);
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -59,14 +73,11 @@ export default function DanhSachQuyTrinh() {
     setPage(1);
   }
 
-  function handleToggle(qt: QuyTrinh) {
-    const updated: QuyTrinh = {
+  function handleToggle(qt: LocalQuyTrinh) {
+    const updated: LocalQuyTrinh = {
       ...qt,
-      trangThai: (qt.trangThai === "Đang hoạt động"
-        ? "Đã tắt"
-        : "Đang hoạt động") as TrangThaiQT,
+      trangThai: qt.trangThai === "Đang hoạt động" ? "Đã tắt" : "Đang hoạt động",
     };
-    updateQuyTrinh(updated);
     setList((prev) => prev.map((x) => (x.id === qt.id ? updated : x)));
     toast.success(
       updated.trangThai === "Đang hoạt động"
@@ -77,7 +88,10 @@ export default function DanhSachQuyTrinh() {
 
   function handleDelete() {
     if (!deleteTarget) return;
-    deleteQuyTrinh(deleteTarget.id);
+    const id = parseInt(deleteTarget.id);
+    if (!isNaN(id)) {
+      http.del(`/workflows/${id}`).catch(() => {});
+    }
     setList((prev) => prev.filter((x) => x.id !== deleteTarget.id));
     toast.success(`Đã xóa quy trình "${deleteTarget.ten}"`);
     setDeleteTarget(null);
@@ -162,7 +176,7 @@ export default function DanhSachQuyTrinh() {
           <SelectField
             value={filterStatus || "__all"}
             onValueChange={(value) => {
-              setFilterStatus(value === "__all" ? "" : (value as TrangThaiQT));
+              setFilterStatus(value === "__all" ? "" : value);
               setPage(1);
             }}
             options={[

@@ -113,6 +113,30 @@ public class AuthController : ControllerBase
         return Ok(new MessageResponse { Message = "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại." });
     }
 
+    /// <summary>Cấp lại access token mới bằng refresh token</summary>
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh(
+        [FromBody] RefreshTokenRequestDto dto,
+        [FromServices] IValidator<RefreshTokenRequestDto> validator)
+    {
+        var validation = await validator.ValidateAsync(dto);
+        if (!validation.IsValid) return BadRequest(ToValidationError(validation));
+
+        var result = await _authService.RefreshTokenAsync(dto.RefreshToken);
+        Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateCookieOptions());
+        return Ok(result);
+    }
+
+    /// <summary>Thu hồi refresh token</summary>
+    [HttpPost("revoke")]
+    [Authorize]
+    public async Task<IActionResult> Revoke([FromBody] RefreshTokenRequestDto dto)
+    {
+        await _authService.RevokeRefreshTokenAsync(dto.RefreshToken);
+        return Ok(new MessageResponse { Message = "Thu hồi refresh token thành công." });
+    }
+
     /// <summary>Đổi mật khẩu (user đã đăng nhập)</summary>
     [HttpPost("update-password")]
     [Authorize]

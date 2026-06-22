@@ -189,6 +189,15 @@ public class WorkflowEngineService : IWorkflowEngineService
         // ── FAST PATH: frontend submitted full form (both phases in 1 call) ──
         if (nguoiKyDuyetId is int actualNguoiKyDuyetId && ngayKyDuyet is DateTime actualNgayKyDuyet)
         {
+            // Security: verify caller is a signer in KY_DUYET phase
+            if (currentStep.PhaHienTai == "KY_DUYET")
+            {
+                var isSigner = currentStep.WorkflowAssignments
+                    .Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy);
+                if (!isSigner)
+                    throw new ForbiddenException("Bạn không được phân công ký duyệt bước này.");
+            }
+
             // Mark LAP_HO_SO phase done
             currentStep.NguoiXuLyId = nguoiXuLyId ?? currentUserId;
             currentStep.NgayXuLy = ngayXuLy ?? DateTime.UtcNow;
@@ -1172,7 +1181,8 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         var steps = await _db.BuocWorkflows
             .Where(b => b.WorkflowId == request.WorkflowId!.Value)
-            .OrderBy(b => b.Id)
+            .OrderBy(b => b.ThuTu)
+            .ThenBy(b => b.Id)
             .ToListAsync();
 
         if (steps.Count == 0)
@@ -1182,6 +1192,9 @@ public class WorkflowEngineService : IWorkflowEngineService
             .AnyAsync(i => i.GoiThauId == goiThauId && i.TrangThai == WorkflowTrangThai.ACTIVE);
         if (hasActive)
             throw new ConflictException("Goi thau da co workflow instance dang hoat dong.");
+
+        if (!workflow.TrangThaiHoatDong)
+            throw new BadRequestException("Workflow da bi vo hieu hoa. Khong the khoi dong.");
 
         await using var txn = await _db.Database.BeginTransactionAsync();
 

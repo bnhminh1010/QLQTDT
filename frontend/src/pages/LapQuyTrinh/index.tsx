@@ -3,21 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import {
-  type Buoc,
-  type LoaiBuoc,
-  type TrangThaiBuoc,
-  type LoaiThoiHan,
-  type HanhDongChuyen,
-  type DieuKienKichHoat,
-  type DieuKienChuyenTiep,
-  type NhanhSongSong,
-  type HinhThucQT,
+  type Buoc, type LoaiBuoc, type TrangThaiBuoc,
+  type LoaiThoiHan, type HanhDongChuyen, type DieuKienKichHoat,
+  type DieuKienChuyenTiep, type NhanhSongSong, type HinhThucQT,
   HINH_THUC_OPTIONS,
-  addQuyTrinh,
-  updateQuyTrinh,
-  getQuyTrinhById,
-  generateQuyTrinhId,
 } from "@/pages/DanhSachQuyTrinh/quyTrinhService";
+import http from "@/util/http";
+import type { ApiResponse } from "@/services/types";
 
 /* ─── Constants ──────────────────────────────────────────────── */
 const DON_VI_OPTIONS = [
@@ -218,14 +210,19 @@ export default function LapQuyTrinh() {
   /* ── Load existing if editing ── */
   useEffect(() => {
     if (editId) {
-      const qt = getQuyTrinhById(editId);
-      if (qt) {
-        setTenQuyTrinh(qt.ten);
-        setHinhThuc(qt.hinhThuc);
-        setBuocList(qt.buocList);
-      } else {
-        toast.error("Không tìm thấy quy trình");
-        navigate("/danh-sach-quy-trinh");
+      const wfId = parseInt(editId);
+      if (!isNaN(wfId)) {
+        http.get<ApiResponse<any>>(`/workflows/${wfId}`)
+          .then((res) => {
+            const wf = res.data;
+            setTenQuyTrinh(wf.tenWorkflow);
+            setHinhThuc(wf.loaiHinhDauThau || '');
+            setBuocList([]);
+          })
+          .catch(() => {
+            toast.error("Không tìm thấy quy trình");
+            navigate("/danh-sach-quy-trinh");
+          });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -437,30 +434,21 @@ export default function LapQuyTrinh() {
     setSaving(true);
 
     setTimeout(() => {
-      if (isEdit && editId) {
-        updateQuyTrinh({
-          id: editId,
-          ten: tenQuyTrinh.trim(),
-          hinhThuc: hinhThuc as HinhThucQT,
-          buocList,
-          trangThai: "Đang hoạt động",
-          ngayTao: new Date().toISOString(),
-        });
-        toast.success("Đã cập nhật quy trình thành công");
-      } else {
-        addQuyTrinh({
-          id: generateQuyTrinhId(),
-          ten: tenQuyTrinh.trim(),
-          hinhThuc: hinhThuc as HinhThucQT,
-          buocList,
-          trangThai: "Đang hoạt động",
-          ngayTao: new Date().toISOString(),
-        });
-        toast.success("Quy trình đã được lưu thành công");
-      }
-      setIsDirty(false);
-      setSaving(false);
-      navigate("/danh-sach-quy-trinh");
+      const payload = {
+        tenWorkflow: tenQuyTrinh.trim(),
+      };
+      const request = isEdit && editId
+        ? http.put(`/workflows/${editId}`, payload)
+        : http.post("/workflows", payload);
+      request.then(() => {
+        toast.success(isEdit ? "Đã cập nhật quy trình thành công" : "Quy trình đã được lưu thành công");
+        setIsDirty(false);
+        setSaving(false);
+        navigate("/danh-sach-quy-trinh");
+      }).catch(() => {
+        toast.error("Lưu quy trình thất bại");
+        setSaving(false);
+      });
     }, 600);
   }
 

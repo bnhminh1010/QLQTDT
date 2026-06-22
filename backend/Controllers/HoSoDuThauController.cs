@@ -72,4 +72,42 @@ public class HoSoDuThauController : ControllerBase
         await _service.UpdateTrangThaiAsync(id, request);
         return Ok(ApiResponse<object?>.Ok(null, "Cập nhật trạng thái thành công"));
     }
+
+    /// <summary>
+    /// Đánh giá hồ sơ dự thầu (chấm điểm, nhận xét)
+    /// POST /api/ho-so-du-thau/{id}/evaluate
+    /// </summary>
+    [HttpPost("{id}/evaluate")]
+    [HasPermission("HOSODUTHAU.EVALUATE")]
+    public async Task<ActionResult<ApiResponse<object?>>> Evaluate(
+        int id, [FromBody] EvaluateHoSoRequest request)
+    {
+        await _service.EvaluateAsync(id, request);
+        return Ok(ApiResponse<object?>.Ok(null, "Đánh giá hồ sơ thành công"));
+    }
+}
+
+[ApiController]
+[Authorize]
+[Route("api/goi-thau")]
+public class GoiThauKetQuaController : ControllerBase
+{
+    private readonly IHoSoDuThauService _service;
+
+    public GoiThauKetQuaController(IHoSoDuThauService service)
+    {
+        _service = service;
+    }
+
+    /// <summary>
+    /// Kết quả đấu thầu của gói thầu
+    /// GET /api/goi-thau/{id}/results
+    /// </summary>
+    [HttpGet("{id}/results")]
+    [HasPermission("HOSODUTHAU.VIEW")]
+    public async Task<ActionResult<ApiResponse<GoiThauKetQuaDto>>> GetKetQua(int id)
+    {
+        var result = await _service.GetKetQuaAsync(id);
+        return Ok(ApiResponse<GoiThauKetQuaDto>.Ok(result));
+    }
 }
