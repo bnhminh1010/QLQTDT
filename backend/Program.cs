@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using QLQTDT.Api.Config;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Middlewares;
 using QLQTDT.Api.Services;
 using System.Text;
 using System.Text.Json;
+using QLQTDT.Api.Config;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -176,12 +176,6 @@ builder.Services.Configure<FtpConfig>(options =>
     options.EncryptionMode = ftpEncryptionMode;
 });
 
-// Google Auth
-builder.Services.Configure<GoogleAuthConfig>(options =>
-{
-    options.ClientId = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID") ?? "";
-});
-
 // CORS
 var allowedOrigins = Environment.GetEnvironmentVariable("CORS_ORIGINS")?
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -214,7 +208,6 @@ builder.Services.AddScoped<LoginAttemptGuard>();
 builder.Services.AddHostedService<LockoutCleanupService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IVaiTroService, VaiTroService>();

@@ -24,8 +24,3 @@ public class UpdatePasswordDto
     public string MatKhauMoi { get; set; } = null!;
     public string ConfirmMatKhau { get; set; } = null!;
 }
-
-public class GoogleLoginDto
-{
-    public string IdToken { get; set; } = null!;
-}

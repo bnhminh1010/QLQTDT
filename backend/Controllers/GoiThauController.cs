@@ -36,6 +36,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         => throw new NotSupportedException();
 
     [HttpGet]
+    [HasPermission("GOITHAU.VIEW")]
     public async Task<ActionResult<ApiResponse<PagedResult<GoiThauDto>>>> Search(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -46,6 +47,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpPost]
+    [HasPermission("GOITHAU.CREATE")]
     public async Task<ActionResult<ApiResponse<GoiThau>>> Create(
         [FromBody] CreateGoiThauDto dto)
     {
@@ -55,6 +57,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpPut("{id}")]
+    [HasPermission("GOITHAU.EDIT")]
     public async Task<ActionResult<ApiResponse<GoiThau>>> Update(
         int id, [FromBody] UpdateGoiThauDto dto)
     {
@@ -63,6 +66,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpGet("{id}/chi-tiet")]
+    [HasPermission("GOITHAU.VIEW")]
     public async Task<ActionResult<ApiResponse<GoiThauDetailDto>>> GetChiTiet(int id)
     {
         var detail = await _service.GetChiTietAsync(id);
@@ -177,25 +181,10 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<WorkflowInstanceDto>.Ok(result, "Khởi tạo workflow thành công"));
     }
 
-    [AllowAnonymous]
     [HttpGet("{id}/lich-su-trang-thai")]
+    [HasPermission("GOITHAU.VIEW_STATUS_HISTORY")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>>> GetLichSuTrangThai(int id)
     {
-        if (User?.Identity?.IsAuthenticated != true)
-            return StatusCode(
-                StatusCodes.Status401Unauthorized,
-                ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Fail("Bạn chưa đăng nhập."));
-
-        var permissionsClaim = User.FindFirstValue("permissions");
-        var hasPermission = permissionsClaim?
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Contains("GOITHAU.VIEW_STATUS_HISTORY", StringComparer.OrdinalIgnoreCase) == true;
-
-        if (!hasPermission)
-            return StatusCode(
-                StatusCodes.Status403Forbidden,
-                ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Fail("Bạn không có quyền xem lịch sử trạng thái gói thầu."));
-
         var result = await _service.GetLichSuTrangThaiAsync(id);
         return Ok(ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Ok(result));
     }
@@ -252,6 +241,14 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
             return NotFound(ApiResponse<WorkflowStepStateDto>.Fail("Không tìm thấy bước xử lý."));
         return Ok(ApiResponse<WorkflowStepStateDto>.Ok(result));
     }
+    [HttpDelete("{id}")]
+    [HasPermission("GOITHAU.DELETE")]
+    public override async Task<ActionResult<ApiResponse>> Delete(int id)
+    {
+        await _service.DeleteAsync(id);
+        return Ok(ApiResponse.Ok("Xoá gói thầu thành công"));
+    }
+
     [NonAction]
     public override Task<ActionResult<ApiResponse<GoiThau>>> Create(GoiThau entity)
         => throw new NotSupportedException("Sử dụng CreateGoiThauDto.");

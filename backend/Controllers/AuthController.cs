@@ -45,24 +45,6 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Đăng nhập hệ thống bằng Google</summary>
-    [HttpPost("google")]
-    [AllowAnonymous]
-    [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GoogleLogin(
-        [FromBody] GoogleLoginDto dto,
-        [FromServices] IGoogleAuthService googleAuthService,
-        [FromServices] IValidator<GoogleLoginDto> validator)
-    {
-        var validation = await validator.ValidateAsync(dto);
-        if (!validation.IsValid) return BadRequest(ToValidationError(validation));
-
-        var result = await googleAuthService.GoogleLoginAsync(dto.IdToken);
-
-        Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateCookieOptions());
-        return Ok(result);
-    }
-
     /// <summary>Đăng xuất hệ thống</summary>
     [HttpPost("logout")]
     [Authorize]

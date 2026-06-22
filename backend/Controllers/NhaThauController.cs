@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.HoSoDuThau;
 using QLQTDT.Api.Models.DTOs.NhaThau;
@@ -16,11 +16,8 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     {
     }
 
-    /// <summary>
-    /// Danh sách nhà thầu (phân trang + tìm kiếm)
-    /// GET /api/nha-thau?page=1&amp;pageSize=20&amp;search=ABC
-    /// </summary>
     [HttpGet]
+    [HasPermission("NHATHAU.VIEW")]
     public override async Task<ActionResult<ApiResponse<PagedResult<NhaThau>>>> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
@@ -30,11 +27,22 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
         return Ok(ApiResponse<PagedResult<NhaThau>>.Ok(result));
     }
 
+    [HttpGet("{id}")]
+    [HasPermission("NHATHAU.VIEW")]
+    public override async Task<ActionResult<ApiResponse<NhaThau>>> GetById(int id)
+    {
+        var entity = await _service.GetByIdAsync(id);
+        if (entity is null)
+            return NotFound(ApiResponse.Fail($"Khong tim thay nha thau voi Id = {id}"));
+        return Ok(ApiResponse<NhaThau>.Ok(entity));
+    }
+
     /// <summary>
     /// Tạo nhà thầu
     /// POST /api/nha-thau
     /// </summary>
     [HttpPost]
+    [HasPermission("NHATHAU.CREATE")]
     public async Task<ActionResult<ApiResponse<NhaThau>>> CreateNhaThau(
         [FromBody] CreateNhaThauDto dto)
     {
@@ -48,6 +56,7 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     /// PUT /api/nha-thau/{id}
     /// </summary>
     [HttpPut("{id}")]
+    [HasPermission("NHATHAU.EDIT")]
     public async Task<ActionResult<ApiResponse<NhaThau>>> UpdateNhaThau(
         int id, [FromBody] UpdateNhaThauDto dto)
     {
@@ -56,16 +65,24 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     }
 
     /// <summary>
+    /// Xóa nhà thầu
+    /// DELETE /api/nha-thau/{id}
+    /// </summary>
+    [HttpDelete("{id}")]
+    [HasPermission("NHATHAU.DELETE")]
+    public override async Task<ActionResult<ApiResponse>> Delete(int id)
+    {
+        await _service.DeleteAsync(id);
+        return Ok(ApiResponse.Ok("Xoá nhà thầu thành công"));
+    }
+    /// <summary>
     /// Danh sach ho so nang luc cua nha thau
     /// GET /api/nha-thau/{id}/ho-so-nang-luc
     /// </summary>
     [HttpGet("{id}/ho-so-nang-luc")]
+    [HasPermission("HOSONANGLUC.VIEW")]
     public async Task<ActionResult<ApiResponse<List<HoSoNangLucDto>>>> GetHoSoNangLuc(int id)
     {
-        var authResult = EnsurePermission("HOSONANGLUC.VIEW");
-        if (authResult is not null)
-            return authResult;
-
         var results = await _service.GetHoSoNangLucAsync(id);
         return Ok(ApiResponse<List<HoSoNangLucDto>>.Ok(results));
     }
@@ -77,15 +94,12 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     [HttpPost("{id}/ho-so-nang-luc")]
     [RequestSizeLimit(52_428_800)]
     [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
+    [HasPermission("HOSONANGLUC.CREATE")]
     public async Task<ActionResult<ApiResponse<HoSoNangLucDto>>> UploadHoSoNangLuc(
         int id,
         [FromForm] UploadHoSoNangLucDto dto,
         CancellationToken ct)
     {
-        var authResult = EnsurePermission("HOSONANGLUC.CREATE");
-        if (authResult is not null)
-            return authResult;
-
         var result = await _service.UploadHoSoNangLucAsync(id, dto, ct);
         return Ok(ApiResponse<HoSoNangLucDto>.Ok(result, "Upload ho so nang luc thanh cong"));
     }
@@ -95,15 +109,12 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     /// DELETE /api/nha-thau/{id}/ho-so-nang-luc/{hoSoId}
     /// </summary>
     [HttpDelete("{id}/ho-so-nang-luc/{hoSoId:long}")]
+    [HasPermission("HOSONANGLUC.DELETE")]
     public async Task<ActionResult<ApiResponse>> DeleteHoSoNangLuc(
         int id,
         long hoSoId,
         CancellationToken ct)
     {
-        var authResult = EnsurePermission("HOSONANGLUC.DELETE");
-        if (authResult is not null)
-            return authResult;
-
         await _service.DeleteHoSoNangLucAsync(id, hoSoId, ct);
         return Ok(ApiResponse.Ok("Xoa ho so nang luc thanh cong"));
     }
@@ -113,33 +124,11 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     /// GET /api/nha-thau/{id}/ls-du-thau
     /// </summary>
     [HttpGet("{id}/ls-du-thau")]
+    [HasPermission("HOSODUTHAU.VIEW")]
     public async Task<ActionResult<ApiResponse<List<LichSuDauThauItemDto>>>> GetLichSuDauThau(int id)
     {
-        var authResult = EnsurePermission("HOSODUTHAU.VIEW");
-        if (authResult is not null)
-            return authResult;
-
         var result = await _service.GetLichSuDauThauAsync(id);
         return Ok(ApiResponse<List<LichSuDauThauItemDto>>.Ok(result));
-    }
-
-    private ActionResult? EnsurePermission(string permission)
-    {
-        if (User?.Identity?.IsAuthenticated != true)
-            return Unauthorized(ApiResponse.Fail("Vui long dang nhap de thuc hien thao tac nay."));
-
-        var permissionsClaim = User.FindFirstValue("permissions");
-        if (string.IsNullOrWhiteSpace(permissionsClaim))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Fail("Ban khong co quyen thuc hien thao tac nay."));
-
-        var permissions = permissionsClaim
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (!permissions.Contains(permission))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Fail("Ban khong co quyen thuc hien thao tac nay."));
-
-        return null;
     }
 
     [NonAction]
