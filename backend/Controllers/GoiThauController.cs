@@ -36,6 +36,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         => throw new NotSupportedException();
 
     [HttpGet]
+    [HasPermission("GOITHAU.VIEW")]
     public async Task<ActionResult<ApiResponse<PagedResult<GoiThauDto>>>> Search(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -46,6 +47,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpPost]
+    [HasPermission("GOITHAU.CREATE")]
     public async Task<ActionResult<ApiResponse<GoiThau>>> Create(
         [FromBody] CreateGoiThauDto dto)
     {
@@ -55,6 +57,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpPut("{id}")]
+    [HasPermission("GOITHAU.EDIT")]
     public async Task<ActionResult<ApiResponse<GoiThau>>> Update(
         int id, [FromBody] UpdateGoiThauDto dto)
     {
@@ -63,6 +66,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     }
 
     [HttpGet("{id}/chi-tiet")]
+    [HasPermission("GOITHAU.VIEW")]
     public async Task<ActionResult<ApiResponse<GoiThauDetailDto>>> GetChiTiet(int id)
     {
         var detail = await _service.GetChiTietAsync(id);
@@ -102,12 +106,16 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         {
             HanhDong = WorkflowHanhDong.DUYET,
             GhiChu = request.GhiChu,
-            RowVersion = request.RowVersion
+            RowVersion = request.RowVersion,
+            NguoiXuLyId = request.NguoiXuLyId,
+            NgayXuLy = request.NgayXuLy,
+            NguoiKyDuyetId = request.NguoiKyDuyetId,
+            NgayKyDuyet = request.NgayKyDuyet,
+            TaiLieuDinhKem = request.TaiLieuDinhKem
         };
         var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
         return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Duyệt bước thành công"));
     }
-
     /// <summary>
     /// BA user-driven flow: Không duyệt bước hiện tại
     /// </summary>
@@ -126,15 +134,17 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         {
             HanhDong = WorkflowHanhDong.KHONG_DUYET,
             GhiChu = request.GhiChu,
-            RowVersion = request.RowVersion
+            RowVersion = request.RowVersion,
+            NguoiXuLyId = request.NguoiXuLyId,
+            NgayXuLy = request.NgayXuLy,
+            NguoiKyDuyetId = request.NguoiKyDuyetId,
+            NgayKyDuyet = request.NgayKyDuyet,
+            TaiLieuDinhKem = request.TaiLieuDinhKem
         };
         var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
         return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Từ chối bước thành công"));
     }
 
-    /// <summary>
-    /// BA user-driven flow: Trả về bước trước
-    /// </summary>
     [HttpPost("{id}/tra-ve")]
     [HasPermission("WORKFLOW.PROCESS")]
     public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> TraVe(
@@ -171,25 +181,10 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<WorkflowInstanceDto>.Ok(result, "Khởi tạo workflow thành công"));
     }
 
-    [AllowAnonymous]
     [HttpGet("{id}/lich-su-trang-thai")]
+    [HasPermission("GOITHAU.VIEW_STATUS_HISTORY")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>>> GetLichSuTrangThai(int id)
     {
-        if (User?.Identity?.IsAuthenticated != true)
-            return StatusCode(
-                StatusCodes.Status401Unauthorized,
-                ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Fail("Bạn chưa đăng nhập."));
-
-        var permissionsClaim = User.FindFirstValue("permissions");
-        var hasPermission = permissionsClaim?
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Contains("GOITHAU.VIEW_STATUS_HISTORY", StringComparer.OrdinalIgnoreCase) == true;
-
-        if (!hasPermission)
-            return StatusCode(
-                StatusCodes.Status403Forbidden,
-                ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Fail("Bạn không có quyền xem lịch sử trạng thái gói thầu."));
-
         var result = await _service.GetLichSuTrangThaiAsync(id);
         return Ok(ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Ok(result));
     }
@@ -201,6 +196,57 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     {
         await _hoSoService.AwardAsync(id, request);
         return Ok(ApiResponse<object?>.Ok(null, "Chọn nhà thầu trúng thầu thành công"));
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  Workflow state endpoints
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// GET /api/goi-thau/{id}/workflow — Workflow state + progress
+    /// </summary>
+    [HttpGet("{id}/workflow")]
+    [HasPermission("WORKFLOW.VIEW")]
+    public async Task<ActionResult<ApiResponse<WorkflowStateDto>>> GetWorkflowState(int id)
+    {
+        var result = await _workflowEngine.GetWorkflowStateAsync(id);
+        if (result is null)
+            return NotFound(ApiResponse<WorkflowStateDto>.Fail("Gói thầu chưa có workflow instance."));
+
+        return Ok(ApiResponse<WorkflowStateDto>.Ok(result));
+    }
+
+    /// <summary>
+    /// GET /api/goi-thau/{id}/steps — Step list + results
+    /// </summary>
+    [HttpGet("{id}/steps")]
+    [HasPermission("WORKFLOW.VIEW")]
+    public async Task<ActionResult<ApiResponse<List<WorkflowStepStateDto>>>> GetWorkflowSteps(int id)
+    {
+        var result = await _workflowEngine.GetWorkflowStepsAsync(id);
+        return Ok(ApiResponse<List<WorkflowStepStateDto>>.Ok(result));
+    }
+
+
+    /// <summary>
+    /// GET /api/goi-thau/{id}/steps/{stepId} — Step detail
+    /// </summary>
+    [HttpGet("{id}/steps/{stepId:long}")]
+    [HasPermission("WORKFLOW.VIEW")]
+    public async Task<ActionResult<ApiResponse<WorkflowStepStateDto>>> GetWorkflowStepDetail(
+        int id, long stepId)
+    {
+        var result = await _workflowEngine.GetWorkflowStepDetailAsync(id, stepId);
+        if (result is null)
+            return NotFound(ApiResponse<WorkflowStepStateDto>.Fail("Không tìm thấy bước xử lý."));
+        return Ok(ApiResponse<WorkflowStepStateDto>.Ok(result));
+    }
+    [HttpDelete("{id}")]
+    [HasPermission("GOITHAU.DELETE")]
+    public override async Task<ActionResult<ApiResponse>> Delete(int id)
+    {
+        await _service.DeleteAsync(id);
+        return Ok(ApiResponse.Ok("Xoá gói thầu thành công"));
     }
 
     [NonAction]

@@ -35,7 +35,11 @@ public class AppDbContext : DbContext
     public DbSet<TaiLieuHoSo> TaiLieuHoSos => Set<TaiLieuHoSo>();
     public DbSet<HoSoNangLuc> HoSoNangLucs => Set<HoSoNangLuc>();
     public DbSet<HoSoDuThau> HoSoDuThaus => Set<HoSoDuThau>();
+    public DbSet<NhomVaiTro> NhomVaiTros => Set<NhomVaiTro>();
     public DbSet<HopDong> HopDongs => Set<HopDong>();
+    public DbSet<ThongBao> ThongBaos => Set<ThongBao>();
+    public DbSet<NhomNhanhWorkflow> NhomNhanhWorkflows => Set<NhomNhanhWorkflow>();
+    public DbSet<NhanhWorkflow> NhanhWorkflows => Set<NhanhWorkflow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -88,6 +92,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.DaXoa).HasDefaultValue(false);
             entity.HasIndex(e => e.MaVaiTro).IsUnique();
             entity.HasIndex(e => e.TenVaiTro).IsUnique();
+            entity.HasOne(e => e.NhomVaiTro)
+                .WithMany(n => n.VaiTros)
+                .HasForeignKey(e => e.NhomVaiTroId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Quyen
@@ -189,6 +197,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SoLuong).HasColumnType("decimal(18,2)");
             entity.Property(e => e.DonGiaDuToan).HasColumnType("decimal(18,0)");
             entity.Property(e => e.ThanhTien)
+                .HasColumnType("decimal(18,2)")
                 .HasComputedColumnSql("[SoLuong] * [DonGiaDuToan]")
                 .ValueGeneratedOnAddOrUpdate();
             entity.HasOne(e => e.DeXuat)
@@ -238,6 +247,11 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MaWorkflow).HasMaxLength(50).IsRequired();
             entity.Property(e => e.TenWorkflow).HasMaxLength(255).IsRequired();
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
+            // Designer extensions
+            entity.Property(e => e.LoaiHinhDauThau).HasMaxLength(100);
+            entity.Property(e => e.PhamViApDung).HasMaxLength(500);
+            entity.Property(e => e.MoTaNgan).HasMaxLength(1000);
+            entity.Property(e => e.LaQuyTrinhChuan).HasDefaultValue(false);
             entity.HasIndex(e => e.MaWorkflow).IsUnique();
             entity.HasOne(e => e.HinhThuc)
                   .WithMany(h => h.Workflows)
@@ -253,24 +267,54 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MaBuoc).HasMaxLength(50).IsRequired();
             entity.Property(e => e.TenBuoc).HasMaxLength(255).IsRequired();
             entity.Property(e => e.LoaiBuoc).HasMaxLength(50).IsRequired();
+
+            // 2-pha fields
+            entity.Property(e => e.SoNgayLapHoSo).HasDefaultValue(0);
+            entity.Property(e => e.SoNgayXuLy).HasDefaultValue(0);
+            entity.Property(e => e.LoaiHan).HasMaxLength(20).IsRequired().HasDefaultValue("CANH_BAO");
+            entity.Property(e => e.NhomSongSong).HasMaxLength(50);
+            entity.Property(e => e.LaBuocJoin).HasDefaultValue(false);
+
+            // Designer extensions
+            entity.Property(e => e.ThuTu).HasDefaultValue(0);
+            entity.Property(e => e.NhomGiaiDoan).HasMaxLength(100);
+            entity.Property(e => e.MoTa).HasMaxLength(1000);
+            entity.Property(e => e.BatBuocGhiChu).HasDefaultValue(false);
+            entity.Property(e => e.BatBuocTaiLieu).HasDefaultValue(false);
+            entity.Property(e => e.BatBuocKyTruocChuyenBuoc).HasDefaultValue(true);
+            entity.Property(e => e.BatBuocDungSLA).HasDefaultValue(false);
+
             entity.Property(e => e.ChoPhepTuChoi).HasDefaultValue(true);
             entity.Property(e => e.ChoPhepBoQua).HasDefaultValue(false);
-            entity.Property(e => e.SoNgaySLA).HasDefaultValue(0);
             entity.Property(e => e.WorkflowDuocChonThuCong).HasDefaultValue(false);
             entity.Property(e => e.LyDoChonWorkflow);
+
             entity.HasOne(e => e.Workflow)
                 .WithMany(w => w.BuocWorkflows)
                 .HasForeignKey(e => e.WorkflowId)
                 .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(e => e.VaiTroXuLy)
+            entity.HasOne(e => e.VaiTroXuLyHoSo)
                 .WithMany()
-                .HasForeignKey(e => e.VaiTroXuLyId)
+                .HasForeignKey(e => e.VaiTroXuLyHoSoId)
                 .OnDelete(DeleteBehavior.SetNull);
-            entity.HasOne(e => e.KhoaPhongXuLy)
+            entity.HasOne(e => e.VaiTroKyDuyet)
                 .WithMany()
-                .HasForeignKey(e => e.KhoaPhongXuLyId)
+                .HasForeignKey(e => e.VaiTroKyDuyetId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.DonViXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.DonViXuLyId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DonViKyHoSo)
+                .WithMany()
+                .HasForeignKey(e => e.DonViKyHoSoId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.NhanhWorkflow)
+                .WithMany(n => n.BuocWorkflows)
+                .HasForeignKey(e => e.NhanhWorkflowId)
+                .OnDelete(DeleteBehavior.NoAction);
             entity.HasIndex(e => new { e.WorkflowId, e.MaBuoc }).IsUnique();
+            entity.HasIndex(e => new { e.WorkflowId, e.ThuTu });
         });
 
         // ChuyenTiepWorkflow
@@ -279,6 +323,12 @@ public class AppDbContext : DbContext
             entity.ToTable("ChuyenTiepWorkflow");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.HanhDong).HasMaxLength(50).IsRequired();
+            // Designer extensions
+            entity.Property(e => e.DieuKienKichHoat).HasMaxLength(50).HasDefaultValue("LUON");
+            entity.Property(e => e.KetQuaApDung).HasMaxLength(50);
+            entity.Property(e => e.BatBuocGhiChu).HasDefaultValue(false);
+            entity.Property(e => e.BatBuocTaiLieu).HasDefaultValue(false);
+            entity.Property(e => e.HuongXuLyKhongDuyet).HasMaxLength(50);
             entity.HasOne(e => e.TuBuoc)
                 .WithMany(b => b.ChuyenTiepDi)
                 .HasForeignKey(e => e.TuBuocId)
@@ -287,6 +337,10 @@ public class AppDbContext : DbContext
                 .WithMany(b => b.ChuyenTiepDen)
                 .HasForeignKey(e => e.DenBuocId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.VaiTroApDung)
+                .WithMany()
+                .HasForeignKey(e => e.VaiTroApDungId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(t => new { t.TuBuocId, t.HanhDong }).IsUnique();
         });
 
@@ -313,11 +367,22 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("WorkflowStepInstance");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired().HasDefaultValue("PENDING");
+            entity.Property(e => e.TrangThai).HasMaxLength(50).IsRequired().HasDefaultValue("DANG_XU_LY");
             entity.Property(e => e.NgayBatDau).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayHoanThanh).HasColumnType("datetime2");
             entity.Property(e => e.GhiChu).HasMaxLength(1000);
             entity.Property(e => e.RowVersion).IsRowVersion();
+
+            // 2-pha fields
+            entity.Property(e => e.PhaHienTai).HasMaxLength(20).IsRequired().HasDefaultValue("LAP_HO_SO");
+            entity.Property(e => e.NgayXuLy).HasColumnType("datetime2");
+            entity.Property(e => e.NgayKyDuyet).HasColumnType("datetime2");
+            entity.Property(e => e.HanXuLy).HasColumnType("datetime2");
+            entity.Property(e => e.QuaHan);
+            entity.Property(e => e.KetQua).HasMaxLength(20);
+            entity.Property(e => e.LyDoKhongDuyet).HasMaxLength(1000);
+            entity.Property(e => e.TaiLieuDinhKem);
+
             entity.HasOne(e => e.WorkflowInstance)
                 .WithMany(wi => wi.WorkflowStepInstances)
                 .HasForeignKey(e => e.WorkflowInstanceId)
@@ -330,6 +395,10 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.NguoiXuLyId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.NguoiKyDuyet)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiKyDuyetId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // WorkflowAssignment
@@ -341,6 +410,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NgayGiao).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayXuLy).HasColumnType("datetime2");
             entity.Property(e => e.GhiChu).HasMaxLength(1000);
+            entity.Property(e => e.PhieuKyDuyet).HasMaxLength(500);
             entity.HasOne(e => e.WorkflowStepInstance)
                 .WithMany(wsi => wsi.WorkflowAssignments)
                 .HasForeignKey(e => e.WorkflowStepInstanceId)
@@ -402,6 +472,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.Property(e => e.TheoDoi);
             entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => e.MaGoiThau).IsUnique();
         });
@@ -491,6 +562,18 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // NhomVaiTro
+        modelBuilder.Entity<NhomVaiTro>(entity =>
+        {
+            entity.ToTable("NhomVaiTro");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaNhom).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenNhom).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.DoUuTien).HasDefaultValue(0);
+            entity.Property(e => e.DaXoa).HasDefaultValue(false);
+            entity.HasIndex(e => e.MaNhom).IsUnique();
+        });
+
         // HoSoNangLuc
         modelBuilder.Entity<HoSoNangLuc>(entity =>
         {
@@ -510,6 +593,84 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.NhaThauId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // NhomNhanhWorkflow (Parallel branch groups)
+        modelBuilder.Entity<NhomNhanhWorkflow>(entity =>
+        {
+            entity.ToTable("NhomNhanhWorkflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenNhom).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.DieuKienHopNhat).HasMaxLength(20).HasDefaultValue("ALL");
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.HasOne(e => e.Workflow)
+                .WithMany(w => w.NhomNhanhWorkflows)
+                .HasForeignKey(e => e.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.BuocTachNhanh)
+                .WithMany()
+                .HasForeignKey(e => e.BuocTachNhanhId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.BuocSauHopNhat)
+                .WithMany()
+                .HasForeignKey(e => e.BuocSauHopNhatId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.WorkflowId, e.BuocTachNhanhId });
+        });
+
+        // NhanhWorkflow (Individual branches)
+        modelBuilder.Entity<NhanhWorkflow>(entity =>
+        {
+            entity.ToTable("NhanhWorkflow");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.MaNhanh).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TenNhanh).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.ThoiHanNgay).HasColumnType("decimal(5,2)").HasDefaultValue(0m);
+            entity.Property(e => e.LoaiHan).HasMaxLength(20).HasDefaultValue("CANH_BAO");
+            entity.HasOne(e => e.NhomNhanhWorkflow)
+                .WithMany(g => g.Nhanhs)
+                .HasForeignKey(e => e.NhomNhanhWorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.DonViXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.DonViXuLyId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.VaiTroXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.VaiTroXuLyId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.BuocDauTien)
+                .WithMany()
+                .HasForeignKey(e => e.BuocDauTienId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.NhomNhanhWorkflowId, e.MaNhanh }).IsUnique();
+            entity.HasIndex(e => new { e.NhomNhanhWorkflowId, e.ThuTu });
+        });
+
+        // ThongBao
+        modelBuilder.Entity<ThongBao>(entity =>
+        {
+            entity.ToTable("ThongBao");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.IdCongKhai).HasDefaultValueSql("NEWSEQUENTIALID()");
+            entity.Property(e => e.LoaiThongBao).HasMaxLength(50);
+            entity.Property(e => e.TieuDe).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.NoiDung).HasMaxLength(1000).IsRequired(false);
+            entity.Property(e => e.DaDoc).HasDefaultValue(false);
+            entity.Property(e => e.UrlDieuHuong).HasMaxLength(500);
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayDoc).HasColumnType("datetime2(3)");
+            entity.HasIndex(e => e.IdCongKhai).IsUnique();
+            entity.HasIndex(e => new { e.NguoiDungId, e.DaDoc });
+            entity.HasOne(e => e.NguoiDung)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiDungId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.GoiThau)
+                .WithMany()
+                .HasForeignKey(e => e.GoiThauId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

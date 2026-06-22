@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tổng hợp cập nhật xử lý bước gói thầu</title>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --line: #d8e2ef;
+        --blue: #2563eb;
+        --green: #059669;
+        --amber: #d97706;
+        --red: #dc2626;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Arial, sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(1080px, calc(100% - 32px));
+        margin: 32px auto;
+      }
+
+      header,
+      section {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 18px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.25;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      h2 {
+        font-size: 20px;
+        margin-bottom: 12px;
+      }
+
+      h3 {
+        font-size: 16px;
+        margin-top: 18px;
+      }
+
+      p {
+        margin: 8px 0 0;
+      }
+
+      ul,
+      ol {
+        margin: 10px 0 0;
+        padding-left: 22px;
+      }
+
+      li {
+        margin: 6px 0;
+      }
+
+      code {
+        background: #eef2ff;
+        color: #1d4ed8;
+        border-radius: 6px;
+        padding: 2px 6px;
+        font-size: 0.92em;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 13px;
+      }
+
+      .meta {
+        color: var(--muted);
+      }
+
+      .note {
+        border-left: 4px solid var(--blue);
+        background: #eff6ff;
+        color: #1e3a8a;
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-top: 12px;
+      }
+
+      .tag {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 9px;
+        margin: 2px 4px 2px 0;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .green {
+        background: #dcfce7;
+        color: var(--green);
+      }
+
+      .amber {
+        background: #fef3c7;
+        color: var(--amber);
+      }
+
+      .blue {
+        background: #dbeafe;
+        color: var(--blue);
+      }
+
+      .red {
+        background: #fee2e2;
+        color: var(--red);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Tổng hợp cập nhật xử lý bước gói thầu</h1>
+        <p class="meta">Ngày lập tài liệu: 19/06/2026</p>
+        <p>
+          Tài liệu này ghi lại các thay đổi đã cập nhật theo yêu cầu tester liên quan đến trang
+          <code>Danh sách gói thầu</code>, panel chi tiết gói thầu và màn <code>Chi tiết xử lý bước</code>.
+        </p>
+      </header>
+
+      <section>
+        <h2>1. Phạm vi file đã chỉnh sửa</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Nội dung cập nhật</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>frontend/src/pages/DanhSachGoiThau/index.tsx</code></td>
+              <td>Cập nhật panel chi tiết bên phải, danh sách bước quy trình, thao tác click từng bước và cụm nút cuối panel.</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/XuLyBuocGoiThau/index.tsx</code></td>
+              <td>Cập nhật form xử lý bước, trường kết quả duyệt, nút lưu cập nhật, validate ngày và logic sau khi duyệt/không duyệt.</td>
+            </tr>
+            <tr>
+              <td><code>frontend/src/pages/DanhSachGoiThau/xuLyBuocService.ts</code></td>
+              <td>Lưu trạng thái workflow theo từng bước, current step và lịch sử xử lý bước.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>2. Panel chi tiết gói thầu</h2>
+        <h3>Bước đã hoàn thành</h3>
+        <ul>
+          <li>Hiển thị icon xanh hoàn thành.</li>
+          <li>Hiển thị tên bước.</li>
+          <li>Hiển thị <code>Đơn vị/Vai trò xử lý</code>.</li>
+          <li>Bỏ nút <code>Xem</code> riêng.</li>
+          <li>Cho phép click trực tiếp vào dòng bước để mở màn xem thông tin/lịch sử xử lý bước.</li>
+          <li>Màn xem kết quả là chỉ đọc, không cho chỉnh sửa.</li>
+        </ul>
+
+        <h3>Bước hiện tại</h3>
+        <ul>
+          <li>Hiển thị icon cảnh báo/đang xử lý.</li>
+          <li>Hiển thị label <code>BƯỚC HIỆN TẠI</code>.</li>
+          <li>Hiển thị tên bước.</li>
+          <li>Hiển thị <code>Đơn vị/Vai trò xử lý</code>.</li>
+          <li>Hiển thị người xử lý nếu có.</li>
+          <li>Hiển thị <code>Tình trạng tiến độ</code>: Đúng hạn, Sắp quá hạn hoặc Quá hạn.</li>
+          <li>Chỉ bước hiện tại mới có nút <code>Cập nhật</code>.</li>
+          <li>Bấm <code>Cập nhật</code> mở màn <code>Chi tiết xử lý bước</code>.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. Cụm nút thao tác cuối panel</h2>
+        <p>Đã bỏ nút <code>Chi tiết gói thầu</code> theo yêu cầu tester.</p>
+        <p>Thứ tự nút còn lại:</p>
+        <ol>
+          <li><code>Xử lý bước hiện tại</code></li>
+          <li><code>Lịch sử xử lý</code></li>
+          <li><code>Hủy gói thầu</code></li>
+          <li><code>Xóa gói thầu</code></li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>4. Form Chi tiết xử lý bước</h2>
+        <ul>
+          <li>Đổi label <code>Người xử lý</code> thành <code>Người xử lý hồ sơ *</code>.</li>
+          <li>Thay input kết quả cũ bằng nhóm radio <code>Kết quả duyệt *</code>.</li>
+          <li>Giá trị lựa chọn gồm <code>Duyệt</code> và <code>Không duyệt</code>.</li>
+          <li>Khi chọn <code>Không duyệt</code>, hiển thị ô <code>Lý do không duyệt *</code>.</li>
+          <li>Bỏ hai nút riêng <code>Duyệt</code> và <code>Không duyệt</code>.</li>
+          <li>Thêm nút <code>Hủy</code> và <code>Lưu cập nhật</code>.</li>
+          <li>Bấm <code>Hủy</code> hiển thị popup xác nhận hủy cập nhật.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>5. Logic khi chọn Kết quả duyệt = Duyệt</h2>
+        <p>Sau khi người dùng chọn <code>Duyệt</code> và bấm <code>Lưu cập nhật</code>:</p>
+        <ol>
+          <li>Bước hiện tại được lưu với kết quả <code>Duyệt</code>.</li>
+          <li>Bước hiện tại chuyển trạng thái thành hoàn thành.</li>
+          <li>Nút <code>Cập nhật</code> ở bước vừa duyệt bị ẩn.</li>
+          <li>Hệ thống tự chuyển sang bước tiếp theo theo cấu hình workflow.</li>
+          <li>Bước tiếp theo chuyển trạng thái thành đang xử lý/chờ xử lý.</li>
+          <li>Nút <code>Cập nhật</code> hiển thị tại bước tiếp theo.</li>
+          <li>Cập nhật tiến độ gói thầu, ví dụ <code>5/14</code> thành <code>6/14</code>.</li>
+        </ol>
+        <p>
+          Trạng thái mong muốn:
+          <span class="tag green">✓ Bước đã duyệt</span>
+          <span class="tag amber">Bước tiếp theo đang xử lý</span>
+          <span class="tag blue">Cập nhật tại bước tiếp theo</span>
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Logic khi chọn Không duyệt</h2>
+        <ul>
+          <li>Người dùng phải nhập <code>Lý do không duyệt *</code>.</li>
+          <li>Khi bấm <code>Lưu cập nhật</code>, hệ thống lưu kết quả <code>Không duyệt</code>.</li>
+          <li>Workflow mock trả về bước trước theo cấu hình.</li>
+          <li>Form xử lý bị khóa sau khi đã có kết quả.</li>
+          <li>Lịch sử xử lý lưu người xử lý, người ký, ngày ký, kết quả và thao tác hệ thống.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>7. Validate dữ liệu</h2>
+        <ul>
+          <li>Bắt buộc nhập <code>Người xử lý hồ sơ</code>.</li>
+          <li>Bắt buộc chọn <code>Ngày xử lý</code>.</li>
+          <li>Bắt buộc nhập <code>Người ký duyệt</code>.</li>
+          <li>Bắt buộc chọn <code>Ngày ký duyệt</code>.</li>
+          <li>Bắt buộc chọn <code>Kết quả duyệt</code>.</li>
+          <li>Nếu chọn <code>Không duyệt</code>, bắt buộc nhập <code>Lý do không duyệt</code>.</li>
+          <li><code>Ngày ký duyệt</code> không được trước <code>Ngày xử lý</code>.</li>
+        </ul>
+        <p class="note">
+          Ví dụ bị chặn: Ngày xử lý là 17/06/2026 nhưng Ngày ký duyệt là 09/06/2026.
+          Hệ thống báo lỗi: <code>Ngày ký duyệt không được trước ngày xử lý</code>.
+        </p>
+      </section>
+
+      <section>
+        <h2>8. Trạng thái kiểm tra</h2>
+        <ul>
+          <li>Đã rà lại các text và route liên quan đến xử lý bước.</li>
+          <li>Đã chạy <code>tsc --noEmit</code>.</li>
+          <li>Type-check hiện vẫn còn lỗi cũ ở các trang khác như <code>DanhMucThucHien</code>, <code>TaoGoiThau</code>, <code>KhoaPhong</code>, <code>NguoiDung</code>. Các lỗi này không phát sinh từ nhóm thay đổi xử lý bước.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

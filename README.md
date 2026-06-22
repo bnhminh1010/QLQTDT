@@ -100,11 +100,35 @@ QLQTDT/
 ## Cài đặt & Chạy local
 
 ### Yêu cầu
-- .NET SDK 10.0+
-- Node.js 18+
+- Docker + Docker Compose
+- .NET SDK 10.0+ (optional — dev/test migration)
+- Node.js 18+ (frontend)
 - npm hoặc yarn
 
-### Backend
+### Backend — Docker (recommended)
+
+Build image và chạy container:
+
+```bash
+# Build image + start container
+docker compose -f docker-compose.backend.yml up --build -d
+
+# Xem log
+docker logs -f qtdt-api
+
+# Dừng
+docker compose -f docker-compose.backend.yml down
+```
+
+API chạy tại `http://localhost:5000`.
+Swagger UI: `http://localhost:5000/swagger`
+
+> Container tự động restart trừ khi dừng thủ công.
+> Data Protection keys được persist qua Docker volume `qtdt-dataprotection`.
+
+### Backend — dotnet run (dev)
+
+Dùng khi cần debug hoặc chạy migration:
 
 ```bash
 cd backend
@@ -144,11 +168,16 @@ FTP_MODE=passive
 
 ### Database Migration
 
+Migration chạy tự động qua code hoặc thủ công:
+
 ```bash
 cd backend
 dotnet ef migrations add <MigrationName>
 dotnet ef database update
 ```
+
+> Khi chạy Docker, rebuild image để áp dụng migration mới:
+> `docker compose -f docker-compose.backend.yml up --build -d`
 
 ## Giấy phép
 

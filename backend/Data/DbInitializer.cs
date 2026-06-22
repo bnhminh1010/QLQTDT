@@ -52,6 +52,7 @@ public static class DbInitializer
         ("GOITHAU.VIEW_ALL",      "Xem tất cả gói thầu"),
         ("GOITHAU.UPDATE_STATUS", "Cập nhật trạng thái gói thầu"),
         ("GOITHAU.START_WORKFLOW", "Khởi động quy trình"),
+        ("GOITHAU.VIEW_STATUS_HISTORY", "Xem lịch sử trạng thái gói thầu"),
         ("GOITHAU.DISABLE",       "Tắt / ẩn gói thầu"),
         // Hồ sơ dự thầu
         ("HOSODUTHAU.CREATE", "Tạo hồ sơ dự thầu"),
@@ -77,6 +78,10 @@ public static class DbInitializer
         ("NHATHAU.VIEW",   "Xem nhà thầu"),
         ("NHATHAU.EDIT",   "Sửa nhà thầu"),
         ("NHATHAU.DELETE", "Xóa nhà thầu"),
+        // Hồ sơ năng lực nhà thầu
+        ("HOSONANGLUC.VIEW", "Xem hồ sơ năng lực nhà thầu"),
+        ("HOSONANGLUC.CREATE", "Tải lên hồ sơ năng lực nhà thầu"),
+        ("HOSONANGLUC.DELETE", "Xóa hồ sơ năng lực nhà thầu"),
         // Người dùng
         ("USER.CREATE",   "Tạo người dùng"),
         ("USER.VIEW",     "Xem người dùng"),
@@ -140,20 +145,20 @@ public static class DbInitializer
         ["KHOA_PHONG"] =
         [
             "DEXUAT.CREATE", "DEXUAT.VIEW", "DEXUAT.EDIT", "DEXUAT.DELETE", "DEXUAT.SUBMIT",
-            "DEXUAT.ATTACH_FILE", "GOITHAU.UPDATE_STATUS", "WORKFLOW.CHOOSE"
+            "DEXUAT.ATTACH_FILE", "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY", "WORKFLOW.CHOOSE"
         ],
 
         ["BCN_KHOA_PHONG"] =
         [
             "DEXUAT.VIEW", "DEXUAT.APPROVE", "DEXUAT.REJECT",
-            "GOITHAU.VIEW_INTERNAL", "GOITHAU.VIEW",
+            "GOITHAU.VIEW_INTERNAL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_INTERNAL",
             "AUDIT.VIEW", "AUDIT.VIEW_INTERNAL"
         ],
 
         ["KE_TOAN_TRUONG"] =
         [
-            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW",
+            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "HOPDONG.VIEW", "HOPDONG.QUYETTOAN",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
             "AUDIT.VIEW_ALL"
@@ -163,9 +168,10 @@ public static class DbInitializer
         [
             "DEXUAT.ATTACH_FILE",
             "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.EDIT", "GOITHAU.DELETE",
-            "GOITHAU.UPDATE_STATUS", "GOITHAU.DISABLE",
+            "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY", "GOITHAU.DISABLE",
             "HOSODUTHAU.CREATE", "HOSODUTHAU.VIEW", "HOSODUTHAU.EDIT", "HOSODUTHAU.DELETE",
             "HOSODUTHAU.EVALUATE", "HOSODUTHAU.AWARD",
+            "HOSONANGLUC.VIEW", "HOSONANGLUC.CREATE", "HOSONANGLUC.DELETE",
             "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.DELETE", "WORKFLOW.CHOOSE",
             "NHATHAU.CREATE", "NHATHAU.VIEW", "NHATHAU.EDIT", "NHATHAU.DELETE",
             "HOPDONG.CREATE", "HOPDONG.VIEW", "HOPDONG.EDIT", "HOPDONG.DELETE", "HOPDONG.QUYETTOAN",
@@ -176,7 +182,7 @@ public static class DbInitializer
 
         ["VIEN_TRUONG"] =
         [
-            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW",
+            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
@@ -184,7 +190,7 @@ public static class DbInitializer
         ["BCN_HCQT"] =
         [
             "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.CHOOSE",
-            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW",
+            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
@@ -199,6 +205,7 @@ public static class DbInitializer
         await SeedRolesAsync(context, logger);
         await SeedKhoaPhongAsync(context, logger);
         await SeedData.HinhThucDauThauSeeder.SeedAsync(context, logger);
+        await SeedData.NhomVaiTroSeeder.SeedAsync(context, logger);
         await SeedAdminAccountAsync(context, logger);
         await RenamePermissionsAsync(context, logger);
         await SeedPermissionsAsync(context, logger);

@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.TaiLieu;
 using QLQTDT.Api.Services;
@@ -8,7 +8,6 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Route("api/files")]
-[Authorize]
 public class FilesController : ControllerBase
 {
     private readonly ITaiLieuService _service;
@@ -19,6 +18,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpPost("upload")]
+    [HasPermission("TAILIEU.UPLOAD")]
     [RequestSizeLimit(524_288_000)]
     [RequestFormLimits(MultipartBodyLengthLimit = 524_288_000)]
     public async Task<ActionResult<ApiResponse<List<TaiLieuUploadResultDto>>>> Upload(
@@ -31,6 +31,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [HasPermission("TAILIEU.DOWNLOAD")]
     public async Task<IActionResult> Download(int id, CancellationToken ct)
     {
         var (stream, fileName, contentType) = await _service.DownloadAsync(id, ct);
@@ -38,6 +39,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [HasPermission("TAILIEU.DELETE")]
     public async Task<ActionResult<ApiResponse>> Delete(int id, CancellationToken ct)
     {
         await _service.DeleteAsync(id, ct);
@@ -45,6 +47,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpGet]
+    [HasPermission("TAILIEU.VIEW")]
     public async Task<ActionResult<ApiResponse<List<TaiLieuDto>>>> GetList(
         [FromQuery] int? goiThauId,
         [FromQuery] string? loaiTaiLieu)

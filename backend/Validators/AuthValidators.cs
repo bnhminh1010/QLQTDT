@@ -63,12 +63,3 @@ public class UpdatePasswordValidator : AbstractValidator<UpdatePasswordDto>
             .Equal(x => x.MatKhauMoi).WithMessage("Xác nhận mật khẩu không trùng khớp");
     }
 }
-
-public class GoogleLoginValidator : AbstractValidator<GoogleLoginDto>
-{
-    public GoogleLoginValidator()
-    {
-        RuleFor(x => x.IdToken)
-            .NotEmpty().WithMessage("Google ID Token không được để trống");
-    }
-}

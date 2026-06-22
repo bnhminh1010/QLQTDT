@@ -43,19 +43,49 @@ public class WorkflowEngineService : IWorkflowEngineService
         if (instance is null)
             throw new ConflictException("Không tìm thấy workflow instance đang hoạt động cho gói thầu này.");
 
-        if (instance.BuocHienTaiId is null)
-            throw new BadRequestException("Workflow instance không có bước hiện tại.");
+        // ─── 3. Resolve target step instance ──────────────────────────────
+        WorkflowStepInstance currentStep;
+        if (request.WorkflowStepInstanceId.HasValue)
+        {
+            // Explicit step instance ID — use directly (required for multi-step branch context)
+            currentStep = await _db.WorkflowStepInstances
+                .Include(s => s.BuocWorkflow)
+                .Include(s => s.WorkflowAssignments)
+                .FirstOrDefaultAsync(s =>
+                    s.Id == request.WorkflowStepInstanceId.Value &&
+                    s.WorkflowInstanceId == instance.Id &&
+                    (s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY ||
+                     s.TrangThai == WorkflowStepTrangThai.CHO_DUYET))
+                ?? throw new ConflictException("Không tìm thấy bước xử lý với ID đã cho.");
+        }
+        else
+        {
+            // Backward compat: use BuocHienTaiId (single-step / linear workflow)
+            if (instance.BuocHienTaiId is null)
+                throw new BadRequestException("Workflow instance không có bước hiện tại.");
 
-        // ─── 3. Find current WorkflowStepInstance ─────────────────────────
-        var currentStep = await _db.WorkflowStepInstances
-            .Include(s => s.BuocWorkflow)
-            .Include(s => s.WorkflowAssignments)
-            .FirstOrDefaultAsync(s =>
-                s.WorkflowInstanceId == instance.Id &&
-                s.BuocWorkflowId == instance.BuocHienTaiId &&
-                s.TrangThai == WorkflowStepTrangThai.PENDING);
-        if (currentStep is null)
-            throw new ConflictException("Bước hiện tại không ở trạng thái DANG_XU_LY hoặc không tồn tại.");
+            // Check if multiple active steps exist (branch context)
+            var activeStepCount = await _db.WorkflowStepInstances
+                .CountAsync(s =>
+                    s.WorkflowInstanceId == instance.Id &&
+                    (s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY ||
+                     s.TrangThai == WorkflowStepTrangThai.CHO_DUYET));
+
+            if (activeStepCount > 1)
+                throw new BadRequestException(
+                    "Có nhiều bước đang xử lý. Vui lòng cung cấp WorkflowStepInstanceId để xác định bước cụ thể.");
+
+            currentStep = (await _db.WorkflowStepInstances
+                .Include(s => s.BuocWorkflow)
+                .Include(s => s.WorkflowAssignments)
+                .FirstOrDefaultAsync(s =>
+                    s.WorkflowInstanceId == instance.Id &&
+                    s.BuocWorkflowId == instance.BuocHienTaiId &&
+                    (s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY ||
+                     s.TrangThai == WorkflowStepTrangThai.CHO_DUYET)))!;
+            if (currentStep is null)
+                throw new ConflictException("Bước hiện tại không ở trạng thái xử lý hoặc không tồn tại.");
+        }
 
         // ─── 4. RowVersion concurrency check ──────────────────────────────
         if (request.RowVersion is null ||
@@ -63,11 +93,21 @@ public class WorkflowEngineService : IWorkflowEngineService
             throw new ConflictException(
                 "Bước đã được xử lý bởi người khác. Vui lòng tải lại trang.");
 
-        // ─── 5. Permission check: user must be assignee ───────────────────
-        var isAssignee = currentStep.WorkflowAssignments
-            .Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy);
-        if (!isAssignee)
-            throw new ForbiddenException("Bạn không được phân công xử lý bước này.");
+        // ─── 5. Permission check based on current phase ──────────────────
+        if (currentStep.PhaHienTai == "LAP_HO_SO")
+        {
+            var isAssignee = currentStep.WorkflowAssignments
+                .Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy);
+            if (!isAssignee)
+                throw new ForbiddenException("Bạn không được phân công xử lý hồ sơ bước này.");
+        }
+        else // KY_DUYET
+        {
+            var isSigner = currentStep.WorkflowAssignments
+                .Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy);
+            if (!isSigner)
+                throw new ForbiddenException("Bạn không được phân công ký duyệt bước này.");
+        }
 
         // ─── 6. BEGIN transaction + UPDLOCK ───────────────────────────────
         await using var txn = await _db.Database.BeginTransactionAsync();
@@ -84,7 +124,9 @@ public class WorkflowEngineService : IWorkflowEngineService
 
             // Re-check step state
             var lockedStep = await _db.WorkflowStepInstances
-                .FirstOrDefaultAsync(s => s.Id == currentStep.Id && s.TrangThai == WorkflowStepTrangThai.PENDING);
+                .FirstOrDefaultAsync(s => s.Id == currentStep.Id &&
+                    (s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY ||
+                     s.TrangThai == WorkflowStepTrangThai.CHO_DUYET));
             if (lockedStep is null)
                 throw new ConflictException("Bước đã được xử lý bởi tiến trình khác.");
 
@@ -97,29 +139,31 @@ public class WorkflowEngineService : IWorkflowEngineService
             ProcessStepResponse response = request.HanhDong switch
             {
                 WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET => await HandleApproveAsync(
-                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong),
+                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong,
+                    nguoiXuLyId: request.NguoiXuLyId, ngayXuLy: request.NgayXuLy,
+                    nguoiKyDuyetId: request.NguoiKyDuyetId, ngayKyDuyet: request.NgayKyDuyet,
+                    taiLieuDinhKem: request.TaiLieuDinhKem),
                 WorkflowHanhDong.REJECT or WorkflowHanhDong.KHONG_DUYET => await HandleRejectAsync(
-                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong),
+                    goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong,
+                    nguoiXuLyId: request.NguoiXuLyId, ngayXuLy: request.NgayXuLy,
+                    nguoiKyDuyetId: request.NguoiKyDuyetId, ngayKyDuyet: request.NgayKyDuyet,
+                    taiLieuDinhKem: request.TaiLieuDinhKem),
                 WorkflowHanhDong.ROLLBACK or WorkflowHanhDong.TRA_VE => await HandleRollbackAsync(
                     goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong),
                 WorkflowHanhDong.SKIP => await HandleSkipAsync(
                     goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu),
                 WorkflowHanhDong.REASSIGN => await HandleReassignAsync(
                     lockedInstance, lockedStep, currentUserId, request.NguoiDuocGiaoId!.Value, request.GhiChu),
-                _ => throw new BadRequestException($"Hành động '{request.HanhDong}' không được hỗ trợ.")
+                _ => throw new BadRequestException($"Hành động {request.HanhDong} không được hỗ trợ.")
             };
 
             goiThau.NgayCapNhat = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             await txn.CommitAsync();
 
-            var sanitizedAction = request.HanhDong.ToString()
-                .Replace("\r", string.Empty)
-                .Replace("\n", string.Empty);
-
             _logger.LogInformation(
                 "ProcessStep: goiThauId={GoiThauId}, instanceId={InstanceId}, action={Action}, stepId={StepId}, userId={UserId}",
-                goiThauId, lockedInstance.Id, sanitizedAction, lockedStep.Id, currentUserId);
+                goiThauId, lockedInstance.Id, request.HanhDong, lockedStep.Id, currentUserId);
 
             return response;
         }
@@ -131,33 +175,240 @@ public class WorkflowEngineService : IWorkflowEngineService
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  APPROVE/DUYET — Duyệt bước hiện tại, chuyển step kế hoặc complete
+    //  APPROVE/DUYET — 2-pha: LAP_HO_SO → KY_DUYET → next step
     // ════════════════════════════════════════════════════════════════════
     private async Task<ProcessStepResponse> HandleApproveAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
-        int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.APPROVE)
+        int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.APPROVE,
+        int? nguoiXuLyId = null, DateTime? ngayXuLy = null,
+        int? nguoiKyDuyetId = null, DateTime? ngayKyDuyet = null,
+        string? taiLieuDinhKem = null)
     {
-        // Validate transition exists — lookup by (TuBuocId, HanhDong) for conditional routing
+        var buoc = currentStep.BuocWorkflow!;
+
+        // ── FAST PATH: frontend submitted full form (both phases in 1 call) ──
+        if (nguoiKyDuyetId is int actualNguoiKyDuyetId && ngayKyDuyet is DateTime actualNgayKyDuyet)
+        {
+            // Mark LAP_HO_SO phase done
+            currentStep.NguoiXuLyId = nguoiXuLyId ?? currentUserId;
+            currentStep.NgayXuLy = ngayXuLy ?? DateTime.UtcNow;
+            currentStep.TaiLieuDinhKem = taiLieuDinhKem;
+            currentStep.GhiChu = ghiChu ?? currentStep.GhiChu;
+
+            foreach (var a in currentStep.WorkflowAssignments.Where(a => !a.DaXuLy))
+            {
+                a.DaXuLy = true;
+                a.NgayXuLy = DateTime.UtcNow;
+            }
+
+            // Check if step requires approval
+            if (buoc.VaiTroKyDuyetId.HasValue)
+            {
+                // Mark KY_DUYET phase done
+                currentStep.NguoiKyDuyetId = actualNguoiKyDuyetId;
+                currentStep.NgayKyDuyet = actualNgayKyDuyet;
+                currentStep.KetQua = "DUYET";
+
+                // Resolve all signers and mark them done
+                var signerIds = await ResolveAssigneesAsync(buoc.VaiTroKyDuyetId.Value, actualNguoiKyDuyetId);
+                foreach (var signerId in signerIds)
+                {
+                    var existing = currentStep.WorkflowAssignments
+                        .FirstOrDefault(a => a.NguoiDuocGiaoId == signerId);
+                    if (existing is null)
+                    {
+                        _db.WorkflowAssignments.Add(new WorkflowAssignment
+                        {
+                            WorkflowStepInstanceId = currentStep.Id,
+                            NguoiDuocGiaoId = signerId,
+                            DaXuLy = true,
+                            NgayGiao = DateTime.UtcNow,
+                            NgayXuLy = DateTime.UtcNow
+                        });
+                    }
+                    else if (!existing.DaXuLy)
+                    {
+                        existing.DaXuLy = true;
+                        existing.NgayXuLy = DateTime.UtcNow;
+                    }
+                }
+
+                // Advance to next step
+                return await CompleteStepAndAdvanceAsync(
+                    goiThau, instance, currentStep, buoc,
+                    nguoiKyDuyetId.Value, ghiChu, hanhDong);
+            }
+            else
+            {
+                // No approval needed, advance directly
+                return await CompleteStepAndAdvanceAsync(
+                    goiThau, instance, currentStep, buoc,
+                    nguoiXuLyId ?? currentUserId, ghiChu, hanhDong);
+            }
+        }
+
+        if (currentStep.PhaHienTai == "LAP_HO_SO")
+        {
+            // ── Phase 1: mark hồ sơ as done → move to KY_DUYET ──
+            currentStep.NguoiXuLyId = currentUserId;
+            currentStep.NgayXuLy = DateTime.UtcNow;
+            currentStep.GhiChu = ghiChu;
+
+            // Mark LAP_HO_SO assignment as done
+            var lapHoSoAssignment = currentStep.WorkflowAssignments
+                .FirstOrDefault(a => !a.DaXuLy);
+            if (lapHoSoAssignment is not null)
+            {
+                lapHoSoAssignment.DaXuLy = true;
+                lapHoSoAssignment.NgayXuLy = DateTime.UtcNow;
+            }
+
+            // Check if step needs ký duyệt
+            if (buoc.VaiTroKyDuyetId.HasValue)
+            {
+                // Step requires approval → enter KY_DUYET phase
+                currentStep.PhaHienTai = "KY_DUYET";
+                currentStep.TrangThai = WorkflowStepTrangThai.CHO_DUYET;
+
+                // Resolve signers: có thể nhiều người ký song song
+                var signerIds = await ResolveAssigneesAsync(buoc.VaiTroKyDuyetId.Value, currentUserId);
+                foreach (var signerId in signerIds)
+                {
+                    _db.WorkflowAssignments.Add(new WorkflowAssignment
+                    {
+                        WorkflowStepInstanceId = currentStep.Id,
+                        NguoiDuocGiaoId = signerId,
+                        NgayGiao = DateTime.UtcNow
+                    });
+                }
+
+                // Deadline check
+                var deadlineStatus = await CheckDeadlineAsync(buoc);
+
+                await _db.SaveChangesAsync();
+
+                AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
+                    ghiChu ?? $"Hoàn tất lập hồ sơ bước '{buoc.TenBuoc}', chuyển sang ký duyệt",
+                    currentUserId, goiThau.Id,
+                    $"{hanhDong}_LAP_HO_SO: '{buoc.TenBuoc}' → KY_DUYET");
+
+                return BuildResponse2Phase(currentStep, instance, goiThau, hanhDong,
+                    false, currentStep.Id, buoc.TenBuoc, currentStep.RowVersion,
+                    deadlineStatus);
+            }
+            else
+            {
+                // No approval needed → complete this step, move to next
+                return await CompleteStepAndAdvanceAsync(
+                    goiThau, instance, currentStep, buoc, currentUserId, ghiChu, hanhDong);
+            }
+        }
+        else // KY_DUYET
+        {
+            // ── Phase 2: mark this signer's assignment as done ──
+            var assignment = currentStep.WorkflowAssignments
+                .FirstOrDefault(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy);
+            if (assignment is not null)
+            {
+                assignment.DaXuLy = true;
+                assignment.NgayXuLy = DateTime.UtcNow;
+            }
+
+            // Check if all signing assignments are done
+            var allSigned = currentStep.WorkflowAssignments.All(a => a.DaXuLy);
+
+            if (allSigned)
+            {
+                currentStep.NguoiKyDuyetId = currentUserId;
+                currentStep.NgayKyDuyet = DateTime.UtcNow;
+                currentStep.KetQua = "DUYET";
+
+                return await CompleteStepAndAdvanceAsync(
+                    goiThau, instance, currentStep, buoc, currentUserId, ghiChu, hanhDong);
+            }
+            else
+            {
+                // Still waiting for other signers
+                await _db.SaveChangesAsync();
+
+                var remaining = currentStep.WorkflowAssignments.Count(a => !a.DaXuLy);
+
+                AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
+                    ghiChu ?? $"Đã ký duyệt, còn {remaining} người ký chờ duyệt",
+                    currentUserId, goiThau.Id,
+                    $"{hanhDong}_KY_DUYET_PARTIAL: '{buoc.TenBuoc}' — {remaining} signer(s) remaining");
+
+                return new ProcessStepResponse
+                {
+                    CurrentStepId = currentStep.Id,
+                    TenBuocHienTai = buoc.TenBuoc,
+                    PhaHienTai = "KY_DUYET",
+                    ChoKyDuyet = true,
+                    WorkflowTrangThai = instance.TrangThai,
+                    GoiThauTrangThai = goiThau.TrangThai,
+                    HanhDong = hanhDong,
+                    Message = $"Đã ký duyệt. Còn {remaining} người ký chờ duyệt.",
+                    NewRowVersion = currentStep.RowVersion
+                };
+            }
+        }
+    }
+
+    /// <summary>
+    /// Hoàn tất step hiện tại (HOAN_TAT), xử lý split/merge/sequential advance.
+    /// </summary>
+    private async Task<ProcessStepResponse> CompleteStepAndAdvanceAsync(
+        GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
+        BuocWorkflow buoc, int currentUserId, string? ghiChu, string hanhDong)
+    {
+        currentStep.TrangThai = WorkflowStepTrangThai.HOAN_TAT;
+        currentStep.NgayHoanThanh = DateTime.UtcNow;
+        if (currentStep.HanXuLy.HasValue && currentStep.NgayHoanThanh > currentStep.HanXuLy)
+            currentStep.QuaHan = true;
+        else
+            currentStep.QuaHan = false;
+        currentStep.NguoiKyDuyetId ??= currentUserId;
+        currentStep.NgayKyDuyet ??= DateTime.UtcNow;
+        currentStep.KetQua ??= "DUYET";
+        currentStep.GhiChu = ghiChu ?? currentStep.GhiChu;
+
+        // ── Check SPLIT: completed step is BuocTachNhanhId of a parallel group ──
+        var splitGroup = await _db.NhomNhanhWorkflows
+            .Include(g => g.Nhanhs.OrderBy(n => n.ThuTu))
+            .ThenInclude(n => n.BuocDauTien)
+            .FirstOrDefaultAsync(g =>
+                g.WorkflowId == instance.WorkflowId &&
+                g.BuocTachNhanhId == currentStep.BuocWorkflowId);
+
+        if (splitGroup?.Nhanhs.Count > 0)
+        {
+            return await HandleSplitAsync(goiThau, instance, currentStep, buoc,
+                currentUserId, ghiChu, hanhDong, splitGroup);
+        }
+
+        // ── Check MERGE: this is a branch step (has NhanhWorkflowId) ─────────
+        if (buoc.NhanhWorkflowId.HasValue)
+        {
+            var branch = await _db.NhanhWorkflows
+                .Include(n => n.NhomNhanhWorkflow)
+                .FirstOrDefaultAsync(n => n.Id == buoc.NhanhWorkflowId.Value);
+
+            if (branch?.NhomNhanhWorkflow != null)
+            {
+                var mergeResult = await TryCompleteMergeAsync(instance, currentStep, buoc,
+                    currentUserId, ghiChu, hanhDong, branch.NhomNhanhWorkflow);
+
+                if (mergeResult != null)
+                    return mergeResult; // merge created or await condition
+            }
+        }
+
+        // ── Find transition for sequential advance ───────────────────────────
         var transition = await _db.ChuyenTiepWorkflows
             .Include(t => t.DenBuoc)
             .FirstOrDefaultAsync(t =>
                 t.TuBuocId == currentStep.BuocWorkflowId &&
                 t.HanhDong == hanhDong);
-
-        // Mark current step as HOAN_TAT
-        currentStep.TrangThai = WorkflowStepTrangThai.HOAN_TAT;
-        currentStep.NgayHoanThanh = DateTime.UtcNow;
-        currentStep.NguoiXuLyId = currentUserId;
-        currentStep.GhiChu = ghiChu;
-
-        // Mark assignment as done
-        var assignment = currentStep.WorkflowAssignments
-            .FirstOrDefault(a => !a.DaXuLy);
-        if (assignment is not null)
-        {
-            assignment.DaXuLy = true;
-            assignment.NgayXuLy = DateTime.UtcNow;
-        }
 
         bool isCompleted;
         long? newStepId = null;
@@ -174,90 +425,446 @@ public class WorkflowEngineService : IWorkflowEngineService
         }
         else
         {
-            // ── Move to next step ──
+            // ── Sequential advance (existing behavior) ──
             var nextStep = new WorkflowStepInstance
             {
                 WorkflowInstanceId = instance.Id,
                 BuocWorkflowId = transition.DenBuocId,
-                TrangThai = WorkflowStepTrangThai.PENDING,
-                NgayBatDau = DateTime.UtcNow
+                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+                PhaHienTai = "LAP_HO_SO",
+                NgayBatDau = DateTime.UtcNow,
+                HanXuLy = transition!.DenBuoc.SoNgayLapHoSo > 0
+                    ? DateTime.UtcNow.AddDays(transition!.DenBuoc.SoNgayLapHoSo)
+                    : null,
             };
             _db.WorkflowStepInstances.Add(nextStep);
             await _db.SaveChangesAsync();
 
-            // Resolve assignee for next step
-            var assigneeId = await ResolveAssigneeAsync(transition.DenBuoc, currentUserId);
-            _db.WorkflowAssignments.Add(new WorkflowAssignment
+            // Resolve assignee for next step's LAP_HO_SO phase
+            var nextBuoc = transition.DenBuoc;
+            if (nextBuoc.VaiTroXuLyHoSoId.HasValue)
             {
-                WorkflowStepInstanceId = nextStep.Id,
-                NguoiDuocGiaoId = assigneeId,
-                NgayGiao = DateTime.UtcNow
-            });
+                var assigneeIds = await ResolveAssigneesAsync(nextBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+                foreach (var assigneeId in assigneeIds)
+                {
+                    _db.WorkflowAssignments.Add(new WorkflowAssignment
+                    {
+                        WorkflowStepInstanceId = nextStep.Id,
+                        NguoiDuocGiaoId = assigneeId,
+                        NgayGiao = DateTime.UtcNow
+                    });
+                }
+            }
+            else
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = nextStep.Id,
+                    NguoiDuocGiaoId = currentUserId,
+                    NgayGiao = DateTime.UtcNow
+                });
+            }
 
             instance.BuocHienTaiId = transition.DenBuocId;
             newStepId = nextStep.Id;
-            newStepName = transition.DenBuoc.TenBuoc;
+            newStepName = nextBuoc.TenBuoc;
             isCompleted = false;
+
+            await _db.SaveChangesAsync();
         }
 
-        // Audit
         AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
-            ghiChu ?? $"Duyệt bước '{currentStep.BuocWorkflow?.TenBuoc}'", currentUserId, goiThau.Id,
-            $"{hanhDong}_STEP: duyệt bước '{currentStep.BuocWorkflow?.TenBuoc}'");
+            ghiChu ?? $"Hoàn tất bước '{buoc.TenBuoc}'", currentUserId, goiThau.Id,
+            $"{hanhDong}_STEP: '{buoc.TenBuoc}' hoàn tất");
 
-        // Capture new step's RowVersion for optimistic concurrency on next action
-        var nextStepRv = newStepId.HasValue
-            ? (await _db.WorkflowStepInstances
-                .Where(s => s.Id == newStepId.Value)
-                .Select(s => s.RowVersion)
-                .FirstOrDefaultAsync())
-            : null;
+        return BuildResponse2Phase(currentStep, instance, goiThau, hanhDong,
+            isCompleted, newStepId, newStepName, null);
+    }
 
-        return BuildResponse(currentStep, null, instance, goiThau, hanhDong,
-            isCompleted, newStepId, newStepName, nextStepRv);
+    /// <summary>
+    /// Handle SPLIT: create one WorkflowStepInstance per branch in the parallel group.
+    /// </summary>
+    private async Task<ProcessStepResponse> HandleSplitAsync(
+        GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
+        BuocWorkflow buoc, int currentUserId, string? ghiChu, string hanhDong,
+        NhomNhanhWorkflow splitGroup)
+    {
+        _logger.LogInformation("Split: workflow={WfId}, group={GroupId}, branches={Count}",
+            instance.WorkflowId, splitGroup.Id, splitGroup.Nhanhs.Count);
+
+        var createdSteps = new List<WorkflowStepInstance>();
+
+        foreach (var branch in splitGroup.Nhanhs)
+        {
+            var branchStep = new WorkflowStepInstance
+            {
+                WorkflowInstanceId = instance.Id,
+                BuocWorkflowId = branch.BuocDauTienId,
+                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+                PhaHienTai = "LAP_HO_SO",
+                NgayBatDau = DateTime.UtcNow,
+                HanXuLy = branch.ThoiHanNgay > 0
+                    ? DateTime.UtcNow.AddDays((double)branch.ThoiHanNgay)
+                    : null,
+            };
+            _db.WorkflowStepInstances.Add(branchStep);
+            await _db.SaveChangesAsync();
+
+            // Resolve assignee for branch first step
+            var buocDauTien = branch.BuocDauTien;
+            var roleId = branch.VaiTroXuLyId ?? buocDauTien?.VaiTroXuLyHoSoId;
+            if (roleId.HasValue)
+            {
+                var assigneeIds = await ResolveAssigneesAsync(roleId.Value, currentUserId);
+                foreach (var assigneeId in assigneeIds)
+                {
+                    _db.WorkflowAssignments.Add(new WorkflowAssignment
+                    {
+                        WorkflowStepInstanceId = branchStep.Id,
+                        NguoiDuocGiaoId = assigneeId,
+                        NgayGiao = DateTime.UtcNow
+                    });
+                }
+            }
+            else
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = branchStep.Id,
+                    NguoiDuocGiaoId = currentUserId,
+                    NgayGiao = DateTime.UtcNow
+                });
+            }
+
+            createdSteps.Add(branchStep);
+
+            AddAuditEntries(instance.Id, branchStep.Id, hanhDong,
+                $"Tạo nhánh '{branch.TenNhanh}' sau bước '{buoc.TenBuoc}'",
+                currentUserId, goiThau.Id,
+                $"SPLIT: '{buoc.TenBuoc}' → '{branch.TenNhanh}' (bước id={branch.BuocDauTienId})");
+        }
+
+        await _db.SaveChangesAsync();
+
+        // Multiple current steps — clear single-step pointer
+        instance.BuocHienTaiId = null;
+
+        var branchNames = string.Join(", ", splitGroup.Nhanhs.Select(n => n.TenNhanh));
+
+        AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
+            ghiChu ?? $"Hoàn tất bước '{buoc.TenBuoc}', tách {splitGroup.Nhanhs.Count} nhánh: {branchNames}",
+            currentUserId, goiThau.Id,
+            $"{hanhDong}_SPLIT: '{buoc.TenBuoc}' → {splitGroup.Nhanhs.Count} nhánh");
+
+        return BuildResponse2Phase(currentStep, instance, goiThau, hanhDong, false,
+            createdSteps.Count > 0 ? createdSteps[0].Id : null,
+            $"{splitGroup.Nhanhs.Count} nhánh: {branchNames}",
+            null, splitGroup: splitGroup, createdStepIds: createdSteps.Select(s => s.Id).ToList());
+    }
+
+    /// <summary>
+    /// Check merge condition for a completed branch step.
+    /// Returns a ProcessStepResponse indicating merge created or awaiting other branches.
+    /// </summary>
+    private async Task<ProcessStepResponse?> TryCompleteMergeAsync(
+        WorkflowInstance instance, WorkflowStepInstance currentStep,
+        BuocWorkflow buoc, int currentUserId, string? ghiChu, string hanhDong,
+        NhomNhanhWorkflow group)
+    {
+        var branchIds = group.Nhanhs.Select(n => n.Id).ToList();
+
+        // All step instances for this workflow — filter by branch membership
+        var allBranchStepInstances = await _db.WorkflowStepInstances
+            .Where(s => s.WorkflowInstanceId == instance.Id)
+            .Include(s => s.BuocWorkflow)
+            .ToListAsync();
+
+        var relevantSteps = allBranchStepInstances
+            .Where(s => s.BuocWorkflow != null && branchIds.Contains(s.BuocWorkflow.NhanhWorkflowId ?? 0))
+            .ToList();
+
+        // Mark current as complete (already done by caller)
+        // Check merge condition
+        bool mergeConditionMet;
+        var terminalCount = relevantSteps.Count(s =>
+            s.TrangThai == WorkflowStepTrangThai.HOAN_TAT ||
+            s.TrangThai == WorkflowStepTrangThai.SKIPPED);
+
+        // Count branches with at least 1 terminal step (correct for multi-step branches)
+        var completedBranchIds = relevantSteps
+            .Where(s => s.TrangThai == WorkflowStepTrangThai.HOAN_TAT ||
+                        s.TrangThai == WorkflowStepTrangThai.SKIPPED)
+            .Select(s => s.BuocWorkflow!.NhanhWorkflowId)
+            .Where(id => id.HasValue)
+            .Distinct()
+            .Count();
+
+        switch (group.DieuKienHopNhat)
+        {
+            case "ALL":
+                mergeConditionMet = completedBranchIds >= group.Nhanhs.Count;
+                break;
+            case "ANY":
+                mergeConditionMet = completedBranchIds >= 1;
+                break;
+            case "COUNT":
+                mergeConditionMet = group.SoNhanhHopNhatToiThieu.HasValue &&
+                                    completedBranchIds >= group.SoNhanhHopNhatToiThieu.Value;
+                break;
+            default:
+                mergeConditionMet = completedBranchIds >= group.Nhanhs.Count;
+                break;
+        }
+
+        var auditMergeMsg = $"chờ merge ({completedBranchIds}/{group.Nhanhs.Count})";
+
+        if (!mergeConditionMet)
+        {
+            // Branch complete but merge not yet ready
+            AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
+                ghiChu ?? $"Hoàn tất nhánh (chờ merge: {group.DieuKienHopNhat})",
+                currentUserId, instance.GoiThauId,
+                $"{hanhDong}_BRANCH_DONE: '{buoc.TenBuoc}' — {auditMergeMsg}");
+
+            return new ProcessStepResponse
+            {
+                CurrentStepId = currentStep.Id,
+                TenBuocHienTai = buoc.TenBuoc,
+                PhaHienTai = currentStep.PhaHienTai,
+                IsAwaitingMerge = true,
+                WorkflowTrangThai = instance.TrangThai,
+                GoiThauTrangThai = (await _db.GoiThaus.FindAsync(instance.GoiThauId))?.TrangThai,
+                HanhDong = hanhDong,
+                Message = $"Hoàn tất bước '{buoc.TenBuoc}'. Đang chờ các nhánh còn lại hoàn tất ({completedBranchIds}/{group.Nhanhs.Count}).",
+                NewRowVersion = currentStep.RowVersion,
+                TinhTrangTienDo = "DUNG_TIEN_DO",
+                SoNhanhHoanThanh = completedBranchIds,
+                TongSoNhanh = group.Nhanhs.Count
+            };
+        }
+
+        // ── Merge condition met — create merge step exactly once (idempotent) ──
+        // Use UPDLOCK to prevent race: re-read group within transaction
+        var lockedGroup = await _db.NhomNhanhWorkflows
+            .FromSqlRaw("SELECT * FROM NhomNhanhWorkflow WITH (UPDLOCK, ROWLOCK) WHERE Id = {0}", group.Id)
+            .FirstOrDefaultAsync();
+
+        if (lockedGroup is null)
+            throw new ConflictException("Parallel group was removed.");
+
+        var mergeStepAlreadyExists = await _db.WorkflowStepInstances.AnyAsync(s =>
+            s.WorkflowInstanceId == instance.Id &&
+            s.BuocWorkflowId == group.BuocSauHopNhatId &&
+            (s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY ||
+             s.TrangThai == WorkflowStepTrangThai.CHO_DUYET ||
+             s.TrangThai == WorkflowStepTrangThai.HOAN_TAT));
+
+        if (mergeStepAlreadyExists)
+        {
+            _logger.LogWarning("Merge step already exists for group {GroupId}, skipping duplicate creation", group.Id);
+            return new ProcessStepResponse
+            {
+                CurrentStepId = currentStep.Id,
+                TenBuocHienTai = buoc.TenBuoc,
+                WorkflowTrangThai = instance.TrangThai,
+                HanhDong = hanhDong,
+                Message = "Nhánh đã hoàn tất. Bước merge đã được tạo trước đó.",
+                NewRowVersion = currentStep.RowVersion,
+                TinhTrangTienDo = "DUNG_TIEN_DO"
+            };
+        }
+
+        var mergeBuoc = await _db.BuocWorkflows.FindAsync(group.BuocSauHopNhatId);
+
+        var mergeStep = new WorkflowStepInstance
+        {
+            WorkflowInstanceId = instance.Id,
+            BuocWorkflowId = group.BuocSauHopNhatId,
+            TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+            PhaHienTai = "LAP_HO_SO",
+            NgayBatDau = DateTime.UtcNow,
+            HanXuLy = mergeBuoc?.SoNgayLapHoSo > 0
+                ? DateTime.UtcNow.AddDays(mergeBuoc.SoNgayLapHoSo)
+                : null,
+        };
+        _db.WorkflowStepInstances.Add(mergeStep);
+        await _db.SaveChangesAsync();
+
+        // Resolve assignees for merge step
+        if (mergeBuoc?.VaiTroXuLyHoSoId.HasValue == true)
+        {
+            var assigneeIds = await ResolveAssigneesAsync(mergeBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+            foreach (var assigneeId in assigneeIds)
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = mergeStep.Id,
+                    NguoiDuocGiaoId = assigneeId,
+                    NgayGiao = DateTime.UtcNow
+                });
+            }
+        }
+        else
+        {
+            _db.WorkflowAssignments.Add(new WorkflowAssignment
+            {
+                WorkflowStepInstanceId = mergeStep.Id,
+                NguoiDuocGiaoId = currentUserId,
+                NgayGiao = DateTime.UtcNow
+            });
+        }
+
+        instance.BuocHienTaiId = group.BuocSauHopNhatId;
+
+        AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
+            ghiChu ?? $"Hợp nhánh thành công ({group.DieuKienHopNhat})",
+            currentUserId, instance.GoiThauId,
+            $"{hanhDong}_MERGE: nhóm '{group.TenNhom}' merge → bước id={group.BuocSauHopNhatId}");
+
+        await _db.SaveChangesAsync();
+
+        return BuildResponse2Phase(currentStep, instance, null!, hanhDong, false,
+            mergeStep.Id, mergeBuoc?.TenBuoc, mergeStep.RowVersion,
+            isMerge: true);
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  REJECT/KHONG_DUYET — Từ chối, kết thúc workflow, đưa GoiThau về DU_THAO
+    //  REJECT/KHONG_DUYET — Từ chối (cả 2 pha)
+    //  Branch-aware: uses HuongXuLyKhongDuyet from transition config.
     // ════════════════════════════════════════════════════════════════════
     private async Task<ProcessStepResponse> HandleRejectAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
-        int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.REJECT)
+        int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.REJECT,
+        int? nguoiXuLyId = null, DateTime? ngayXuLy = null,
+        int? nguoiKyDuyetId = null, DateTime? ngayKyDuyet = null,
+        string? taiLieuDinhKem = null)
     {
         var buoc = currentStep.BuocWorkflow;
         if (buoc is not null && !buoc.ChoPhepTuChoi)
             throw new BadRequestException($"Bước '{buoc.TenBuoc}' không cho phép từ chối.");
 
-        // Mark current step as TRA_VE
+        // Mark current step
         currentStep.TrangThai = WorkflowStepTrangThai.TRA_VE;
         currentStep.NgayHoanThanh = DateTime.UtcNow;
-        currentStep.NguoiXuLyId = currentUserId;
+        if (currentStep.HanXuLy.HasValue && currentStep.NgayHoanThanh > currentStep.HanXuLy)
+            currentStep.QuaHan = true;
+        else
+            currentStep.QuaHan = false;
+        currentStep.KetQua = "KHONG_DUYET";
+        currentStep.LyDoKhongDuyet = ghiChu;
         currentStep.GhiChu = ghiChu;
+        if (taiLieuDinhKem != null) currentStep.TaiLieuDinhKem = taiLieuDinhKem;
 
-        // Mark assignment
-        var assignment = currentStep.WorkflowAssignments
-            .FirstOrDefault(a => !a.DaXuLy);
-        if (assignment is not null)
+        if (currentStep.PhaHienTai == "KY_DUYET")
         {
-            assignment.DaXuLy = true;
-            assignment.NgayXuLy = DateTime.UtcNow;
+            currentStep.NguoiKyDuyetId = nguoiKyDuyetId ?? currentUserId;
+            currentStep.NgayKyDuyet = ngayKyDuyet ?? DateTime.UtcNow;
+        }
+        else
+        {
+            currentStep.NguoiXuLyId = nguoiXuLyId ?? currentUserId;
+            currentStep.NgayXuLy = ngayXuLy ?? DateTime.UtcNow;
         }
 
-        // End workflow
+        // Mark all pending assignments as done
+        foreach (var a in currentStep.WorkflowAssignments.Where(a => !a.DaXuLy))
+        {
+            a.DaXuLy = true;
+            a.NgayXuLy = DateTime.UtcNow;
+        }
+
+        // ── Branch-aware reject: check HuongXuLyKhongDuyet from transition ──
+        // Find transition that leads TO this step (DenBuocId), not from it (TuBuocId)
+        var rejectTransition = await _db.ChuyenTiepWorkflows
+            .Include(t => t.TuBuoc)
+            .FirstOrDefaultAsync(t =>
+                t.DenBuocId == currentStep.BuocWorkflowId &&
+                (t.HanhDong == hanhDong || t.HanhDong == WorkflowHanhDong.TRA_VE ||
+                 t.HanhDong == WorkflowHanhDong.REJECT || t.HanhDong == WorkflowHanhDong.KHONG_DUYET));
+
+        if (rejectTransition?.HuongXuLyKhongDuyet == "TRA_VE_BUOC_TRUOC" && rejectTransition.TuBuoc != null)
+        {
+            // Config says rollback instead of end
+            var previousStep = new WorkflowStepInstance
+            {
+                WorkflowInstanceId = instance.Id,
+                BuocWorkflowId = rejectTransition.TuBuoc.Id,
+                HanXuLy = rejectTransition.TuBuoc.SoNgayLapHoSo > 0
+                    ? DateTime.UtcNow.AddDays(rejectTransition.TuBuoc.SoNgayLapHoSo)
+                    : null,
+                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+                PhaHienTai = "LAP_HO_SO",
+                NgayBatDau = DateTime.UtcNow,
+            };
+            _db.WorkflowStepInstances.Add(previousStep);
+            await _db.SaveChangesAsync();
+
+            if (rejectTransition.TuBuoc.VaiTroXuLyHoSoId.HasValue)
+            {
+                var assigneeIds = await ResolveAssigneesAsync(
+                    rejectTransition.TuBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+                foreach (var assigneeId in assigneeIds)
+                {
+                    _db.WorkflowAssignments.Add(new WorkflowAssignment
+                    {
+                        WorkflowStepInstanceId = previousStep.Id,
+                        NguoiDuocGiaoId = assigneeId,
+                        NgayGiao = DateTime.UtcNow
+                    });
+                }
+            }
+            else
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = previousStep.Id,
+                    NguoiDuocGiaoId = currentUserId,
+                    NgayGiao = DateTime.UtcNow
+                });
+            }
+
+            instance.BuocHienTaiId = rejectTransition.TuBuoc.Id;
+
+            AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
+                ghiChu ?? $"Từ chối tại bước '{buoc?.TenBuoc}' — trả về '{rejectTransition.TuBuoc.TenBuoc}'",
+                currentUserId, goiThau.Id,
+                $"{hanhDong}_ROLLBACK: từ '{buoc?.TenBuoc}' về '{rejectTransition.TuBuoc.TenBuoc}'");
+
+            await _db.SaveChangesAsync();
+
+            return BuildResponse2Phase(currentStep, instance, goiThau, hanhDong, false,
+                previousStep.Id, rejectTransition.TuBuoc.TenBuoc, previousStep.RowVersion);
+        }
+
+        // ── Default: end workflow (conservative for branch context) ──
         instance.TrangThai = WorkflowTrangThai.REJECTED;
         instance.NgayHoanThanh = DateTime.UtcNow;
         instance.BuocHienTaiId = null;
 
-        // Return GoiThau to draft
+        // Cancel any other active branch step instances
+        var activeBranchSteps = await _db.WorkflowStepInstances
+            .Where(s => s.WorkflowInstanceId == instance.Id &&
+                        s.Id != currentStep.Id &&
+                        (s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY ||
+                         s.TrangThai == WorkflowStepTrangThai.CHO_DUYET))
+            .ToListAsync();
+        foreach (var activeStep in activeBranchSteps)
+        {
+            activeStep.TrangThai = WorkflowStepTrangThai.TRA_VE;
+            activeStep.NgayHoanThanh = DateTime.UtcNow;
+            activeStep.KetQua = "KHONG_DUYET";
+            activeStep.LyDoKhongDuyet = "Nhánh khác bị từ chối, workflow kết thúc.";
+        }
+
         goiThau.TrangThai = GoiThauTrangThai.DU_THAO;
         goiThau.WorkflowId = null;
 
         AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
-            ghiChu ?? $"Từ chối tại bước '{currentStep.BuocWorkflow?.TenBuoc}'",
+            ghiChu ?? $"Từ chối tại bước '{buoc?.TenBuoc}'",
             currentUserId, goiThau.Id,
-            $"{hanhDong}_STEP: từ chối tại bước '{currentStep.BuocWorkflow?.TenBuoc}'");
+            $"{hanhDong}_STEP: từ chối tại bước '{buoc?.TenBuoc}'");
 
-        return BuildResponse(currentStep, null, instance, goiThau, hanhDong, true);
+        return BuildResponse2Phase(currentStep, instance, goiThau, hanhDong, true);
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -267,7 +874,6 @@ public class WorkflowEngineService : IWorkflowEngineService
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
         int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.ROLLBACK)
     {
-        // Find ROLLBACK/TRA_VE transition pointing TO this step's BuocWorkflow
         var rollbackTransition = await _db.ChuyenTiepWorkflows
             .Include(t => t.TuBuoc)
             .FirstOrDefaultAsync(t =>
@@ -277,38 +883,71 @@ public class WorkflowEngineService : IWorkflowEngineService
         if (rollbackTransition?.TuBuoc is null)
             throw new BadRequestException("Không thể rollback — không có luồng ROLLBACK cho bước này.");
 
-        // Mark current step as TRA_VE
         currentStep.TrangThai = WorkflowStepTrangThai.TRA_VE;
         currentStep.NgayHoanThanh = DateTime.UtcNow;
-        currentStep.NguoiXuLyId = currentUserId;
-        currentStep.GhiChu = ghiChu;
+        if (currentStep.HanXuLy.HasValue && currentStep.NgayHoanThanh > currentStep.HanXuLy)
+            currentStep.QuaHan = true;
+        else
+            currentStep.QuaHan = false;
+        currentStep.KetQua = "KHONG_DUYET";
+        currentStep.LyDoKhongDuyet = ghiChu;
 
-        var assignment = currentStep.WorkflowAssignments
-            .FirstOrDefault(a => !a.DaXuLy);
-        if (assignment is not null)
+        if (currentStep.PhaHienTai == "KY_DUYET")
         {
-            assignment.DaXuLy = true;
-            assignment.NgayXuLy = DateTime.UtcNow;
+            currentStep.NguoiKyDuyetId = currentUserId;
+            currentStep.NgayKyDuyet = DateTime.UtcNow;
+        }
+        else
+        {
+            currentStep.NguoiXuLyId = currentUserId;
+            currentStep.NgayXuLy = DateTime.UtcNow;
         }
 
-        // Create new PENDING step for the "TuBuoc" (the step we roll back to)
+        foreach (var a in currentStep.WorkflowAssignments.Where(a => !a.DaXuLy))
+        {
+            a.DaXuLy = true;
+            a.NgayXuLy = DateTime.UtcNow;
+        }
+
+        // Create new PENDING step for rollback target
         var previousStep = new WorkflowStepInstance
         {
             WorkflowInstanceId = instance.Id,
             BuocWorkflowId = rollbackTransition.TuBuoc.Id,
-            TrangThai = WorkflowStepTrangThai.PENDING,
-            NgayBatDau = DateTime.UtcNow
+            HanXuLy = rollbackTransition.TuBuoc.SoNgayLapHoSo > 0
+                ? DateTime.UtcNow.AddDays(rollbackTransition.TuBuoc.SoNgayLapHoSo)
+                : null,
+            TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+            PhaHienTai = "LAP_HO_SO",
+            NgayBatDau = DateTime.UtcNow,
         };
         _db.WorkflowStepInstances.Add(previousStep);
         await _db.SaveChangesAsync();
 
-        var assigneeId = await ResolveAssigneeAsync(rollbackTransition.TuBuoc, currentUserId);
-        _db.WorkflowAssignments.Add(new WorkflowAssignment
+        // Resolve assignees
+        var tuBuoc = rollbackTransition.TuBuoc;
+        if (tuBuoc.VaiTroXuLyHoSoId.HasValue)
         {
-            WorkflowStepInstanceId = previousStep.Id,
-            NguoiDuocGiaoId = assigneeId,
-            NgayGiao = DateTime.UtcNow
-        });
+            var assigneeIds = await ResolveAssigneesAsync(tuBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+            foreach (var assigneeId in assigneeIds)
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = previousStep.Id,
+                    NguoiDuocGiaoId = assigneeId,
+                    NgayGiao = DateTime.UtcNow
+                });
+            }
+        }
+        else
+        {
+            _db.WorkflowAssignments.Add(new WorkflowAssignment
+            {
+                WorkflowStepInstanceId = previousStep.Id,
+                NguoiDuocGiaoId = currentUserId,
+                NgayGiao = DateTime.UtcNow
+            });
+        }
 
         instance.BuocHienTaiId = rollbackTransition.TuBuoc.Id;
 
@@ -317,12 +956,12 @@ public class WorkflowEngineService : IWorkflowEngineService
             currentUserId, goiThau.Id,
             $"{hanhDong}_STEP: từ '{currentStep.BuocWorkflow?.TenBuoc}' về '{rollbackTransition.TuBuoc.TenBuoc}'");
 
-        return BuildResponse(currentStep, rollbackTransition.TuBuoc, instance, goiThau,
-            hanhDong, false, previousStep.Id, rollbackTransition.TuBuoc.TenBuoc);
+        return BuildResponse2Phase(currentStep, instance, goiThau,
+            hanhDong, false, previousStep.Id, rollbackTransition.TuBuoc.TenBuoc, previousStep.RowVersion);
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  SKIP — Bỏ qua bước hiện tại
+    //  SKIP — Bỏ qua bước hiện tại (giai đoạn LAP_HO_SO)
     // ════════════════════════════════════════════════════════════════════
     private async Task<ProcessStepResponse> HandleSkipAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
@@ -334,19 +973,20 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         currentStep.TrangThai = WorkflowStepTrangThai.SKIPPED;
         currentStep.NgayHoanThanh = DateTime.UtcNow;
+        if (currentStep.HanXuLy.HasValue && currentStep.NgayHoanThanh > currentStep.HanXuLy)
+            currentStep.QuaHan = true;
+        else
+            currentStep.QuaHan = false;
         currentStep.NguoiXuLyId = currentUserId;
         currentStep.GhiChu = ghiChu;
 
-        var assignment = currentStep.WorkflowAssignments
-            .FirstOrDefault(a => !a.DaXuLy);
-        if (assignment is not null)
+        foreach (var a in currentStep.WorkflowAssignments.Where(a => !a.DaXuLy))
         {
-            assignment.DaXuLy = true;
-            assignment.NgayXuLy = DateTime.UtcNow;
+            a.DaXuLy = true;
+            a.NgayXuLy = DateTime.UtcNow;
         }
 
-        // Find next step: try SKIP transition first, fallback to APPROVE/DUYET
-        // Intent: if BA configures no SKIP transition, the step behaves like a soft-approve on skip
+        // Find next step
         var transition = await _db.ChuyenTiepWorkflows
             .Include(t => t.DenBuoc)
             .FirstOrDefaultAsync(t =>
@@ -376,32 +1016,50 @@ public class WorkflowEngineService : IWorkflowEngineService
             {
                 WorkflowInstanceId = instance.Id,
                 BuocWorkflowId = transition.DenBuocId,
-                TrangThai = WorkflowStepTrangThai.PENDING,
-                NgayBatDau = DateTime.UtcNow
+                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+                PhaHienTai = "LAP_HO_SO",
+                NgayBatDau = DateTime.UtcNow,
+                HanXuLy = transition.DenBuoc.SoNgayLapHoSo > 0
+                    ? DateTime.UtcNow.AddDays(transition.DenBuoc.SoNgayLapHoSo)
+                    : null,
             };
-            _db.WorkflowStepInstances.Add(nextStep);
-            await _db.SaveChangesAsync();
 
-            var assigneeId = await ResolveAssigneeAsync(transition.DenBuoc, currentUserId);
-            _db.WorkflowAssignments.Add(new WorkflowAssignment
+            var nextBuoc = transition.DenBuoc;
+            if (nextBuoc.VaiTroXuLyHoSoId.HasValue)
             {
-                WorkflowStepInstanceId = nextStep.Id,
-                NguoiDuocGiaoId = assigneeId,
-                NgayGiao = DateTime.UtcNow
-            });
+                var assigneeIds = await ResolveAssigneesAsync(nextBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+                foreach (var assigneeId in assigneeIds)
+                {
+                    _db.WorkflowAssignments.Add(new WorkflowAssignment
+                    {
+                        WorkflowStepInstanceId = nextStep.Id,
+                        NguoiDuocGiaoId = assigneeId,
+                        NgayGiao = DateTime.UtcNow
+                    });
+                }
+            }
+            else
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = nextStep.Id,
+                    NguoiDuocGiaoId = currentUserId,
+                    NgayGiao = DateTime.UtcNow
+                });
+            }
 
             instance.BuocHienTaiId = transition.DenBuocId;
             newStepId = nextStep.Id;
-            newStepName = transition.DenBuoc.TenBuoc;
+            newStepName = nextBuoc.TenBuoc;
             isCompleted = false;
         }
 
         AddAuditEntries(instance.Id, currentStep.Id, WorkflowHanhDong.SKIP,
-            ghiChu ?? $"Bỏ qua bước '{currentStep.BuocWorkflow?.TenBuoc}'",
+            ghiChu ?? $"Bỏ qua bước '{buoc?.TenBuoc}'",
             currentUserId, goiThau.Id,
-            $"SKIP_STEP: bỏ qua bước '{currentStep.BuocWorkflow?.TenBuoc}'");
+            $"SKIP_STEP: bỏ qua bước '{buoc?.TenBuoc}'");
 
-        return BuildResponse(currentStep, null, instance, goiThau, WorkflowHanhDong.SKIP,
+        return BuildResponse2Phase(currentStep, instance, goiThau, WorkflowHanhDong.SKIP,
             isCompleted, newStepId, newStepName);
     }
 
@@ -412,30 +1070,31 @@ public class WorkflowEngineService : IWorkflowEngineService
         WorkflowInstance instance, WorkflowStepInstance currentStep,
         int currentUserId, int nguoiDuocGiaoId, string? ghiChu)
     {
-        // Validate target user exists
         var targetUser = await _db.NguoiDungs.FindAsync(nguoiDuocGiaoId);
         if (targetUser is null || targetUser.DaXoa || !targetUser.TrangThaiHoatDong)
             throw new BadRequestException($"Người dùng Id = {nguoiDuocGiaoId} không tồn tại hoặc không hoạt động.");
 
-        // Validate target user has required role for this step
+        // Validate role based on current phase
         var buoc = currentStep.BuocWorkflow;
-        if (buoc?.VaiTroXuLyId is not null)
+        var requiredRoleId = currentStep.PhaHienTai == "KY_DUYET"
+            ? buoc?.VaiTroKyDuyetId
+            : buoc?.VaiTroXuLyHoSoId;
+
+        if (requiredRoleId.HasValue)
         {
             var hasRole = await _db.NguoiDungKhoaPhongVaiTros
-                .AnyAsync(nkv => nkv.NguoiDungId == nguoiDuocGiaoId && nkv.VaiTroId == buoc.VaiTroXuLyId);
+                .AnyAsync(nkv => nkv.NguoiDungId == nguoiDuocGiaoId && nkv.VaiTroId == requiredRoleId.Value);
             if (!hasRole)
                 throw new BadRequestException(
                     $"Người dùng Id = {nguoiDuocGiaoId} không có vai trò phù hợp để xử lý bước này.");
         }
 
-        // Mark existing active assignments as done (revoke)
         foreach (var a in currentStep.WorkflowAssignments.Where(a => !a.DaXuLy))
         {
             a.DaXuLy = true;
             a.NgayXuLy = DateTime.UtcNow;
         }
 
-        // Create new assignment for the target user
         _db.WorkflowAssignments.Add(new WorkflowAssignment
         {
             WorkflowStepInstanceId = currentStep.Id,
@@ -451,14 +1110,367 @@ public class WorkflowEngineService : IWorkflowEngineService
         return new ProcessStepResponse
         {
             CurrentStepId = currentStep.Id,
-            TenBuocHienTai = currentStep.BuocWorkflow?.TenBuoc,
+            TenBuocHienTai = buoc?.TenBuoc,
+            PhaHienTai = currentStep.PhaHienTai,
             WorkflowTrangThai = instance.TrangThai,
             HanhDong = WorkflowHanhDong.REASSIGN,
-            Message = $"Đã chuyển giao bước '{currentStep.BuocWorkflow?.TenBuoc}' cho người dùng Id = {nguoiDuocGiaoId}.",
+            Message = $"Đã chuyển giao bước '{buoc?.TenBuoc}' cho người dùng Id = {nguoiDuocGiaoId}.",
             NewRowVersion = currentStep.RowVersion
         };
     }
 
+    // ════════════════════════════════════════════════════════════════════
+    //  Deadline checks
+    // ════════════════════════════════════════════════════════════════════
+
+    private async Task<string> CheckDeadlineAsync(BuocWorkflow buoc)
+    {
+        // Check NhomVaiTro priority for override
+        string? tinhTrang = "DUNG_TIEN_DO";
+
+        if (buoc.LoaiHan == "BAT_BUOC" && buoc.VaiTroXuLyHoSoId.HasValue)
+        {
+            var nhom = await _db.VaiTros
+                .Where(v => v.Id == buoc.VaiTroXuLyHoSoId.Value)
+                .Select(v => v.NhomVaiTro)
+                .FirstOrDefaultAsync();
+
+            if (nhom is not null && nhom.DoUuTien <= 2)
+            {
+                // Role thuộc nhóm cấp cao → tự động CANH_BAO
+                buoc.LoaiHan = "CANH_BAO";
+                tinhTrang = "SAP_QUA_HAN";
+            }
+        }
+
+        return tinhTrang;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Start workflow
+    // ════════════════════════════════════════════════════════════════════
+
+    public async Task<WorkflowInstanceDto> StartWorkflowAsync(int goiThauId, StartWorkflowRequest request)
+    {
+        var currentUserId = GetCurrentUserId();
+
+        var goiThau = await _db.GoiThaus.FindAsync(goiThauId);
+        if (goiThau is null || !goiThau.TrangThaiHoatDong)
+            throw new NotFoundException($"Khong tim thay goi thau voi Id = {goiThauId}");
+
+        if (goiThau.TrangThai != GoiThauTrangThai.DU_THAO)
+            throw new ConflictException(
+                $"Goi thau phai o trang thai DU_THAO. Trang thai hien tai: {goiThau.TrangThai}");
+
+        if (request.AutoSuggest)
+            throw new BadRequestException(
+                "Tính năng tự động đề xuất workflow chưa được hỗ trợ. Vui lòng chọn workflow thủ công.");
+
+        var workflow = await _db.Workflows.FindAsync(request.WorkflowId!.Value);
+        if (workflow is null)
+            throw new NotFoundException($"Khong tim thay workflow template voi Id = {request.WorkflowId}");
+
+        var steps = await _db.BuocWorkflows
+            .Where(b => b.WorkflowId == request.WorkflowId!.Value)
+            .OrderBy(b => b.Id)
+            .ToListAsync();
+
+        if (steps.Count == 0)
+            throw new BadRequestException("Workflow chua co buoc xu ly nao.");
+
+        var hasActive = await _db.WorkflowInstances
+            .AnyAsync(i => i.GoiThauId == goiThauId && i.TrangThai == WorkflowTrangThai.ACTIVE);
+        if (hasActive)
+            throw new ConflictException("Goi thau da co workflow instance dang hoat dong.");
+
+        await using var txn = await _db.Database.BeginTransactionAsync();
+
+        try
+        {
+            var lockedGoiThau = await _db.GoiThaus
+                .FromSqlRaw("SELECT * FROM GoiThau WITH (UPDLOCK, ROWLOCK) WHERE Id = {0}", goiThauId)
+                .FirstOrDefaultAsync();
+
+            if (lockedGoiThau is null)
+                throw new NotFoundException($"Khong tim thay goi thau voi Id = {goiThauId}");
+            if (lockedGoiThau.TrangThai != GoiThauTrangThai.DU_THAO)
+                throw new ConflictException("Goi thau da duoc xu ly boi tien trinh khac.");
+
+            var firstStep = steps[0];
+
+            var instance = new WorkflowInstance
+            {
+                GoiThauId = goiThauId,
+                WorkflowId = request.WorkflowId!.Value,
+                BuocHienTaiId = firstStep.Id,
+                TrangThai = WorkflowTrangThai.ACTIVE,
+                NgayBatDau = DateTime.UtcNow,
+            };
+            _db.WorkflowInstances.Add(instance);
+            await _db.SaveChangesAsync();
+
+            var stepInstance = new WorkflowStepInstance
+            {
+                WorkflowInstanceId = instance.Id,
+                BuocWorkflowId = firstStep.Id,
+                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+                PhaHienTai = "LAP_HO_SO",
+                NgayBatDau = DateTime.UtcNow,
+                HanXuLy = firstStep.SoNgayLapHoSo > 0
+                    ? DateTime.UtcNow.AddDays(firstStep.SoNgayLapHoSo)
+                    : null,
+            };
+            _db.WorkflowStepInstances.Add(stepInstance);
+            await _db.SaveChangesAsync();
+
+            // Resolve assignees cho LAP_HO_SO phase
+            if (firstStep.VaiTroXuLyHoSoId.HasValue)
+            {
+                var assigneeIds = await ResolveAssigneesAsync(firstStep.VaiTroXuLyHoSoId.Value, currentUserId);
+                foreach (var assigneeId in assigneeIds)
+                {
+                    _db.WorkflowAssignments.Add(new WorkflowAssignment
+                    {
+                        WorkflowStepInstanceId = stepInstance.Id,
+                        NguoiDuocGiaoId = assigneeId,
+                        NgayGiao = DateTime.UtcNow
+                    });
+                }
+            }
+            else
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = stepInstance.Id,
+                    NguoiDuocGiaoId = currentUserId,
+                    NgayGiao = DateTime.UtcNow
+                });
+            }
+
+            var actionHistory = new WorkflowActionHistory
+            {
+                WorkflowInstanceId = instance.Id,
+                WorkflowStepInstanceId = stepInstance.Id,
+                HanhDong = "START",
+                GhiChu = $"Khoi tao workflow '{workflow.TenWorkflow}' cho goi thau {lockedGoiThau.MaGoiThau}",
+                NguoiThucHienId = currentUserId,
+                ThoiGian = DateTime.UtcNow
+            };
+            _db.WorkflowActionHistories.Add(actionHistory);
+
+            _db.NhatKyKiemToans.Add(new NhatKyKiemToan
+            {
+                GoiThauId = goiThauId,
+                HanhDong = "START_WORKFLOW",
+                MoTaChiTiet = $"Khoi tao workflow '{workflow.TenWorkflow}' cho goi thau '{lockedGoiThau.MaGoiThau}'. " +
+                              $"Buoc dau tien: '{firstStep.TenBuoc}'",
+                NguoiThucHienId = currentUserId,
+                ThoiGianThucHien = DateTime.UtcNow
+            });
+
+            lockedGoiThau.TrangThai = GoiThauTrangThai.DANG_XU_LY;
+            lockedGoiThau.WorkflowId = request.WorkflowId!.Value;
+            lockedGoiThau.NgayCapNhat = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            await txn.CommitAsync();
+
+            _logger.LogInformation(
+                "Started workflow: instanceId={InstanceId}, goiThauId={GoiThauId}, workflowId={WorkflowId}, stepId={StepId}",
+                instance.Id, goiThauId, request.WorkflowId, firstStep.Id);
+
+            return new WorkflowInstanceDto
+            {
+                Id = instance.Id,
+                GoiThauId = goiThauId,
+                TrangThai = instance.TrangThai,
+                BuocHienTaiId = instance.BuocHienTaiId,
+                TenBuocHienTai = firstStep.TenBuoc,
+                NgayBatDau = instance.NgayBatDau,
+                Steps =
+                [
+                    new WorkflowStepInstanceDto
+                    {
+                        Id = stepInstance.Id,
+                        BuocWorkflowId = stepInstance.BuocWorkflowId,
+                        TenBuoc = firstStep.TenBuoc,
+                        TrangThai = stepInstance.TrangThai,
+                        PhaHienTai = stepInstance.PhaHienTai,
+                        NgayBatDau = stepInstance.NgayBatDau
+                    }
+                ]
+            };
+        }
+        catch
+        {
+            await txn.RollbackAsync();
+            throw;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Query endpoints
+    // ════════════════════════════════════════════════════════════════════
+
+    public async Task<WorkflowStateDto?> GetWorkflowStateAsync(int goiThauId)
+    {
+        var instance = await _db.WorkflowInstances
+            .Include(i => i.Workflow)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiXuLy)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiKyDuyet)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.NhanhWorkflow)
+            .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
+
+        if (instance is null) return null;
+
+        var buocHienTai = instance.BuocHienTaiId.HasValue
+            ? instance.WorkflowStepInstances
+                .Where(s => s.BuocWorkflowId == instance.BuocHienTaiId)
+                .OrderByDescending(s => s.Id)
+                .FirstOrDefault()
+            : null;
+
+        var steps = instance.WorkflowStepInstances
+            .OrderBy(s => s.Id)
+            .Select(s => new WorkflowStepStateDto
+            {
+                Id = s.Id,
+                TenBuoc = s.BuocWorkflow?.TenBuoc ?? "",
+                TrangThai = s.TrangThai,
+                PhaHienTai = s.PhaHienTai,
+                NgayBatDau = s.NgayBatDau,
+                NgayHoanThanh = s.NgayHoanThanh,
+                TenNguoiXuLy = s.NguoiXuLy?.HoTen,
+                NgayXuLy = s.NgayXuLy,
+                TenNguoiKyDuyet = s.NguoiKyDuyet?.HoTen,
+                NgayKyDuyet = s.NgayKyDuyet,
+                KetQua = s.KetQua,
+                LyDoKhongDuyet = s.LyDoKhongDuyet,
+                TenVaiTroXuLy = s.BuocWorkflow?.VaiTroXuLyHoSo?.TenVaiTro,
+                TenVaiTroKyDuyet = s.BuocWorkflow?.VaiTroKyDuyet?.TenVaiTro,
+                HanXuLy = s.HanXuLy,
+                QuaHan = s.QuaHan,
+                TinhTrangTienDo = ComputeTinhTrangTienDo(s.HanXuLy, s.TrangThai),
+            }).ToList();
+
+        var completedCount = steps.Count(s =>
+            s.TrangThai == WorkflowStepTrangThai.HOAN_TAT ||
+            s.TrangThai == WorkflowStepTrangThai.SKIPPED);
+
+        // Build CurrentSteps for parallel-aware clients
+        var currentSteps = instance.WorkflowStepInstances
+            .Where(s => s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY ||
+                        s.TrangThai == WorkflowStepTrangThai.CHO_DUYET)
+            .Select(s => new CurrentStepDto
+            {
+                StepInstanceId = s.Id,
+                BuocWorkflowId = s.BuocWorkflowId,
+                TenBuoc = s.BuocWorkflow?.TenBuoc ?? "",
+                TrangThai = s.TrangThai,
+                PhaHienTai = s.PhaHienTai,
+                TenNhanh = s.BuocWorkflow?.NhanhWorkflow?.TenNhanh,
+                HanXuLy = s.HanXuLy,
+                TinhTrangTienDo = ComputeTinhTrangTienDo(s.HanXuLy, s.TrangThai),
+            }).ToList();
+
+        return new WorkflowStateDto
+        {
+            WorkflowInstanceId = instance.Id,
+            WorkflowTen = instance.Workflow?.TenWorkflow,
+            WorkflowTrangThai = instance.TrangThai,
+            BuocHienTaiId = instance.BuocHienTaiId,
+            TenBuocHienTai = buocHienTai?.BuocWorkflow?.TenBuoc,
+            PhaHienTai = buocHienTai?.PhaHienTai,
+            NgayBatDau = instance.NgayBatDau,
+            SoBuocHoanThanh = completedCount,
+            TongSoBuoc = steps.Count,
+            TinhTrangTienDo = buocHienTai != null
+                ? ComputeTinhTrangTienDo(buocHienTai.HanXuLy, buocHienTai.TrangThai)
+                : null,
+            CurrentSteps = currentSteps,
+            Steps = steps
+        };
+    }
+
+    public async Task<List<WorkflowStepStateDto>> GetWorkflowStepsAsync(int goiThauId)
+    {
+        var instance = await _db.WorkflowInstances
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiXuLy)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiKyDuyet)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
+            .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
+
+        if (instance is null) return [];
+
+        return instance.WorkflowStepInstances
+            .OrderBy(s => s.Id)
+            .Select(s => new WorkflowStepStateDto
+            {
+                Id = s.Id,
+                TenBuoc = s.BuocWorkflow?.TenBuoc ?? "",
+                TrangThai = s.TrangThai,
+                PhaHienTai = s.PhaHienTai,
+                NgayBatDau = s.NgayBatDau,
+                NgayHoanThanh = s.NgayHoanThanh,
+                TenNguoiXuLy = s.NguoiXuLy?.HoTen,
+                NgayXuLy = s.NgayXuLy,
+                TenNguoiKyDuyet = s.NguoiKyDuyet?.HoTen,
+                NgayKyDuyet = s.NgayKyDuyet,
+                KetQua = s.KetQua,
+                LyDoKhongDuyet = s.LyDoKhongDuyet,
+                TenVaiTroXuLy = s.BuocWorkflow?.VaiTroXuLyHoSo?.TenVaiTro,
+                TenVaiTroKyDuyet = s.BuocWorkflow?.VaiTroKyDuyet?.TenVaiTro,
+                HanXuLy = s.HanXuLy,
+                QuaHan = s.QuaHan,
+                TinhTrangTienDo = ComputeTinhTrangTienDo(s.HanXuLy, s.TrangThai),
+            }).ToList();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════════
+    //  GET_STEP_DETAIL — Step detail (read-only)
+    // ════════════════════════════════════════════════════════════════════
+    public async Task<WorkflowStepStateDto?> GetWorkflowStepDetailAsync(int goiThauId, long stepId)
+    {
+        var instance = await _db.WorkflowInstances
+            .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
+        if (instance is null) return null;
+
+        var step = await _db.WorkflowStepInstances
+            .Include(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
+            .Include(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
+            .Include(s => s.NguoiXuLy)
+            .Include(s => s.NguoiKyDuyet)
+            .Include(s => s.WorkflowAssignments).ThenInclude(a => a.NguoiDuocGiao)
+            .FirstOrDefaultAsync(s => s.Id == stepId && s.WorkflowInstanceId == instance.Id);
+        if (step is null) return null;
+
+        return new WorkflowStepStateDto
+        {
+            Id = step.Id,
+            TenBuoc = step.BuocWorkflow?.TenBuoc ?? "",
+            TrangThai = step.TrangThai,
+            PhaHienTai = step.PhaHienTai,
+            NgayBatDau = step.NgayBatDau,
+            NgayHoanThanh = step.NgayHoanThanh,
+            TenNguoiXuLy = step.NguoiXuLy?.HoTen,
+            NgayXuLy = step.NgayXuLy,
+            TenNguoiKyDuyet = step.NguoiKyDuyet?.HoTen,
+            NgayKyDuyet = step.NgayKyDuyet,
+            KetQua = step.KetQua,
+            LyDoKhongDuyet = step.LyDoKhongDuyet,
+            TenVaiTroXuLy = step.BuocWorkflow?.VaiTroXuLyHoSo?.TenVaiTro,
+            TenVaiTroKyDuyet = step.BuocWorkflow?.VaiTroKyDuyet?.TenVaiTro,
+            HanXuLy = step.HanXuLy,
+            QuaHan = step.QuaHan,
+            TinhTrangTienDo = ComputeTinhTrangTienDo(step.HanXuLy, step.TrangThai)
+        };
+    }
     // ════════════════════════════════════════════════════════════════════
     //  Helpers
     // ════════════════════════════════════════════════════════════════════
@@ -487,13 +1499,17 @@ public class WorkflowEngineService : IWorkflowEngineService
         });
     }
 
-    private static ProcessStepResponse BuildResponse(
-        WorkflowStepInstance currentStep, BuocWorkflow? rollbackTarget,
-        WorkflowInstance instance, GoiThau goiThau,
+    private ProcessStepResponse BuildResponse2Phase(
+        WorkflowStepInstance currentStep, WorkflowInstance instance, GoiThau goiThau,
         string hanhDong, bool isCompleted,
         long? newStepId = null, string? newStepName = null,
-        byte[]? nextStepRowVersion = null)
+        byte[]? rowVersion = null, string? tinhTrangTienDo = null,
+        NhomNhanhWorkflow? splitGroup = null,
+        List<long>? createdStepIds = null,
+        bool isMerge = false)
     {
+        var buoc = currentStep.BuocWorkflow;
+
         var message = isCompleted
             ? hanhDong switch
             {
@@ -504,192 +1520,55 @@ public class WorkflowEngineService : IWorkflowEngineService
             }
             : hanhDong switch
             {
-                WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET => $"Đã duyệt bước '{currentStep.BuocWorkflow?.TenBuoc}'.",
-                WorkflowHanhDong.SKIP => $"Đã bỏ qua bước '{currentStep.BuocWorkflow?.TenBuoc}'.",
-                WorkflowHanhDong.ROLLBACK or WorkflowHanhDong.TRA_VE => $"Đã rollback về bước '{rollbackTarget?.TenBuoc ?? newStepName}'.",
+                WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET =>
+                    currentStep.PhaHienTai == "KY_DUYET" && newStepId != currentStep.Id
+                        ? $"Đã duyệt bước '{buoc?.TenBuoc}'."
+                        : $"Đã hoàn tất lập hồ sơ bước '{buoc?.TenBuoc}'.",
+                WorkflowHanhDong.SKIP => $"Đã bỏ qua bước '{buoc?.TenBuoc}'.",
+                WorkflowHanhDong.ROLLBACK or WorkflowHanhDong.TRA_VE =>
+                    $"Đã rollback về bước '{newStepName}'.",
                 _ => $"Hành động '{hanhDong}' hoàn tất."
             };
 
-        // RowVersion: return new step's RV for continued actions, null for terminal states
-        var rowVersion = isCompleted ? null : (nextStepRowVersion ?? currentStep.RowVersion);
+        var rv = isCompleted ? null : (rowVersion ?? currentStep.RowVersion);
 
         return new ProcessStepResponse
         {
             CurrentStepId = currentStep.Id,
-            TenBuocHienTai = currentStep.BuocWorkflow?.TenBuoc,
+            TenBuocHienTai = buoc?.TenBuoc,
             NewStepId = newStepId,
             TenBuocMoi = newStepName,
+            PhaHienTai = currentStep.PhaHienTai,
             WorkflowTrangThai = instance.TrangThai,
-            GoiThauTrangThai = goiThau.TrangThai,
+            GoiThauTrangThai = goiThau?.TrangThai,
             HanhDong = hanhDong,
             Message = message,
-            NewRowVersion = rowVersion
+            NewRowVersion = rv,
+            TinhTrangTienDo = tinhTrangTienDo ?? "DUNG_TIEN_DO",
+            IsSplit = splitGroup != null,
+            IsMerge = isMerge,
+            ActiveStepIds = createdStepIds ?? [],
+            TongSoNhanh = splitGroup?.Nhanhs.Count,
         };
     }
 
-    public async Task<WorkflowInstanceDto> StartWorkflowAsync(int goiThauId, StartWorkflowRequest request)
+    private static string? ComputeTinhTrangTienDo(DateTime? hanXuLy, string trangThai)
     {
-        var currentUserId = GetCurrentUserId();
+        if (trangThai is WorkflowStepTrangThai.HOAN_TAT or WorkflowStepTrangThai.TRA_VE
+            or WorkflowStepTrangThai.SKIPPED)
+            return null;
 
-        // 1. Validate GoiThau
-        var goiThau = await _db.GoiThaus.FindAsync(goiThauId);
-        if (goiThau is null || !goiThau.TrangThaiHoatDong)
-            throw new NotFoundException($"Khong tim thay goi thau voi Id = {goiThauId}");
+        if (!hanXuLy.HasValue)
+            return "DUNG_TIEN_DO";
 
-        if (goiThau.TrangThai != GoiThauTrangThai.DU_THAO)
-            throw new ConflictException(
-                $"Goi thau phai o trang thai DU_THAO. Trang thai hien tai: {goiThau.TrangThai}");
+        var remaining = hanXuLy.Value - DateTime.UtcNow;
 
-        // 2. Auto-suggest mode (WorkflowRule chưa implement)
-        if (request.AutoSuggest)
-            throw new BadRequestException(
-                "Tính năng tự động đề xuất workflow chưa được hỗ trợ. Vui lòng chọn workflow thủ công.");
+        if (remaining.TotalDays < 0)
+            return "QUA_HAN";
+        if (remaining.TotalDays <= 3)
+            return "SAP_QUA_HAN";
 
-        // 3. Validate Workflow template
-        var workflow = await _db.Workflows.FindAsync(request.WorkflowId!.Value);
-        if (workflow is null)
-            throw new NotFoundException($"Khong tim thay workflow template voi Id = {request.WorkflowId}");
-
-        // 3. Validate workflow has steps
-        var steps = await _db.BuocWorkflows
-            .Where(b => b.WorkflowId == request.WorkflowId!.Value)
-            .OrderBy(b => b.Id)
-            .ToListAsync();
-
-        if (steps.Count == 0)
-            throw new BadRequestException("Workflow chua co buoc xu ly nao.");
-
-        // 4. Check no active instance exists (early guard, rechecked under lock)
-        var hasActive = await _db.WorkflowInstances
-            .AnyAsync(i => i.GoiThauId == goiThauId && i.TrangThai == WorkflowTrangThai.ACTIVE);
-        if (hasActive)
-            throw new ConflictException("Goi thau da co workflow instance dang hoat dong.");
-
-        // 5. Begin transaction
-        await using var txn = await _db.Database.BeginTransactionAsync();
-
-        try
-        {
-            // 6. UPDLOCK re-read of GoiThau under exclusive row lock
-            var lockedGoiThau = await _db.GoiThaus
-                .FromSqlRaw("SELECT * FROM GoiThau WITH (UPDLOCK, ROWLOCK) WHERE Id = {0}", goiThauId)
-                .FirstOrDefaultAsync();
-
-            if (lockedGoiThau is null)
-                throw new NotFoundException($"Khong tim thay goi thau voi Id = {goiThauId}");
-            if (lockedGoiThau.TrangThai != GoiThauTrangThai.DU_THAO)
-                throw new ConflictException("Goi thau da duoc xu ly boi tien trinh khac.");
-
-            // 7. Resolve first step
-            var firstStep = steps[0];
-
-            // 8. Create WorkflowInstance
-            var instance = new WorkflowInstance
-            {
-                GoiThauId = goiThauId,
-                WorkflowId = request.WorkflowId!.Value,
-                BuocHienTaiId = firstStep.Id,
-                TrangThai = WorkflowTrangThai.ACTIVE,
-                NgayBatDau = DateTime.UtcNow
-            };
-            _db.WorkflowInstances.Add(instance);
-            await _db.SaveChangesAsync();
-
-            // 9. Create WorkflowStepInstance for first step
-            var stepInstance = new WorkflowStepInstance
-            {
-                WorkflowInstanceId = instance.Id,
-                BuocWorkflowId = firstStep.Id,
-                TrangThai = WorkflowStepTrangThai.PENDING,
-                NgayBatDau = DateTime.UtcNow
-            };
-            _db.WorkflowStepInstances.Add(stepInstance);
-            await _db.SaveChangesAsync();
-
-            // 10. Resolve who gets assigned to this step
-            var assigneeId = await ResolveAssigneeAsync(firstStep, currentUserId);
-
-            // 11. Create WorkflowAssignment
-            var assignment = new WorkflowAssignment
-            {
-                WorkflowStepInstanceId = stepInstance.Id,
-                NguoiDuocGiaoId = assigneeId,
-                NgayGiao = DateTime.UtcNow
-            };
-            _db.WorkflowAssignments.Add(assignment);
-
-            // 12. Create WorkflowActionHistory
-            var actionHistory = new WorkflowActionHistory
-            {
-                WorkflowInstanceId = instance.Id,
-                WorkflowStepInstanceId = stepInstance.Id,
-                HanhDong = "START",
-                GhiChu = $"Khoi tao workflow cho goi thau {lockedGoiThau.MaGoiThau}",
-                NguoiThucHienId = currentUserId,
-                ThoiGian = DateTime.UtcNow
-            };
-            _db.WorkflowActionHistories.Add(actionHistory);
-
-            // 13. Create explicit audit log
-            _db.NhatKyKiemToans.Add(new NhatKyKiemToan
-            {
-                GoiThauId = goiThauId,
-                HanhDong = "START_WORKFLOW",
-                MoTaChiTiet = $"Khoi tao workflow '{workflow.TenWorkflow}' cho goi thau '{lockedGoiThau.MaGoiThau}'. " +
-                              $"Buoc dau tien: '{firstStep.TenBuoc}'",
-                NguoiThucHienId = currentUserId,
-                ThoiGianThucHien = DateTime.UtcNow
-            });
-
-            // 14. Update GoiThau state
-            lockedGoiThau.TrangThai = GoiThauTrangThai.DANG_XU_LY;
-            lockedGoiThau.WorkflowId = request.WorkflowId!.Value;
-            lockedGoiThau.NgayCapNhat = DateTime.UtcNow;
-
-            // 15. Save all changes and commit
-            await _db.SaveChangesAsync();
-            await txn.CommitAsync();
-
-            _logger.LogInformation(
-                "Started workflow: instanceId={InstanceId}, goiThauId={GoiThauId}, workflowId={WorkflowId}, stepId={StepId}",
-                instance.Id, goiThauId, request.WorkflowId, firstStep.Id);
-
-            // 16. Build response
-            return new WorkflowInstanceDto
-            {
-                Id = instance.Id,
-                GoiThauId = goiThauId,
-                TrangThai = instance.TrangThai,
-                BuocHienTaiId = instance.BuocHienTaiId,
-                TenBuocHienTai = firstStep.TenBuoc,
-                NgayBatDau = instance.NgayBatDau,
-                Steps =
-                [
-                    new WorkflowStepInstanceDto
-                    {
-                        Id = stepInstance.Id,
-                        BuocWorkflowId = stepInstance.BuocWorkflowId,
-                        TenBuoc = firstStep.TenBuoc,
-                        TrangThai = stepInstance.TrangThai,
-                        NgayBatDau = stepInstance.NgayBatDau,
-                        Assignments =
-                        [
-                            new WorkflowAssignmentDto
-                            {
-                                Id = assignment.Id,
-                                NguoiDuocGiaoId = assignment.NguoiDuocGiaoId,
-                                DaXuLy = assignment.DaXuLy
-                            }
-                        ]
-                    }
-                ]
-            };
-        }
-        catch
-        {
-            await txn.RollbackAsync();
-            throw;
-        }
+        return "DUNG_TIEN_DO";
     }
 
     private int GetCurrentUserId()
@@ -703,30 +1582,32 @@ public class WorkflowEngineService : IWorkflowEngineService
         return id;
     }
 
-    private async Task<int> ResolveAssigneeAsync(BuocWorkflow step, int fallbackUserId)
+    /// <summary>
+    /// Resolve danh sách người dùng có vai trò cụ thể (hỗ trợ ký song song).
+    /// </summary>
+    private async Task<List<int>> ResolveAssigneesAsync(int vaiTroId, int fallbackUserId)
     {
-        if (step.VaiTroXuLyId.HasValue)
+        var userIds = await _db.NguoiDungKhoaPhongVaiTros
+            .Where(nkv =>
+                nkv.VaiTroId == vaiTroId &&
+                nkv.NguoiDung.TrangThaiHoatDong &&
+                !nkv.NguoiDung.DaXoa)
+            .Select(nkv => nkv.NguoiDungId)
+            .Distinct()
+            .ToListAsync();
+
+        if (userIds.Count > 0)
         {
-            var userIds = await _db.NguoiDungKhoaPhongVaiTros
-                .Where(nkv =>
-                    nkv.VaiTroId == step.VaiTroXuLyId.Value &&
-                    nkv.NguoiDung.TrangThaiHoatDong &&
-                    !nkv.NguoiDung.DaXoa)
-                .Select(nkv => nkv.NguoiDungId)
-                .Distinct()
-                .ToListAsync();
+            // Prefer current user if they have the role
+            if (userIds.Contains(fallbackUserId))
+                return [fallbackUserId];
 
-            if (userIds.Count > 0)
-            {
-                // Prefer the current user if they already have the required role
-                if (userIds.Contains(fallbackUserId))
-                    return fallbackUserId;
-
-                return userIds[0];
-            }
+            return userIds;
         }
 
-        // Fallback: assign to current user who started the workflow
-        return fallbackUserId;
+        // Fallback: assign to current user
+        return [fallbackUserId];
     }
+
+    // ════════════════════════════════════════════════════════════════════
 }

@@ -43,11 +43,15 @@ public class BuocWorkflowService : IBuocWorkflowService
                 MaBuoc = b.MaBuoc,
                 TenBuoc = b.TenBuoc,
                 LoaiBuoc = b.LoaiBuoc,
-                VaiTroXuLyId = b.VaiTroXuLyId,
-                KhoaPhongXuLyId = b.KhoaPhongXuLyId,
+                VaiTroXuLyHoSoId = b.VaiTroXuLyHoSoId,
+                SoNgayLapHoSo = b.SoNgayLapHoSo,
+                VaiTroKyDuyetId = b.VaiTroKyDuyetId,
+                SoNgayXuLy = b.SoNgayXuLy,
+                LoaiHan = b.LoaiHan,
+                NhomSongSong = b.NhomSongSong,
+                LaBuocJoin = b.LaBuocJoin,
                 ChoPhepTuChoi = b.ChoPhepTuChoi,
-                ChoPhepBoQua = b.ChoPhepBoQua,
-                SoNgaySLA = b.SoNgaySLA
+                ChoPhepBoQua = b.ChoPhepBoQua
             })
             .ToListAsync();
     }
@@ -58,18 +62,18 @@ public class BuocWorkflowService : IBuocWorkflowService
         if (!workflowExists)
             throw new NotFoundException($"Workflow not found: {workflowId}");
 
-        if (request.VaiTroXuLyId.HasValue)
+        if (request.VaiTroXuLyHoSoId.HasValue)
         {
-            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyId.Value);
+            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyHoSoId.Value);
             if (!roleExists)
-                throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyId.Value}");
+                throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyHoSoId.Value}");
         }
 
-        if (request.KhoaPhongXuLyId.HasValue)
+        if (request.VaiTroKyDuyetId.HasValue)
         {
-            var exists = await _context.KhoaPhongs.AnyAsync(r => r.Id == request.KhoaPhongXuLyId.Value);
-            if (!exists)
-                throw new NotFoundException($"KhoaPhong not found: {request.KhoaPhongXuLyId.Value}");
+            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroKyDuyetId.Value);
+            if (!roleExists)
+                throw new NotFoundException($"VaiTro not found: {request.VaiTroKyDuyetId.Value}");
         }
 
         var duplicate = await _context.BuocWorkflows.AnyAsync(b =>
@@ -83,11 +87,15 @@ public class BuocWorkflowService : IBuocWorkflowService
             MaBuoc = request.MaBuoc,
             TenBuoc = request.TenBuoc,
             LoaiBuoc = request.LoaiBuoc,
-            VaiTroXuLyId = request.VaiTroXuLyId,
+            VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = request.SoNgayLapHoSo,
+            VaiTroKyDuyetId = request.VaiTroKyDuyetId,
+            SoNgayXuLy = request.SoNgayXuLy,
+            LoaiHan = request.LoaiHan,
+            NhomSongSong = request.NhomSongSong,
+            LaBuocJoin = request.LaBuocJoin,
             ChoPhepTuChoi = request.ChoPhepTuChoi,
-            ChoPhepBoQua = request.ChoPhepBoQua,
-            SoNgaySLA = request.SoNgaySLA,
-            KhoaPhongXuLyId = request.KhoaPhongXuLyId
+            ChoPhepBoQua = request.ChoPhepBoQua
         };
 
         _context.BuocWorkflows.Add(entity);
@@ -102,11 +110,15 @@ public class BuocWorkflowService : IBuocWorkflowService
             MaBuoc = entity.MaBuoc,
             TenBuoc = entity.TenBuoc,
             LoaiBuoc = entity.LoaiBuoc,
-            VaiTroXuLyId = entity.VaiTroXuLyId,
+            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = entity.SoNgayLapHoSo,
+            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
+            SoNgayXuLy = entity.SoNgayXuLy,
+            LoaiHan = entity.LoaiHan,
+            NhomSongSong = entity.NhomSongSong,
+            LaBuocJoin = entity.LaBuocJoin,
             ChoPhepTuChoi = entity.ChoPhepTuChoi,
-            ChoPhepBoQua = entity.ChoPhepBoQua,
-            SoNgaySLA = entity.SoNgaySLA,
-            KhoaPhongXuLyId = entity.KhoaPhongXuLyId
+            ChoPhepBoQua = entity.ChoPhepBoQua
         };
     }
 
@@ -121,42 +133,56 @@ public class BuocWorkflowService : IBuocWorkflowService
         if (request.LoaiBuoc != null)
             entity.LoaiBuoc = request.LoaiBuoc;
 
-        if (request.VaiTroXuLyId.HasValue)
+        if (request.VaiTroXuLyHoSoId.HasValue)
         {
-            if (request.VaiTroXuLyId.Value == 0)
+            if (request.VaiTroXuLyHoSoId.Value == 0)
             {
-                entity.VaiTroXuLyId = null;
+                entity.VaiTroXuLyHoSoId = null;
             }
             else
             {
-                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyId.Value);
+                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyHoSoId.Value);
                 if (!roleExists)
-                    throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyId.Value}");
-                entity.VaiTroXuLyId = request.VaiTroXuLyId;
+                    throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyHoSoId.Value}");
+                entity.VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId;
             }
         }
+
+        if (request.VaiTroKyDuyetId.HasValue)
+        {
+            if (request.VaiTroKyDuyetId.Value == 0)
+            {
+                entity.VaiTroKyDuyetId = null;
+            }
+            else
+            {
+                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroKyDuyetId.Value);
+                if (!roleExists)
+                    throw new NotFoundException($"VaiTro not found: {request.VaiTroKyDuyetId.Value}");
+                entity.VaiTroKyDuyetId = request.VaiTroKyDuyetId;
+            }
+        }
+
+        if (request.SoNgayLapHoSo.HasValue)
+            entity.SoNgayLapHoSo = request.SoNgayLapHoSo.Value;
+
+        if (request.SoNgayXuLy.HasValue)
+            entity.SoNgayXuLy = request.SoNgayXuLy.Value;
+
+        if (request.LoaiHan != null)
+            entity.LoaiHan = request.LoaiHan;
+
+        if (request.NhomSongSong != null)
+            entity.NhomSongSong = request.NhomSongSong;
+
+        if (request.LaBuocJoin.HasValue)
+            entity.LaBuocJoin = request.LaBuocJoin.Value;
 
         if (request.ChoPhepTuChoi.HasValue)
             entity.ChoPhepTuChoi = request.ChoPhepTuChoi.Value;
 
         if (request.ChoPhepBoQua.HasValue)
             entity.ChoPhepBoQua = request.ChoPhepBoQua.Value;
-
-        if (request.SoNgaySLA.HasValue)
-            entity.SoNgaySLA = request.SoNgaySLA.Value;
-
-        if (request.KhoaPhongXuLyId.HasValue)
-        {
-            if (request.KhoaPhongXuLyId.Value == 0)
-                entity.KhoaPhongXuLyId = null;
-            else
-            {
-                var exists = await _context.KhoaPhongs.AnyAsync(r => r.Id == request.KhoaPhongXuLyId.Value);
-                if (!exists)
-                    throw new NotFoundException($"KhoaPhong not found: {request.KhoaPhongXuLyId.Value}");
-                entity.KhoaPhongXuLyId = request.KhoaPhongXuLyId.Value;
-            }
-        }
 
         await _context.SaveChangesAsync();
 
@@ -167,6 +193,12 @@ public class BuocWorkflowService : IBuocWorkflowService
     {
         var entity = await _context.BuocWorkflows.FindAsync(id)
             ?? throw new NotFoundException($"BuocWorkflow not found: {id}");
+
+        // Không cho xóa bước BẮT ĐẦU hoặc KẾT THÚC
+        if (entity.LoaiBuoc == "BAT_DAU")
+            throw new AppException(400, "CANNOT_DELETE_START", "Không thể xóa bước Bắt đầu.");
+        if (entity.LoaiBuoc == "KET_THUC")
+            throw new AppException(400, "CANNOT_DELETE_END", "Không thể xóa bước Kết thúc.");
 
         var workflowActive = await _context.Workflows.AnyAsync(w => w.Id == entity.WorkflowId && w.TrangThaiHoatDong);
         if (workflowActive)
@@ -269,5 +301,183 @@ public class BuocWorkflowService : IBuocWorkflowService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Deleted transition: id={TransId}", id);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  Step actions: insert-after, clone, reorder
+    // ══════════════════════════════════════════════════════════════════
+
+    public async Task<BuocWorkflowListItemDto> InsertStepAfterAsync(int workflowId, int stepId, InsertStepAfterRequest request)
+    {
+        var workflowExists = await _context.Workflows.AnyAsync(w => w.Id == workflowId);
+        if (!workflowExists)
+            throw new NotFoundException($"Workflow not found: {workflowId}");
+
+        var afterStep = await _context.BuocWorkflows.FindAsync(stepId)
+            ?? throw new NotFoundException($"Step not found: {stepId}");
+
+        if (afterStep.WorkflowId != workflowId)
+            throw new AppException(400, "CROSS_WORKFLOW", "Step does not belong to this workflow.");
+
+        // Shift ThuTu of later steps
+        await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == workflowId && b.ThuTu > afterStep.ThuTu)
+            .ExecuteUpdateAsync(set => set.SetProperty(b => b.ThuTu, b => b.ThuTu + 1));
+
+        var entity = new BuocWorkflow
+        {
+            WorkflowId = workflowId,
+            MaBuoc = request.MaBuoc,
+            TenBuoc = request.TenBuoc,
+            LoaiBuoc = request.LoaiBuoc,
+            ThuTu = afterStep.ThuTu + 1,
+            VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = request.SoNgayLapHoSo,
+            VaiTroKyDuyetId = request.VaiTroKyDuyetId,
+            SoNgayXuLy = request.SoNgayXuLy,
+            LoaiHan = request.LoaiHan,
+            ChoPhepTuChoi = true,
+            ChoPhepBoQua = false,
+            BatBuocGhiChu = request.BatBuocGhiChu,
+            BatBuocTaiLieu = request.BatBuocTaiLieu,
+            BatBuocKyTruocChuyenBuoc = request.BatBuocKyTruocChuyenBuoc,
+            BatBuocDungSLA = request.BatBuocDungSLA,
+            DonViXuLyId = request.DonViXuLyId,
+            DonViKyHoSoId = request.DonViKyHoSoId
+        };
+
+        _context.BuocWorkflows.Add(entity);
+        await _context.SaveChangesAsync();
+
+        // Create default DUYET transition to next step
+        if (request.CreateDefaultTransition)
+        {
+            var nextStep = await _context.BuocWorkflows
+                .Where(b => b.WorkflowId == workflowId && b.ThuTu == entity.ThuTu + 1)
+                .FirstOrDefaultAsync();
+
+            if (nextStep != null)
+            {
+                _context.ChuyenTiepWorkflows.Add(new ChuyenTiepWorkflow
+                {
+                    TuBuocId = entity.Id,
+                    DenBuocId = nextStep.Id,
+                    HanhDong = "DUYET",
+                    DieuKienKichHoat = "LUON"
+                });
+            }
+
+            // Update transition from afterStep to point to new step
+            var existingTransition = await _context.ChuyenTiepWorkflows
+                .Where(t => t.TuBuocId == afterStep.Id && t.HanhDong == "DUYET")
+                .FirstOrDefaultAsync();
+            if (existingTransition != null)
+                existingTransition.DenBuocId = entity.Id;
+
+            await _context.SaveChangesAsync();
+        }
+
+        _logger.LogInformation("Inserted step after {AfterStepId}: id={NewStepId}, ma={MaBuoc}",
+            stepId, entity.Id, SanitizeForLog(entity.MaBuoc));
+
+        return new BuocWorkflowListItemDto
+        {
+            Id = entity.Id,
+            MaBuoc = entity.MaBuoc,
+            TenBuoc = entity.TenBuoc,
+            LoaiBuoc = entity.LoaiBuoc,
+            ThuTu = entity.ThuTu,
+            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = entity.SoNgayLapHoSo,
+            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
+            SoNgayXuLy = entity.SoNgayXuLy,
+            LoaiHan = entity.LoaiHan,
+            ChoPhepTuChoi = entity.ChoPhepTuChoi,
+            ChoPhepBoQua = entity.ChoPhepBoQua
+        };
+    }
+
+    public async Task<BuocWorkflowListItemDto> CloneStepAsync(int workflowId, int stepId, CloneStepRequest request)
+    {
+        var source = await _context.BuocWorkflows.FindAsync(stepId)
+            ?? throw new NotFoundException($"Step not found: {stepId}");
+
+        if (source.WorkflowId != workflowId)
+            throw new AppException(400, "CROSS_WORKFLOW", "Step does not belong to this workflow.");
+
+        // Shift ThuTu
+        await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == workflowId && b.ThuTu > source.ThuTu)
+            .ExecuteUpdateAsync(set => set.SetProperty(b => b.ThuTu, b => b.ThuTu + 1));
+
+        var entity = new BuocWorkflow
+        {
+            WorkflowId = workflowId,
+            MaBuoc = request.MaBuocMoi,
+            TenBuoc = request.TenBuocMoi,
+            LoaiBuoc = source.LoaiBuoc,
+            ThuTu = source.ThuTu + 1,
+            VaiTroXuLyHoSoId = source.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = source.SoNgayLapHoSo,
+            VaiTroKyDuyetId = source.VaiTroKyDuyetId,
+            SoNgayXuLy = source.SoNgayXuLy,
+            LoaiHan = source.LoaiHan,
+            NhomSongSong = source.NhomSongSong,
+            LaBuocJoin = source.LaBuocJoin,
+            ChoPhepTuChoi = source.ChoPhepTuChoi,
+            ChoPhepBoQua = source.ChoPhepBoQua,
+            BatBuocGhiChu = source.BatBuocGhiChu,
+            BatBuocTaiLieu = source.BatBuocTaiLieu,
+            BatBuocKyTruocChuyenBuoc = source.BatBuocKyTruocChuyenBuoc,
+            BatBuocDungSLA = source.BatBuocDungSLA
+        };
+
+        _context.BuocWorkflows.Add(entity);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Cloned step {SourceId} -> new step id={NewId}, ma={MaBuoc}",
+            stepId, entity.Id, SanitizeForLog(entity.MaBuoc));
+
+        return new BuocWorkflowListItemDto
+        {
+            Id = entity.Id,
+            MaBuoc = entity.MaBuoc,
+            TenBuoc = entity.TenBuoc,
+            LoaiBuoc = entity.LoaiBuoc,
+            ThuTu = entity.ThuTu,
+            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
+            SoNgayLapHoSo = entity.SoNgayLapHoSo,
+            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
+            SoNgayXuLy = entity.SoNgayXuLy,
+            LoaiHan = entity.LoaiHan,
+            ChoPhepTuChoi = entity.ChoPhepTuChoi,
+            ChoPhepBoQua = entity.ChoPhepBoQua
+        };
+    }
+
+    public async Task ReorderStepsAsync(int workflowId, ReorderStepsRequest request)
+    {
+        var exists = await _context.Workflows.AnyAsync(w => w.Id == workflowId);
+        if (!exists)
+            throw new NotFoundException($"Workflow not found: {workflowId}");
+
+        var stepIds = request.Steps.Select(s => s.Id).ToHashSet();
+
+        var steps = await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == workflowId && stepIds.Contains(b.Id))
+            .ToListAsync();
+
+        if (steps.Count != request.Steps.Count)
+            throw new AppException(400, "INVALID_STEP", "One or more steps not found in this workflow.");
+
+        foreach (var stepDto in request.Steps)
+        {
+            var step = steps.First(s => s.Id == stepDto.Id);
+            step.ThuTu = stepDto.ThuTu;
+        }
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Reordered {Count} steps for workflow {WorkflowId}", request.Steps.Count, workflowId);
     }
 }

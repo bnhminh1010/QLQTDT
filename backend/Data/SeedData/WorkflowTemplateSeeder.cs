@@ -17,10 +17,11 @@ public static class WorkflowTemplateSeeder
     ];
 
     // (MaWorkflow, TenWorkflow, MaHinhThuc, steps[])
-    // steps: (MaBuoc, TenBuoc, LoaiBuoc, TenVaiTro, SoNgaySLA, ChoPhepTuChoi, ChoPhepBoQua)
+    // steps: (MaBuoc, TenBuoc, LoaiBuoc, TenVaiTro, SoNgay, ChoPhepTuChoi, ChoPhepBoQua)
+    // SoNgay áp dụng cho cả LAP_HO_SO và KY_DUYET trong seed (có thể tinh chỉnh sau)
     private static readonly (
         string MaWorkflow, string TenWorkflow, string MaHinhThuc,
-        (string MaBuoc, string TenBuoc, string LoaiBuoc, string TenVaiTro, int Sla, bool ChoPhepTuChoi, bool ChoPhepBoQua)[] Steps
+        (string MaBuoc, string TenBuoc, string LoaiBuoc, string TenVaiTro, int SoNgay, bool ChoPhepTuChoi, bool ChoPhepBoQua)[] Steps
     )[] Templates =
     [
         (
@@ -186,8 +187,10 @@ public static class WorkflowTemplateSeeder
                         MaBuoc = maBuoc,
                         TenBuoc = tenBuoc,
                         LoaiBuoc = loaiBuoc,
-                        VaiTroXuLyId = vaiTroId,
-                        SoNgaySLA = sla,
+                        VaiTroXuLyHoSoId = vaiTroId,
+                        SoNgayLapHoSo = sla,
+                        SoNgayXuLy = sla,
+                        LoaiHan = "CANH_BAO",
                         ChoPhepTuChoi = choPhepTuChoi,
                         ChoPhepBoQua = choPhepBoQua,
                     };
