@@ -3,10 +3,13 @@ using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using QLQTDT.Api.Config;
+using QLQTDT.Api.Data;
 using QLQTDT.Api.Models.DTOs.Auth;
 using QLQTDT.Api.Models.DTOs.Common;
+using QLQTDT.Api.Models.Entities;
 using QLQTDT.Api.Services;
 
 namespace QLQTDT.Api.Controllers;
@@ -16,14 +19,18 @@ namespace QLQTDT.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IThongBaoService _thongBaoService;
     private readonly JwtConfig _jwtConfig;
     private readonly IHostEnvironment _env;
+    private readonly AppDbContext _db;
 
-    public AuthController(IAuthService authService, IOptions<JwtConfig> jwtConfig, IHostEnvironment env)
+    public AuthController(IAuthService authService, IThongBaoService thongBaoService, IOptions<JwtConfig> jwtConfig, IHostEnvironment env, AppDbContext db)
     {
         _authService = authService;
+        _thongBaoService = thongBaoService;
         _jwtConfig = jwtConfig.Value;
         _env = env;
+        _db = db;
     }
 
     /// <summary>Đăng nhập hệ thống</summary>
@@ -69,6 +76,57 @@ public class AuthController : ControllerBase
         var userId = GetCurrentUserId();
         var user = await _authService.GetCurrentUserAsync(userId);
         return Ok(user);
+    }
+
+    /// <summary>Cập nhật thông tin người dùng hiện tại</summary>
+    [HttpPut("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateMe([FromBody] UpdateProfileDto dto)
+    {
+        var userId = GetCurrentUserId();
+        var user = await _authService.UpdateProfileAsync(userId, dto);
+        return Ok(user);
+    }
+
+    /// <summary>Gửi yêu cầu thay đổi thông tin (non-admin) → thông báo cho admin</summary>
+    [HttpPost("me/change-request")]
+    [Authorize]
+    public async Task<IActionResult> SendChangeRequest([FromBody] UpdateProfileDto dto)
+    {
+        var userId = GetCurrentUserId();
+        var user = await _authService.GetCurrentUserAsync(userId);
+
+        // Tạo noti cho tất cả admin
+        var adminIds = await _db.NguoiDungKhoaPhongVaiTros
+            .Where(nkv => nkv.VaiTro.MaVaiTro == "ADMIN")
+            .Select(nkv => nkv.NguoiDungId)
+            .Distinct()
+            .ToListAsync();
+
+        var changes = new List<string>();
+        if (dto.HoTen != null && dto.HoTen != user.HoTen) changes.Add($"họ tên: {user.HoTen} → {dto.HoTen}");
+        if (dto.Email != null && dto.Email != user.Email) changes.Add($"email: {user.Email} → {dto.Email}");
+        if (dto.SoDienThoai != null) changes.Add($"số điện thoại: {dto.SoDienThoai}");
+
+        var noiDung = $"Người dùng {user.HoTen} ({user.TenDangNhap}) yêu cầu thay đổi: {string.Join(", ", changes)}";
+
+        foreach (var adminId in adminIds)
+        {
+            await _thongBaoService.CreateAsync(new ThongBao
+            {
+                IdCongKhai = Guid.NewGuid(),
+                NguoiDungId = adminId,
+                LoaiThongBao = "PROFILE_CHANGE_REQUEST",
+                TieuDe = "Yêu cầu thay đổi thông tin cá nhân",
+                NoiDung = noiDung,
+                DaDoc = false,
+                UrlDieuHuong = "/nguoi-dung",
+                NgayTao = DateTime.UtcNow
+            });
+        }
+
+        return Ok(new { message = "Yêu cầu đã được gửi đến Quản trị viên." });
     }
 
     /// <summary>Lấy danh sách quyền của người dùng hiện tại</summary>

@@ -1,11 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getCurrentUserApi, clearStoredToken } from "@/services/api";
+import type { LoginUserDto } from "@/services/api";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [user, setUser] = useState<LoginUserDto | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getCurrentUserApi().then((u) => setUser(u)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -22,6 +29,10 @@ export default function Sidebar() {
         ? "bg-blue-900 text-white"
         : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-300"
     }`;
+
+  const hoTen = user?.hoTen ?? "?";
+  const initial = hoTen.charAt(0).toUpperCase();
+  const donVi = user?.roles?.[0]?.tenKhoaPhong ?? "";
 
   return (
     <aside className="w-16 lg:w-[220px] bg-slate-950 flex flex-col fixed top-0 left-0 bottom-0 z-[100] overflow-y-auto overflow-x-hidden">
@@ -61,10 +72,7 @@ export default function Sidebar() {
         </div>
         <ul>
           <li>
-            <Link
-              to="/danh-sach-goi-thau"
-              className={link("/danh-sach-goi-thau")}
-            >
+            <Link to="/danh-sach-goi-thau" className={link("/danh-sach-goi-thau")}>
               <i className="fa-solid fa-list w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Danh sách gói thầu</span>
             </Link>
@@ -76,19 +84,13 @@ export default function Sidebar() {
             </Link>
           </li>
           <li>
-            <Link
-              to="/danh-muc-thuc-hien"
-              className={link("/danh-muc-thuc-hien")}
-            >
+            <Link to="/danh-muc-thuc-hien" className={link("/danh-muc-thuc-hien")}>
               <i className="fa-solid fa-bars-staggered w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Danh mục thực hiện</span>
             </Link>
           </li>
           <li>
-            <Link
-              to="/danh-sach-quy-trinh"
-              className={link("/danh-sach-quy-trinh")}
-            >
+            <Link to="/danh-sach-quy-trinh" className={link("/danh-sach-quy-trinh")}>
               <i className="fa-solid fa-diagram-project w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Danh sách quy trình</span>
             </Link>
@@ -142,52 +144,39 @@ export default function Sidebar() {
           className="w-full flex items-center justify-center lg:justify-start gap-2.5 px-3 lg:px-4 py-3.5 border-t border-white/[0.07] hover:bg-white/[0.06] transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
-            T
+            {initial}
           </div>
           <div className="hidden lg:block flex-1 text-left min-w-0">
             <span className="block text-slate-200 text-[12.5px] font-semibold truncate">
-              Nguyễn Mạnh Tuấn
+              {hoTen}
             </span>
-            <span className="block text-slate-500 text-[11px]">P.HCQT</span>
+            {donVi && (
+              <span className="block text-slate-500 text-[11px]">{donVi}</span>
+            )}
           </div>
-          <i
-            className={`hidden lg:block fa-solid fa-chevron-${userMenuOpen ? "down" : "up"} text-slate-500 text-[10px]`}
-          />
+          <i className={`hidden lg:block fa-solid fa-chevron-${userMenuOpen ? "down" : "up"} text-slate-500 text-[10px]`} />
         </button>
 
         {userMenuOpen && (
           <div className="absolute bottom-full left-2 w-56 lg:left-0 lg:right-0 lg:w-auto mb-1 mx-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-[200]">
             <button
-              onClick={() => {
-                setUserMenuOpen(false);
-                navigate("/profile");
-              }}
+              onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              <i className="fa-solid fa-user-circle text-slate-400 w-4 text-center" />
-              Hồ sơ cá nhân
+              <i className="fa-solid fa-user-circle text-slate-400 w-4 text-center" /> Hồ sơ cá nhân
             </button>
             <button
-              onClick={() => {
-                setUserMenuOpen(false);
-                navigate("/profile");
-              }}
+              onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              <i className="fa-solid fa-lock text-slate-400 w-4 text-center" />
-              Đổi mật khẩu
+              <i className="fa-solid fa-lock text-slate-400 w-4 text-center" /> Đổi mật khẩu
             </button>
             <div className="border-t border-slate-100" />
             <button
-              onClick={() => {
-                setUserMenuOpen(false);
-                localStorage.removeItem("accessToken");
-                navigate("/login");
-              }}
+              onClick={() => { setUserMenuOpen(false); clearStoredToken(); navigate("/login"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
-              <i className="fa-solid fa-right-from-bracket text-red-400 w-4 text-center" />
-              Đăng xuất
+              <i className="fa-solid fa-right-from-bracket text-red-400 w-4 text-center" /> Đăng xuất
             </button>
           </div>
         )}

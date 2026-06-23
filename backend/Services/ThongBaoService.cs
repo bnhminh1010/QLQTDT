@@ -77,4 +77,10 @@ public class ThongBaoService : IThongBaoService
 
         return count;
     }
+
+    public async Task CreateAsync(ThongBao thongBao)
+    {
+        _db.ThongBaos.Add(thongBao);
+        await _db.SaveChangesAsync();
+    }
 }

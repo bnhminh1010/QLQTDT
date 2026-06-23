@@ -31,9 +31,8 @@ public class LoginResponseDto
     public UserDto User { get; set; } = null!;
 
     /// <summary>
-    /// JWT Token — chỉ dùng nội bộ để set cookie, không serialize ra JSON response
+    /// JWT Token
     /// </summary>
-    [System.Text.Json.Serialization.JsonIgnore]
     public string Token { get; set; } = null!;
 
     public string? RefreshToken { get; set; }

@@ -69,6 +69,49 @@ export async function getKhoaPhongs(): Promise<KhoaPhong[]> {
   return res.data;
 }
 
+/* ─── Vai trò (Roles) ───────────────────────────────────── */
+
+export type RoleItem = {
+  id: number;
+  maVaiTro: string;
+  tenVaiTro: string;
+  moTa?: string;
+};
+
+export type UserRoleAssign = {
+  khoaPhongId: number;
+  vaiTroId: number;
+  laChinh?: boolean;
+};
+
+export type UserRoleInfo = {
+  id: number;
+  vaiTroId: number;
+  tenVaiTro: string;
+  maVaiTro: string;
+  khoaPhongId?: number;
+  tenKhoaPhong?: string;
+  laChinh: boolean;
+};
+
+export async function getAllRoles(): Promise<RoleItem[]> {
+  const res = await http.get<RoleItem[]>("/vai-tro");
+  return res;
+}
+
+export async function getUserRoles(userId: number): Promise<UserRoleInfo[]> {
+  const res = await http.get<UserRoleInfo[]>(`/users/${userId}/roles`);
+  return res;
+}
+
+export async function assignUserRole(userId: number, data: UserRoleAssign): Promise<void> {
+  await http.post(`/users/${userId}/assign-role`, data);
+}
+
+export async function removeUserRole(assignmentId: number): Promise<void> {
+  await http.del(`/users/roles/${assignmentId}`);
+}
+
 export async function createKhoaPhong(data: { tenKhoaPhong: string; maKhoaPhong?: string }): Promise<KhoaPhong> {
   const res = await http.post<ApiResponse<KhoaPhong>>("/khoa-phong", data);
   return res.data;

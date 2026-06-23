@@ -2,7 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 
 export const store = configureStore({
   reducer: {
-    // thêm slice reducer ở đây
+    app: (state = {}) => state,
   },
 });
 

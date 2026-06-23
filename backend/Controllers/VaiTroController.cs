@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Models.DTOs.Admin;
 using QLQTDT.Api.Models.DTOs.Common;
+using QLQTDT.Api.Models.Entities;
 using QLQTDT.Api.Services;
 
 namespace QLQTDT.Api.Controllers;
@@ -16,6 +17,15 @@ public class VaiTroController : ControllerBase
     public VaiTroController(IVaiTroService vaiTroService)
     {
         _vaiTroService = vaiTroService;
+    }
+
+    /// <summary>Lấy danh sách tất cả vai trò</summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(List<VaiTro>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll()
+    {
+        var items = await _vaiTroService.GetAllAsync();
+        return Ok(items);
     }
 
     /// <summary>

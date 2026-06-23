@@ -18,6 +18,7 @@ public static class DbInitializer
         ("TONG_PHAP_CHE", "TONG_PHAP_CHE", "Tổ pháp chế — kiểm tra tính pháp lý, điều phối quy trình"),
         ("VIEN_TRUONG", "VIEN_TRUONG", "Viện trưởng — theo dõi báo cáo tổng hợp"),
         ("BCN_HCQT", "BCN_HCQT", "Ban chủ nhiệm phòng HCQT — tạo workflow, xem hồ sơ toàn BV"),
+        ("BAN_GIAM_DOC", "BAN_GIAM_DOC", "Ban Giám Đốc — theo dõi, phê duyệt và quản lý toàn diện"),
     ];
 
     // Union của DbInitializer + PermissionSeeder lists
@@ -193,6 +194,20 @@ public static class DbInitializer
             "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
+        ],
+
+        ["BAN_GIAM_DOC"] =
+        [
+            "DEXUAT.VIEW",
+            "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.EDIT", "GOITHAU.DELETE",
+            "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY", "GOITHAU.DISABLE",
+            "HOPDONG.CREATE", "HOPDONG.VIEW", "HOPDONG.EDIT", "HOPDONG.DELETE", "HOPDONG.QUYETTOAN",
+            "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.CHOOSE",
+            "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
+            "AUDIT.VIEW", "AUDIT.VIEW_ALL",
+            "TAILIEU.UPLOAD", "TAILIEU.DOWNLOAD", "TAILIEU.VIEW",
+            "NHATHAU.VIEW",
+            "HOSODUTHAU.VIEW", "HOSODUTHAU.AWARD",
         ],
     };
 

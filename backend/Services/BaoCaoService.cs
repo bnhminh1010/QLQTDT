@@ -62,6 +62,11 @@ public class BaoCaoService : IBaoCaoService
                 HinhThucId = g.HinhThucId,
                 GiaTri = g.NganSach,
                 TrangThai = g.TrangThai,
+                TenKhoaPhong = g.KhoaPhongId != null
+                    ? _db.KhoaPhongs.Where(k => k.Id == g.KhoaPhongId).Select(k => k.TenKhoaPhong).FirstOrDefault()
+                    : null,
+                KhoaPhongId = g.KhoaPhongId,
+                NgayTao = g.NgayTao,
             })
             .ToListAsync();
 

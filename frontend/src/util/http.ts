@@ -1,4 +1,13 @@
 import axios, { type AxiosRequestConfig } from "axios";
+import { toast } from "sonner";
+import { clearStoredToken, getStoredToken } from "@/services/api";
+
+/** Mở rộng AxiosRequestConfig thêm flag skip toast */
+declare module "axios" {
+  interface AxiosRequestConfig {
+    _skipAuthToast?: boolean;
+  }
+}
 
 const httpClient = axios.create({
   baseURL: import.meta.env.VITE_BASE_API,
@@ -22,14 +31,33 @@ const _send = async <T>(
 
 httpClient.interceptors.request.use(
   (config) => {
-    const accessToken = localStorage.getItem("accessToken");
+    const accessToken = getStoredToken();
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
-
     return config;
   },
+  (error) => Promise.reject(error),
+);
+
+httpClient.interceptors.response.use(
+  (res) => res,
   (error) => {
+    if (error.response?.status === 401) {
+      clearStoredToken();
+      toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+      window.location.hash = "#/login";
+      return Promise.reject(error);
+    }
+
+    // 403 — toast nếu caller ko yêu cầu skip
+    if (error.response?.status === 403 && !error.config?._skipAuthToast) {
+      const msg =
+        error.response?.data?.error ||
+        "Bạn không có quyền thực hiện thao tác này.";
+      toast.error(msg);
+    }
+
     return Promise.reject(error);
   },
 );

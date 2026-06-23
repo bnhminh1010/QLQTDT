@@ -93,7 +93,7 @@ export default function BaoCao() {
     (async () => {
       try {
         setLoading(true);
-        const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 200 });
+        const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 100 });
         const mapped: PackageReport[] = result.items.map((item) => ({
           id: item.maGoiThau,
           name: item.tenGoiThau,
@@ -214,76 +214,81 @@ export default function BaoCao() {
 
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto p-6 space-y-5">
-          <section className="bg-white rounded-2xl border border-slate-200 p-5">
-            <div className="grid grid-cols-1 2xl:grid-cols-[220px_1fr_170px_220px_auto] gap-4 items-end">
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Đơn vị/Khoa phòng</label>
-                <SelectField
-                  value={unitFilter}
-                  onValueChange={(value) => { setUnitFilter(value); if (value !== "Tất cả") setSelectedUnit(value); }}
-                  options={[
-                    { value: "Tất cả", label: "Tất cả" },
-                    ...allUnits.map((unit) => ({ value: unit, label: unit })),
-                  ]}
-                  triggerClassName="mt-1 h-10 bg-white"
-                />
+          {/* ── FILTER BAR ── */}
+          <section className="bg-white rounded-2xl border border-slate-200 p-4 lg:p-5">
+            <div className="flex flex-wrap items-end gap-3">
+              {/* Đơn vị */}
+              <div className="min-w-[180px] flex-1">
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Đơn vị/Khoa phòng</label>
+                <SelectField value={unitFilter}
+                  onValueChange={(v) => { setUnitFilter(v); if (v !== "Tất cả") setSelectedUnit(v); }}
+                  options={[{ value: "Tất cả", label: "Tất cả" }, ...allUnits.map((u) => ({ value: u, label: u }))]}
+                  triggerClassName="h-9 bg-white text-xs" />
               </div>
 
-              <div>
-                <div className="text-xs font-semibold text-slate-500">Thời gian thống kê</div>
-                <div className="mt-1 rounded-xl border border-slate-200 p-2">
-                  <div className="flex flex-wrap items-center gap-3 text-sm">
-                    <label className="flex items-center gap-1.5">
-                      <input type="radio" checked={timeMode === "day"} onChange={() => setTimeMode("day")} /> Theo ngày
-                    </label>
-                    {timeMode === "day" && (
-                      <>
-                        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-8 rounded-lg border border-slate-200 px-2" />
-                        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-8 rounded-lg border border-slate-200 px-2" />
-                      </>
-                    )}
-                    <label className="flex items-center gap-1.5">
-                      <input type="radio" checked={timeMode === "month"} onChange={() => setTimeMode("month")} /> Theo tháng
-                    </label>
-                    {timeMode === "month" && (
-                      <>
-                        <SelectField value={month} onValueChange={setMonth}
-                          options={Array.from({ length: 12 }, (_, i) => `${i + 1}`).map((item) => ({ value: item, label: `Tháng ${item}` }))}
-                          triggerClassName="h-8 w-[112px] rounded-lg bg-white px-2" />
-                        <SelectField value={year} onValueChange={setYear}
-                          options={["2025", "2026"].map((item) => ({ value: item, label: item }))}
-                          triggerClassName="h-8 w-[92px] rounded-lg bg-white px-2" />
-                      </>
-                    )}
-                    <label className="flex items-center gap-1.5">
-                      <input type="radio" checked={timeMode === "year"} onChange={() => setTimeMode("year")} /> Theo năm
-                    </label>
-                    {timeMode === "year" && (
+              {/* Thời gian */}
+              <div className="min-w-[240px] flex-[2]">
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Thời gian thống kê</label>
+                <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 px-2.5 py-1.5 h-9">
+                  {(["day", "month", "year"] as TimeMode[]).map((mode) => (
+                    <button key={mode} onClick={() => setTimeMode(mode)}
+                      className={`text-xs font-medium px-2 py-1 rounded-md transition-colors ${timeMode === mode ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}>
+                      {mode === "day" ? "Ngày" : mode === "month" ? "Tháng" : "Năm"}
+                    </button>
+                  ))}
+                  {timeMode === "day" && (
+                    <span className="flex items-center gap-1 ml-1">
+                      <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)}
+                        className="h-6 w-[110px] rounded border border-slate-200 text-[10px] px-1" />
+                      <span className="text-[10px] text-slate-400">→</span>
+                      <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)}
+                        className="h-6 w-[110px] rounded border border-slate-200 text-[10px] px-1" />
+                    </span>
+                  )}
+                  {timeMode === "month" && (
+                    <span className="flex items-center gap-1 ml-1">
+                      <SelectField value={month} onValueChange={setMonth}
+                        options={Array.from({ length: 12 }, (_, i) => `${i + 1}`).map((m) => ({ value: m, label: `Th ${m}` }))}
+                        triggerClassName="h-6 w-16 rounded bg-white text-[10px] px-1" />
                       <SelectField value={year} onValueChange={setYear}
-                        options={["2025", "2026"].map((item) => ({ value: item, label: item }))}
-                        triggerClassName="h-8 w-[92px] rounded-lg bg-white px-2" />
-                    )}
-                  </div>
+                        options={["2025", "2026"].map((y) => ({ value: y, label: y }))}
+                        triggerClassName="h-6 w-16 rounded bg-white text-[10px] px-1" />
+                    </span>
+                  )}
+                  {timeMode === "year" && (
+                    <SelectField value={year} onValueChange={setYear}
+                      options={["2025", "2026"].map((y) => ({ value: y, label: y }))}
+                      triggerClassName="h-6 w-16 rounded bg-white text-[10px] px-1 ml-1" />
+                  )}
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Trạng thái</label>
+              {/* Trạng thái */}
+              <div className="min-w-[140px] flex-1">
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Trạng thái</label>
                 <SelectField value={statusFilter} onValueChange={setStatusFilter}
-                  options={[{ value: "Tất cả", label: "Tất cả" }, ...allStatusesVn.map((item) => ({ value: item, label: item }))]}
-                  triggerClassName="mt-1 h-10 bg-white" />
+                  options={[{ value: "Tất cả", label: "Tất cả" }, ...allStatusesVn.map((s) => ({ value: s, label: s }))]}
+                  triggerClassName="h-9 bg-white text-xs" />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-500">Loại hình đấu thầu</label>
+              {/* Loại hình */}
+              <div className="min-w-[140px] flex-1">
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Loại hình đấu thầu</label>
                 <SelectField value={methodFilter} onValueChange={setMethodFilter}
-                  options={[{ value: "Tất cả", label: "Tất cả" }, ...allMethods.map((item) => ({ value: item, label: item }))]}
-                  triggerClassName="mt-1 h-10 bg-white" />
+                  options={[{ value: "Tất cả", label: "Tất cả" }, ...allMethods.map((m) => ({ value: m, label: m }))]}
+                  triggerClassName="h-9 bg-white text-xs" />
               </div>
 
-              <div className="flex gap-2">
-                <button onClick={() => toast.success("Đã áp dụng bộ lọc")} className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">Áp dụng</button>
-                <button onClick={resetFilters} className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50">Đặt lại</button>
+              {/* Actions */}
+              <div className="flex gap-2 pb-px">
+                <button onClick={() => toast.success("Đã áp dụng bộ lọc")}
+                  className="h-9 px-4 rounded-xl bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700 flex items-center gap-1.5">
+                  <i className="fa-solid fa-filter text-[10px]" /> Lọc
+                </button>
+                <button onClick={resetFilters}
+                  className="h-9 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1">
+                  <i className="fa-solid fa-rotate-left text-[10px]" /> Đặt lại
+                </button>
               </div>
             </div>
           </section>

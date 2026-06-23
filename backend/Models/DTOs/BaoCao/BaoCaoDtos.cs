@@ -26,6 +26,9 @@ public class BaoCaoGoiThauItemDto
     public int TongSoBuoc { get; set; }
     public int SoBuocHoanThanh { get; set; }
     public double PhanTramHoanThanh { get; set; }
+    public string? TenKhoaPhong { get; set; }
+    public int? KhoaPhongId { get; set; }
+    public DateTime? NgayTao { get; set; }
 }
 
 /// <summary>Thống kê gói thầu theo từng đơn vị (dùng cho user toàn quyền)</summary>

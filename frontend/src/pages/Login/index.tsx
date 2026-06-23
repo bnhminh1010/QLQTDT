@@ -28,11 +28,10 @@ export default function Login() {
   async function onSubmit(data: LoginFormData) {
     try {
       const result = await loginApi({
-        username: data.username.trim(),
-        password: data.password,
-        rememberMe: data.rememberMe,
+        tenDangNhap: data.username.trim(),
+        matKhau: data.password,
       });
-      setStoredToken(`mock-token-${result.user.id}`);
+      setStoredToken(result.token);
       toast.success("Đăng nhập thành công");
       navigate("/dashboard");
     } catch (err: any) {
