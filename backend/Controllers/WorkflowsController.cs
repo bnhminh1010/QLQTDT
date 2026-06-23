@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.Workflow;
@@ -97,7 +98,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPost("generate-from-template")]
-    [Authorize(Roles = "ADMIN")]
+    [HasPermission("WORKFLOW.CREATE")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<WorkflowTemplatePreviewDto>>> GenerateFromTemplate(
         [FromBody] GenerateWorkflowFromTemplateRequest request,

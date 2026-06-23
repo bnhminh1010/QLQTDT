@@ -14,7 +14,7 @@ export function useAccessLevel(user?: LoginUserDto | null): AccessLevel {
     if (!user?.roles?.length) return null;
     // Check if user has ADMIN role → full access regardless of doUuTien
     const isAdmin = user.roles.some(
-      (r) => r.tenVaiTro === "ADMIN" || r.maVaiTro === "ADMIN"
+      (r) => r.tenVaiTro?.toUpperCase() === "ADMIN"
     );
     // Lowest DoUuTien = highest priority (1 > 3 > 5)
     const priorities = user.roles.map((r) => r.doUuTien).filter((p): p is number => p != null);

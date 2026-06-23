@@ -24,12 +24,33 @@ export default function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const link = (path: string) =>
+  const link = (path: string, disabled = false) =>
     `flex items-center justify-center lg:justify-start gap-2.5 px-3 lg:px-4 py-[9px] text-[13px] transition-colors ${
-      pathname === path
-        ? "bg-blue-900 text-white"
-        : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-300"
+      disabled
+        ? "text-slate-600 cursor-not-allowed"
+        : pathname === path
+          ? "bg-blue-900 text-white"
+          : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-300"
     }`;
+
+  function renderNavItem(path: string, icon: string, label: string) {
+    const allowed = hasAccess(path);
+    return (
+      <li>
+        {allowed ? (
+          <Link to={path} className={link(path)}>
+            <i className={`fa-solid ${icon} w-4 text-center shrink-0`} />
+            <span className="hidden lg:inline">{label}</span>
+          </Link>
+        ) : (
+          <span className={link(path, true)} title="Không có quyền truy cập">
+            <i className={`fa-solid ${icon} w-4 text-center shrink-0 opacity-50`} />
+            <span className="hidden lg:inline opacity-50">{label}</span>
+          </span>
+        )}
+      </li>
+    );
+  }
 
   const hoTen = user?.hoTen ?? "?";
   const initial = hoTen.charAt(0).toUpperCase();
@@ -77,60 +98,20 @@ export default function Sidebar() {
           ĐẤU THẦU
         </div>
         <ul>
-          {hasAccess("/danh-sach-goi-thau") && <li>
-            <Link to="/danh-sach-goi-thau" className={link("/danh-sach-goi-thau")}>
-              <i className="fa-solid fa-list w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Danh sách gói thầu</span>
-            </Link>
-          </li>}
-          {hasAccess("/tao-goi-thau") && <li>
-            <Link to="/tao-goi-thau" className={link("/tao-goi-thau")}>
-              <i className="fa-solid fa-plus-circle w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Tạo gói thầu</span>
-            </Link>
-          </li>}
-          {hasAccess("/danh-muc-thuc-hien") && <li>
-            <Link to="/danh-muc-thuc-hien" className={link("/danh-muc-thuc-hien")}>
-              <i className="fa-solid fa-bars-staggered w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Danh mục thực hiện</span>
-            </Link>
-          </li>}
-          {hasAccess("/danh-sach-quy-trinh") && <li>
-            <Link to="/danh-sach-quy-trinh" className={link("/danh-sach-quy-trinh")}>
-              <i className="fa-solid fa-diagram-project w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Danh sách quy trình</span>
-            </Link>
-          </li>}
-          {hasAccess("/lap-quy-trinh") && <li>
-            <Link to="/lap-quy-trinh" className={link("/lap-quy-trinh")}>
-              <i className="fa-solid fa-plus-square w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Lập quy trình</span>
-            </Link>
-          </li>}
+          {renderNavItem("/danh-sach-goi-thau", "fa-list", "Danh sách gói thầu")}
+          {renderNavItem("/tao-goi-thau", "fa-plus-circle", "Tạo gói thầu")}
+          {renderNavItem("/danh-muc-thuc-hien", "fa-bars-staggered", "Danh mục thực hiện")}
+          {renderNavItem("/danh-sach-quy-trinh", "fa-diagram-project", "Danh sách quy trình")}
+          {renderNavItem("/lap-quy-trinh", "fa-plus-square", "Lập quy trình")}
         </ul>
 
         <div className="hidden lg:block text-[10px] font-bold text-[#334155] tracking-[.09em] px-4 pt-3.5 pb-1">
           HỆ THỐNG
         </div>
         <ul>
-          {hasAccess("/bao-cao") && <li>
-            <Link to="/bao-cao" className={link("/bao-cao")}>
-              <i className="fa-solid fa-chart-bar w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Báo cáo</span>
-            </Link>
-          </li>}
-          {hasAccess("/khoa-phong") && <li>
-            <Link to="/khoa-phong" className={link("/khoa-phong")}>
-              <i className="fa-solid fa-building w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Khoa/phòng</span>
-            </Link>
-          </li>}
-          {hasAccess("/nguoi-dung") && <li>
-            <Link to="/nguoi-dung" className={link("/nguoi-dung")}>
-              <i className="fa-solid fa-user w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Người dùng</span>
-            </Link>
-          </li>}
+          {renderNavItem("/bao-cao", "fa-chart-bar", "Báo cáo")}
+          {renderNavItem("/khoa-phong", "fa-building", "Khoa/phòng")}
+          {renderNavItem("/nguoi-dung", "fa-user", "Người dùng")}
           <li>
             <button
               type="button"
