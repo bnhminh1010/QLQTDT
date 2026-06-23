@@ -9,6 +9,7 @@ public class CreateHinhThucDauThauDto
 
 public class UpdateHinhThucDauThauDto
 {
-    public string TenHinhThuc { get; set; } = null!;
+    public string? TenHinhThuc { get; set; }
     public decimal? HanMucToiDa { get; set; }
+    public bool? TrangThaiHoatDong { get; set; }
 }

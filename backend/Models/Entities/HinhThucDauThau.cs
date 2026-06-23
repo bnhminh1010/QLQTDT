@@ -8,5 +8,9 @@ public class HinhThucDauThau : IBaseEntity
     public decimal? HanMucToiDa { get; set; }
     public bool TrangThaiHoatDong { get; set; } = true;
 
+    // Computed — not mapped to DB
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int SoGoi { get; set; }
+
     public ICollection<Workflow> Workflows { get; set; } = [];
 }

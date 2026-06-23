@@ -1122,11 +1122,12 @@ export default function DanhSachGoiThau() {
           </div>
         </main>
 
-        {/* DETAIL PANEL — wide desktop: always visible; smaller screens: drawer overlay */}
-        {/* Desktop */}
+        {/* DETAIL PANEL — chỉ hiện desktop khi click gói thầu */}
+        {selected.id && (
         <aside className="w-[320px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden 2xl:block">
           <DetailPanel />
         </aside>
+        )}
 
         {/* Drawer */}
         {detailOpen && (

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using QLQTDT.Api.Config;
@@ -16,6 +17,7 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting("Global")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -36,6 +38,7 @@ public class AuthController : ControllerBase
     /// <summary>Đăng nhập hệ thống</summary>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("Login")]
     [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login(
         [FromBody] LoginRequestDto dto,

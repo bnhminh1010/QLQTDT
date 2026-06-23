@@ -31,12 +31,12 @@ export async function getUsers(params?: {
   search?: string;
 }): Promise<PagedResult<NguoiDung>> {
   const res = await http.get<any>("/admin/users", { params });
-  // Backend trả { data, totalCount, page, pageSize } — map về PagedResult
+  // Backend trả AdminUserListDto trực tiếp: { data: [...], totalCount, page, pageSize }
   return {
-    items: res.data?.data ?? res.data?.items ?? [],
-    total: res.data?.totalCount ?? res.data?.total ?? 0,
-    page: res.data?.page ?? 1,
-    pageSize: res.data?.pageSize ?? 10,
+    items: res?.data ?? res?.items ?? [],
+    total: res?.totalCount ?? res?.total ?? 0,
+    page: res?.page ?? 1,
+    pageSize: res?.pageSize ?? 10,
   };
 }
 

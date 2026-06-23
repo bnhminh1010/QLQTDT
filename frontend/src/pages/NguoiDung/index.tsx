@@ -387,7 +387,7 @@ export default function NguoiDung() {
         </main>
 
         <aside className="w-[300px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden xl:block">
-          {(() => {
+          {selected?.id ? (() => {
             const i = data.findIndex((u) => u.id === selected.id);
             const idx = i >= 0 ? i : 0;
             return (
@@ -492,7 +492,12 @@ export default function NguoiDung() {
                 )}
               </>
             );
-          })()}
+          })() : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <i className="fa-solid fa-user text-3xl mb-2" />
+              <p className="text-xs">Chọn người dùng để xem chi tiết</p>
+            </div>
+          )}
         </aside>
       </div>
 

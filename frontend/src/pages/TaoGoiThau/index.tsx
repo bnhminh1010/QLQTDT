@@ -38,9 +38,11 @@ const MOCK_CURRENT_USER = {
   donVi: "P.HCQT",
 };
 
-function normalizeMoneyDisplay(value?: string | number) {
-  const digits = String(value ?? "").replace(/[^\d]/g, "");
-  return digits ? formatVND(digits) : "";
+function formatDisplayNumber(value?: string | number): string {
+  if (!value) return "";
+  const digits = String(value).replace(/[^\d]/g, "");
+  if (!digits) return "";
+  return parseInt(digits, 10).toLocaleString("vi-VN");
 }
 
 const HT_BADGE: Partial<Record<HinhThuc, string>> = {
@@ -243,10 +245,12 @@ export default function TaoGoiThau() {
 
   const watched = watch();
   function normalizeGiaTriField() {
-    const normalized = normalizeMoneyDisplay(watch("giaTriStr"));
-    setValue("giaTriStr", normalized, {
+    // Chỉ loại bỏ ký tự không phải số, ko format
+    const raw = watch("giaTriStr");
+    const digits = String(raw ?? "").replace(/[^\d]/g, "");
+    setValue("giaTriStr", digits, {
       shouldDirty: true,
-      shouldValidate: Boolean(normalized),
+      shouldValidate: Boolean(digits),
     });
   }
   const selectedLoaiGoiThau = watched.loaiGoiThau as LoaiGoiThau | "";
@@ -338,7 +342,7 @@ export default function TaoGoiThau() {
       loaiGoiThau: editingGoiThau.loaiGoiThau ?? inferLoaiGoiThau(editingGoiThau.hinhThuc),
       hinhThuc: editingGoiThau.hinhThuc,
       nguonVon: editingGoiThau.detail.nguonVon,
-      giaTriStr: normalizeMoneyDisplay(editingGoiThau.giaTriStr || editingGoiThau.giaTriNum),
+      giaTriStr: formatDisplayNumber(editingGoiThau.giaTriStr || editingGoiThau.giaTriNum),
       donVi: editingGoiThau.donVi || MOCK_CURRENT_USER.donVi,
       ngayTao: toDateInputValue(editingGoiThau.detail.ngayTao),
       ghiChu: "",
@@ -347,15 +351,15 @@ export default function TaoGoiThau() {
   }, [canEditCurrent, editingGoiThau, isEditMode, navigate, reset]);
 
   function buildGoiThauFromForm(data: FormData, trangThai: GoiThau["trangThai"]) {
-    const normalizedGiaTri = normalizeMoneyDisplay(data.giaTriStr);
-    const num = parseInt(normalizedGiaTri.replace(/[^\d]/g, ""), 10) || 0;
+    const digits = String(data.giaTriStr ?? "").replace(/[^\d]/g, "");
+    const num = parseInt(digits, 10) || 0;
     return {
       id: editingGoiThau?.id ?? generateGoiThauId(),
       ten: data.ten.trim(),
       loaiGoiThau: data.loaiGoiThau as LoaiGoiThau,
       hinhThuc: data.hinhThuc as HinhThuc,
       theoDoi: theoDoiList,
-      giaTriStr: normalizedGiaTri,
+      giaTriStr: digits,
       giaTriNum: num,
       donVi: data.donVi,
       trangThai,
@@ -406,16 +410,15 @@ export default function TaoGoiThau() {
       return;
     }
     setSavingDraft(true);
-    const normalizedGiaTri = normalizeMoneyDisplay(values.giaTriStr);
-    const num =
-      parseInt((normalizedGiaTri ?? "").replace(/[^\d]/g, ""), 10) || 0;
+    const digits = String(values.giaTriStr ?? "").replace(/[^\d]/g, "");
+    const num = parseInt(digits, 10) || 0;
     addGoiThau({
       id: generateGoiThauId(),
       ten: values.ten.trim(),
       loaiGoiThau: (values.loaiGoiThau || "Hàng hóa") as LoaiGoiThau,
       hinhThuc: (values.hinhThuc || "Chỉ định thầu rút gọn") as HinhThuc,
       theoDoi: theoDoiList,
-      giaTriStr: normalizedGiaTri || "0",
+      giaTriStr: digits || "0",
       giaTriNum: num,
       donVi: values.donVi || "—",
       trangThai: "Nháp",
