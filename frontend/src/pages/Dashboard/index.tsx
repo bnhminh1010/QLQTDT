@@ -135,9 +135,12 @@ export default function Dashboard() {
   const [filterStatus, setFilterStatus] = useState<BadgeStatus | "">("");
   const notifRef = useRef<HTMLDivElement>(null);
 
+  const [loading, setLoading] = useState(true);
+
   // Load data from API
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
         const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 50 });
         const rows: TableRow[] = result.items.map((item) => ({
@@ -167,11 +170,13 @@ export default function Dashboard() {
         setTableRows(rows);
       } catch (e) {
         console.error(e);
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
 
-  const selected = tableRows[selectedIdx] || tableRows[0];
+  const selected = tableRows.length > 0 ? (tableRows[selectedIdx] || tableRows[0]) : null;
   const unreadCount = notifs.filter((n: any) => !n.read).length;
 
   const filteredRows = tableRows.filter((r) => {
@@ -517,6 +522,17 @@ export default function Dashboard() {
 
         {/* DETAIL PANEL — dynamic based on selected row */}
         <aside className="w-[288px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden xl:block">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <i className="fa-solid fa-circle-notch fa-spin text-blue-400 text-lg" />
+            </div>
+          ) : !selected ? (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <i className="fa-solid fa-inbox text-3xl mb-2" />
+              <p className="text-xs">Chưa có dữ liệu</p>
+            </div>
+          ) : (
+          <div className="flex flex-col h-full">
           <div className="font-mono text-xs font-bold text-blue-700 mb-1">
             {selected.code}
           </div>
@@ -727,6 +743,8 @@ export default function Dashboard() {
           >
             <i className="fa-solid fa-arrow-right text-xs" /> Xem chi tiết
           </button>
+            </div>
+          )}
         </aside>
       </div>
     </>

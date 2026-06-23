@@ -40,9 +40,13 @@ public class WorkflowConfigService : IWorkflowConfigService
             .Select(w => new WorkflowListItemDto
             {
                 Id = w.Id,
+                MaWorkflow = w.MaWorkflow,
                 TenWorkflow = w.TenWorkflow,
                 HinhThucId = w.HinhThucId,
-                TrangThaiHoatDong = w.TrangThaiHoatDong
+                TrangThaiHoatDong = w.TrangThaiHoatDong,
+                LoaiHinhDauThau = w.LoaiHinhDauThau,
+                SoBuoc = w.BuocWorkflows.Count,
+                NgayTao = EF.Property<DateTime>(w, "NgayTao")
             })
             .ToListAsync();
 
@@ -53,6 +57,24 @@ public class WorkflowConfigService : IWorkflowConfigService
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    public async Task<WorkflowListItemDto> GetWorkflowByIdAsync(int id)
+    {
+        return await _context.Workflows
+            .Where(w => w.Id == id)
+            .Select(w => new WorkflowListItemDto
+            {
+                Id = w.Id,
+                MaWorkflow = w.MaWorkflow,
+                TenWorkflow = w.TenWorkflow,
+                HinhThucId = w.HinhThucId,
+                TrangThaiHoatDong = w.TrangThaiHoatDong,
+                LoaiHinhDauThau = w.LoaiHinhDauThau,
+                SoBuoc = w.BuocWorkflows.Count,
+                NgayTao = EF.Property<DateTime>(w, "NgayTao")
+            })
+            .FirstOrDefaultAsync() ?? throw new NotFoundException($"Workflow not found: {id}");
     }
 
     public async Task<WorkflowCreateResponse> CreateWorkflowAsync(WorkflowCreateRequest request, int? nguoiTaoId)

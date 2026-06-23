@@ -260,6 +260,9 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // Workflow shadow properties
+        modelBuilder.Entity<Workflow>().Property<DateTime>("NgayTao").HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+
         // BuocWorkflow
         modelBuilder.Entity<BuocWorkflow>(entity =>
         {

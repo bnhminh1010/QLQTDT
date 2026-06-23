@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -27,7 +27,8 @@ import {
   updateGoiThau,
 } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau, HinhThuc, LoaiGoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
-import { getQuyTrinhList, type QuyTrinh } from "@/pages/DanhSachQuyTrinh/quyTrinhService";
+import { getWorkflows } from "@/services/workflowApi";
+import type { WorkflowItem } from "@/services/workflowApi";
 
 /* ─ RBAC ─ */
 const MOCK_CURRENT_ROLE = "Admin";
@@ -176,7 +177,6 @@ const inputErrCls =
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
 type FormData = InferType<typeof taoGoiThauSchema>;
-type QuyTrinhBuoc = QuyTrinh["buocList"][number];
 
 type LocationState = {
   goiThau?: GoiThau;
@@ -194,169 +194,6 @@ function toDateInputValue(value: string) {
   return value;
 }
 
-function makeWorkflowStep(
-  id: string,
-  ten: string,
-  index: number,
-  total: number,
-  slaNgay = 2,
-): QuyTrinhBuoc {
-  return {
-    id,
-    ten,
-    loai: index === 0 ? "Bắt đầu" : index === total - 1 ? "Kết thúc" : "Thường",
-    donViPhuTrach: index >= total - 3 ? "Giám đốc BV" : "K/p mua sắm",
-    vaiTroXuLy: index >= total - 3 ? "Quản lý" : "Nhân viên",
-    slaNgay,
-    loaiThoiHan: "Chỉ cảnh báo quá hạn",
-    trangThaiMacDinh: index === 0 ? "Đang xử lý" : "Chờ ký duyệt",
-    coKyDuyet: index >= total - 3,
-    donViKyHoSo: index >= total - 3 ? "Giám đốc BV" : "",
-    vaiTroKyDuyet: index >= total - 3 ? "Quản lý" : "",
-    soNgayKyDuyet: index >= total - 3 ? 1 : 0,
-    batBuocKyTruocChuyenBuoc: index >= total - 3,
-    dieuKienChuyenTiep: [
-      {
-        id: `${id}-DK1`,
-        hanhDong: "Hoàn thành / Duyệt",
-        buocChuyenDenId: index < total - 1 ? `${id.split("-B")[0]}-B${index + 2}` : "",
-        dieuKienKichHoat: "Luôn",
-        batBuocGhiChu: false,
-        batBuocUpload: false,
-      },
-    ],
-    coNhanhSongSong: false,
-    nhanhList: [],
-    dieuKienHopNhat: "all",
-    soNhanhHopNhatToiThieu: 0,
-    buocSauHopNhatId: "",
-    dieuKienChuyen: ["Duyệt"],
-    buocTiepTheoId: index < total - 1 ? `${id.split("-B")[0]}-B${index + 2}` : "",
-    moTa: "",
-  };
-}
-
-function makeDefaultWorkflow(id: string, hinhThuc: HinhThuc, steps: string[]): QuyTrinh {
-  return {
-    id,
-    ten: `Quy trình ${hinhThuc}`,
-    hinhThuc: hinhThuc as any,
-    trangThai: "Đang hoạt động",
-    ngayTao: new Date().toISOString(),
-    buocList: steps.map((ten, index) =>
-      makeWorkflowStep(`${id}-B${index + 1}`, ten, index, steps.length),
-    ),
-  };
-}
-
-const DEFAULT_WORKFLOWS: Record<HinhThuc, QuyTrinh> = {
-  "Chỉ định thầu tự quyết định LCNT": makeDefaultWorkflow("QT-MACDINH-CDT-TQD-LCNT", "Chỉ định thầu tự quyết định LCNT", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Lập hồ sơ mời thầu",
-    "Phê duyệt hồ sơ mời thầu",
-    "Quyết định chỉ định nhà thầu",
-  ]),
-  "Chỉ định thầu rút gọn": makeDefaultWorkflow("QT-MACDINH-CDT-RG", "Chỉ định thầu rút gọn", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Đăng tải yêu cầu báo giá",
-    "Biên bản kiểm tra báo giá",
-    "Tờ trình phê duyệt dự toán",
-    "Quyết định phê duyệt dự toán",
-    "Quyết định chỉ định nhà thầu",
-  ]),
-  "Chỉ định thầu tự quyết định": makeDefaultWorkflow("QT-MACDINH-CDT-TQD", "Chỉ định thầu tự quyết định", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Lập hồ sơ mời thầu",
-    "Phê duyệt hồ sơ mời thầu",
-    "Quyết định chỉ định nhà thầu",
-  ]),
-  "Chỉ định thầu thông thường": makeDefaultWorkflow("QT-MACDINH-CDT-TT", "Chỉ định thầu thông thường", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Lập hồ sơ yêu cầu",
-    "Thẩm định hồ sơ yêu cầu",
-    "Phê duyệt hồ sơ yêu cầu",
-    "Đánh giá hồ sơ đề xuất",
-    "Phê duyệt kết quả lựa chọn nhà thầu",
-  ]),
-  "Chào hàng cạnh tranh": makeDefaultWorkflow("QT-MACDINH-CHCT", "Chào hàng cạnh tranh", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Đăng tải yêu cầu báo giá",
-    "Biên bản kiểm tra báo giá",
-    "Tờ trình phê duyệt dự toán",
-    "Quyết định phê duyệt dự toán",
-    "Tờ trình kế hoạch LCNT",
-    "Quyết định kế hoạch LCNT",
-    "Đăng tải kế hoạch LCNT",
-    "Phát hành hồ sơ mời thầu",
-    "Nộp hồ sơ dự thầu",
-    "Mở thầu và đánh giá HSDT",
-    "Trình kết quả lựa chọn nhà thầu",
-    "Quyết định phê duyệt kết quả đấu thầu",
-  ]),
-  "Đấu thầu rộng rãi": makeDefaultWorkflow("QT-MACDINH-DTRR", "Đấu thầu rộng rãi", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Tờ trình phê duyệt dự toán",
-    "Quyết định phê duyệt dự toán",
-    "Tờ trình kế hoạch LCNT",
-    "Quyết định kế hoạch LCNT",
-    "Đăng tải kế hoạch LCNT",
-    "Lập hồ sơ mời thầu",
-    "Phê duyệt HSMT",
-    "Đăng tải mời thầu",
-    "Nộp HSDT",
-    "Mở thầu",
-    "Đánh giá HSDT",
-    "Trình kết quả lựa chọn nhà thầu",
-    "Quyết định phê duyệt kết quả",
-    "Đăng tải kết quả LCNT",
-    "Ký kết hợp đồng",
-  ]),
-  "Mua sắm trực tiếp": makeDefaultWorkflow("QT-MACDINH-MSTT", "Mua sắm trực tiếp", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Phê duyệt dự toán",
-    "Thương thảo nhà cung cấp",
-    "Phê duyệt kết quả mua sắm trực tiếp",
-    "Ký kết hợp đồng",
-  ]),
-  "Chào giá trực tuyến thông thường": makeDefaultWorkflow("QT-MACDINH-CGTT-TT", "Chào giá trực tuyến thông thường", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Đăng tải chào giá trực tuyến",
-    "Tiếp nhận báo giá",
-    "Đánh giá báo giá",
-    "Phê duyệt kết quả chào giá",
-    "Ký kết hợp đồng",
-  ]),
-  "Chào giá trực tuyến rút gọn": makeDefaultWorkflow("QT-MACDINH-CGTT-RG", "Chào giá trực tuyến rút gọn", [
-    "Đề xuất mua sắm",
-    "Đăng tải chào giá trực tuyến",
-    "Tiếp nhận báo giá",
-    "Phê duyệt kết quả chào giá",
-    "Ký kết hợp đồng",
-  ]),
-  "Mua sắm trực tuyến": makeDefaultWorkflow("QT-MACDINH-MST", "Mua sắm trực tuyến", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Chọn hàng hóa trên hệ thống",
-    "Phê duyệt đơn hàng",
-    "Hoàn tất mua sắm",
-  ]),
-  "Đặt hàng": makeDefaultWorkflow("QT-MACDINH-DH", "Đặt hàng", [
-    "Đề xuất mua sắm",
-    "Tờ trình chủ trương",
-    "Lập phiếu đặt hàng",
-    "Phê duyệt đặt hàng",
-    "Theo dõi thực hiện",
-  ]),
-};
-
 export default function TaoGoiThau() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -371,7 +208,8 @@ export default function TaoGoiThau() {
     !!editingGoiThau && EDITABLE_STATUSES.includes(editingGoiThau.trangThai);
   const [savingDraft, setSavingDraft] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
-  const [quyTrinhList, setQuyTrinhList] = useState<QuyTrinh[]>([]);
+  const [quyTrinhList, setQuyTrinhList] = useState<WorkflowItem[]>([]);
+  const [selectedQTSteps, setSelectedQTSteps] = useState<{ tenBuoc: string; donVi: string; slaNgay: number }[]>([]);
   const [theoDoiOpen, setTheoDoiOpen] = useState(false);
   const [theoDoiList, setTheoDoiList] = useState<string[]>([]);
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
@@ -388,7 +226,7 @@ export default function TaoGoiThau() {
   }, [editId, isEditMode, locationState?.goiThau]);
 
   useEffect(() => {
-    setQuyTrinhList(getQuyTrinhList().filter((qt) => qt.trangThai === "Đang hoạt động"));
+    getWorkflows().then((list) => setQuyTrinhList(list.filter((w) => w.trangThaiHoatDong))).catch(() => {});
   }, []);
 
   const {
@@ -400,7 +238,7 @@ export default function TaoGoiThau() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: yupResolver(taoGoiThauSchema),
-    defaultValues: { donVi: MOCK_CURRENT_USER.donVi, ghiChu: "", loaiGoiThau: "", hinhThuc: "" },
+    defaultValues: { donVi: MOCK_CURRENT_USER.donVi, ghiChu: "", loaiGoiThau: "", hinhThuc: "", ngayTao: new Date().toISOString().slice(0, 10) },
   });
 
   const watched = watch();
@@ -420,8 +258,7 @@ export default function TaoGoiThau() {
   const normalizedDonViDeXuat = normalizeTheoDoi(watched.donVi || "");
 
   const selectedQT = watched.hinhThuc
-    ? (quyTrinhList.find((qt) => qt.hinhThuc === watched.hinhThuc) ??
-      DEFAULT_WORKFLOWS[watched.hinhThuc as HinhThuc])
+    ? quyTrinhList.find((qt) => qt.loaiHinhDauThau === watched.hinhThuc) ?? null
     : null;
 
   useEffect(() => {
@@ -437,24 +274,29 @@ export default function TaoGoiThau() {
   }, [normalizedDonViDeXuat]);
   const quyTrinhStats = useMemo(() => {
     if (!selectedQT) return null;
-    const tongSoBuoc = selectedQT.buocList.length;
-    const slaDuKien = selectedQT.buocList.reduce(
-      (sum, buoc) => sum + (Number(buoc.slaNgay) || 0),
-      0,
-    );
-    const soBuocCanDuyet = selectedQT.buocList.filter(
-      (buoc) =>
-        buoc.trangThaiMacDinh === "Chờ ký duyệt" ||
-        buoc.dieuKienChuyen.includes("Duyệt"),
-    ).length;
-
+    const tongSoBuoc = selectedQT.soBuoc;
+    const slaDuKien = selectedQTSteps.reduce((sum, s) => sum + (Number(s.slaNgay) || 0), 0);
+    const soBuocCanDuyet = 0;
     return {
-      tenQuyTrinh: selectedQT.ten,
+      tenQuyTrinh: selectedQT.tenWorkflow,
       tongSoBuoc,
       slaDuKien,
       soBuocCanDuyet,
     };
-  }, [selectedQT]);
+  }, [selectedQT, selectedQTSteps]);
+
+  // Load steps when selectedQT changes
+  const loadQTS = useCallback(async (wfId: number) => {
+    try {
+      const { getWorkflowDesignSteps } = await import('@/services/workflowApi');
+      const steps = await getWorkflowDesignSteps(wfId);
+      setSelectedQTSteps(steps.map((s) => ({ tenBuoc: s.tenBuoc, donVi: String(s.donViXuLyId ?? ""), slaNgay: s.soNgayLapHoSo })));
+    } catch { setSelectedQTSteps([]); }
+  }, []);
+  useEffect(() => {
+    if (selectedQT?.id) loadQTS(selectedQT.id);
+    else setSelectedQTSteps([]);
+  }, [selectedQT?.id, loadQTS]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] = useState<FormData | null>(null);
@@ -522,7 +364,7 @@ export default function TaoGoiThau() {
         ngayTao: data.ngayTao,
         hanHT: editingGoiThau?.detail.hanHT ?? "—",
         pct: editingGoiThau?.detail.pct ?? "0%",
-        buoc: editingGoiThau?.detail.buoc ?? (selectedQT ? `0/${selectedQT.buocList.length}` : "1/14"),
+        buoc: editingGoiThau?.detail.buoc ?? (selectedQT ? `0/${selectedQT.soBuoc}` : "1/14"),
       },
     };
   }
@@ -779,14 +621,14 @@ export default function TaoGoiThau() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="text-sm font-semibold text-blue-800">
-                          {selectedQT.ten}
+                          {selectedQT.tenWorkflow}
                         </p>
                         <p className="text-xs text-blue-500 mt-0.5">
                           Quy trình đấu thầu đã chọn
                         </p>
                       </div>
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
-                        {selectedQT.buocList.length} bước
+                        {selectedQT.soBuoc} bước
                       </span>
                     </div>
                     {quyTrinhStats && (
@@ -804,9 +646,9 @@ export default function TaoGoiThau() {
                       </div>
                     )}
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {selectedQT.buocList.map((b, i) => (
+                      {selectedQTSteps.map((b, i) => (
                         <div
-                          key={b.id}
+                          key={i}
                           className="flex items-start gap-2 rounded-lg bg-white border border-blue-100 px-3 py-2"
                         >
                           <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">
@@ -814,10 +656,10 @@ export default function TaoGoiThau() {
                           </span>
                           <div className="min-w-0">
                             <p className="text-xs font-medium text-slate-800">
-                              {b.ten}
+                              {b.tenBuoc}
                             </p>
                             <p className="text-[11px] text-slate-400">
-                              {b.donViPhuTrach} · Thời hạn {b.slaNgay} ngày
+                              {b.donVi} · Thời hạn {b.slaNgay} ngày
                             </p>
                           </div>
                         </div>
@@ -1289,12 +1131,12 @@ export default function TaoGoiThau() {
                     ))}
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {selectedQT.buocList.map((b, i) => (
+                    {selectedQTSteps.map((b, i) => (
                       <span
-                        key={b.id}
+                        key={i}
                         className="text-[10px] px-1.5 py-0.5 rounded bg-white text-blue-600 border border-blue-200"
                       >
-                        {i + 1}. {b.ten.length > 12 ? b.ten.slice(0, 12) + "…" : b.ten}
+                        {i + 1}. {b.tenBuoc.length > 12 ? b.tenBuoc.slice(0, 12) + "…" : b.tenBuoc}
                       </span>
                     ))}
                   </div>

@@ -3,6 +3,8 @@
 ───────────────────────────────────────────────────────────── */
 import {
   searchGoiThau,
+  createGoiThau as createGoiThauApi,
+  updateGoiThau as updateGoiThauApi,
   type GoiThauItem,
 } from "@/services/goiThauApi";
 
@@ -77,7 +79,7 @@ function mapItem(item: GoiThauItem): GoiThau {
 
 export const getUserGoiThauList = async (): Promise<GoiThau[]> => {
   try {
-    const result = await searchGoiThau({ page: 1, pageSize: 200 });
+    const result = await searchGoiThau({ page: 1, pageSize: 100 });
     return result.items.map(mapItem);
   } catch {
     return [];
@@ -87,18 +89,42 @@ export const getUserGoiThauList = async (): Promise<GoiThau[]> => {
 export const layDanhSachGoiThau = getUserGoiThauList;
 
 export const getGoiThauById = async (id: string): Promise<GoiThau | undefined> => {
+  // Try detail API first
+  const numId = parseInt(id.replace(/^GT/, ''), 10);
+  if (!isNaN(numId)) {
+    try {
+      const { getGoiThauChiTiet } = await import('@/services/goiThauApi');
+      const detail = await getGoiThauChiTiet(numId);
+      const list = await getUserGoiThauList();
+      const fallback = list.find((g) => g.id === id || g.maGoiThau === id);
+      return mapItem({ ...fallback, ...detail } as any);
+    } catch { /* fallback to list search */ }
+  }
   const list = await getUserGoiThauList();
   return list.find((g) => g.id === id || g.maGoiThau === id);
 };
-export const layGoiThauTheoId = getGoiThauById;
 
-export const addGoiThau = async (_item: Partial<GoiThau>): Promise<void> => {
-  // Backend handles creation — placeholder
+export const addGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
+  try {
+    await createGoiThauApi({
+      tenGoiThau: item.tenGoiThau || item.ten || '',
+      moTa: item.maGoiThau || '',
+      nganSach: item.giaTriNum || 0,
+    });
+  } catch { /* silent */ }
 };
 export const themGoiThau = addGoiThau;
 
-export const updateGoiThau = async (_item: Partial<GoiThau>): Promise<void> => {
-  // Backend handles updates — placeholder
+export const updateGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
+  const numId = parseInt((item.id || '').replace(/^GT/, ''), 10);
+  if (isNaN(numId)) return;
+  try {
+    await updateGoiThauApi(numId, {
+      tenGoiThau: item.tenGoiThau || item.ten || '',
+      moTa: item.maGoiThau || '',
+      nganSach: item.giaTriNum || 0,
+    });
+  } catch { /* silent */ }
 };
 export const capNhatGoiThau = updateGoiThau;
 

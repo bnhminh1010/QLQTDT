@@ -17,6 +17,14 @@ public class VaiTroService : IVaiTroService
         _logger = logger;
     }
 
+    public async Task<List<VaiTro>> GetAllAsync()
+    {
+        return await _context.VaiTros
+            .Where(v => !v.DaXoa)
+            .OrderBy(v => v.MaVaiTro)
+            .ToListAsync();
+    }
+
     public async Task GanQuyenAsync(int vaiTroId, List<int> permissionIds)
     {
         var vaiTro = await _context.VaiTros

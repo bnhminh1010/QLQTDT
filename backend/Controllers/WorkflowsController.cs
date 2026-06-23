@@ -52,6 +52,13 @@ public class WorkflowsController : ControllerBase
             ApiResponse<WorkflowCreateResponse>.Ok(created, "Workflow created successfully"));
     }
 
+    [HttpGet("{id}")]
+    public async Task<ActionResult<ApiResponse<WorkflowListItemDto>>> GetById(int id)
+    {
+        var item = await _workflowService.GetWorkflowByIdAsync(id);
+        return Ok(ApiResponse<WorkflowListItemDto>.Ok(item));
+    }
+
     [HttpPut("{id}")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]

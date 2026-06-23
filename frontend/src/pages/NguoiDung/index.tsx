@@ -10,7 +10,8 @@ import type {
   UserAddFormValues,
   UserEditFormValues,
 } from "./types";
-import { getUsers, createUser, updateUser, deleteUser } from "@/services/adminApi";
+import { getUsers, createUser, updateUser, deleteUser, getAllRoles, getUserRoles, assignUserRole, removeUserRole } from "@/services/adminApi";
+import type { RoleItem, UserRoleInfo } from "@/services/adminApi";
 
 /* ─── Badge maps ──────────────────────────────────────── */
 const VAI_TRO_BADGE: Record<VaiTro, string> = {
@@ -114,14 +115,17 @@ export default function NguoiDung() {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [lockTarget, setLockTarget] = useState<User | null>(null);
   const [disableTarget, setDisableTarget] = useState<User | null>(null);
-  const [detailTab, setDetailTab] = useState<"info" | "history">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "history" | "roles">("info");
   const [pageSizeOpt] = useState(PAGE_SIZE);
+  const [allRoles, setAllRoles] = useState<RoleItem[]>([]);
+  const [userRoles, setUserRoles] = useState<UserRoleInfo[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getUsers({ page: 1, pageSize: 200 });
+      const result = await getUsers({ page: 1, pageSize: 100 });
       const mapped: User[] = result.items.map((u: any) => ({
         id: String(u.id),
         hoTen: u.hoTen,
@@ -143,7 +147,12 @@ export default function NguoiDung() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { getAllRoles().then(setAllRoles).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [search, filterVaiTro, filterTT, sortCol, sortDir]);
+  useEffect(() => {
+    const numId = parseInt(selected.id);
+    if (numId) getUserRoles(numId).then(setUserRoles).catch(() => setUserRoles([]));
+  }, [selected.id]);
 
   const filtered = useMemo(() => {
     let list = data.filter(
@@ -395,10 +404,10 @@ export default function NguoiDung() {
                   </div>
                 </div>
                 <div className="flex border-b border-slate-100">
-                  {(["info", "history"] as const).map((tab) => (
+                  {(["info", "roles", "history"] as const).map((tab) => (
                     <button key={tab} onClick={() => setDetailTab(tab)}
                       className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${detailTab === tab ? "border-b-2 border-blue-600 text-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
-                      {tab === "info" ? "Thông tin" : "Lịch sử"}
+                      {tab === "info" ? "Thông tin" : tab === "roles" ? "Phân quyền" : "Lịch sử"}
                     </button>
                   ))}
                 </div>
@@ -422,6 +431,55 @@ export default function NguoiDung() {
                         <i className="fa-solid fa-trash text-xs" /> Xóa tài khoản
                       </button>
                     </div>
+                  </div>
+                ) : detailTab === "roles" ? (
+                  <div className="p-5 space-y-3">
+                    <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-2">Vai trò hiện tại</p>
+                    {userRoles.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">Chưa có vai trò</p>
+                    ) : (
+                      <div className="space-y-1.5 mb-4">
+                        {userRoles.map((r) => (
+                          <div key={r.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                            <div>
+                              <span className="text-xs font-semibold text-slate-700">{r.tenVaiTro}</span>
+                              {r.tenKhoaPhong && <span className="text-[10px] text-slate-400 ml-1">· {r.tenKhoaPhong}</span>}
+                            </div>
+                            <button onClick={() => removeUserRole(r.id).then(() => {
+                              setUserRoles((prev) => prev.filter((x) => x.id !== r.id));
+                              toast.success("Đã gỡ vai trò");
+                            }).catch(() => toast.error("Gỡ vai trò thất bại"))}
+                              className="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:bg-red-50">
+                              <i className="fa-solid fa-xmark text-xs" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-2">Thêm vai trò</p>
+                    <div className="flex gap-2">
+                      <SelectField value={selectedRoleId} onValueChange={setSelectedRoleId}
+                        options={[{ value: "__empty", label: "-- Chọn --" }, ...allRoles.map((r) => ({ value: String(r.id), label: `${r.tenVaiTro} (${r.maVaiTro})` }))]}
+                        triggerClassName="h-9 flex-1 min-w-0 bg-white text-xs" />
+                      <button onClick={() => {
+                        const roleId = parseInt(selectedRoleId);
+                        if (!roleId) { toast.error("Chọn vai trò"); return; }
+                        const userIdNum = parseInt(selected.id);
+                        if (!userIdNum) { toast.error("User ID không hợp lệ"); return; }
+                        assignUserRole(userIdNum, { khoaPhongId: 1, vaiTroId: roleId })
+                          .then(() => {
+                            toast.success("Đã thêm vai trò");
+                            setSelectedRoleId("");
+                            return getUserRoles(userIdNum);
+                          })
+                          .then(setUserRoles)
+                          .catch(() => toast.error("Gán vai trò thất bại"));
+                      }}
+                        className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1">
+                        <i className="fa-solid fa-plus" /> Gán
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Thay đổi vai trò yêu cầu user đăng nhập lại để cập nhật quyền.</p>
                   </div>
                 ) : (
                   <div className="p-5">

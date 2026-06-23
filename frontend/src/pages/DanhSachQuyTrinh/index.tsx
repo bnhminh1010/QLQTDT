@@ -8,9 +8,15 @@ import http from "@/util/http";
 const HT_BADGE: Record<string, string> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
   "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
+  "Chỉ định thầu tự quyết định LCNT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
   "Đấu thầu rộng rãi": "bg-purple-100 text-purple-700",
+  "Mua sắm trực tiếp": "bg-cyan-100 text-cyan-700",
+  "Chào giá trực tuyến thông thường": "bg-indigo-100 text-indigo-700",
+  "Chào giá trực tuyến rút gọn": "bg-indigo-100 text-indigo-700",
+  "Mua sắm trực tuyến": "bg-teal-100 text-teal-700",
+  "Đặt hàng": "bg-orange-100 text-orange-700",
 };
 
 const PAGE_SIZE = 10;
@@ -20,9 +26,10 @@ type SortDir = "asc" | "desc";
 
 type LocalQuyTrinh = {
   id: string;
+  displayId: string;
   ten: string;
   hinhThuc: string;
-  buocList: any[];
+  soBuoc: number;
   trangThai: string;
   ngayTao: string;
 };
@@ -45,11 +52,12 @@ export default function DanhSachQuyTrinh() {
       const workflows = await getWorkflows();
       const mapped: LocalQuyTrinh[] = workflows.map((w) => ({
         id: String(w.id),
+        displayId: w.maWorkflow || String(w.id),
         ten: w.tenWorkflow,
-        hinhThuc: '',
-        buocList: [],
+        hinhThuc: w.loaiHinhDauThau || '',
+        soBuoc: w.soBuoc,
         trangThai: w.trangThaiHoatDong ? 'Đang hoạt động' : 'Đã tắt',
-        ngayTao: '',
+        ngayTao: w.ngayTao,
       }));
       setList(mapped);
     } catch {
@@ -74,27 +82,24 @@ export default function DanhSachQuyTrinh() {
   }
 
   function handleToggle(qt: LocalQuyTrinh) {
-    const updated: LocalQuyTrinh = {
-      ...qt,
-      trangThai: qt.trangThai === "Đang hoạt động" ? "Đã tắt" : "Đang hoạt động",
-    };
-    setList((prev) => prev.map((x) => (x.id === qt.id ? updated : x)));
-    toast.success(
-      updated.trangThai === "Đang hoạt động"
-        ? "Đã kích hoạt quy trình"
-        : "Đã tắt quy trình",
-    );
+    const nextActive = qt.trangThai !== "Đang hoạt động";
+    http.put(`/workflows/${qt.id}`, { trangThaiHoatDong: nextActive })
+      .then(() => {
+        toast.success(nextActive ? "Đã kích hoạt quy trình" : "Đã tắt quy trình");
+        reload();
+      })
+      .catch(() => toast.error("Cập nhật trạng thái thất bại"));
   }
 
   function handleDelete() {
     if (!deleteTarget) return;
-    const id = parseInt(deleteTarget.id);
-    if (!isNaN(id)) {
-      http.del(`/workflows/${id}`).catch(() => {});
-    }
-    setList((prev) => prev.filter((x) => x.id !== deleteTarget.id));
-    toast.success(`Đã xóa quy trình "${deleteTarget.ten}"`);
-    setDeleteTarget(null);
+    http.del(`/workflows/${deleteTarget.id}`)
+      .then(() => {
+        toast.success(`Đã xóa quy trình "${deleteTarget.ten}"`);
+        setDeleteTarget(null);
+        reload();
+      })
+      .catch(() => toast.error("Xóa quy trình thất bại"));
   }
 
   /* ── Filter + Sort ── */
@@ -115,7 +120,7 @@ export default function DanhSachQuyTrinh() {
       else if (sortField === "ngayTao")
         cmp = new Date(a.ngayTao).getTime() - new Date(b.ngayTao).getTime();
       else if (sortField === "buocList")
-        cmp = a.buocList.length - b.buocList.length;
+        cmp = a.soBuoc - b.soBuoc;
       return sortDir === "asc" ? cmp : -cmp;
     });
 
@@ -290,7 +295,7 @@ export default function DanhSachQuyTrinh() {
                           {qt.ten}
                         </div>
                         <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                          {qt.id}
+                          {qt.displayId}
                         </div>
                       </td>
                       <td className="px-5 py-3">
@@ -302,7 +307,7 @@ export default function DanhSachQuyTrinh() {
                       </td>
                       <td className="px-5 py-3 text-center">
                         <span className="text-sm font-semibold text-slate-700">
-                          {qt.buocList.length}
+                          {qt.soBuoc}
                         </span>
                         <span className="text-xs text-slate-400 ml-1">
                           bước
@@ -319,30 +324,9 @@ export default function DanhSachQuyTrinh() {
                         {new Date(qt.ngayTao).toLocaleDateString("vi-VN")}
                       </td>
                       <td className="px-5 py-3 max-w-[220px]">
-                        <div className="flex flex-wrap gap-1">
-                          {qt.buocList.slice(0, 4).map((b, i) => (
-                            <span
-                              key={b.id}
-                              className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                b.loai === "Bắt đầu"
-                                  ? "bg-emerald-50 text-emerald-600"
-                                  : b.loai === "Kết thúc"
-                                    ? "bg-red-50 text-red-500"
-                                    : "bg-blue-50 text-blue-600"
-                              }`}
-                            >
-                              {i + 1}.{" "}
-                              {b.ten.length > 12
-                                ? b.ten.slice(0, 12) + "…"
-                                : b.ten}
-                            </span>
-                          ))}
-                          {qt.buocList.length > 4 && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                              +{qt.buocList.length - 4}
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-xs text-slate-400">
+                          {qt.soBuoc > 0 ? `${qt.soBuoc} bước cấu hình` : "Chưa có bước"}
+                        </span>
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center justify-center gap-1">

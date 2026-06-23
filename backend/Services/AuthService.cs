@@ -280,6 +280,20 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileDto dto)
+    {
+        var user = await _context.NguoiDungs.FindAsync(userId)
+            ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+
+        if (dto.HoTen != null) user.HoTen = dto.HoTen;
+        if (dto.Email != null) user.Email = dto.Email;
+        if (dto.SoDienThoai != null) user.SoDienThoai = dto.SoDienThoai;
+
+        await _context.SaveChangesAsync();
+
+        return await GetCurrentUserAsync(userId);
+    }
+
     private async Task<List<UserRoleDto>> GetUserRoles(int userId)
     {
         return await _context.NguoiDungKhoaPhongVaiTros

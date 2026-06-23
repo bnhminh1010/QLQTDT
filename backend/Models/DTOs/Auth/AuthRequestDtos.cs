@@ -18,6 +18,13 @@ public class ResetPasswordDto
     public string ConfirmMatKhau { get; set; } = null!;
 }
 
+public class UpdateProfileDto
+{
+    public string? HoTen { get; set; }
+    public string? Email { get; set; }
+    public string? SoDienThoai { get; set; }
+}
+
 public class UpdatePasswordDto
 {
     public string MatKhauHienTai { get; set; } = null!;
