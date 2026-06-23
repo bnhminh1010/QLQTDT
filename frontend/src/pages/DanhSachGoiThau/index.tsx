@@ -398,12 +398,16 @@ export default function DanhSachGoiThau() {
 
   function handleDelete() {
     if (!deleteTarget) return;
-    const remaining = data.filter((r) => r.id !== deleteTarget.id);
-    setData(remaining);
-    if (selected.id === deleteTarget.id && remaining.length > 0)
-      setSelected(remaining[0]);
-    toast.success(`Đã xóa "${deleteTarget.ten}"`);
-    setDeleteTarget(null);
+    const numId = parseInt(deleteTarget.id.replace(/^GT/, ''), 10);
+    if (!numId) { toast.error("ID gói thầu không hợp lệ"); return; }
+    deleteGoiThau(numId).then(() => {
+      const remaining = data.filter((r) => r.id !== deleteTarget.id);
+      setData(remaining);
+      if (selected.id === deleteTarget.id && remaining.length > 0)
+        setSelected(remaining[0]);
+      toast.success(`Đã xóa "${deleteTarget.ten}"`);
+      setDeleteTarget(null);
+    }).catch(() => toast.error("Không thể xóa gói thầu"));
   }
 
   function goToEdit(item: GoiThau) {

@@ -90,4 +90,5 @@ public class GoiThau : IBaseEntity
 
     // Navigation properties
     public HinhThucDauThau? HinhThuc { get; set; }
+    public KhoaPhong? KhoaPhong { get; set; }
 }
