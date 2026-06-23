@@ -462,7 +462,6 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
-        // GoiThau
         modelBuilder.Entity<GoiThau>(entity =>
         {
             entity.ToTable("GoiThau");
@@ -476,7 +475,13 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TrangThaiHoatDong).HasDefaultValue(true);
             entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayCapNhat).HasColumnType("datetime2(3)");
+            entity.Property(e => e.NguonVon).HasMaxLength(200);
+            entity.Property(e => e.LoaiGoiThau).HasMaxLength(100);
             entity.Property(e => e.TheoDoi);
+            entity.HasOne(e => e.HinhThuc)
+                  .WithMany()
+                  .HasForeignKey(e => e.HinhThucId)
+                  .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => e.MaGoiThau).IsUnique();
         });

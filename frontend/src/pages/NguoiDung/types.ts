@@ -1,4 +1,6 @@
-export type VaiTro = "Admin" | "Quản lý" | "Nhân viên";
+export type VaiTro = string;
+export type TenVaiTro = string;
+
 export type TrangThai = "Hoạt động" | "Bị khóa" | "Ngưng hoạt động";
 
 export type User = {
@@ -34,17 +36,9 @@ export type UserEditFormValues = {
   trangThai: TrangThai;
 };
 
-export const PHONG_OPTIONS = [
-  "Ban Giám đốc",
-  "P.Kế hoạch",
-  "P.HCQT",
-  "Khoa Dược",
-  "Khoa Nội",
-  "Khoa Ngoại",
-  "Khoa Xét nghiệm",
-];
-
-export const VAI_TRO_OPTIONS: VaiTro[] = ["Admin", "Quản lý", "Nhân viên"];
+// Fallback empty arrays — real data loaded from API by parent
+export const PHONG_OPTIONS: string[] = [];
+export const VAI_TRO_OPTIONS: string[] = [];
 
 export type AuditEntry = {
   id: string;

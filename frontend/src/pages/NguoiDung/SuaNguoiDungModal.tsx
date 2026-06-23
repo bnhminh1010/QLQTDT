@@ -5,7 +5,9 @@ import { PHONG_OPTIONS, VAI_TRO_OPTIONS } from "./types";
 
 type Props = {
   user: User;
-  existingEmails: string[]; // excludes current user's email
+  existingEmails: string[];
+  khoaPhongOptions: string[];
+  vaiTroOptions: string[];
   onSave: (values: UserEditFormValues) => void;
   onClose: () => void;
 };
@@ -19,6 +21,8 @@ const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 export function SuaNguoiDungModal({
   user,
   existingEmails,
+  khoaPhongOptions,
+  vaiTroOptions,
   onSave,
   onClose,
 }: Props) {
@@ -170,7 +174,7 @@ export function SuaNguoiDungModal({
                 }
                 options={[
                   { value: "__empty", label: "-- Chọn khoa/phòng --" },
-                  ...PHONG_OPTIONS.map((p) => ({ value: p, label: p })),
+                  ...khoaPhongOptions.map((p) => ({ value: p, label: p })),
                 ]}
                 triggerClassName={errors.phong ? inputErrCls : inputCls}
               />
@@ -194,7 +198,7 @@ export function SuaNguoiDungModal({
                 }
                 options={[
                   { value: "__empty", label: "-- Chọn vai trò --" },
-                  ...VAI_TRO_OPTIONS.map((v) => ({ value: v, label: v })),
+                  ...vaiTroOptions.map((v) => ({ value: v, label: v })),
                 ]}
                 triggerClassName={errors.vaiTro ? inputErrCls : inputCls}
               />

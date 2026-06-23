@@ -299,7 +299,7 @@ public class AuthService : IAuthService
         return await _context.NguoiDungKhoaPhongVaiTros
             .Where(r => r.NguoiDungId == userId)
             .Include(r => r.KhoaPhong)
-            .Include(r => r.VaiTro)
+            .Include(r => r.VaiTro).ThenInclude(v => v.NhomVaiTro)
             .Select(r => new UserRoleDto
             {
                 KhoaPhongId = r.KhoaPhongId,
@@ -307,7 +307,8 @@ public class AuthService : IAuthService
                 MaKhoaPhong = r.KhoaPhong != null ? r.KhoaPhong.MaKhoaPhong : null,
                 VaiTroId = r.VaiTroId,
                 TenVaiTro = r.VaiTro.TenVaiTro,
-                LaChinh = r.LaChinh
+                LaChinh = r.LaChinh,
+                DoUuTien = r.VaiTro.NhomVaiTro != null ? r.VaiTro.NhomVaiTro.DoUuTien : null
             })
             .ToListAsync();
     }

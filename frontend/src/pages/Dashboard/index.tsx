@@ -2,13 +2,19 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SelectField } from "@/components/ui/select";
 import { searchBaoCaoGoiThau } from "@/services/baoCaoApi";
+import {
+  getGoiThauTrangThaiBarColor,
+  toGoiThauTrangThaiLabel,
+  type GoiThauBarColor,
+  type GoiThauTrangThaiLabel,
+} from "@/util/goiThauTrangThai";
 
 /* ─ RBAC ─ */
 const CAN_CREATE = true;
 const CAN_APPROVE = true;
 
-type BadgeStatus = "Đang xử lý" | "Hoàn thành" | "Trễ hạn" | "Chờ duyệt";
-type BarColor = "blue" | "green" | "red" | "amber";
+type BadgeStatus = GoiThauTrangThaiLabel;
+type BarColor = GoiThauBarColor;
 type DotState = "done" | "warn" | "idle";
 type StepStatus =
   | "Hoàn tất"
@@ -48,16 +54,21 @@ type ParallelInfo = {
 };
 
 const BADGE: Record<BadgeStatus, string> = {
+  "Nháp": "bg-purple-100 text-purple-600",
+  "Chờ duyệt": "bg-amber-100 text-amber-700",
   "Đang xử lý": "bg-blue-100 text-blue-700",
   "Hoàn thành": "bg-emerald-100 text-emerald-700",
   "Trễ hạn": "bg-red-100 text-red-600",
-  "Chờ duyệt": "bg-amber-100 text-amber-700",
+  "Đã hủy": "bg-slate-100 text-slate-500",
+  "Đã chọn nhà thầu": "bg-emerald-100 text-emerald-700",
 };
 const BAR_COLOR: Record<BarColor, string> = {
   blue: "bg-blue-500",
   green: "bg-emerald-500",
   red: "bg-red-500",
   amber: "bg-amber-500",
+  slate: "bg-slate-400",
+  purple: "bg-purple-400",
 };
 const DOT_CLS: Record<DotState, string> = {
   done: "bg-emerald-500 text-white",
@@ -143,15 +154,15 @@ export default function Dashboard() {
       setLoading(true);
       try {
         const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 50 });
-        const rows: TableRow[] = result.items.map((item) => ({
+        const rows: TableRow[] = result.items.map((item) => {
+          const status = toGoiThauTrangThaiLabel(item.trangThai);
+          const color = getGoiThauTrangThaiBarColor(item.trangThai);
+          return {
           code: item.maGoiThau || '',
           name: item.tenGoiThau || '',
           unit: item.tenKhoaPhong || '',
-          status: item.trangThai === 'HOAN_THANH' ? 'Hoàn thành' as BadgeStatus :
-                  item.trangThai === 'DANG_XU_LY' ? 'Đang xử lý' as BadgeStatus :
-                  item.trangThai === 'QUA_HAN' ? 'Trễ hạn' as BadgeStatus :
-                  'Chờ duyệt' as BadgeStatus,
-          color: 'blue' as BarColor,
+          status,
+          color,
           pct: `${item.phanTramHoanThanh}%`,
           txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
           nguonVon: '',
@@ -166,7 +177,8 @@ export default function Dashboard() {
           currentResult: '',
           progressStatus: 'Đúng hạn' as const,
           steps: [],
-        }));
+          };
+        });
         setTableRows(rows);
       } catch (e) {
         console.error(e);
@@ -298,7 +310,7 @@ export default function Dashboard() {
                 "fa-box-archive",
                 "gray",
                 "TỔNG GÓI THẦU",
-                filteredRows.length,
+                tableRows.length,
                 "gói thầu",
                 "text-slate-800",
                 "",
@@ -307,7 +319,7 @@ export default function Dashboard() {
                 "fa-hourglass-half",
                 "blue",
                 "ĐANG XỬ LÝ",
-                filteredRows.filter((r) => r.status === "Đang xử lý").length,
+                tableRows.filter((r) => r.status === "Đang xử lý").length,
                 "gói",
                 "text-blue-600",
                 "Đang xử lý",
@@ -316,7 +328,7 @@ export default function Dashboard() {
                 "fa-triangle-exclamation",
                 "red",
                 "TRỄ HẠN",
-                filteredRows.filter((r) => r.status === "Trễ hạn").length,
+                tableRows.filter((r) => r.status === "Trễ hạn").length,
                 "cần xử lý gấp",
                 "text-red-500",
                 "Trễ hạn",
@@ -325,7 +337,7 @@ export default function Dashboard() {
                 "fa-circle-check",
                 "green",
                 "HOÀN THÀNH",
-                filteredRows.filter((r) => r.status === "Hoàn thành").length,
+                tableRows.filter((r) => r.status === "Hoàn thành").length,
                 "gói",
                 "text-emerald-600",
                 "Hoàn thành",

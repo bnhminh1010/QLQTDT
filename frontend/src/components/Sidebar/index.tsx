@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getCurrentUserApi, clearStoredToken } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
+import { useAccessLevel, canAccess } from "@/hooks/useAccessLevel";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
@@ -33,6 +34,11 @@ export default function Sidebar() {
   const hoTen = user?.hoTen ?? "?";
   const initial = hoTen.charAt(0).toUpperCase();
   const donVi = user?.roles?.[0]?.tenKhoaPhong ?? "";
+  const level = useAccessLevel(user);
+
+  function hasAccess(path: string) {
+    return canAccess(path, level);
+  }
 
   return (
     <aside className="w-16 lg:w-[220px] bg-slate-950 flex flex-col fixed top-0 left-0 bottom-0 z-[100] overflow-y-auto overflow-x-hidden">
@@ -71,60 +77,60 @@ export default function Sidebar() {
           ĐẤU THẦU
         </div>
         <ul>
-          <li>
+          {hasAccess("/danh-sach-goi-thau") && <li>
             <Link to="/danh-sach-goi-thau" className={link("/danh-sach-goi-thau")}>
               <i className="fa-solid fa-list w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Danh sách gói thầu</span>
             </Link>
-          </li>
-          <li>
+          </li>}
+          {hasAccess("/tao-goi-thau") && <li>
             <Link to="/tao-goi-thau" className={link("/tao-goi-thau")}>
               <i className="fa-solid fa-plus-circle w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Tạo gói thầu</span>
             </Link>
-          </li>
-          <li>
+          </li>}
+          {hasAccess("/danh-muc-thuc-hien") && <li>
             <Link to="/danh-muc-thuc-hien" className={link("/danh-muc-thuc-hien")}>
               <i className="fa-solid fa-bars-staggered w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Danh mục thực hiện</span>
             </Link>
-          </li>
-          <li>
+          </li>}
+          {hasAccess("/danh-sach-quy-trinh") && <li>
             <Link to="/danh-sach-quy-trinh" className={link("/danh-sach-quy-trinh")}>
               <i className="fa-solid fa-diagram-project w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Danh sách quy trình</span>
             </Link>
-          </li>
-          <li>
+          </li>}
+          {hasAccess("/lap-quy-trinh") && <li>
             <Link to="/lap-quy-trinh" className={link("/lap-quy-trinh")}>
               <i className="fa-solid fa-plus-square w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Lập quy trình</span>
             </Link>
-          </li>
+          </li>}
         </ul>
 
         <div className="hidden lg:block text-[10px] font-bold text-[#334155] tracking-[.09em] px-4 pt-3.5 pb-1">
           HỆ THỐNG
         </div>
         <ul>
-          <li>
+          {hasAccess("/bao-cao") && <li>
             <Link to="/bao-cao" className={link("/bao-cao")}>
               <i className="fa-solid fa-chart-bar w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Báo cáo</span>
             </Link>
-          </li>
-          <li>
+          </li>}
+          {hasAccess("/khoa-phong") && <li>
             <Link to="/khoa-phong" className={link("/khoa-phong")}>
               <i className="fa-solid fa-building w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Khoa/phòng</span>
             </Link>
-          </li>
-          <li>
+          </li>}
+          {hasAccess("/nguoi-dung") && <li>
             <Link to="/nguoi-dung" className={link("/nguoi-dung")}>
               <i className="fa-solid fa-user w-4 text-center shrink-0" />
               <span className="hidden lg:inline">Người dùng</span>
             </Link>
-          </li>
+          </li>}
           <li>
             <button
               type="button"

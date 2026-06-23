@@ -95,13 +95,14 @@ export type UserRoleInfo = {
 };
 
 export async function getAllRoles(): Promise<RoleItem[]> {
-  const res = await http.get<RoleItem[]>("/vai-tro");
-  return res;
+  const res = await http.get<RoleItem[] | ApiResponse<RoleItem[]>>("/vai-tro");
+  // Backend VaiTroController returns List<VaiTro> directly (no ApiResponse wrapper)
+  return Array.isArray(res) ? res : (res as ApiResponse<RoleItem[]>).data ?? [];
 }
 
 export async function getUserRoles(userId: number): Promise<UserRoleInfo[]> {
-  const res = await http.get<UserRoleInfo[]>(`/users/${userId}/roles`);
-  return res;
+  const res = await http.get<ApiResponse<UserRoleInfo[]>>(`/users/${userId}/roles`);
+  return res.data ?? [];
 }
 
 export async function assignUserRole(userId: number, data: UserRoleAssign): Promise<void> {

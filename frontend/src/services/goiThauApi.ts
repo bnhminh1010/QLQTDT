@@ -41,6 +41,10 @@ export type GoiThauDetail = {
   tenNguoiTao?: string;
   ngayTao: string;
   ngayCapNhat?: string;
+  loaiGoiThau?: string;
+  canCuApDungRutGon?: string;
+  theoDoi?: string;
+  workflowId?: number;
 };
 
 export type CreateGoiThauRequest = {
@@ -55,11 +59,22 @@ export type CreateGoiThauFullRequest = {
   moTa?: string;
   nganSach?: number;
   khoaPhongId?: number;
-  hinhThucId?: number;
+  hinhThucId: number;
   nguonVon?: string;
+  loaiGoiThau?: string;
+  theoDoi?: string;
 };
 
-export type UpdateGoiThauRequest = CreateGoiThauRequest;
+export type UpdateGoiThauFullRequest = {
+  tenGoiThau: string;
+  moTa?: string;
+  nganSach?: number;
+  hinhThucId?: number;
+  nguonVon?: string;
+  loaiGoiThau?: string;
+  canCuApDungRutGon?: string;
+  theoDoi?: string;
+};
 
 /* ─── APIs ──────────────────────────────────────────────── */
 
@@ -73,15 +88,9 @@ export const TRANG_THAI_GOI_THAU = {
 } as const;
 
 export function resolveTrangThaiLabel(tt: string): string {
-  const map: Record<string, string> = {
-    DU_THAO: "Nháp",
-    DANG_XU_LY: "Đang xử lý",
-    HOAN_THANH: "Hoàn thành",
-    HUY_BO: "Đã hủy",
-    QUA_HAN: "Trễ hạn",
-    DA_CHON_NHA_THAU: "Đã chọn nhà thầu",
-  };
-  return map[tt] ?? tt;
+  // delegate to shared mapper
+  const { toGoiThauTrangThaiLabel } = require("@/util/goiThauTrangThai");
+  return toGoiThauTrangThaiLabel(tt);
 }
 
 export async function searchGoiThau(params: {
@@ -104,7 +113,17 @@ export async function createGoiThau(data: CreateGoiThauRequest): Promise<GoiThau
   return res.data;
 }
 
-export async function updateGoiThau(id: number, data: UpdateGoiThauRequest): Promise<GoiThauDetail> {
+export async function createGoiThauFull(data: CreateGoiThauFullRequest): Promise<GoiThauDetail> {
+  const res = await http.post<ApiResponse<GoiThauDetail>>("/goi-thau", data);
+  return res.data;
+}
+
+export async function updateGoiThau(id: number, data: CreateGoiThauRequest): Promise<GoiThauDetail> {
+  const res = await http.put<ApiResponse<GoiThauDetail>>(`/goi-thau/${id}`, data);
+  return res.data;
+}
+
+export async function updateGoiThauFull(id: number, data: UpdateGoiThauFullRequest): Promise<GoiThauDetail> {
   const res = await http.put<ApiResponse<GoiThauDetail>>(`/goi-thau/${id}`, data);
   return res.data;
 }

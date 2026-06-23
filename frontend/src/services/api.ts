@@ -21,7 +21,7 @@ export type LoginUserDto = {
   ngayCapNhat?: string;
   avatarUrl?: string;
   soDienThoai?: string;
-  roles: { khoaPhongId?: number; tenKhoaPhong?: string; maKhoaPhong?: string; vaiTroId: number; tenVaiTro: string; laChinh: boolean }[];
+  roles: { khoaPhongId?: number; tenKhoaPhong?: string; maKhoaPhong?: string; vaiTroId: number; tenVaiTro: string; laChinh: boolean; doUuTien?: number }[];
   quyen: string[];
 };
 

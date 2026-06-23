@@ -18,6 +18,11 @@ import LapQuyTrinh from "@/pages/LapQuyTrinh";
 import DanhSachQuyTrinh from "@/pages/DanhSachQuyTrinh";
 import UserProfile from "@/pages/UserProfile";
 import XuLyBuocGoiThau from "@/pages/XuLyBuocGoiThau";
+import RouteGuard from "@/components/RouteGuard";
+
+function Guarded({ children }: { children: React.ReactNode }) {
+  return <RouteGuard>{children}</RouteGuard>;
+}
 
 function AppRoutes() {
   return (
@@ -30,17 +35,17 @@ function AppRoutes() {
       </Route>
       {/* DefaultLayout — các trang sau đăng nhập */}
       <Route element={<DefaultLayout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/danh-sach-goi-thau" element={<DanhSachGoiThau />} />
-        <Route path="/tao-goi-thau" element={<TaoGoiThau />} />
-        <Route path="/xu-ly-buoc/:id" element={<XuLyBuocGoiThau />} />
-        <Route path="/danh-muc-thuc-hien" element={<DanhMucThucHien />} />
-        <Route path="/lap-quy-trinh" element={<LapQuyTrinh />} />
-        <Route path="/danh-sach-quy-trinh" element={<DanhSachQuyTrinh />} />
-        <Route path="/khoa-phong" element={<KhoaPhong />} />
-        <Route path="/nguoi-dung" element={<NguoiDung />} />
-        <Route path="/bao-cao" element={<BaoCao />} />
-        <Route path="/profile" element={<UserProfile />} />
+        <Route path="/dashboard" element={<Guarded><Dashboard /></Guarded>} />
+        <Route path="/danh-sach-goi-thau" element={<Guarded><DanhSachGoiThau /></Guarded>} />
+        <Route path="/tao-goi-thau" element={<Guarded><TaoGoiThau /></Guarded>} />
+        <Route path="/xu-ly-buoc/:id" element={<Guarded><XuLyBuocGoiThau /></Guarded>} />
+        <Route path="/danh-muc-thuc-hien" element={<Guarded><DanhMucThucHien /></Guarded>} />
+        <Route path="/lap-quy-trinh" element={<Guarded><LapQuyTrinh /></Guarded>} />
+        <Route path="/danh-sach-quy-trinh" element={<Guarded><DanhSachQuyTrinh /></Guarded>} />
+        <Route path="/khoa-phong" element={<Guarded><KhoaPhong /></Guarded>} />
+        <Route path="/nguoi-dung" element={<Guarded><NguoiDung /></Guarded>} />
+        <Route path="/bao-cao" element={<Guarded><BaoCao /></Guarded>} />
+        <Route path="/profile" element={<Guarded><UserProfile /></Guarded>} />
       </Route>
     </Routes>
   );

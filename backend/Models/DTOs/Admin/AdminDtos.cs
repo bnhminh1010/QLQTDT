@@ -18,6 +18,7 @@ public class AdminUserListDto
 /// </summary>
 public class AdminUserItemDto
 {
+    public int Id { get; set; }
     public Guid IdCongKhai { get; set; }
     public string TenDangNhap { get; set; } = null!;
     public string HoTen { get; set; } = null!;

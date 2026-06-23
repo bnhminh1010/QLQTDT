@@ -1,4 +1,5 @@
 import * as yup from "yup";
+import { getRutGonThreshold, isRutGonHinhThuc } from "@/util/goiThauRutGonValidation";
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 
@@ -22,8 +23,6 @@ const passwordRules = yup
   .matches(/[0-9]/, "Mật khẩu phải có ít nhất 1 chữ số")
   .matches(/[^A-Za-z0-9]/, "Mật khẩu phải có ít nhất 1 ký tự đặc biệt");
 
-// loginSchema chỉ validate required — không tiết lộ password policy ở màn đăng nhập.
-// Kiểm tra đúng/sai credentials là việc của server (hoặc mock bên dưới).
 export const loginSchema = yup.object({
   username: yup
     .string()
@@ -36,18 +35,14 @@ export const loginSchema = yup.object({
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 
-// Regex cho phép chữ cái Latin + tiếng Việt (Unicode block \u00C0-\u024F + \u1E00-\u1EFF) và khoảng trắng
-const FULL_NAME_REGEX = /^[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF\s]+$/;
+const FULL_NAME_REGEX = /^[a-zA-ZÀ-ɏḀ-ỿ\s]+$/;
 
 export const registerSchema = yup.object({
   username: usernameRules,
   ho: yup
     .string()
     .required("Vui lòng nhập họ và tên đệm")
-    .matches(
-      FULL_NAME_REGEX,
-      "Họ tên đệm không được chứa số hoặc ký tự đặc biệt",
-    ),
+    .matches(FULL_NAME_REGEX, "Họ tên đệm không được chứa số hoặc ký tự đặc biệt"),
   ten: yup
     .string()
     .required("Vui lòng nhập tên")
@@ -67,10 +62,7 @@ export const registerSchema = yup.object({
   maNhanVien: yup
     .string()
     .required("Vui lòng nhập mã nhân viên")
-    .matches(
-      /^[A-Za-z0-9]+$/,
-      "Mã nhân viên chỉ được chứa chữ cái và chữ số, không có ký tự đặc biệt",
-    ),
+    .matches(/^[A-Za-z0-9]+$/, "Mã nhân viên chỉ được chứa chữ cái và chữ số, không có ký tự đặc biệt"),
   phong: yup.string().required("Vui lòng chọn phòng/khoa"),
   vaiTro: yup.string().required("Vui lòng chọn vai trò"),
   lyDo: yup.string().default(""),
@@ -138,6 +130,18 @@ export const taoGoiThauSchema = yup.object({
       "greater-than-zero",
       "Giá trị gói thầu phải lớn hơn 0",
       (val) => Number((val ?? "").replace(/[^\d]/g, "")) > 0,
+    )
+    .test(
+      "budget-threshold-rut-gon",
+      "Giá trị gói thầu vượt hạn mức áp dụng quy trình rút gọn",
+      (val, ctx) => {
+        const hinhThuc = ctx.parent.hinhThuc as string | undefined;
+        const loaiGoiThau = ctx.parent.loaiGoiThau as string | undefined;
+        if (!hinhThuc || !isRutGonHinhThuc(hinhThuc)) return true;
+        const num = Number((val ?? "").replace(/[^\d]/g, ""));
+        const hanMuc = getRutGonThreshold(loaiGoiThau) ?? Infinity;
+        return num <= hanMuc;
+      },
     ),
   nguonVon: yup.string().required("Vui lòng chọn nguồn vốn"),
   donVi: yup.string().required("Vui lòng chọn đơn vị đề xuất"),
@@ -146,4 +150,13 @@ export const taoGoiThauSchema = yup.object({
     .string()
     .default("")
     .max(1000, "Ghi chú không được vượt quá 1000 ký tự"),
+  canCuApDungRutGon: yup
+    .string()
+    .default("")
+    .max(1000, "Căn cứ áp dụng rút gọn không được vượt quá 1000 ký tự")
+    .when("hinhThuc", ([hinhThuc], schema) =>
+      isRutGonHinhThuc(hinhThuc as string)
+        ? schema.required("Vui lòng nhập căn cứ áp dụng quy trình rút gọn")
+        : schema,
+    ),
 });

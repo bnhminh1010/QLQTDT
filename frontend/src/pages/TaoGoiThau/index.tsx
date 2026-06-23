@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
 import { taoGoiThauSchema } from "@/util/validate";
+import { getRutGonThreshold, isRutGonHinhThuc } from "@/util/goiThauRutGonValidation";
 import type { InferType } from "yup";
 import { useFileAttachment } from "@/hooks/useFileAttachment";
 import {
@@ -23,20 +24,16 @@ import {
   addGoiThau,
   generateGoiThauId,
   formatVND,
-  getGoiThauById,
   updateGoiThau,
 } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau, HinhThuc, LoaiGoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
 import { getWorkflows } from "@/services/workflowApi";
 import type { WorkflowItem } from "@/services/workflowApi";
+import { getCurrentUserApi } from "@/services/api";
+import type { LoginUserDto } from "@/services/api";
 
-/* ─ RBAC ─ */
-const MOCK_CURRENT_ROLE = "Admin";
-const CAN_CREATE = MOCK_CURRENT_ROLE === "Admin" || MOCK_CURRENT_ROLE === "Quản lý" || MOCK_CURRENT_ROLE === "Nhân viên";
-const MOCK_CURRENT_USER = {
-  hoTen: "Nguyễn Mạnh Tuấn",
-  donVi: "P.HCQT",
-};
+/* ─ Auth ─ */
+const CAN_CREATE = true;
 
 function formatDisplayNumber(value?: string | number): string {
   if (!value) return "";
@@ -203,7 +200,7 @@ export default function TaoGoiThau() {
   const editId = searchParams.get("id") ?? "";
   const isEditMode = searchParams.get("mode") === "edit" && !!editId;
   const locationState = location.state as LocationState | null;
-  const [editingGoiThau, setEditingGoiThau] = useState<GoiThau | undefined>(
+  const [editingGoiThau] = useState<GoiThau | undefined>(
     isEditMode ? locationState?.goiThau : undefined
   );
   const canEditCurrent =
@@ -214,22 +211,17 @@ export default function TaoGoiThau() {
   const [selectedQTSteps, setSelectedQTSteps] = useState<{ tenBuoc: string; donVi: string; slaNgay: number }[]>([]);
   const [theoDoiOpen, setTheoDoiOpen] = useState(false);
   const [theoDoiList, setTheoDoiList] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
 
-  // Load edit data async
+  // Load current user + workflows on mount
   useEffect(() => {
-    if (isEditMode && editId && !locationState?.goiThau) {
-      (async () => {
-        const item = await getGoiThauById(editId);
-        setEditingGoiThau(item);
-      })();
-    }
-  }, [editId, isEditMode, locationState?.goiThau]);
-
-  useEffect(() => {
+    getCurrentUserApi().then(setCurrentUser).catch(() => {});
     getWorkflows().then((list) => setQuyTrinhList(list.filter((w) => w.trangThaiHoatDong))).catch(() => {});
   }, []);
+
+  const donViDeXuat = editingGoiThau?.donVi || currentUser?.roles?.find(r => r.laChinh)?.tenKhoaPhong || "";
 
   const {
     register,
@@ -240,7 +232,7 @@ export default function TaoGoiThau() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: yupResolver(taoGoiThauSchema),
-    defaultValues: { donVi: MOCK_CURRENT_USER.donVi, ghiChu: "", loaiGoiThau: "", hinhThuc: "", ngayTao: new Date().toISOString().slice(0, 10) },
+    defaultValues: { donVi: "", ghiChu: "", canCuApDungRutGon: "", loaiGoiThau: "", hinhThuc: "", ngayTao: new Date().toISOString().slice(0, 10) },
   });
 
   const watched = watch();
@@ -253,6 +245,11 @@ export default function TaoGoiThau() {
       shouldValidate: Boolean(digits),
     });
   }
+  const giaTriNum = Number((watched.giaTriStr ?? "").replace(/[^\d]/g, "")) || 0;
+  const isRutGon = isRutGonHinhThuc(watched.hinhThuc);
+  const hanMucHienTai = isRutGon ? getRutGonThreshold(watched.loaiGoiThau) : null;
+  const overBudget = hanMucHienTai !== null && giaTriNum > hanMucHienTai;
+
   const selectedLoaiGoiThau = watched.loaiGoiThau as LoaiGoiThau | "";
   const filteredQuyTrinhOptions = selectedLoaiGoiThau
     ? QUY_TRINH_BY_LOAI[selectedLoaiGoiThau]
@@ -343,9 +340,10 @@ export default function TaoGoiThau() {
       hinhThuc: editingGoiThau.hinhThuc,
       nguonVon: editingGoiThau.detail.nguonVon,
       giaTriStr: formatDisplayNumber(editingGoiThau.giaTriStr || editingGoiThau.giaTriNum),
-      donVi: editingGoiThau.donVi || MOCK_CURRENT_USER.donVi,
+      donVi: editingGoiThau.donVi || donViDeXuat,
       ngayTao: toDateInputValue(editingGoiThau.detail.ngayTao),
-      ghiChu: "",
+      ghiChu: editingGoiThau.ghiChu ?? "",
+      canCuApDungRutGon: editingGoiThau.canCuApDungRutGon ?? "",
     });
     setTheoDoiList(editingGoiThau.theoDoi ?? []);
   }, [canEditCurrent, editingGoiThau, isEditMode, navigate, reset]);
@@ -356,6 +354,8 @@ export default function TaoGoiThau() {
     return {
       id: editingGoiThau?.id ?? generateGoiThauId(),
       ten: data.ten.trim(),
+      ghiChu: data.ghiChu?.trim() || "",
+      canCuApDungRutGon: data.canCuApDungRutGon?.trim() || "",
       loaiGoiThau: data.loaiGoiThau as LoaiGoiThau,
       hinhThuc: data.hinhThuc as HinhThuc,
       theoDoi: theoDoiList,
@@ -373,8 +373,26 @@ export default function TaoGoiThau() {
     };
   }
 
+  function validateRutGonOrToast(data: FormData) {
+    const result = (() => {
+      const { validateRutGonGoiThau } = require("@/util/goiThauRutGonValidation");
+      return validateRutGonGoiThau({
+        hinhThuc: data.hinhThuc,
+        loaiGoiThau: data.loaiGoiThau,
+        giaTriStr: data.giaTriStr,
+        canCuApDungRutGon: data.canCuApDungRutGon,
+      });
+    })();
+    if (!result.valid) {
+      toast.error(result.message);
+      return false;
+    }
+    return true;
+  }
+
   /* ─ Gửi đề xuất ─ */
   function onSubmit(data: FormData) {
+    if (!validateRutGonOrToast(data)) return;
     setPendingSubmitData(data);
     setConfirmOpen(true);
   }
@@ -396,6 +414,7 @@ export default function TaoGoiThau() {
 
   function saveChanges(values: FormData) {
     if (!editingGoiThau) return;
+    if (!validateRutGonOrToast(values)) return;
     setSavingChanges(true);
     updateGoiThau(buildGoiThauFromForm(values, editingGoiThau.trangThai));
     toast.success("Đã lưu thay đổi gói thầu");
@@ -409,27 +428,19 @@ export default function TaoGoiThau() {
       toast.error("Vui lòng nhập tên gói thầu trước khi lưu nháp");
       return;
     }
+    if (!values.loaiGoiThau) {
+      toast.error("Vui lòng chọn loại gói thầu trước khi lưu nháp");
+      return;
+    }
+    if (!values.hinhThuc) {
+      toast.error("Vui lòng chọn quy trình đấu thầu trước khi lưu nháp");
+      return;
+    }
+    if (!validateRutGonOrToast(values)) return;
+
     setSavingDraft(true);
-    const digits = String(values.giaTriStr ?? "").replace(/[^\d]/g, "");
-    const num = parseInt(digits, 10) || 0;
-    addGoiThau({
-      id: generateGoiThauId(),
-      ten: values.ten.trim(),
-      loaiGoiThau: (values.loaiGoiThau || "Hàng hóa") as LoaiGoiThau,
-      hinhThuc: (values.hinhThuc || "Chỉ định thầu rút gọn") as HinhThuc,
-      theoDoi: theoDoiList,
-      giaTriStr: digits || "0",
-      giaTriNum: num,
-      donVi: values.donVi || "—",
-      trangThai: "Nháp",
-      detail: {
-        nguonVon: values.nguonVon || "—",
-        ngayTao: values.ngayTao || "—",
-        hanHT: "—",
-        pct: "0%",
-        buoc: "0/14",
-      },
-    });
+    const item = buildGoiThauFromForm(values, "Nháp");
+    addGoiThau(item);
     toast.success("Gói thầu đã được lưu nháp thành công");
     navigate("/danh-sach-goi-thau");
   }
@@ -706,6 +717,12 @@ export default function TaoGoiThau() {
                       {errors.giaTriStr.message}
                     </p>
                   )}
+                  {overBudget && hanMucHienTai && (
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                      <i className="fa-solid fa-triangle-exclamation text-[10px]" />
+                      Giá trị vượt quá hạn mức {hanMucHienTai.toLocaleString("vi-VN")} VND cho phép của hình thức đấu thầu này
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>
@@ -718,7 +735,7 @@ export default function TaoGoiThau() {
                     className={`${cls("donVi")} cursor-not-allowed text-slate-700`}
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Tự động lấy từ tài khoản đăng nhập: {MOCK_CURRENT_USER.hoTen}
+                    Tự động lấy từ tài khoản đăng nhập
                   </p>
                   {errors.donVi && (
                     <p className="text-xs text-red-500 mt-1">
@@ -727,6 +744,31 @@ export default function TaoGoiThau() {
                   )}
                 </div>
               </div>
+
+              {isRutGon && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <label className={labelCls}>
+                    Căn cứ áp dụng rút gọn <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="VD: Gói thầu thuộc hạn mức áp dụng quy trình rút gọn theo SRS/quy định nội bộ..."
+                    {...register("canCuApDungRutGon")}
+                    className={`${errors.canCuApDungRutGon ? inputErrCls : inputCls} resize-none bg-white`}
+                  />
+                  {errors.canCuApDungRutGon ? (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.canCuApDungRutGon.message}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-700 mt-1">
+                      {hanMucHienTai
+                        ? `Ngưỡng tối đa theo loại gói thầu: ${hanMucHienTai.toLocaleString("vi-VN")} VND.`
+                        : "Vui lòng chọn loại gói thầu để xác định hạn mức rút gọn."}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Đơn vị/Vai trò theo dõi */}
               <div>
@@ -1059,6 +1101,9 @@ export default function TaoGoiThau() {
                     "Theo dõi",
                     theoDoiList.length > 0 ? `${theoDoiList.length} mục` : "—",
                   ],
+                  ...(isRutGon
+                    ? [["Căn cứ rút gọn", watched.canCuApDungRutGon || "—"] as [string, string]]
+                    : []),
                   ["Ngày tạo", watched.ngayTao || "—"],
                 ].map(([lbl, val]) => (
                   <div key={lbl} className="flex justify-between gap-3 text-xs">

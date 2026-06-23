@@ -68,6 +68,7 @@ const BADGE: Record<TrangThai, string> = {
   "Chờ duyệt": "bg-amber-100 text-amber-700",
   "Đã hủy": "bg-slate-100 text-slate-500",
   "Nháp": "bg-purple-100 text-purple-600",
+  "Đã chọn nhà thầu": "bg-emerald-100 text-emerald-700",
 };
 const HT_BADGE: Partial<Record<HinhThuc, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
@@ -89,6 +90,7 @@ const BAR_COLOR: Record<TrangThai, string> = {
   "Chờ duyệt": "bg-amber-500",
   "Đã hủy": "bg-slate-400",
   "Nháp": "bg-purple-400",
+  "Đã chọn nhà thầu": "bg-emerald-400",
 };
 const DOT_CLS: Record<DotState, string> = {
   done: "bg-emerald-500 text-white",
@@ -861,11 +863,7 @@ export default function DanhSachGoiThau() {
               onValueChange={(value) => setFilterHT(value === "__all" ? "" : value)}
               options={[
                 { value: "__all", label: "Tất cả hình thức" },
-                { value: "Chỉ định thầu rút gọn", label: "Chỉ định thầu rút gọn" },
-                { value: "Chỉ định thầu tự quyết định", label: "Chỉ định thầu tự quyết định" },
-                { value: "Chỉ định thầu thông thường", label: "Chỉ định thầu thông thường" },
-                { value: "Chào hàng cạnh tranh", label: "Chào hàng cạnh tranh" },
-                { value: "Đấu thầu rộng rãi", label: "Đấu thầu rộng rãi" },
+                ...Array.from(new Set(data.map((r) => r.hinhThuc).filter(Boolean))).sort().map((ht) => ({ value: ht, label: ht })),
               ]}
               triggerClassName="h-[42px] min-w-[190px] bg-white"
             />

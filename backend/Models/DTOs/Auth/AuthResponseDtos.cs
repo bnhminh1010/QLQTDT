@@ -23,6 +23,7 @@ public class UserRoleDto
     public int VaiTroId { get; set; }
     public string TenVaiTro { get; set; } = null!;
     public bool LaChinh { get; set; }
+    public int? DoUuTien { get; set; }
 }
 
 public class LoginResponseDto

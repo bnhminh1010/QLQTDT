@@ -3,22 +3,17 @@ import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import { ThemKhoaPhongModal } from "./ThemKhoaPhongModal";
 import { SuaKhoaPhongModal } from "./SuaKhoaPhongModal";
-import type { Phong, LoaiPhong, TrangThai, PhongFormValues } from "./types";
+import type { Phong, TrangThai, PhongFormValues } from "./types";
 import { getKhoaPhongs, createKhoaPhong, updateKhoaPhong, deleteKhoaPhong } from "@/services/adminApi";
 
 /* ─── Badge maps ──────────────────────────────────────── */
-const LOAI_BADGE: Record<string, string> = {
-  "Khoa lâm sàng": "bg-blue-100 text-blue-700",
-  "Khoa cận lâm sàng": "bg-purple-100 text-purple-700",
-  "Phòng chức năng": "bg-slate-100 text-slate-600",
-};
 const TRANG_THAI_BADGE: Record<string, string> = {
   "Đang hoạt động": "bg-emerald-100 text-emerald-700",
   "Ngưng hoạt động": "bg-red-100 text-red-600",
 };
 
 const PAGE_SIZE = 8;
-type SortCol = "ten" | "soNhanVien" | "soGoiThau";
+type SortCol = "ten" | "ma";
 
 /* ─── Confirm modal ───────────────────────────────────── */
 type ConfirmProps = { title: string; message: string; confirmLabel: string; onConfirm: () => void; onClose: () => void; danger?: boolean };
@@ -49,11 +44,9 @@ function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
 export default function KhoaPhong() {
   const [data, setData] = useState<Phong[]>([]);
   const [selected, setSelected] = useState<Phong>(() => ({
-    id: "", ten: "", loai: "Khoa lâm sàng", truongKhoa: "", soNhanVien: 0, soGoiThau: 0,
-    email: "", sdt: "", trangThai: "Đang hoạt động", donViCha: "", moTa: "",
+    id: "", ten: "", ma: "", trangThai: "Đang hoạt động",
   }));
   const [search, setSearch] = useState("");
-  const [filterLoai, setFilterLoai] = useState("");
   const [filterTT, setFilterTT] = useState("");
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -69,10 +62,8 @@ export default function KhoaPhong() {
     try {
       const items = await getKhoaPhongs();
       const mapped: Phong[] = items.map((k: any) => ({
-        id: String(k.id), ten: k.tenKhoaPhong, loai: "Khoa lâm sàng" as LoaiPhong,
-        truongKhoa: "", soNhanVien: 0, soGoiThau: 0, email: "", sdt: "",
+        id: String(k.id), ten: k.tenKhoaPhong, ma: k.maKhoaPhong || "",
         trangThai: k.trangThaiHoatDong ? "Đang hoạt động" as TrangThai : "Ngưng hoạt động" as TrangThai,
-        donViCha: "", moTa: "",
       }));
       setData(mapped);
       if (mapped.length > 0) setSelected(mapped[0]);
@@ -81,24 +72,20 @@ export default function KhoaPhong() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setPage(1); }, [search, filterLoai, filterTT, sortCol, sortDir]);
+  useEffect(() => { setPage(1); }, [search, filterTT, sortCol, sortDir]);
 
   const filtered = useMemo(() => {
     let list = data.filter((r) =>
       (r.ten.toLowerCase().includes(search.toLowerCase())) &&
-      (filterLoai === "" || r.loai === filterLoai) &&
       (filterTT === "" || r.trangThai === filterTT));
     if (sortCol) {
       list = [...list].sort((a, b) => {
-        let cmp = 0;
-        if (sortCol === "soNhanVien") cmp = a.soNhanVien - b.soNhanVien;
-        else if (sortCol === "soGoiThau") cmp = a.soGoiThau - b.soGoiThau;
-        else cmp = a.ten.localeCompare(b.ten, "vi");
+        let cmp = sortCol === "ten" ? a.ten.localeCompare(b.ten, "vi") : a.ma.localeCompare(b.ma, "vi");
         return sortDir === "asc" ? cmp : -cmp;
       });
     }
     return list;
-  }, [data, search, filterLoai, filterTT, sortCol, sortDir]);
+  }, [data, search, filterTT, sortCol, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -153,11 +140,10 @@ export default function KhoaPhong() {
 
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
             {([{ label: "TỔNG", val: data.length, sub: "khoa/phòng", cls: "text-blue-600", icon: "fa-building" },
                { label: "ĐANG HOẠT ĐỘNG", val: data.filter((d) => d.trangThai === "Đang hoạt động").length, sub: "khoa/phòng", cls: "text-emerald-600", icon: "fa-circle-check" },
                { label: "NGƯNG HOẠT ĐỘNG", val: data.filter((d) => d.trangThai === "Ngưng hoạt động").length, sub: "khoa/phòng", cls: "text-amber-600", icon: "fa-eye-slash" },
-               { label: "KHÔNG CÓ ĐƠN VỊ CHA", val: data.filter((d) => !d.donViCha).length, sub: "khoa độc lập", cls: "text-slate-600", icon: "fa-sitemap" },
             ] as const).map(({ label, val, sub, cls, icon }) => (
               <div key={label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-lg"><i className={`fa-solid ${icon}`} /></div>
@@ -175,9 +161,6 @@ export default function KhoaPhong() {
                   className="pl-9 pr-8 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 w-52" />
                 {search && <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-xs" /></button>}
               </div>
-              <SelectField value={filterLoai || "__all"} onValueChange={(v) => setFilterLoai(v === "__all" ? "" : v)}
-                options={[{ value: "__all", label: "Tất cả loại" }, { value: "Khoa lâm sàng", label: "Khoa lâm sàng" }, { value: "Khoa cận lâm sàng", label: "Khoa cận lâm sàng" }, { value: "Phòng chức năng", label: "Phòng chức năng" }]}
-                triggerClassName="h-10 min-w-[150px] bg-white" />
               <SelectField value={filterTT || "__all"} onValueChange={(v) => setFilterTT(v === "__all" ? "" : v)}
                 options={[{ value: "__all", label: "Tất cả trạng thái" }, { value: "Đang hoạt động", label: "Đang hoạt động" }, { value: "Ngưng hoạt động", label: "Ngưng hoạt động" }]}
                 triggerClassName="h-10 min-w-[170px] bg-white" />
@@ -198,24 +181,20 @@ export default function KhoaPhong() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="bg-slate-50 text-[11px] font-bold text-slate-400 tracking-wide uppercase">
+                    <th className="px-5 py-3 text-left cursor-pointer" onClick={() => toggleSort("ma")}>Mã <SortIcon active={sortCol === "ma"} dir={sortDir} /></th>
                     <th className="px-5 py-3 text-left cursor-pointer" onClick={() => toggleSort("ten")}>Khoa/Phòng <SortIcon active={sortCol === "ten"} dir={sortDir} /></th>
-                    <th className="px-5 py-3 text-left">Loại</th>
                     <th className="px-5 py-3 text-left">Trạng thái</th>
-                    <th className="px-5 py-3 text-right cursor-pointer" onClick={() => toggleSort("soNhanVien")}>NV <SortIcon active={sortCol === "soNhanVien"} dir={sortDir} /></th>
-                    <th className="px-5 py-3 text-right cursor-pointer" onClick={() => toggleSort("soGoiThau")}>Gói thầu <SortIcon active={sortCol === "soGoiThau"} dir={sortDir} /></th>
                     <th className="px-5 py-3 text-center">Thao tác</th>
                   </tr></thead>
                   <tbody className="divide-y divide-slate-100">
                     {paginated.length === 0 ? (
-                      <tr><td colSpan={6} className="py-20 text-center text-slate-400">Không có dữ liệu</td></tr>
+                      <tr><td colSpan={4} className="py-20 text-center text-slate-400">Không có dữ liệu</td></tr>
                     ) : paginated.map((r) => (
                       <tr key={r.id} onClick={() => setSelected(r)}
                         className={`cursor-pointer transition-colors ${selected.id === r.id ? "bg-blue-50" : "hover:bg-slate-50"} ${r.trangThai === "Ngưng hoạt động" ? "opacity-60" : ""}`}>
+                        <td className="px-5 py-3 font-mono text-xs font-bold text-blue-700">{r.ma || "—"}</td>
                         <td className="px-5 py-3 font-medium text-slate-800">{r.ten}</td>
-                        <td className="px-5 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${LOAI_BADGE[r.loai] ?? "bg-slate-100 text-slate-600"}`}>{r.loai}</span></td>
                         <td className="px-5 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${TRANG_THAI_BADGE[r.trangThai]}`}>{r.trangThai}</span></td>
-                        <td className="px-5 py-3 text-right text-slate-600">{r.soNhanVien}</td>
-                        <td className="px-5 py-3 text-right text-slate-600">{r.soGoiThau}</td>
                         <td className="px-5 py-3"><div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                           <button title="Sửa" onClick={() => setEditTarget(r)} className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50"><i className="fa-solid fa-pen text-xs" /></button>
                           <button title="Xóa" onClick={() => setDeleteTarget(r)} className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50"><i className="fa-solid fa-trash text-xs" /></button>

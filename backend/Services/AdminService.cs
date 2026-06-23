@@ -49,6 +49,7 @@ public class AdminService : IAdminService
             .Take(pageSize)
             .Select(u => new AdminUserItemDto
             {
+                Id = u.Id,
                 IdCongKhai = u.IdCongKhai,
                 TenDangNhap = u.TenDangNhap,
                 HoTen = u.HoTen,

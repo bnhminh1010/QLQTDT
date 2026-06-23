@@ -3,12 +3,16 @@
 ───────────────────────────────────────────────────────────── */
 import {
   searchGoiThau,
-  createGoiThau as createGoiThauApi,
-  updateGoiThau as updateGoiThauApi,
+  createGoiThauFull as createGoiThauFullApi,
+  updateGoiThauFull as updateGoiThauFullApi,
   type GoiThauItem,
+  type CreateGoiThauFullRequest,
+  type UpdateGoiThauFullRequest,
 } from "@/services/goiThauApi";
+import type { HinhThucDauThau } from "@/services/hinhThauApi";
+import { toGoiThauTrangThaiLabel } from "@/util/goiThauTrangThai";
 
-/* ─── Types (backward‑compat with existing pages) ───────── */
+/* ─── Types (backward-compat with existing pages) ───────── */
 
 export type TrangThai =
   | "Đang xử lý"
@@ -16,18 +20,21 @@ export type TrangThai =
   | "Trễ hạn"
   | "Chờ duyệt"
   | "Đã hủy"
-  | "Nháp";
+  | "Nháp"
+  | "Đã chọn nhà thầu";
 
 export type HinhThuc = string;
 export type LoaiGoiThau = string;
 
 export type GoiThau = {
-  id: string;                  // string form "GT{number}" for compat
+  id: string;
   maGoiThau: string;
   ten: string;
   tenGoiThau: string;
   loaiGoiThau?: LoaiGoiThau;
   hinhThuc: HinhThuc;
+  ghiChu?: string;
+  canCuApDungRutGon?: string;
   theoDoi?: string[];
   giaTriStr: string;
   giaTriNum: number;
@@ -42,14 +49,29 @@ export type GoiThau = {
   };
 };
 
-const TRANG_THAI_MAP: Record<string, TrangThai> = {
-  DU_THAO: "Nháp",
-  DANG_XU_LY: "Đang xử lý",
-  HOAN_THANH: "Hoàn thành",
-  HUY_BO: "Đã hủy",
-  QUA_HAN: "Trễ hạn",
-  DA_CHON_NHA_THAU: "Chờ duyệt",
-};
+// Cache to avoid calling getAllHinhThuc many times
+let _hinhThucCache: HinhThucDauThau[] | null = null;
+let _hinhThucCachePromise: Promise<HinhThucDauThau[]> | null = null;
+
+async function getHinhThucList(): Promise<HinhThucDauThau[]> {
+  if (_hinhThucCache) return _hinhThucCache;
+  if (_hinhThucCachePromise) return _hinhThucCachePromise;
+  _hinhThucCachePromise = (async () => {
+    const { getAllHinhThuc } = await import('@/services/hinhThauApi');
+    const list = await getAllHinhThuc();
+    _hinhThucCache = list;
+    return list;
+  })();
+  const result = await _hinhThucCachePromise;
+  _hinhThucCachePromise = null;
+  return result;
+}
+
+function tenHinhThucToId(tenHinhThuc?: string): number | undefined {
+  if (!tenHinhThuc) return undefined;
+  if (!_hinhThucCache) return undefined;
+  return _hinhThucCache.find(ht => ht.tenHinhThuc === tenHinhThuc)?.id;
+}
 
 function mapItem(item: GoiThauItem): GoiThau {
   const pct = item.tongSoBuoc > 0
@@ -64,7 +86,7 @@ function mapItem(item: GoiThauItem): GoiThau {
     giaTriStr: (item.nganSach ?? 0).toLocaleString("vi-VN"),
     giaTriNum: item.nganSach ?? 0,
     donVi: item.tenKhoaPhong ?? "",
-    trangThai: TRANG_THAI_MAP[item.trangThai] ?? item.trangThai,
+    trangThai: toGoiThauTrangThaiLabel(item.trangThai),
     detail: {
       nguonVon: "",
       ngayTao: item.ngayTao?.slice(0, 10) ?? "",
@@ -89,7 +111,6 @@ export const getUserGoiThauList = async (): Promise<GoiThau[]> => {
 export const layDanhSachGoiThau = getUserGoiThauList;
 
 export const getGoiThauById = async (id: string): Promise<GoiThau | undefined> => {
-  // Try detail API first
   const numId = parseInt(id.replace(/^GT/, ''), 10);
   if (!isNaN(numId)) {
     try {
@@ -104,26 +125,44 @@ export const getGoiThauById = async (id: string): Promise<GoiThau | undefined> =
   return list.find((g) => g.id === id || g.maGoiThau === id);
 };
 
+/** Send full payload with hinhThucId resolution */
 export const addGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
   try {
-    await createGoiThauApi({
+    await getHinhThucList();
+
+    const payload: CreateGoiThauFullRequest = {
       tenGoiThau: item.tenGoiThau || item.ten || '',
-      moTa: item.maGoiThau || '',
+      moTa: item.ghiChu || '',
       nganSach: item.giaTriNum || 0,
-    });
+      hinhThucId: tenHinhThucToId(item.hinhThuc) ?? 0,
+      nguonVon: item.detail?.nguonVon,
+      loaiGoiThau: item.loaiGoiThau,
+      theoDoi: item.theoDoi ? JSON.stringify(item.theoDoi) : undefined,
+    };
+
+    await createGoiThauFullApi(payload);
   } catch { /* silent */ }
 };
 export const themGoiThau = addGoiThau;
 
+/** Send full payload with hinhThucId resolution */
 export const updateGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
   const numId = parseInt((item.id || '').replace(/^GT/, ''), 10);
   if (isNaN(numId)) return;
   try {
-    await updateGoiThauApi(numId, {
+    await getHinhThucList();
+
+    const payload: UpdateGoiThauFullRequest = {
       tenGoiThau: item.tenGoiThau || item.ten || '',
-      moTa: item.maGoiThau || '',
+      moTa: item.ghiChu || '',
       nganSach: item.giaTriNum || 0,
-    });
+      hinhThucId: tenHinhThucToId(item.hinhThuc),
+      nguonVon: item.detail?.nguonVon,
+      loaiGoiThau: item.loaiGoiThau,
+      theoDoi: item.theoDoi ? JSON.stringify(item.theoDoi) : undefined,
+    };
+
+    await updateGoiThauFullApi(numId, payload);
   } catch { /* silent */ }
 };
 export const capNhatGoiThau = updateGoiThau;
@@ -132,5 +171,4 @@ export const formatVND = (s: string) => s.replace(/,/g, ".") + " đ";
 export const dinhDangVND = formatVND;
 export const sinhMaGoiThau = () => `GT${Date.now()}`;
 
-// Re-export alias used by other pages
 export { sinhMaGoiThau as generateGoiThauId };
