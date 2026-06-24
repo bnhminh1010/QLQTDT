@@ -4,6 +4,11 @@ import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import { getUserGoiThauList } from "./goiThauService";
 import { deleteGoiThau } from "@/services/goiThauApi";
+import {
+  getWorkflowState,
+  type WorkflowStateDto,
+  type WorkflowStepStateDto,
+} from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 import {
   getCurrentStepName,
@@ -125,6 +130,48 @@ const canEditGoiThau = (item?: GoiThau | null) =>
   item ? EDITABLE_STATUSES.includes(item.trangThai) : false;
 const canUpdateCurrentStep = (item?: GoiThau | null) =>
   item ? STEP_UPDATE_STATUSES.includes(item.trangThai) : false;
+
+function parseGoiThauNumericId(id: string) {
+  const parsed = Number(id.replace(/^GT/i, ""));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function mapWorkflowStepState(
+  step: WorkflowStepStateDto,
+  currentStepId?: number,
+): QuyTrinhStepDetail {
+  const completed = step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
+  const current = step.id === currentStepId;
+  const overdue = Boolean(step.quaHan) || step.tinhTrangTienDo === "QUA_HAN";
+
+  return {
+    state: completed ? "done" : current || overdue ? "warn" : "idle",
+    ten: step.tenBuoc,
+    donVi: step.tenVaiTroXuLy || step.phaHienTai || "-",
+    current,
+    nguoiXuLy: step.tenNguoiXuLy,
+    slaText: overdue ? "Qua han" : step.tinhTrangTienDo || undefined,
+  };
+}
+
+function mapWorkflowStateToDetailInfo(state?: WorkflowStateDto | null): GoiThauDetailInfo {
+  if (!state) return DEFAULT_DETAIL_INFO;
+
+  const currentStep = state.currentSteps?.[0];
+  return {
+    buocHienTai: state.tenBuocHienTai || currentStep?.tenBuoc || "",
+    nguoiXuLy:
+      state.steps.find((step) => step.id === currentStep?.stepInstanceId)?.tenNguoiXuLy || "",
+    donViXuLy: currentStep?.phaHienTai || "",
+    sla:
+      state.tinhTrangTienDo === "QUA_HAN"
+        ? "Qua han"
+        : state.tinhTrangTienDo || "Dang theo doi",
+    steps: state.steps.map((step) =>
+      mapWorkflowStepState(step, currentStep?.stepInstanceId),
+    ),
+  };
+}
 
 /* ─── Sub-components ──────────────────────────────────── */
 function Dot({ state }: { state: DotState }) {
@@ -311,6 +358,8 @@ export default function DanhSachGoiThau() {
   // Real loading from API
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [workflowState, setWorkflowState] = useState<WorkflowStateDto | null>(null);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
 
   // Confirm modals
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
@@ -352,6 +401,31 @@ export default function DanhSachGoiThau() {
   useEffect(() => {
     setPage(1);
   }, [search, filterHT, filterTT, sortCol, sortDir]);
+
+  useEffect(() => {
+    const numericId = parseGoiThauNumericId(selected.id);
+    if (!numericId) {
+      setWorkflowState(null);
+      return;
+    }
+
+    let cancelled = false;
+    setWorkflowLoading(true);
+    getWorkflowState(numericId)
+      .then((state) => {
+        if (!cancelled) setWorkflowState(state);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkflowState(null);
+      })
+      .finally(() => {
+        if (!cancelled) setWorkflowLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected.id]);
 
   /* ─ Derived list ─ */
   const filtered = useMemo(() => {
@@ -449,9 +523,13 @@ export default function DanhSachGoiThau() {
 
   /* ─ Detail panel content ─ */
   function DetailPanel() {
-    const detailInfo = DETAIL_INFO_BY_ID[selected.id] ?? DEFAULT_DETAIL_INFO;
-    const currentStepName = getCurrentStepName(selected.id, detailInfo.buocHienTai);
+    const detailInfo =
+      mapWorkflowStateToDetailInfo(workflowState) ||
+      DETAIL_INFO_BY_ID[selected.id] ||
+      DEFAULT_DETAIL_INFO;
+    const currentStepName = detailInfo.buocHienTai;
     const processingInfo = getXuLyBuoc(selected.id);
+    const currentBackendStep = workflowState?.steps.find((step) => step.tenBuoc === currentStepName);
     const progressStatus =
       selected.trangThai === "Trễ hạn"
         ? "Quá hạn"
@@ -592,7 +670,17 @@ export default function DanhSachGoiThau() {
           CÁC BƯỚC QUY TRÌNH
         </div>
         <div className="space-y-3 mb-5">
-          {displaySteps.map((step) => (
+          {workflowLoading ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+              <i className="fa-solid fa-circle-notch fa-spin mr-1" />
+              Dang tai cac buoc quy trinh...
+            </div>
+          ) : displaySteps.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+              Chua co du lieu buoc quy trinh tu backend.
+            </div>
+          ) : (
+          displaySteps.map((step) => (
             <div key={step.ten}>
               <div
                 role="button"
@@ -762,7 +850,8 @@ export default function DanhSachGoiThau() {
                 </div>
               )}
             </div>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Actions */}

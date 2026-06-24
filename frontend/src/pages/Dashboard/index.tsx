@@ -1,7 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SelectField } from "@/components/ui/select";
-import { searchBaoCaoGoiThau } from "@/services/baoCaoApi";
+import { searchGoiThau } from "@/services/goiThauApi";
+import {
+  getWorkflowState,
+  type WorkflowStateDto,
+  type WorkflowStepStateDto,
+} from "@/services/workflowApi";
 import {
   getGoiThauTrangThaiBarColor,
   toGoiThauTrangThaiLabel,
@@ -77,6 +82,7 @@ const DOT_CLS: Record<DotState, string> = {
 };
 
 type TableRow = {
+  id: number;
   code: string;
   name: string;
   unit: string;
@@ -136,6 +142,44 @@ function Dot({ state }: { state: DotState }) {
   );
 }
 
+function mapWorkflowStepStatus(step: WorkflowStepStateDto): StepStatus {
+  if (step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "HoÃ n táº¥t";
+  if (step.quaHan || step.tinhTrangTienDo === "QUA_HAN") return "Trá»… háº¡n";
+  if (step.trangThai === "CHO_KY_DUYET") return "Chá» kÃ½ duyá»‡t";
+  if (step.trangThai === "IN_PROGRESS" || step.ngayBatDau) return "Äang xá»­ lÃ½";
+  return "ChÆ°a báº¯t Ä‘áº§u";
+}
+
+function mapWorkflowStep(
+  step: WorkflowStepStateDto,
+  currentStepId?: number,
+): WorkflowStep {
+  const completed = step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
+  const current = step.id === currentStepId;
+  const overdue = Boolean(step.quaHan) || step.tinhTrangTienDo === "QUA_HAN";
+
+  return {
+    state: completed ? "done" : current || overdue ? "warn" : "idle",
+    name: step.tenBuoc,
+    processor: step.tenNguoiXuLy || step.tenVaiTroXuLy || step.phaHienTai || "-",
+    status: mapWorkflowStepStatus(step),
+    sla: overdue ? "QuÃ¡ háº¡n" : step.tinhTrangTienDo || step.hanXuLy?.slice(0, 10) || "-",
+    ngayXuLy: step.ngayXuLy?.slice(0, 10),
+    nguoiKy: step.tenNguoiKyDuyet,
+    ngayKy: step.ngayKyDuyet?.slice(0, 10),
+    ketQua: step.ketQua,
+    reason: step.lyDoKhongDuyet,
+  };
+}
+
+function getProgressStatus(state?: WorkflowStateDto): TableRow["progressStatus"] {
+  if (state?.tinhTrangTienDo === "QUA_HAN" || state?.steps.some((step) => step.quaHan)) {
+    return "QuÃ¡ háº¡n";
+  }
+  if (state?.tinhTrangTienDo === "SAP_QUA_HAN") return "Sáº¯p quÃ¡ háº¡n";
+  return "ÄÃºng háº¡n";
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
@@ -153,12 +197,23 @@ export default function Dashboard() {
     (async () => {
       setLoading(true);
       try {
-        const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 50 });
-        const rows: TableRow[] = result.items.map((item) => {
+        const result = await searchGoiThau({ page: 1, pageSize: 50 });
+        const rows: TableRow[] = await Promise.all(result.items.map(async (item) => {
           const status = toGoiThauTrangThaiLabel(item.trangThai);
           const color = getGoiThauTrangThaiBarColor(item.trangThai);
+          let workflowState: WorkflowStateDto | null = null;
+          try {
+            workflowState = await getWorkflowState(item.id);
+          } catch {
+            workflowState = null;
+          }
+          const currentStep = workflowState?.currentSteps?.[0];
+          const currentStepDetail = workflowState?.steps.find(
+            (step) => step.id === currentStep?.stepInstanceId,
+          );
           return {
-          code: item.maGoiThau || '',
+          id: item.id,
+          code: item.maGoiThau || `GT${item.id}`,
           name: item.tenGoiThau || '',
           unit: item.tenKhoaPhong || '',
           status,
@@ -167,18 +222,20 @@ export default function Dashboard() {
           txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
           nguonVon: '',
           ngayTao: item.ngayTao?.slice(0, 10) || '',
-          hanHT: '',
+          hanHT: currentStepDetail?.hanXuLy?.slice(0, 10) || '',
           hinhThuc: item.tenHinhThuc || '',
-          currentStep: '',
-          currentProcessor: '',
-          currentProcessDate: '',
-          currentSigner: '',
-          currentSignedDate: '',
-          currentResult: '',
-          progressStatus: 'Đúng hạn' as const,
-          steps: [],
+          currentStep: workflowState?.tenBuocHienTai || currentStep?.tenBuoc || '',
+          currentProcessor: currentStepDetail?.tenNguoiXuLy || currentStepDetail?.tenVaiTroXuLy || '',
+          currentProcessDate: currentStepDetail?.ngayXuLy?.slice(0, 10) || '',
+          currentSigner: currentStepDetail?.tenNguoiKyDuyet || '',
+          currentSignedDate: currentStepDetail?.ngayKyDuyet?.slice(0, 10) || '',
+          currentResult: currentStepDetail?.ketQua || currentStepDetail?.trangThai || '',
+          progressStatus: getProgressStatus(workflowState),
+          steps: workflowState?.steps.map((step) =>
+            mapWorkflowStep(step, currentStep?.stepInstanceId),
+          ) ?? [],
           };
-        });
+        }));
         setTableRows(rows);
       } catch (e) {
         console.error(e);
@@ -650,7 +707,11 @@ export default function Dashboard() {
             CÁC BƯỚC QUY TRÌNH
           </div>
           <div className="space-y-3 mb-5">
-            {selected.steps.map((step) => (
+            {selected.steps.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                Chua co du lieu buoc quy trinh tu backend.
+              </div>
+            ) : selected.steps.map((step) => (
               <div key={step.name}>
                 <div className="flex items-start gap-2.5 rounded-lg p-1.5 -m-1.5">
                   <Dot state={step.state} />
