@@ -70,7 +70,7 @@ public class AuthService : IAuthService
 
         // Lấy danh sách roles và permissions
         var userRoles = await GetUserRoles(user.Id);
-        var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var roleNames = userRoles.Select(r => r.MaVaiTro ?? r.TenVaiTro).Distinct().ToList();
         var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
         var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
@@ -119,7 +119,7 @@ public class AuthService : IAuthService
             throw new ForbiddenException("Tài khoản đã bị khóa.");
 
         var userRoles = await GetUserRoles(user.Id);
-        var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var roleNames = userRoles.Select(r => r.MaVaiTro ?? r.TenVaiTro).Distinct().ToList();
         var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
         var newToken = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
@@ -329,6 +329,7 @@ public class AuthService : IAuthService
                 MaKhoaPhong = r.KhoaPhong != null ? r.KhoaPhong.MaKhoaPhong : null,
                 VaiTroId = r.VaiTroId,
                 TenVaiTro = r.VaiTro.TenVaiTro,
+                MaVaiTro = r.VaiTro.MaVaiTro,
                 LaChinh = r.LaChinh,
                 DoUuTien = r.VaiTro.NhomVaiTro != null ? r.VaiTro.NhomVaiTro.DoUuTien : null
             })

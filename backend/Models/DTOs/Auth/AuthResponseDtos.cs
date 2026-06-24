@@ -22,6 +22,7 @@ public class UserRoleDto
     public string? MaKhoaPhong { get; set; }
     public int VaiTroId { get; set; }
     public string TenVaiTro { get; set; } = null!;
+    public string? MaVaiTro { get; set; }
     public bool LaChinh { get; set; }
     public int? DoUuTien { get; set; }
 }
