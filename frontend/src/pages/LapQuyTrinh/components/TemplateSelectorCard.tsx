@@ -10,6 +10,9 @@ interface Props {
   onLoaiHinhChange: (val: string) => void;
   loaiHinhErr: string;
   templateInfo: TemplateInfo | null;
+  templateList: { id: number; tenWorkflow: string }[];
+  selectedTemplateIdx: number;
+  onTemplateIdxChange: (idx: number) => void;
   loadingTemplate: boolean;
   onPreview: () => void;
   onGenerate: () => void;
@@ -32,6 +35,9 @@ export default function TemplateSelectorCard({
   onLoaiHinhChange,
   loaiHinhErr,
   templateInfo,
+  templateList,
+  selectedTemplateIdx,
+  onTemplateIdxChange,
   loadingTemplate,
   onPreview,
   onGenerate,
@@ -112,6 +118,24 @@ export default function TemplateSelectorCard({
               {templateInfo.loaiHinhDauThau}
             </span>
           </div>
+
+          {templateList.length > 1 && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Chọn quy trình chuẩn
+              </label>
+              <SelectField
+                value={String(selectedTemplateIdx)}
+                onValueChange={(val) => onTemplateIdxChange(parseInt(val))}
+                options={templateList.map((t, i) => ({
+                  value: String(i),
+                  label: t.tenWorkflow,
+                }))}
+                triggerClassName="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm bg-white"
+              />
+            </div>
+          )}
+
           <p className="text-sm font-semibold text-slate-800">
             {templateInfo.tenWorkflow}
           </p>

@@ -41,10 +41,20 @@ public class WorkflowTemplateService : IWorkflowTemplateService
 
     public async Task<WorkflowTemplatePreviewDto> PreviewAsync(int templateId)
     {
-        var workflow = await _db.Workflows
+        return await BuildPreviewAsync(templateId, requireTemplate: true);
+    }
+
+    private async Task<WorkflowTemplatePreviewDto> BuildPreviewAsync(int workflowId, bool requireTemplate)
+    {
+        var query = _db.Workflows
             .Include(w => w.BuocWorkflows.OrderBy(b => b.ThuTu))
-            .FirstOrDefaultAsync(w => w.Id == templateId && w.LaQuyTrinhChuan)
-            ?? throw new NotFoundException($"Template not found: {templateId}");
+            .Where(w => w.Id == workflowId);
+
+        if (requireTemplate)
+            query = query.Where(w => w.LaQuyTrinhChuan);
+
+        var workflow = await query.FirstOrDefaultAsync()
+            ?? throw new NotFoundException($"Template not found: {workflowId}");
 
         var buocIds = workflow.BuocWorkflows.Select(b => b.Id).ToList();
 
@@ -56,7 +66,7 @@ public class WorkflowTemplateService : IWorkflowTemplateService
 
         var parallelGroups = await _db.NhomNhanhWorkflows
             .Include(pg => pg.Nhanhs.OrderBy(n => n.ThuTu))
-            .Where(pg => pg.WorkflowId == templateId)
+            .Where(pg => pg.WorkflowId == workflowId)
             .ToListAsync();
 
         return new WorkflowTemplatePreviewDto
@@ -97,8 +107,21 @@ public class WorkflowTemplateService : IWorkflowTemplateService
     {
         var template = await _db.Workflows
             .Include(w => w.BuocWorkflows.OrderBy(b => b.ThuTu))
-            .FirstOrDefaultAsync(w => w.Id == request.TemplateWorkflowId && w.LaQuyTrinhChuan)
-            ?? throw new NotFoundException($"Template not found: {request.TemplateWorkflowId}");
+            .FirstOrDefaultAsync(w => w.Id == request.TemplateWorkflowId
+                && w.LaQuyTrinhChuan
+                && w.TrangThaiHoatDong);
+
+        if (template is null && !string.IsNullOrWhiteSpace(request.LoaiHinhDauThau))
+        {
+            template = await _db.Workflows
+                .Include(w => w.BuocWorkflows.OrderBy(b => b.ThuTu))
+                .FirstOrDefaultAsync(w => w.LoaiHinhDauThau == request.LoaiHinhDauThau
+                    && w.LaQuyTrinhChuan
+                    && w.TrangThaiHoatDong);
+        }
+
+        if (template is null)
+            throw new NotFoundException("Không tìm thấy quy trình chuẩn hợp lệ cho loại hình đấu thầu đã chọn.");
 
         if (!template.BuocWorkflows.Any())
             throw new AppException(400, "TEMPLATE_EMPTY", "Template has no steps. Cannot generate workflow.");
@@ -228,8 +251,8 @@ public class WorkflowTemplateService : IWorkflowTemplateService
         _logger.LogInformation("Generated workflow {NewId} from template {TemplateId}",
             newWorkflow.Id, request.TemplateWorkflowId);
 
-        // Return preview
-        return await PreviewAsync(newWorkflow.Id);
+        // Return preview for generated workflow (not a template)
+        return await BuildPreviewAsync(newWorkflow.Id, requireTemplate: false);
     }
 
     private static BuocWorkflowListItemDto ToStepDto(BuocWorkflow b) => new()

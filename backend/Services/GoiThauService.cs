@@ -41,9 +41,13 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         // Áp scope filter theo khoa/phòng cho user limited.
         // Scope rỗng phải trả danh sách rỗng, không được bỏ filter thành full scope.
         var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
-        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
-        if (!isFullScope)
-            query = query.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+        var scope = await _tenderAccess.ResolveTenderScopeDetailAsync(userId);
+        if (!scope.IsFullScope)
+        {
+            query = scope.OwnOnly
+                ? query.Where(g => g.NguoiTaoId == userId)
+                : query.Where(g => g.NguoiTaoId == userId || scope.KhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+        }
 
         var total = await query.CountAsync();
         var items = await query
@@ -165,6 +169,8 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
     public async Task<GoiThau> CreateAsync(CreateGoiThauDto dto)
     {
+        var currentUserId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+
         // Validate HinhThucDauThau exists and is active
         var hinhThuc = await _db.HinhThucDauThaus
             .AsNoTracking()
@@ -187,15 +193,11 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         int? khoaPhongId = dto.KhoaPhongId;
         if (!khoaPhongId.HasValue)
         {
-            var userId = GetCurrentUserId();
-            if (userId.HasValue)
-            {
-                var primaryKp = await _db.NguoiDungKhoaPhongVaiTros
-                    .Where(nkv => nkv.NguoiDungId == userId.Value && nkv.LaChinh)
-                    .Select(nkv => nkv.KhoaPhongId)
-                    .FirstOrDefaultAsync();
-                khoaPhongId = primaryKp;
-            }
+            var primaryKp = await _db.NguoiDungKhoaPhongVaiTros
+                .Where(nkv => nkv.NguoiDungId == currentUserId && nkv.LaChinh)
+                .Select(nkv => nkv.KhoaPhongId)
+                .FirstOrDefaultAsync();
+            khoaPhongId = primaryKp;
         }
 
         if (dto.DeXuatId.HasValue)
@@ -221,6 +223,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                     HinhThucId = dto.HinhThucId,
                     WorkflowId = workflowId,
                     KhoaPhongId = khoaPhongId,
+                    NguoiTaoId = currentUserId,
                     NguonVon = dto.NguonVon,
                     LoaiGoiThau = dto.LoaiGoiThau,
                     TheoDoi = dto.TheoDoi,

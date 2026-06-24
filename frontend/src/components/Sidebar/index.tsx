@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getCurrentUserApi, clearStoredToken } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
-import { useAccessLevel, canAccess } from "@/hooks/useAccessLevel";
+import { canAccessPath } from "@/hooks/useAccessLevel";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
@@ -27,7 +27,7 @@ export default function Sidebar() {
   const link = (path: string, disabled = false) =>
     `flex items-center justify-center lg:justify-start gap-2.5 px-3 lg:px-4 py-[9px] text-[13px] transition-colors ${
       disabled
-        ? "text-slate-600 cursor-not-allowed"
+        ? "text-slate-600/70 cursor-not-allowed opacity-50"
         : pathname === path
           ? "bg-blue-900 text-white"
           : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-300"
@@ -55,10 +55,9 @@ export default function Sidebar() {
   const hoTen = user?.hoTen ?? "?";
   const initial = hoTen.charAt(0).toUpperCase();
   const donVi = user?.roles?.[0]?.tenKhoaPhong ?? "";
-  const level = useAccessLevel(user);
 
   function hasAccess(path: string) {
-    return canAccess(path, level);
+    return canAccessPath(path, user);
   }
 
   return (
@@ -86,12 +85,7 @@ export default function Sidebar() {
           TỔNG QUAN
         </div>
         <ul>
-          <li>
-            <Link to="/dashboard" className={link("/dashboard")}>
-              <i className="fa-solid fa-gauge-high w-4 text-center shrink-0" />
-              <span className="hidden lg:inline">Dashboard</span>
-            </Link>
-          </li>
+          {renderNavItem("/dashboard", "fa-gauge-high", "Dashboard")}
         </ul>
 
         <div className="hidden lg:block text-[10px] font-bold text-[#334155] tracking-[.09em] px-4 pt-3.5 pb-1">

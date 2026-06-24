@@ -2,53 +2,100 @@ import { useMemo } from "react";
 import type { LoginUserDto } from "@/services/api";
 
 /**
- * 1 = CAP_CAO (full access)
- * 3 = TRUNG_BINH (limited)
- * 5 = THAP (basic)
- * null = no role → basic
+ * 1 = CAP_CAO
+ * 3 = TRUNG_BINH
+ * 5 = THAP
+ * null = no role
  */
 export type AccessLevel = 1 | 3 | 5 | null;
+export type RoleCode = "ADMIN" | "CAP_CAO" | "TRUNG_BINH" | "THAP";
+
+const PAGE_POLICY: Record<RoleCode, "*" | string[]> = {
+  ADMIN: "*",
+  CAP_CAO: [
+    "/dashboard",
+    "/tao-goi-thau",
+    "/danh-sach-goi-thau",
+    "/danh-sach-quy-trinh",
+    "/danh-muc-thuc-hien",
+    "/bao-cao",
+    "/xu-ly-buoc",
+    "/profile",
+  ],
+  TRUNG_BINH: [
+    "/dashboard",
+    "/tao-goi-thau",
+    "/danh-sach-goi-thau",
+    "/danh-muc-thuc-hien",
+    "/bao-cao",
+    "/xu-ly-buoc",
+    "/profile",
+  ],
+  THAP: ["/dashboard", "/tao-goi-thau", "/danh-sach-goi-thau", "/profile"],
+};
+
+function getPrimaryPath(path: string) {
+  const cleanPath = path.split("?")[0].replace(/\/+$/, "");
+  const key = cleanPath.replace(/^\//, "").split("/")[0];
+  return key ? `/${key}` : "/dashboard";
+}
+
+export function getRoleCode(user?: LoginUserDto | null): RoleCode {
+  if (!user?.roles?.length) return "THAP";
+
+  const hasAdmin = user.roles.some((r) => r.maVaiTro === "ADMIN" || r.tenVaiTro?.toUpperCase() === "ADMIN");
+  if (hasAdmin) return "ADMIN";
+
+  const priorities = user.roles
+    .map((r) => r.doUuTien)
+    .filter((priority): priority is number => priority != null);
+  const priority = priorities.length > 0 ? Math.min(...priorities) : 5;
+
+  if (priority <= 1) return "CAP_CAO";
+  if (priority <= 3) return "TRUNG_BINH";
+  return "THAP";
+}
+
+export function getDefaultPath(user?: LoginUserDto | null) {
+  return getRoleCode(user) === "THAP" ? "/danh-sach-goi-thau" : "/dashboard";
+}
+
+export function canAccessPath(path: string, user?: LoginUserDto | null): boolean {
+  const roleCode = getRoleCode(user);
+  const allowedPaths = PAGE_POLICY[roleCode];
+  if (allowedPaths === "*") return true;
+  return allowedPaths.includes(getPrimaryPath(path));
+}
 
 export function useAccessLevel(user?: LoginUserDto | null): AccessLevel {
   return useMemo(() => {
-    if (!user?.roles?.length) return null;
-    // Check if user has ADMIN role → full access regardless of doUuTien
-    const isAdmin = user.roles.some(
-      (r) => r.tenVaiTro?.toUpperCase() === "ADMIN"
-    );
-    // Lowest DoUuTien = highest priority (1 > 3 > 5)
-    const priorities = user.roles.map((r) => r.doUuTien).filter((p): p is number => p != null);
-    if (isAdmin || priorities.length === 0) return 1; // Admin or no priority → full access
-    return Math.min(...priorities) as AccessLevel;
+    const roleCode = getRoleCode(user);
+    if (roleCode === "ADMIN" || roleCode === "CAP_CAO") return 1;
+    if (roleCode === "TRUNG_BINH") return 3;
+    return 5;
   }, [user]);
 }
 
-const LEVEL: Record<string, number> = {
-  dashboard: 5,       // THAP + TRUNG_BINH + CAP_CAO
-  "tao-goi-thau": 5,  // THAP + TRUNG_BINH + CAP_CAO
-  "danh-sach-goi-thau": 3,  // TRUNG_BINH + CAP_CAO
-  "danh-sach-quy-trinh": 3, // TRUNG_BINH + CAP_CAO
-  "lap-quy-trinh": 3, // TRUNG_BINH + CAP_CAO
-  "danh-muc-thuc-hien": 1, // chỉ CAP_CAO
-  "bao-cao": 3,       // TRUNG_BINH + CAP_CAO
-  "khoa-phong": 1,    // chỉ CAP_CAO
-  "nguoi-dung": 1,    // chỉ CAP_CAO
-  "xu-ly-buoc": 3,    // TRUNG_BINH + CAP_CAO
-  profile: 5,         // tất cả
-};
-
-export function canAccess(path: string, level: AccessLevel): boolean {
+export function canAccess(path: string, level: AccessLevel, user?: LoginUserDto | null): boolean {
+  if (user) return canAccessPath(path, user);
   if (!level) return false;
-  const key = path.replace(/^\//, "").split("/")[0];
-  const required = LEVEL[key];
-  if (required === undefined) return true;
-  // User's DoUuTien (lower = more privileged) must be <= page required level
-  return level <= required;
+
+  const key = getPrimaryPath(path);
+  const legacyPolicy: Record<NonNullable<AccessLevel>, string[]> = {
+    1: PAGE_POLICY.CAP_CAO as string[],
+    3: PAGE_POLICY.TRUNG_BINH as string[],
+    5: PAGE_POLICY.THAP as string[],
+  };
+
+  return legacyPolicy[level].includes(key);
 }
 
 export function getVisiblePaths(level: AccessLevel): string[] {
-  if (!level) return ["/dashboard", "/profile"];
-  return Object.entries(LEVEL)
-    .filter(([_, required]) => level <= required)
-    .map(([key]) => `/${key}`);
+  if (!level) return [];
+  const legacyPolicy: Record<NonNullable<AccessLevel>, string[]> = {
+    1: PAGE_POLICY.CAP_CAO as string[],
+    3: PAGE_POLICY.TRUNG_BINH as string[],
+    5: PAGE_POLICY.THAP as string[],
+  };
+  return legacyPolicy[level];
 }

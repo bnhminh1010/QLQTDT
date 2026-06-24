@@ -27,10 +27,12 @@ import {
   updateGoiThau,
 } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau, HinhThuc, LoaiGoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
-import { getWorkflows } from "@/services/workflowApi";
-import type { WorkflowItem } from "@/services/workflowApi";
+import { getWorkflowTemplates } from "@/services/workflowApi";
+import type { WorkflowTemplateSummary } from "@/services/workflowApi";
 import { getCurrentUserApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
+import { getKhoaPhongs } from "@/services/adminApi";
+import type { KhoaPhong } from "@/services/adminApi";
 
 /* ─ Auth ─ */
 const CAN_CREATE = true;
@@ -169,6 +171,13 @@ function normalizeTheoDoi(value: string) {
     .trim();
 }
 
+function normalizeLoaiHinh(value?: string) {
+  return (value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const inputCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 const inputErrCls =
@@ -207,21 +216,28 @@ export default function TaoGoiThau() {
     !!editingGoiThau && EDITABLE_STATUSES.includes(editingGoiThau.trangThai);
   const [savingDraft, setSavingDraft] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
-  const [quyTrinhList, setQuyTrinhList] = useState<WorkflowItem[]>([]);
+  const [quyTrinhList, setQuyTrinhList] = useState<WorkflowTemplateSummary[]>([]);
   const [selectedQTSteps, setSelectedQTSteps] = useState<{ tenBuoc: string; donVi: string; slaNgay: number }[]>([]);
   const [theoDoiOpen, setTheoDoiOpen] = useState(false);
   const [theoDoiList, setTheoDoiList] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
+  const [khoaPhongList, setKhoaPhongList] = useState<KhoaPhong[]>([]);
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
 
-  // Load current user + workflows on mount
+  // Load current user + workflow templates on mount
   useEffect(() => {
     getCurrentUserApi().then(setCurrentUser).catch(() => {});
-    getWorkflows().then((list) => setQuyTrinhList(list.filter((w) => w.trangThaiHoatDong))).catch(() => {});
+    getWorkflowTemplates().then(setQuyTrinhList).catch(() => {});
+    getKhoaPhongs().then(setKhoaPhongList).catch(() => {});
   }, []);
 
-  const donViDeXuat = editingGoiThau?.donVi || currentUser?.roles?.find(r => r.laChinh)?.tenKhoaPhong || "";
+  const userKhoaPhong =
+    currentUser?.roles?.find((r) => r.laChinh && r.tenKhoaPhong)?.tenKhoaPhong ||
+    currentUser?.roles?.find((r) => r.tenKhoaPhong)?.tenKhoaPhong ||
+    "";
+  const donViDeXuat = editingGoiThau?.donVi || userKhoaPhong;
+  const canChooseDonViDeXuat = !isEditMode && !userKhoaPhong;
 
   const {
     register,
@@ -236,6 +252,15 @@ export default function TaoGoiThau() {
   });
 
   const watched = watch();
+
+  useEffect(() => {
+    if (isEditMode || !donViDeXuat || watched.donVi) return;
+    setValue("donVi", donViDeXuat, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [donViDeXuat, isEditMode, setValue, watched.donVi]);
+
   function normalizeGiaTriField() {
     // Chỉ loại bỏ ký tự không phải số, ko format
     const raw = watch("giaTriStr");
@@ -259,7 +284,9 @@ export default function TaoGoiThau() {
   const normalizedDonViDeXuat = normalizeTheoDoi(watched.donVi || "");
 
   const selectedQT = watched.hinhThuc
-    ? quyTrinhList.find((qt) => qt.loaiHinhDauThau === watched.hinhThuc) ?? null
+    ? quyTrinhList.find(
+        (qt) => normalizeLoaiHinh(qt.loaiHinhDauThau) === normalizeLoaiHinh(watched.hinhThuc),
+      ) ?? null
     : null;
 
   useEffect(() => {
@@ -728,14 +755,45 @@ export default function TaoGoiThau() {
                   <label className={labelCls}>
                     Đơn vị đề xuất <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    readOnly
-                    {...register("donVi")}
-                    className={`${cls("donVi")} cursor-not-allowed text-slate-700`}
-                  />
+                  {canChooseDonViDeXuat ? (
+                    <Select
+                      value={watched.donVi || ""}
+                      onValueChange={(value) =>
+                        setValue("donVi", value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                    >
+                      <SelectTrigger
+                        className={
+                          errors.donVi
+                            ? "border-red-400 focus:border-red-400 focus:ring-red-400/20"
+                            : ""
+                        }
+                      >
+                        <SelectValue placeholder="-- Chọn khoa/phòng đề xuất --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {khoaPhongList.map((khoaPhong) => (
+                          <SelectItem key={khoaPhong.id} value={khoaPhong.tenKhoaPhong}>
+                            {khoaPhong.tenKhoaPhong}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <input
+                      type="text"
+                      readOnly
+                      {...register("donVi")}
+                      className={`${cls("donVi")} cursor-not-allowed text-slate-700`}
+                    />
+                  )}
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Tự động lấy từ tài khoản đăng nhập
+                    {canChooseDonViDeXuat
+                      ? "Tài khoản chưa gắn khoa/phòng, vui lòng chọn đơn vị đề xuất."
+                      : "Tự động lấy từ tài khoản đăng nhập"}
                   </p>
                   {errors.donVi && (
                     <p className="text-xs text-red-500 mt-1">

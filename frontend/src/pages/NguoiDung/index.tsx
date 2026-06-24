@@ -10,8 +10,8 @@ import type {
   UserAddFormValues,
   UserEditFormValues,
 } from "./types";
-import { getUsers, createUser, updateUser, deleteUser, getAllRoles, getUserRoles, assignUserRole, removeUserRole, getKhoaPhongs } from "@/services/adminApi";
-import type { RoleItem, UserRoleInfo, KhoaPhong } from "@/services/adminApi";
+import { getUsers, createUser, updateUser, deleteUser, getAllRoles, getUserRoles, assignUserRole, removeUserRole, getKhoaPhongs, getUserAuditLogs } from "@/services/adminApi";
+import type { RoleItem, UserRoleInfo, KhoaPhong, UserAuditLog } from "@/services/adminApi";
 
 /* ─── Badge maps ──────────────────────────────────────── */
 const VAI_TRO_COLORS = [
@@ -61,6 +61,31 @@ function formatDate(raw?: string): string {
   if (!raw) return "—";
   const d = new Date(raw);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function formatDateTime(raw?: string): string {
+  if (!raw) return "—";
+  const d = new Date(raw);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} ${formatDate(raw)}`;
+}
+
+function formatAuditAction(action: string): string {
+  const labels: Record<string, string> = {
+    CREATE_USER: "Tạo người dùng",
+    UPDATE_USER: "Cập nhật người dùng",
+    DELETE_USER: "Xóa người dùng",
+  };
+  return labels[action] ?? action;
+}
+
+function formatAuditDescription(raw: string): string {
+  if (!raw) return "—";
+  try {
+    const parsed = JSON.parse(raw) as { moTa?: string };
+    return parsed.moTa || raw;
+  } catch {
+    return raw;
+  }
 }
 
 /* ─── Confirm modal ───────────────────────────────────── */
@@ -129,6 +154,8 @@ export default function NguoiDung() {
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [khoaPhongList, setKhoaPhongList] = useState<KhoaPhong[]>([]);
   const [selectedKhoaPhongId, setSelectedKhoaPhongId] = useState("");
+  const [auditLogs, setAuditLogs] = useState<UserAuditLog[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -163,6 +190,28 @@ export default function NguoiDung() {
     const numId = parseInt(selected.id);
     if (numId) getUserRoles(numId).then(setUserRoles).catch(() => setUserRoles([]));
   }, [selected.id]);
+
+  const loadAuditLogs = useCallback(async (userId: string) => {
+    const numId = parseInt(userId);
+    if (!numId) {
+      setAuditLogs([]);
+      return;
+    }
+
+    setAuditLoading(true);
+    try {
+      const logs = await getUserAuditLogs(numId);
+      setAuditLogs(logs);
+    } catch {
+      setAuditLogs([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAuditLogs(selected.id);
+  }, [selected.id, loadAuditLogs]);
 
   const filtered = useMemo(() => {
     let list = data.filter(
@@ -234,7 +283,10 @@ export default function NguoiDung() {
     }).then(() => {
       const updated: User = { ...editTarget, ...values };
       setData((prev) => prev.map((u) => (u.id === editTarget.id ? updated : u)));
-      if (selected.id === editTarget.id) setSelected(updated);
+      if (selected.id === editTarget.id) {
+        setSelected(updated);
+        loadAuditLogs(editTarget.id);
+      }
       toast.success(`Đã cập nhật "${updated.hoTen}"`);
       setEditTarget(null);
     }).catch(() => toast.error("Không thể cập nhật người dùng"));
@@ -262,8 +314,8 @@ export default function NguoiDung() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex flex-1 min-h-0 flex-col 2xl:flex-row overflow-hidden">
+        <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-4">
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             {([
               ["fa-users", "blue", "TỔNG", data.length, "tài khoản", "text-blue-600"],
@@ -401,7 +453,7 @@ export default function NguoiDung() {
           </div>
         </main>
 
-        <aside className="w-[300px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden xl:block">
+        <aside className="w-full shrink-0 border-t border-slate-200 bg-white overflow-y-auto 2xl:w-[340px] 2xl:border-l 2xl:border-t-0">
           {selected?.id ? (() => {
             const i = data.findIndex((u) => u.id === selected.id);
             const idx = i >= 0 ? i : 0;
@@ -418,10 +470,10 @@ export default function NguoiDung() {
                     </span>
                   </div>
                 </div>
-                <div className="flex border-b border-slate-100">
+                <div className="flex overflow-x-auto border-b border-slate-100">
                   {(["info", "roles", "access", "history"] as const).map((tab) => (
                     <button key={tab} onClick={() => setDetailTab(tab)}
-                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${detailTab === tab ? "border-b-2 border-blue-600 text-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
+                      className={`min-w-[72px] flex-1 py-2.5 text-xs font-semibold transition-colors ${detailTab === tab ? "border-b-2 border-blue-600 text-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
                       {tab === "info" ? "Thông tin" : tab === "roles" ? "Phân quyền" : tab === "access" ? "Truy cập" : "Lịch sử"}
                     </button>
                   ))}
@@ -462,6 +514,7 @@ export default function NguoiDung() {
                             </div>
                             <button onClick={() => removeUserRole(r.id).then(() => {
                               setUserRoles((prev) => prev.filter((x) => x.id !== r.id));
+                              loadAuditLogs(selected.id);
                               toast.success("Đã gỡ vai trò");
                             }).catch(() => toast.error("Gỡ vai trò thất bại"))}
                               className="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:bg-red-50">
@@ -490,7 +543,10 @@ export default function NguoiDung() {
                             setSelectedRoleId("");
                             return getUserRoles(userIdNum);
                           })
-                          .then(setUserRoles)
+                          .then((roles) => {
+                            setUserRoles(roles);
+                            loadAuditLogs(selected.id);
+                          })
                           .catch(() => toast.error("Gán vai trò thất bại"));
                       }}
                         className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1">
@@ -504,10 +560,29 @@ export default function NguoiDung() {
                 ) : (
                   <div className="p-5">
                     <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-3">Lịch sử thao tác</p>
-                    <div className="text-center py-8">
-                      <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
-                      <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
-                    </div>
+                    {auditLoading ? (
+                      <div className="text-center py-8 text-slate-400">
+                        <i className="fa-solid fa-circle-notch fa-spin text-2xl text-blue-400" />
+                        <p className="text-xs mt-2">Đang tải lịch sử...</p>
+                      </div>
+                    ) : auditLogs.length === 0 ? (
+                      <div className="text-center py-8">
+                        <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
+                        <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {auditLogs.map((log) => (
+                          <div key={log.id} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-slate-700">{formatAuditAction(log.hanhDong)}</span>
+                              <span className="text-[10px] text-slate-400 whitespace-nowrap">{formatDateTime(log.thoiGianThucHien)}</span>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500 break-words">{formatAuditDescription(log.moTaChiTiet)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </>

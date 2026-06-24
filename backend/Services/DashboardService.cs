@@ -16,14 +16,9 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardTongQuanDto> GetTongQuanAsync(int userId)
     {
-        var (allowedKhoaPhongIds, isFullScope) = await ScopeResolver.ResolveAsync(_db, userId);
-
         var query = _db.GoiThaus
             .Where(g => g.TrangThaiHoatDong)
             .AsQueryable();
-
-        if (!isFullScope)
-            query = query.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
 
         // KPI cards
         var tongGoiThau = await query.CountAsync();
@@ -59,9 +54,6 @@ public class DashboardService : IDashboardService
         var activeQuery = _db.GoiThaus
             .Where(g => g.TrangThaiHoatDong && g.TrangThai == GoiThauTrangThai.DANG_XU_LY)
             .AsQueryable();
-
-        if (!isFullScope)
-            activeQuery = activeQuery.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
 
         var notable = await activeQuery
             .OrderByDescending(g => g.NgayTao)

@@ -23,7 +23,9 @@ public class AdminService : IAdminService
 
     public async Task<AdminUserListDto> GetUsersAsync(int page, int pageSize, bool? trangThai, string? search)
     {
-        var query = _context.NguoiDungs.AsQueryable();
+        var query = _context.NguoiDungs
+            .Where(u => !u.DaXoa)
+            .AsQueryable();
 
         // Filter theo trạng thái hoạt động
         if (trangThai.HasValue)
@@ -54,6 +56,7 @@ public class AdminService : IAdminService
                 TenDangNhap = u.TenDangNhap,
                 HoTen = u.HoTen,
                 Email = u.Email,
+                SoDienThoai = u.SoDienThoai,
                 TrangThaiHoatDong = u.TrangThaiHoatDong,
                 NgayTao = u.NgayTao,
                 Roles = u.NguoiDungKhoaPhongVaiTros
@@ -85,7 +88,7 @@ public class AdminService : IAdminService
                 .ThenInclude(r => r.VaiTro)
             .Include(u => u.NguoiDungKhoaPhongVaiTros)
                 .ThenInclude(r => r.KhoaPhong)
-            .FirstOrDefaultAsync(u => u.IdCongKhai == idCongKhai)
+            .FirstOrDefaultAsync(u => u.IdCongKhai == idCongKhai && !u.DaXoa)
             ?? throw new NotFoundException($"Không tìm thấy người dùng với ID: {idCongKhai}");
 
         // Thông tin nhà thầu không còn gắn với user (NhaThau info only)
@@ -97,6 +100,7 @@ public class AdminService : IAdminService
             TenDangNhap = user.TenDangNhap,
             HoTen = user.HoTen,
             Email = user.Email,
+            SoDienThoai = user.SoDienThoai,
             TrangThaiHoatDong = user.TrangThaiHoatDong,
             NgayTao = user.NgayTao,
             AvatarUrl = user.AvatarUrl,

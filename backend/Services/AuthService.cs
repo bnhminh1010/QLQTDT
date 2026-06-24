@@ -59,8 +59,8 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Tên đăng nhập hoặc mật khẩu không chính xác.");
         }
 
-        if (!user.TrangThaiHoatDong)
-            throw new ForbiddenException("Tài khoản đang chờ quản trị viên phê duyệt hoặc đã bị khóa.");
+        if (user.DaXoa || !user.TrangThaiHoatDong)
+            throw new ForbiddenException("Tài khoản đang chờ quản trị viên phê duyệt, đã bị khóa hoặc đã bị xóa.");
 
         await _loginGuard.ResetAttemptsAsync(lockoutKey);
 
@@ -115,8 +115,8 @@ public class AuthService : IAuthService
         storedToken.RevokedAt = DateTime.UtcNow;
 
         var user = storedToken.NguoiDung!;
-        if (!user.TrangThaiHoatDong)
-            throw new ForbiddenException("Tài khoản đã bị khóa.");
+        if (user.DaXoa || !user.TrangThaiHoatDong)
+            throw new ForbiddenException("Tài khoản đã bị khóa hoặc đã bị xóa.");
 
         var userRoles = await GetUserRoles(user.Id);
         var roleNames = userRoles.Select(r => r.MaVaiTro ?? r.TenVaiTro).Distinct().ToList();

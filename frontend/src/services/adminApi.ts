@@ -54,6 +54,19 @@ export async function deleteUser(id: number): Promise<void> {
   await http.del(`/admin/users/${id}`);
 }
 
+export type UserAuditLog = {
+  id: number;
+  hanhDong: string;
+  moTaChiTiet: string;
+  thoiGianThucHien: string;
+  nguoiThucHienId: number;
+};
+
+export async function getUserAuditLogs(userId: number): Promise<UserAuditLog[]> {
+  const res = await http.get<ApiResponse<UserAuditLog[]>>(`/admin/users/${userId}/audit-log`);
+  return res.data ?? [];
+}
+
 /* ─── Khoa phòng ────────────────────────────────────────── */
 
 export type KhoaPhong = {

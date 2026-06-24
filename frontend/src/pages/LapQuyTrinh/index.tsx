@@ -55,7 +55,11 @@ export default function LapQuyTrinh() {
 
   /* ── Template state ── */
   const [templateList, setTemplateList] = useState<WorkflowTemplateSummary[]>([]);
-  const [templateInfo, setTemplateInfo] = useState<TemplateInfo | null>(null);
+  const [selectedTemplateIdx, setSelectedTemplateIdx] = useState(0);
+  const templateInfoRaw = templateList[selectedTemplateIdx] ?? null;
+  const templateInfo: TemplateInfo | null = templateInfoRaw
+    ? templateSummaryToInfo({ ...templateInfoRaw, loaiHinhDauThau: templateInfoRaw.loaiHinhDauThau ?? loaiHinh })
+    : null;
   const [loadingTemplate, setLoadingTemplate] = useState(false);
   const [previewData, setPreviewData] = useState<WorkflowTemplatePreview | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -189,24 +193,22 @@ export default function LapQuyTrinh() {
 
   /* ── Template handlers ── */
   async function handleLoaiHinhChange(value: string) {
-    setLoaiHinh(value); setLoaiHinhErr(""); setTemplateInfo(null); setPreviewData(null);
+    setLoaiHinh(value); setLoaiHinhErr(""); setPreviewData(null);
+    setSelectedTemplateIdx(0);
     markDirty();
-    if (!value) return;
+    if (!value) { setTemplateList([]); return; }
     setLoadingTemplate(true);
     try {
       const templates = await getWorkflowTemplates(value);
       setTemplateList(templates);
-      if (templates.length > 0) {
-        setTemplateInfo(templateSummaryToInfo({ ...templates[0], loaiHinhDauThau: templates[0].loaiHinhDauThau ?? value }));
-      }
     } catch { toast.error("Không thể tải quy trình chuẩn."); }
     finally { setLoadingTemplate(false); }
   }
 
   async function handlePreview() {
-    if (!templateList.length) return;
+    if (!templateInfoRaw) return;
     setPreviewLoading(true); setPreviewOpen(true);
-    try { setPreviewData(await previewWorkflowTemplate(templateList[0].id)); }
+    try { setPreviewData(await previewWorkflowTemplate(templateInfoRaw.id)); }
     catch { toast.error("Không thể tải preview."); setPreviewOpen(false); }
     finally { setPreviewLoading(false); }
   }
@@ -215,12 +217,25 @@ export default function LapQuyTrinh() {
     const e = validateTen(tenQuyTrinh); setTenErr(e);
     if (e) return;
     if (!loaiHinh) { setLoaiHinhErr("Vui lòng chọn loại hình đấu thầu"); return; }
-    if (!templateList.length) { toast.error("Chưa có quy trình chuẩn."); return; }
+    if (!templateInfoRaw) { toast.error("Chưa có quy trình chuẩn."); return; }
 
     setSaving(true); setSaveErr("");
     try {
+      const templates = await getWorkflowTemplates(loaiHinh);
+      const selectedTemplate = templates.find((t) => t.id === templateInfoRaw.id) ?? templates[0];
+      if (!selectedTemplate || selectedTemplate.soBuoc <= 0) {
+        setTemplateList(templates);
+        setSelectedTemplateIdx(0);
+        toast.error("Không có quy trình chuẩn hợp lệ cho loại hình này.");
+        return;
+      }
+
+      const selectedIdx = templates.findIndex((t) => t.id === selectedTemplate.id);
+      setTemplateList(templates);
+      setSelectedTemplateIdx(selectedIdx >= 0 ? selectedIdx : 0);
+
       const result = await generateWorkflowFromTemplate({
-        templateWorkflowId: templateList[0].id, tenWorkflow: tenQuyTrinh.trim(), loaiHinhDauThau: loaiHinh,
+        templateWorkflowId: selectedTemplate.id, tenWorkflow: tenQuyTrinh.trim(), loaiHinhDauThau: loaiHinh,
       });
       setGeneratedWorkflowId(result.id);
       const draft = previewToWorkflowDraft(result, loaiHinh);
@@ -229,7 +244,7 @@ export default function LapQuyTrinh() {
       setIsDirty(false);
       toast.success("Tạo quy trình từ template thành công!");
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Tạo quy trình thất bại");
+      toast.error(err?.response?.data?.error || err?.response?.data?.message || "Tạo quy trình thất bại");
     } finally {
       setSaving(false);
     }
@@ -679,8 +694,10 @@ export default function LapQuyTrinh() {
           onTenChange={(v) => { setTenQuyTrinh(v); setTenErr(validateTen(v)); markDirty(); }}
           selectedLoaiHinh={loaiHinh} onLoaiHinhChange={handleLoaiHinhChange}
           loaiHinhErr={loaiHinhErr} templateInfo={templateInfo} loadingTemplate={loadingTemplate}
+          templateList={templateList} selectedTemplateIdx={selectedTemplateIdx}
+          onTemplateIdxChange={(i) => { setSelectedTemplateIdx(i); markDirty(); }}
           onPreview={handlePreview} onGenerate={handleGenerate}
-          canGenerate={!isEdit && !!templateInfo && !saving} canPreview={!!templateInfo} isEdit={isEdit}
+          canGenerate={!isEdit && !!templateInfo && templateInfo.soBuoc > 0 && !saving} canPreview={!!templateInfo} isEdit={isEdit}
         />
 
         <WorkflowStepList

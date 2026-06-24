@@ -20,13 +20,20 @@ public class TenderAccessService : ITenderAccessService
         int userId,
         string fullScopePermission = "GOITHAU.VIEW_ALL")
     {
+        var scope = await ResolveTenderScopeDetailAsync(userId, fullScopePermission);
+        return (scope.KhoaPhongIds, scope.IsFullScope);
+    }
+
+    public async Task<TenderScope> ResolveTenderScopeDetailAsync(
+        int userId,
+        string fullScopePermission = "GOITHAU.VIEW_ALL")
+    {
         var permissions = await _permissionService.GetPermissionsAsync(userId);
         var isFullScope = permissions.Contains(fullScopePermission, StringComparer.OrdinalIgnoreCase)
-            || permissions.Contains("GOITHAU.VIEW_ALL", StringComparer.OrdinalIgnoreCase)
-            || permissions.Contains("REPORT.VIEW_ALL", StringComparer.OrdinalIgnoreCase);
+            || permissions.Contains("GOITHAU.VIEW_ALL", StringComparer.OrdinalIgnoreCase);
 
         if (isFullScope)
-            return ([], true);
+            return new TenderScope([], true, false);
 
         var khoaPhongIds = await _db.NguoiDungKhoaPhongVaiTros
             .AsNoTracking()
@@ -35,7 +42,7 @@ public class TenderAccessService : ITenderAccessService
             .Distinct()
             .ToListAsync();
 
-        return (khoaPhongIds.ToHashSet(), false);
+        return new TenderScope(khoaPhongIds.ToHashSet(), false, khoaPhongIds.Count == 0);
     }
 
     public Task EnsureCanViewAsync(int userId, int goiThauId)
@@ -54,11 +61,17 @@ public class TenderAccessService : ITenderAccessService
             .FirstOrDefaultAsync(g => g.Id == goiThauId && g.TrangThaiHoatDong)
             ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId}");
 
-        var (allowedKhoaPhongIds, isFullScope) = await ResolveTenderScopeAsync(userId);
-        if (isFullScope && !requireFullScope)
+        var scope = await ResolveTenderScopeDetailAsync(userId);
+        if (scope.IsFullScope && !requireFullScope)
             return tender;
 
-        if (tender.KhoaPhongId.HasValue && allowedKhoaPhongIds.Contains(tender.KhoaPhongId.Value))
+        if (scope.OwnOnly && tender.NguoiTaoId == userId)
+            return tender;
+
+        if (tender.NguoiTaoId == userId)
+            return tender;
+
+        if (tender.KhoaPhongId.HasValue && scope.KhoaPhongIds.Contains(tender.KhoaPhongId.Value))
             return tender;
 
         throw new ForbiddenException("Bạn không có quyền truy cập gói thầu này.");

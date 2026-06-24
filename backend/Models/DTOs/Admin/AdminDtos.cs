@@ -23,6 +23,7 @@ public class AdminUserItemDto
     public string TenDangNhap { get; set; } = null!;
     public string HoTen { get; set; } = null!;
     public string Email { get; set; } = null!;
+    public string? SoDienThoai { get; set; }
     public bool TrangThaiHoatDong { get; set; }
     public DateTime NgayTao { get; set; }
     public List<UserRoleDto> Roles { get; set; } = [];
@@ -41,6 +42,7 @@ public class AdminUserDetailDto
     public string TenDangNhap { get; set; } = null!;
     public string HoTen { get; set; } = null!;
     public string Email { get; set; } = null!;
+    public string? SoDienThoai { get; set; }
     public bool TrangThaiHoatDong { get; set; }
     public DateTime NgayTao { get; set; }
     public string? AvatarUrl { get; set; }

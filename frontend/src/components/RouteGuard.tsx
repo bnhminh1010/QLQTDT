@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { getCurrentUserApi } from "@/services/api";
-import { useAccessLevel, canAccess } from "@/hooks/useAccessLevel";
+import { canAccessPath, getDefaultPath } from "@/hooks/useAccessLevel";
 import type { LoginUserDto } from "@/services/api";
 
 interface Props {
@@ -12,7 +12,6 @@ export default function RouteGuard({ children }: Props) {
   const location = useLocation();
   const [user, setUser] = useState<LoginUserDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const level = useAccessLevel(user);
 
   useEffect(() => {
     getCurrentUserApi()
@@ -31,8 +30,11 @@ export default function RouteGuard({ children }: Props) {
   }
 
   const path = location.pathname;
-  if (!canAccess(path, level)) {
-    return <Navigate to="/dashboard" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!canAccessPath(path, user)) {
+    return <Navigate to={getDefaultPath(user)} replace />;
   }
 
   return <>{children}</>;
