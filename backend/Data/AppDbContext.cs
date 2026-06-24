@@ -482,8 +482,13 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.HinhThucId)
                   .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.KhoaPhong)
+                  .WithMany()
+                  .HasForeignKey(e => e.KhoaPhongId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => e.MaGoiThau).IsUnique();
+            entity.HasIndex(e => e.KhoaPhongId);
         });
 
         // LichSuTrangThaiGoiThau

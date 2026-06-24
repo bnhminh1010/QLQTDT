@@ -12,10 +12,15 @@ namespace QLQTDT.Api.Services;
 public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITenderAccessService _tenderAccess;
 
-    public GoiThauService(AppDbContext db, IHttpContextAccessor httpContextAccessor) : base(db)
+    public GoiThauService(
+        AppDbContext db,
+        IHttpContextAccessor httpContextAccessor,
+        ITenderAccessService tenderAccess) : base(db)
     {
         _httpContextAccessor = httpContextAccessor;
+        _tenderAccess = tenderAccess;
     }
 
     public async Task<PagedResult<GoiThauDto>> SearchAsync(int page, int pageSize, string? trangThai)
@@ -33,9 +38,11 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         if (!string.IsNullOrWhiteSpace(normalizedTrangThai))
             query = query.Where(g => g.TrangThai == normalizedTrangThai);
 
-        // Áp scope filter theo khoa/phòng cho user limited
-        var (allowedKhoaPhongIds, isFullScope) = await ResolveScopeAsync();
-        if (!isFullScope && allowedKhoaPhongIds.Count > 0)
+        // Áp scope filter theo khoa/phòng cho user limited.
+        // Scope rỗng phải trả danh sách rỗng, không được bỏ filter thành full scope.
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
+        if (!isFullScope)
             query = query.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
 
         var total = await query.CountAsync();
@@ -54,7 +61,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 KhoaPhongId = g.KhoaPhongId,
                 HinhThucId = g.HinhThucId,
                 TenHinhThuc = g.HinhThuc != null ? g.HinhThuc.TenHinhThuc : null,
-                TenKhoaPhong = g.KhoaPhongId != null ? g.KhoaPhong.TenKhoaPhong : null,
+                TenKhoaPhong = g.KhoaPhongId != null && g.KhoaPhong != null ? g.KhoaPhong.TenKhoaPhong : null,
             })
             .ToListAsync();
 
@@ -100,6 +107,9 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
     public async Task<GoiThauDetailDto> GetChiTietAsync(int id)
     {
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        await _tenderAccess.EnsureCanViewAsync(userId, id);
+
         var entity = await _set
             .Include(g => g.HinhThuc)
             .FirstOrDefaultAsync(g => g.Id == id);
@@ -131,6 +141,9 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
     public async Task<IReadOnlyList<LichSuTrangThaiGoiThauDto>> GetLichSuTrangThaiAsync(int id)
     {
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        await _tenderAccess.EnsureCanViewAsync(userId, id);
+
         var exists = await _set.AnyAsync(g => g.Id == id);
         if (!exists)
             throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
@@ -232,6 +245,9 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
     public async Task<GoiThau> UpdateAsync(int id, UpdateGoiThauDto dto)
     {
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        await _tenderAccess.EnsureCanEditAsync(userId, id);
+
         var entity = await _set.FindAsync(id)
             ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
 
@@ -275,6 +291,9 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
     public override async Task DeleteAsync(int id)
     {
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        await _tenderAccess.EnsureCanEditAsync(userId, id);
+
         var entity = await _set.FindAsync(id)
             ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
 
@@ -343,6 +362,9 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
     public async Task CancelAsync(int id)
     {
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        await _tenderAccess.EnsureCanEditAsync(userId, id);
+
         var entity = await _set.FindAsync(id)
             ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
 

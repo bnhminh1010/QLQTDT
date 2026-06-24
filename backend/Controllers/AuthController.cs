@@ -58,8 +58,11 @@ public class AuthController : ControllerBase
     /// <summary>Đăng xuất hệ thống</summary>
     [HttpPost("logout")]
     [Authorize]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto? dto = null)
     {
+        if (dto?.RefreshToken != null)
+            await _authService.RevokeRefreshTokenAsync(dto.RefreshToken);
+
         Response.Cookies.Delete(_jwtConfig.CookieName, new CookieOptions
         {
             HttpOnly = true,

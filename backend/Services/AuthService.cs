@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QLQTDT.Api.Data;
@@ -100,9 +102,10 @@ public class AuthService : IAuthService
 
     public async Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken)
     {
+        var tokenHash = HashToken(refreshToken);
         var storedToken = await _context.RefreshTokens
             .Include(rt => rt.NguoiDung)
-            .FirstOrDefaultAsync(rt => rt.Token == refreshToken)
+            .FirstOrDefaultAsync(rt => rt.Token == tokenHash)
             ?? throw new UnauthorizedException("Refresh token không hợp lệ.");
 
         if (!storedToken.IsActive)
@@ -150,8 +153,9 @@ public class AuthService : IAuthService
 
     public async Task RevokeRefreshTokenAsync(string refreshToken)
     {
+        var tokenHash = HashToken(refreshToken);
         var storedToken = await _context.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
+            .FirstOrDefaultAsync(rt => rt.Token == tokenHash);
 
         if (storedToken != null)
         {
@@ -160,12 +164,28 @@ public class AuthService : IAuthService
         }
     }
 
+    private static string HashToken(string token)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    private async Task RevokeAllRefreshTokensAsync(int userId)
+    {
+        var activeTokens = await _context.RefreshTokens
+            .Where(rt => rt.NguoiDungId == userId && rt.RevokedAt == null && !rt.IsExpired)
+            .ToListAsync();
+
+        foreach (var token in activeTokens)
+            token.RevokedAt = DateTime.UtcNow;
+    }
+
     private async Task<string> CreateRefreshTokenAsync(int userId)
     {
         var tokenString = _jwtService.GenerateRefreshToken();
         _context.RefreshTokens.Add(new RefreshToken
         {
-            Token = tokenString,
+            Token = HashToken(tokenString),
             NguoiDungId = userId,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
@@ -258,6 +278,7 @@ public class AuthService : IAuthService
         {
             resetToken.NguoiDung.MatKhauHash = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
             resetToken.Used = true;
+            await RevokeAllRefreshTokensAsync(resetToken.NguoiDungId);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
         }
@@ -277,6 +298,7 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Mật khẩu hiện tại không chính xác.");
 
         user.MatKhauHash = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
+        await RevokeAllRefreshTokensAsync(userId);
         await _context.SaveChangesAsync();
     }
 

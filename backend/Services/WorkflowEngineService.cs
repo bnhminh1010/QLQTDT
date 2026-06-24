@@ -13,20 +13,24 @@ public class WorkflowEngineService : IWorkflowEngineService
     private readonly AppDbContext _db;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<WorkflowEngineService> _logger;
+    private readonly ITenderAccessService _tenderAccess;
 
     public WorkflowEngineService(
         AppDbContext db,
         IHttpContextAccessor httpContextAccessor,
-        ILogger<WorkflowEngineService> logger)
+        ILogger<WorkflowEngineService> logger,
+        ITenderAccessService tenderAccess)
     {
         _db = db;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _tenderAccess = tenderAccess;
     }
 
     public async Task<ProcessStepResponse> ProcessStepAsync(int goiThauId, ProcessStepRequest request)
     {
         var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanProcessAsync(currentUserId, goiThauId);
 
         // ─── 1. Validate GoiThau ───────────────────────────────────────────
         var goiThau = await _db.GoiThaus.FindAsync(goiThauId);
@@ -140,13 +144,9 @@ public class WorkflowEngineService : IWorkflowEngineService
             {
                 WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET => await HandleApproveAsync(
                     goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong,
-                    nguoiXuLyId: request.NguoiXuLyId, ngayXuLy: request.NgayXuLy,
-                    nguoiKyDuyetId: request.NguoiKyDuyetId, ngayKyDuyet: request.NgayKyDuyet,
                     taiLieuDinhKem: request.TaiLieuDinhKem),
                 WorkflowHanhDong.REJECT or WorkflowHanhDong.KHONG_DUYET => await HandleRejectAsync(
                     goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong,
-                    nguoiXuLyId: request.NguoiXuLyId, ngayXuLy: request.NgayXuLy,
-                    nguoiKyDuyetId: request.NguoiKyDuyetId, ngayKyDuyet: request.NgayKyDuyet,
                     taiLieuDinhKem: request.TaiLieuDinhKem),
                 WorkflowHanhDong.ROLLBACK or WorkflowHanhDong.TRA_VE => await HandleRollbackAsync(
                     goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong),
@@ -180,81 +180,11 @@ public class WorkflowEngineService : IWorkflowEngineService
     private async Task<ProcessStepResponse> HandleApproveAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
         int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.APPROVE,
-        int? nguoiXuLyId = null, DateTime? ngayXuLy = null,
-        int? nguoiKyDuyetId = null, DateTime? ngayKyDuyet = null,
         string? taiLieuDinhKem = null)
     {
         var buoc = currentStep.BuocWorkflow!;
 
-        // ── FAST PATH: frontend submitted full form (both phases in 1 call) ──
-        if (nguoiKyDuyetId is int actualNguoiKyDuyetId && ngayKyDuyet is DateTime actualNgayKyDuyet)
-        {
-            // Security: verify caller is a signer in KY_DUYET phase
-            if (currentStep.PhaHienTai == "KY_DUYET")
-            {
-                var isSigner = currentStep.WorkflowAssignments
-                    .Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy);
-                if (!isSigner)
-                    throw new ForbiddenException("Bạn không được phân công ký duyệt bước này.");
-            }
-
-            // Mark LAP_HO_SO phase done
-            currentStep.NguoiXuLyId = nguoiXuLyId ?? currentUserId;
-            currentStep.NgayXuLy = ngayXuLy ?? DateTime.UtcNow;
-            currentStep.TaiLieuDinhKem = taiLieuDinhKem;
-            currentStep.GhiChu = ghiChu ?? currentStep.GhiChu;
-
-            foreach (var a in currentStep.WorkflowAssignments.Where(a => !a.DaXuLy))
-            {
-                a.DaXuLy = true;
-                a.NgayXuLy = DateTime.UtcNow;
-            }
-
-            // Check if step requires approval
-            if (buoc.VaiTroKyDuyetId.HasValue)
-            {
-                // Mark KY_DUYET phase done
-                currentStep.NguoiKyDuyetId = actualNguoiKyDuyetId;
-                currentStep.NgayKyDuyet = actualNgayKyDuyet;
-                currentStep.KetQua = "DUYET";
-
-                // Resolve all signers and mark them done
-                var signerIds = await ResolveAssigneesAsync(buoc.VaiTroKyDuyetId.Value, actualNguoiKyDuyetId);
-                foreach (var signerId in signerIds)
-                {
-                    var existing = currentStep.WorkflowAssignments
-                        .FirstOrDefault(a => a.NguoiDuocGiaoId == signerId);
-                    if (existing is null)
-                    {
-                        _db.WorkflowAssignments.Add(new WorkflowAssignment
-                        {
-                            WorkflowStepInstanceId = currentStep.Id,
-                            NguoiDuocGiaoId = signerId,
-                            DaXuLy = true,
-                            NgayGiao = DateTime.UtcNow,
-                            NgayXuLy = DateTime.UtcNow
-                        });
-                    }
-                    else if (!existing.DaXuLy)
-                    {
-                        existing.DaXuLy = true;
-                        existing.NgayXuLy = DateTime.UtcNow;
-                    }
-                }
-
-                // Advance to next step
-                return await CompleteStepAndAdvanceAsync(
-                    goiThau, instance, currentStep, buoc,
-                    nguoiKyDuyetId.Value, ghiChu, hanhDong);
-            }
-            else
-            {
-                // No approval needed, advance directly
-                return await CompleteStepAndAdvanceAsync(
-                    goiThau, instance, currentStep, buoc,
-                    nguoiXuLyId ?? currentUserId, ghiChu, hanhDong);
-            }
-        }
+        // Server derives actor from JWT claims and timestamps from DateTime.UtcNow.
 
         if (currentStep.PhaHienTai == "LAP_HO_SO")
         {
@@ -280,7 +210,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 currentStep.TrangThai = WorkflowStepTrangThai.CHO_DUYET;
 
                 // Resolve signers: có thể nhiều người ký song song
-                var signerIds = await ResolveAssigneesAsync(buoc.VaiTroKyDuyetId.Value, currentUserId);
+                var signerIds = await ResolveAssigneesAsync(buoc.VaiTroKyDuyetId.Value, currentUserId, goiThau.KhoaPhongId);
                 foreach (var signerId in signerIds)
                 {
                     _db.WorkflowAssignments.Add(new WorkflowAssignment
@@ -453,7 +383,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             var nextBuoc = transition.DenBuoc;
             if (nextBuoc.VaiTroXuLyHoSoId.HasValue)
             {
-                var assigneeIds = await ResolveAssigneesAsync(nextBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+                var assigneeIds = await ResolveAssigneesAsync(nextBuoc.VaiTroXuLyHoSoId.Value, currentUserId, goiThau.KhoaPhongId);
                 foreach (var assigneeId in assigneeIds)
                 {
                     _db.WorkflowAssignments.Add(new WorkflowAssignment
@@ -524,7 +454,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             var roleId = branch.VaiTroXuLyId ?? buocDauTien?.VaiTroXuLyHoSoId;
             if (roleId.HasValue)
             {
-                var assigneeIds = await ResolveAssigneesAsync(roleId.Value, currentUserId);
+                var assigneeIds = await ResolveAssigneesAsync(roleId.Value, currentUserId, goiThau.KhoaPhongId);
                 foreach (var assigneeId in assigneeIds)
                 {
                     _db.WorkflowAssignments.Add(new WorkflowAssignment
@@ -702,7 +632,8 @@ public class WorkflowEngineService : IWorkflowEngineService
         // Resolve assignees for merge step
         if (mergeBuoc?.VaiTroXuLyHoSoId.HasValue == true)
         {
-            var assigneeIds = await ResolveAssigneesAsync(mergeBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+            var mergeGoiThau = await _db.GoiThaus.AsNoTracking().FirstOrDefaultAsync(g => g.Id == instance.GoiThauId);
+            var assigneeIds = await ResolveAssigneesAsync(mergeBuoc.VaiTroXuLyHoSoId.Value, currentUserId, mergeGoiThau?.KhoaPhongId);
             foreach (var assigneeId in assigneeIds)
             {
                 _db.WorkflowAssignments.Add(new WorkflowAssignment
@@ -744,8 +675,6 @@ public class WorkflowEngineService : IWorkflowEngineService
     private async Task<ProcessStepResponse> HandleRejectAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
         int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.REJECT,
-        int? nguoiXuLyId = null, DateTime? ngayXuLy = null,
-        int? nguoiKyDuyetId = null, DateTime? ngayKyDuyet = null,
         string? taiLieuDinhKem = null)
     {
         var buoc = currentStep.BuocWorkflow;
@@ -766,13 +695,13 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         if (currentStep.PhaHienTai == "KY_DUYET")
         {
-            currentStep.NguoiKyDuyetId = nguoiKyDuyetId ?? currentUserId;
-            currentStep.NgayKyDuyet = ngayKyDuyet ?? DateTime.UtcNow;
+            currentStep.NguoiKyDuyetId = currentUserId;
+            currentStep.NgayKyDuyet = DateTime.UtcNow;
         }
         else
         {
-            currentStep.NguoiXuLyId = nguoiXuLyId ?? currentUserId;
-            currentStep.NgayXuLy = ngayXuLy ?? DateTime.UtcNow;
+            currentStep.NguoiXuLyId = currentUserId;
+            currentStep.NgayXuLy = DateTime.UtcNow;
         }
 
         // Mark all pending assignments as done
@@ -811,7 +740,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             if (rejectTransition.TuBuoc.VaiTroXuLyHoSoId.HasValue)
             {
                 var assigneeIds = await ResolveAssigneesAsync(
-                    rejectTransition.TuBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+                    rejectTransition.TuBuoc.VaiTroXuLyHoSoId.Value, currentUserId, goiThau.KhoaPhongId);
                 foreach (var assigneeId in assigneeIds)
                 {
                     _db.WorkflowAssignments.Add(new WorkflowAssignment
@@ -937,7 +866,7 @@ public class WorkflowEngineService : IWorkflowEngineService
         var tuBuoc = rollbackTransition.TuBuoc;
         if (tuBuoc.VaiTroXuLyHoSoId.HasValue)
         {
-            var assigneeIds = await ResolveAssigneesAsync(tuBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+            var assigneeIds = await ResolveAssigneesAsync(tuBuoc.VaiTroXuLyHoSoId.Value, currentUserId, goiThau.KhoaPhongId);
             foreach (var assigneeId in assigneeIds)
             {
                 _db.WorkflowAssignments.Add(new WorkflowAssignment
@@ -1036,7 +965,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             var nextBuoc = transition.DenBuoc;
             if (nextBuoc.VaiTroXuLyHoSoId.HasValue)
             {
-                var assigneeIds = await ResolveAssigneesAsync(nextBuoc.VaiTroXuLyHoSoId.Value, currentUserId);
+                var assigneeIds = await ResolveAssigneesAsync(nextBuoc.VaiTroXuLyHoSoId.Value, currentUserId, goiThau.KhoaPhongId);
                 foreach (var assigneeId in assigneeIds)
                 {
                     _db.WorkflowAssignments.Add(new WorkflowAssignment
@@ -1162,6 +1091,7 @@ public class WorkflowEngineService : IWorkflowEngineService
     public async Task<WorkflowInstanceDto> StartWorkflowAsync(int goiThauId, StartWorkflowRequest request)
     {
         var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanProcessAsync(currentUserId, goiThauId);
 
         var goiThau = await _db.GoiThaus.FindAsync(goiThauId);
         if (goiThau is null || !goiThau.TrangThaiHoatDong)
@@ -1178,6 +1108,9 @@ public class WorkflowEngineService : IWorkflowEngineService
         var workflow = await _db.Workflows.FindAsync(request.WorkflowId!.Value);
         if (workflow is null)
             throw new NotFoundException($"Khong tim thay workflow template voi Id = {request.WorkflowId}");
+
+        if (goiThau.HinhThucId.HasValue && goiThau.HinhThucId.Value != workflow.HinhThucId)
+            throw new BadRequestException("Workflow không phù hợp với hình thức đấu thầu của gói thầu.");
 
         var steps = await _db.BuocWorkflows
             .Where(b => b.WorkflowId == request.WorkflowId!.Value)
@@ -1239,7 +1172,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             // Resolve assignees cho LAP_HO_SO phase
             if (firstStep.VaiTroXuLyHoSoId.HasValue)
             {
-                var assigneeIds = await ResolveAssigneesAsync(firstStep.VaiTroXuLyHoSoId.Value, currentUserId);
+                var assigneeIds = await ResolveAssigneesAsync(firstStep.VaiTroXuLyHoSoId.Value, currentUserId, goiThau.KhoaPhongId);
                 foreach (var assigneeId in assigneeIds)
                 {
                     _db.WorkflowAssignments.Add(new WorkflowAssignment
@@ -1327,6 +1260,9 @@ public class WorkflowEngineService : IWorkflowEngineService
 
     public async Task<WorkflowStateDto?> GetWorkflowStateAsync(int goiThauId)
     {
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanViewAsync(currentUserId, goiThauId);
+
         var instance = await _db.WorkflowInstances
             .Include(i => i.Workflow)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
@@ -1410,6 +1346,9 @@ public class WorkflowEngineService : IWorkflowEngineService
 
     public async Task<List<WorkflowStepStateDto>> GetWorkflowStepsAsync(int goiThauId)
     {
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanViewAsync(currentUserId, goiThauId);
+
         var instance = await _db.WorkflowInstances
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiXuLy)
@@ -1450,6 +1389,9 @@ public class WorkflowEngineService : IWorkflowEngineService
     // ════════════════════════════════════════════════════════════════════
     public async Task<WorkflowStepStateDto?> GetWorkflowStepDetailAsync(int goiThauId, long stepId)
     {
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanViewAsync(currentUserId, goiThauId);
+
         var instance = await _db.WorkflowInstances
             .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
         if (instance is null) return null;
@@ -1598,28 +1540,26 @@ public class WorkflowEngineService : IWorkflowEngineService
     /// <summary>
     /// Resolve danh sách người dùng có vai trò cụ thể (hỗ trợ ký song song).
     /// </summary>
-    private async Task<List<int>> ResolveAssigneesAsync(int vaiTroId, int fallbackUserId)
+    private async Task<List<int>> ResolveAssigneesAsync(int vaiTroId, int fallbackUserId, int? khoaPhongId = null)
     {
-        var userIds = await _db.NguoiDungKhoaPhongVaiTros
+        var query = _db.NguoiDungKhoaPhongVaiTros
             .Where(nkv =>
                 nkv.VaiTroId == vaiTroId &&
                 nkv.NguoiDung.TrangThaiHoatDong &&
-                !nkv.NguoiDung.DaXoa)
+                !nkv.NguoiDung.DaXoa);
+
+        if (khoaPhongId.HasValue)
+            query = query.Where(nkv => nkv.KhoaPhongId == khoaPhongId.Value);
+
+        var userIds = await query
             .Select(nkv => nkv.NguoiDungId)
             .Distinct()
             .ToListAsync();
 
-        if (userIds.Count > 0)
-        {
-            // Prefer current user if they have the role
-            if (userIds.Contains(fallbackUserId))
-                return [fallbackUserId];
+        if (userIds.Count == 0)
+            throw new BadRequestException("Không tìm thấy người được phân công phù hợp trong khoa/phòng của gói thầu. Vui lòng kiểm tra cấu hình vai trò workflow.");
 
-            return userIds;
-        }
-
-        // Fallback: assign to current user
-        return [fallbackUserId];
+        return userIds;
     }
 
     // ════════════════════════════════════════════════════════════════════

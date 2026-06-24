@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
@@ -11,14 +12,24 @@ namespace QLQTDT.Api.Services;
 public class HoSoDuThauService : IHoSoDuThauService
 {
     private readonly AppDbContext _db;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITenderAccessService _tenderAccess;
 
-    public HoSoDuThauService(AppDbContext db)
+    public HoSoDuThauService(
+        AppDbContext db,
+        IHttpContextAccessor httpContextAccessor,
+        ITenderAccessService tenderAccess)
     {
         _db = db;
+        _httpContextAccessor = httpContextAccessor;
+        _tenderAccess = tenderAccess;
     }
 
     public async Task<HoSoDuThauDetailDto> CreateAsync(CreateHoSoDuThauRequest request)
     {
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanEditAsync(currentUserId, request.GoiThauId);
+
         var distinctFileIds = (request.FileIds ?? []).Distinct().ToList();
 
         var entity = new HoSoDuThau
@@ -115,9 +126,8 @@ public class HoSoDuThauService : IHoSoDuThauService
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var goiThauExists = await _db.GoiThaus.AnyAsync(g => g.Id == goiThauId);
-        if (!goiThauExists)
-            throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId}");
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanViewAsync(currentUserId, goiThauId);
 
         var query = _db.HoSoDuThaus
             .Where(h => h.GoiThauId == goiThauId)
@@ -184,6 +194,9 @@ public class HoSoDuThauService : IHoSoDuThauService
 
     public async Task AwardAsync(int goiThauId, AwardGoiThauRequest request)
     {
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanEditAsync(currentUserId, goiThauId);
+
         await using var transaction = await _db.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.RepeatableRead);
 
@@ -272,6 +285,14 @@ public class HoSoDuThauService : IHoSoDuThauService
         return dto ?? throw new NotFoundException($"Không tìm thấy hồ sơ dự thầu với Id = {id}");
     }
 
+    private int GetCurrentUserId()
+    {
+        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        if (claim is null || !int.TryParse(claim.Value, out var id))
+            throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        return id;
+    }
+
     public async Task EvaluateAsync(int id, EvaluateHoSoRequest request)
     {
         var entity = await _db.HoSoDuThaus.FindAsync(id)
@@ -291,6 +312,9 @@ public class HoSoDuThauService : IHoSoDuThauService
 
     public async Task<GoiThauKetQuaDto> GetKetQuaAsync(int goiThauId)
     {
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanViewAsync(currentUserId, goiThauId);
+
         var goiThau = await _db.GoiThaus.FindAsync(goiThauId)
             ?? throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId}");
 
