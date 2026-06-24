@@ -82,3 +82,17 @@ public class BaoCaoGoiThauResponse
     public int Page { get; set; }
     public int PageSize { get; set; }
 }
+
+/// <summary>Báo cáo chi tiêu theo khoa (dành cho ADMIN/CAP_CAO)</summary>
+public class BaoCaoChiTieuTheoKhoaDto
+{
+    public int? KhoaPhongId { get; set; }
+    public string TenKhoaPhong { get; set; } = null!;
+    public int TongGoiThau { get; set; }
+    public decimal? TongNganSach { get; set; }
+    public decimal? TongGiaiNgan { get; set; }
+    public double PhanTramGiaiNgan { get; set; }
+    public int DangXuLy { get; set; }
+    public int HoanThanh { get; set; }
+    public int DaHuy { get; set; }
+}

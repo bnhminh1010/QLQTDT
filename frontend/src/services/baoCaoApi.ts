@@ -65,3 +65,24 @@ export async function getDashboardTongQuan(): Promise<DashboardTongQuan> {
   const res = await http.get<ApiResponse<DashboardTongQuan>>("/dashboard/tong-quan");
   return res.data;
 }
+
+export async function getBaoCaoChiTieu(params?: {
+  tuNgay?: string;
+  denNgay?: string;
+  hinhThucId?: number;
+}): Promise<any> {
+  const res = await http.get<ApiResponse<any>>("/bao-cao/chi-tieu", { params });
+  return res.data;
+}
+
+export async function exportBaoCaoCsv(params?: {
+  tuNgay?: string;
+  denNgay?: string;
+  hinhThucId?: number;
+}): Promise<Blob> {
+  const res = await http.get("/bao-cao/export", {
+    params,
+    responseType: "blob",
+  } as any);
+  return res as unknown as Blob;
+}

@@ -3,16 +3,19 @@ using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models.DTOs.BaoCao;
 using QLQTDT.Api.Models.Entities;
+using System.Text;
 
 namespace QLQTDT.Api.Services;
 
 public class BaoCaoService : IBaoCaoService
 {
     private readonly AppDbContext _db;
+    private readonly ITenderAccessService _tenderAccess;
 
-    public BaoCaoService(AppDbContext db)
+    public BaoCaoService(AppDbContext db, ITenderAccessService tenderAccess)
     {
         _db = db;
+        _tenderAccess = tenderAccess;
     }
 
     public async Task<BaoCaoGoiThauResponse> GetGoiThauListAsync(int userId, BaoCaoGoiThauFilterDto filter)
@@ -22,7 +25,7 @@ public class BaoCaoService : IBaoCaoService
         if (filter.PageSize < 1 || filter.PageSize > 100)
             throw new BadRequestException("pageSize phải từ 1 đến 100.");
 
-        var (allowedKhoaPhongIds, isFullScope) = await ScopeResolver.ResolveAsync(_db, userId);
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
 
         if (!isFullScope && filter.KhoaPhongId.HasValue && !allowedKhoaPhongIds.Contains(filter.KhoaPhongId.Value))
             throw new ForbiddenException("Bạn không có quyền xem dữ liệu của khoa/phòng này.");
@@ -115,7 +118,7 @@ public class BaoCaoService : IBaoCaoService
 
     public async Task<BaoCaoTongHopDto> GetTongHopAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
     {
-        var (allowedKhoaPhongIds, isFullScope) = await ScopeResolver.ResolveAsync(_db, userId);
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
 
         var query = _db.GoiThaus
             .Where(g => g.TrangThaiHoatDong)
@@ -128,7 +131,6 @@ public class BaoCaoService : IBaoCaoService
         if (denNgay.HasValue) query = query.Where(g => g.NgayTao <= denNgay.Value);
         if (hinhThucId.HasValue) query = query.Where(g => g.HinhThucId == hinhThucId.Value);
 
-        // KPI totals
         var tongGoiThau = await query.CountAsync();
         var dangXuLy = await query.CountAsync(g => g.TrangThai == GoiThauTrangThai.DANG_XU_LY);
         var hoanThanh = await query.CountAsync(g => g.TrangThai == GoiThauTrangThai.HOAN_THANH);
@@ -136,7 +138,6 @@ public class BaoCaoService : IBaoCaoService
         var quaHan = await query.CountAsync(g => g.TrangThai == GoiThauTrangThai.QUA_HAN);
         var tongNganSach = await query.SumAsync(g => g.NganSach ?? 0);
 
-        // Stats by department — only for full-scope users
         List<BaoCaoTheoDonViDto> theoDonVi = [];
         if (isFullScope)
         {
@@ -162,7 +163,6 @@ public class BaoCaoService : IBaoCaoService
                 .ToListAsync();
         }
 
-        // Stats by month
         var theoThang = await query
             .GroupBy(g => new { g.NgayTao.Year, g.NgayTao.Month })
             .Select(g => new BaoCaoTheoThangDto
@@ -175,7 +175,6 @@ public class BaoCaoService : IBaoCaoService
             .Take(12)
             .ToListAsync();
 
-        // Stats by procurement type
         var theoHinhThuc = await query
             .GroupBy(g => new { HinhThucId = g.HinhThucId ?? -1 })
             .Select(g => new BaoCaoTheoHinhThucDto
@@ -203,4 +202,126 @@ public class BaoCaoService : IBaoCaoService
         };
     }
 
+    public async Task<List<BaoCaoChiTieuTheoKhoaDto>> GetChiTieuTheoKhoaAsync(
+        int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
+    {
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(
+            userId, "REPORT.VIEW_ALL");
+
+        var query = _db.GoiThaus
+            .Where(g => g.TrangThaiHoatDong)
+            .AsQueryable();
+
+        if (!isFullScope)
+            query = query.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+
+        if (tuNgay.HasValue) query = query.Where(g => g.NgayTao >= tuNgay.Value);
+        if (denNgay.HasValue) query = query.Where(g => g.NgayTao <= denNgay.Value);
+        if (hinhThucId.HasValue) query = query.Where(g => g.HinhThucId == hinhThucId.Value);
+
+        // Aggregate spending by department
+        var result = await query
+            .GroupBy(g => g.KhoaPhongId)
+            .Select(g => new
+            {
+                KhoaPhongId = g.Key,
+                TongGoiThau = g.Count(),
+                TongNganSach = g.Sum(x => x.NganSach),
+                DangXuLy = g.Count(x => x.TrangThai == GoiThauTrangThai.DANG_XU_LY),
+                HoanThanh = g.Count(x => x.TrangThai == GoiThauTrangThai.HOAN_THANH),
+                DaHuy = g.Count(x => x.TrangThai == GoiThauTrangThai.HUY_BO),
+                GoiThauIds = g.Select(x => x.Id).ToList(),
+            })
+            .ToListAsync();
+
+        // Get actual contract spending for completed tenders
+        var allGoiThauIds = result.SelectMany(r => r.GoiThauIds).Distinct().ToList();
+        var hopDongSpending = await _db.HopDongs
+            .Where(h => allGoiThauIds.Contains(h.GoiThauId))
+            .Include(h => h.GoiThau)
+            .Select(h => new { h.GoiThau!.KhoaPhongId, h.TongGiaTri })
+            .Where(x => x.KhoaPhongId != null)
+            .GroupBy(x => x.KhoaPhongId!.Value)
+            .Select(g => new
+            {
+                KhoaPhongId = g.Key,
+                TongGiaiNgan = g.Sum(x => x.TongGiaTri)
+            })
+            .ToListAsync();
+        var giaiNganDict = hopDongSpending.ToDictionary(h => h.KhoaPhongId, h => h.TongGiaiNgan);
+
+        // Resolve department names
+        var khoaPhongIds = result.Where(r => r.KhoaPhongId.HasValue).Select(r => r.KhoaPhongId!.Value).Distinct().ToList();
+        var khoaPhongDict = khoaPhongIds.Count > 0
+            ? await _db.KhoaPhongs.Where(k => khoaPhongIds.Contains(k.Id)).ToDictionaryAsync(k => k.Id, k => k.TenKhoaPhong)
+            : new Dictionary<int, string>();
+
+        return result.Select(r => new BaoCaoChiTieuTheoKhoaDto
+        {
+            KhoaPhongId = r.KhoaPhongId,
+            TenKhoaPhong = r.KhoaPhongId.HasValue
+                ? khoaPhongDict.GetValueOrDefault(r.KhoaPhongId.Value, "(Không xác định)")
+                : "(Không xác định)",
+            TongGoiThau = r.TongGoiThau,
+            TongNganSach = r.TongNganSach,
+            TongGiaiNgan = r.KhoaPhongId.HasValue ? giaiNganDict.GetValueOrDefault(r.KhoaPhongId.Value) : null,
+            PhanTramGiaiNgan = r.TongNganSach.GetValueOrDefault() > 0 && r.KhoaPhongId.HasValue
+                ? Math.Round((double)(giaiNganDict.GetValueOrDefault(r.KhoaPhongId.Value, 0)
+                    / r.TongNganSach.GetValueOrDefault()) * 100, 1)
+                : 0,
+            DangXuLy = r.DangXuLy,
+            HoanThanh = r.HoanThanh,
+            DaHuy = r.DaHuy,
+        }).ToList();
+    }
+
+    public async Task<byte[]> ExportCsvAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
+    {
+        // Use chi-tieu data as CSV source, plus tong-hop stats
+        var chiTieu = await GetChiTieuTheoKhoaAsync(userId, tuNgay, denNgay, hinhThucId);
+        var tongHop = await GetTongHopAsync(userId, tuNgay, denNgay, hinhThucId);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("BÁO CÁO TỔNG HỢP ĐẤU THẦU");
+        sb.AppendLine($"Ngày xuất: {DateTime.UtcNow:dd/MM/yyyy HH:mm:ss}");
+        sb.AppendLine();
+
+        // Summary section
+        sb.AppendLine("--- TỔNG QUAN ---");
+        sb.AppendLine($"Tổng số gói thầu,{tongHop.TongGoiThau}");
+        sb.AppendLine($"Đang xử lý,{tongHop.DangXuLy}");
+        sb.AppendLine($"Hoàn thành,{tongHop.HoanThanh}");
+        sb.AppendLine($"Đã hủy,{tongHop.DaHuy}");
+        sb.AppendLine($"Quá hạn,{tongHop.QuaHan}");
+        sb.AppendLine($"Tổng ngân sách,{tongHop.TongNganSach:N0}");
+        sb.AppendLine();
+
+        // By department
+        sb.AppendLine("--- CHI TIÊU THEO KHOA ---");
+        sb.AppendLine("Khoa phòng,Tổng gói thầu,Ngân sách,Giải ngân,% giải ngân,Đang xử lý,Hoàn thành,Đã hủy");
+        foreach (var item in chiTieu)
+        {
+            sb.AppendLine($"\"{item.TenKhoaPhong}\",{item.TongGoiThau},{item.TongNganSach:N0},{item.TongGiaiNgan:N0},{item.PhanTramGiaiNgan}%,{item.DangXuLy},{item.HoanThanh},{item.DaHuy}");
+        }
+        sb.AppendLine();
+
+        // By month
+        sb.AppendLine("--- THEO THÁNG ---");
+        sb.AppendLine("Tháng,Năm,Số lượng");
+        foreach (var item in tongHop.TheoThang)
+        {
+            sb.AppendLine($"{item.Thang},{item.Nam},{item.SoLuong}");
+        }
+        sb.AppendLine();
+
+        // By procurement type
+        sb.AppendLine("--- THEO HÌNH THỨC ---");
+        sb.AppendLine("Hình thức,Số lượng,Tổng giá trị");
+        foreach (var item in tongHop.TheoHinhThuc)
+        {
+            sb.AppendLine($"\"{item.TenHinhThuc}\",{item.SoLuong},{item.TongGiaTri:N0}");
+        }
+
+        return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+    }
 }
