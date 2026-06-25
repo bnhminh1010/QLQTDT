@@ -188,6 +188,7 @@ export default function XuLyBuocGoiThau() {
         workflowStepInstanceId: step.id,
         rowVersion: step.rowVersion,
         taiLieuDinhKem: attachments.map((file) => file.name).join(", ") || undefined,
+        tenNguoiKyDuyet: form.nguoiKyDuyet || undefined,
       });
 
       toast.success(result.message || "Cập nhật bước thành công.");
