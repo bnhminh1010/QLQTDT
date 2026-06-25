@@ -10,12 +10,6 @@ import {
   type WorkflowStepStateDto,
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
-import {
-  getXuLyBuoc,
-  getXuLyBuocByStep,
-  getXuLyBuocHistory,
-  type XuLyBuocRecord,
-} from "./xuLyBuocService";
 
 /* ─── Types ───────────────────────────────────────────── */
 type DotState = "done" | "warn" | "idle";
@@ -269,12 +263,11 @@ function ConfirmModal({
 type HistoryModalProps = {
   goiThau: GoiThau;
   entries: LichSuGoiThau[];
-  processEntries: XuLyBuocRecord[];
   onClose: () => void;
 };
 
-function HistoryModal({ goiThau, entries, processEntries, onClose }: HistoryModalProps) {
-  const hasEntries = entries.length > 0 || processEntries.length > 0;
+function HistoryModal({ goiThau, entries, onClose }: HistoryModalProps) {
+  const hasEntries = entries.length > 0;
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
@@ -307,29 +300,6 @@ function HistoryModal({ goiThau, entries, processEntries, onClose }: HistoryModa
             </div>
           ) : (
             <div className="relative space-y-5 before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-px before:bg-slate-200">
-              {processEntries.map((entry) => (
-                <div key={`${entry.goiThauId}-${entry.thoiGianXuLy}`} className="relative flex gap-4">
-                  <div className="relative z-10 mt-1 h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                    <i className="fa-solid fa-clipboard-check text-[10px]" />
-                  </div>
-                  <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {entry.thoiGianXuLy ?? "—"}
-                    </p>
-                    <div className="mt-2 grid gap-1 text-sm text-slate-600">
-                      <p><span className="text-slate-400">Người xử lý:</span> {entry.nguoiXuLy || "—"}</p>
-                      <p><span className="text-slate-400">Bước workflow:</span> {entry.buocWorkflow}</p>
-                      <p><span className="text-slate-400">Người ký duyệt:</span> {entry.nguoiKyDuyet || "—"}</p>
-                      <p><span className="text-slate-400">Ngày ký duyệt:</span> {entry.ngayKyDuyet || "—"}</p>
-                      <p><span className="text-slate-400">Kết quả xử lý:</span> {entry.ketQua}</p>
-                      {entry.lyDoKhongDuyet && (
-                        <p><span className="text-slate-400">Lý do không duyệt:</span> {entry.lyDoKhongDuyet}</p>
-                      )}
-                      <p><span className="text-slate-400">Hệ thống:</span> {entry.thaoTacHeThong || "—"}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
               {entries.map((entry) => (
                 <div key={entry.id} className="relative flex gap-4">
                   <div className="relative z-10 mt-1 h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -380,6 +350,7 @@ export default function DanhSachGoiThau() {
   const [error, setError] = useState<string | null>(null);
   const [workflowState, setWorkflowState] = useState<WorkflowStateDto | null>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
 
   // Confirm modals
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
@@ -408,6 +379,13 @@ export default function DanhSachGoiThau() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("goiThauId");
+    if (!id) return;
+    loadData();
+    setWorkflowRefreshKey((k) => k + 1); // Force re-fetch workflowState when navigating back
+  }, [location.search, loadData]);
 
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("goiThauId");
@@ -445,7 +423,7 @@ export default function DanhSachGoiThau() {
     return () => {
       cancelled = true;
     };
-  }, [selected.id]);
+  }, [selected.id, workflowRefreshKey]);
 
   /* ─ Derived list ─ */
   const filtered = useMemo(() => {
@@ -548,7 +526,6 @@ export default function DanhSachGoiThau() {
       DETAIL_INFO_BY_ID[selected.id] ||
       DEFAULT_DETAIL_INFO;
     const currentStepName = detailInfo.buocHienTai;
-    const processingInfo = getXuLyBuoc(selected.id);
     const activeStepIds = new Set(workflowState?.currentSteps?.map((step) => step.stepInstanceId) ?? []);
     const canProcessWorkflowStep = (step: QuyTrinhStepDetail) =>
       canUpdateCurrentStep(selected) &&
@@ -564,36 +541,13 @@ export default function DanhSachGoiThau() {
           ? "Sắp quá hạn"
           : "Đúng hạn";
     const displaySteps = detailInfo.steps.map((step) => {
-      const stepRecord = getXuLyBuocByStep(selected.id, step.ten);
       const isCurrent = step.ten === currentStepName;
-      if (!isCurrent) {
-        if (stepRecord?.ketQua === "Duyệt") {
-          return {
-            ...step,
-            state: "done" as DotState,
-            current: false,
-          };
-        }
-        return {
-          ...step,
-          current: false,
-        };
-      }
-      if (stepRecord?.ketQua === "Duyệt") {
-        return {
-          ...step,
-          state: "done" as DotState,
-          current: false,
-        };
-      }
       return {
         ...step,
-        state: canUpdateCurrentStep(selected) ? ("warn" as DotState) : step.state,
-        current: true,
-        nguoiXuLy: processingInfo
-          ? processingInfo.nguoiXuLy
-          : step.nguoiXuLy || detailInfo.nguoiXuLy,
-        slaText: progressStatus,
+        current: isCurrent,
+        state: isCurrent && canUpdateCurrentStep(selected) ? ("warn" as DotState) : step.state,
+        nguoiXuLy: step.nguoiXuLy || detailInfo.nguoiXuLy,
+        slaText: isCurrent ? progressStatus : step.slaText,
       };
     });
 
@@ -675,14 +629,12 @@ export default function DanhSachGoiThau() {
             {[
               [
                 "Người xử lý",
-                processingInfo
-                  ? processingInfo.nguoiXuLy || "—"
-                  : detailInfo.nguoiXuLy || "—",
+                detailInfo.nguoiXuLy || "—",
               ],
-              ["Ngày xử lý", processingInfo?.ngayXuLy || "—"],
-              ["Người ký", processingInfo?.nguoiKyDuyet || "—"],
-              ["Ngày ký", processingInfo?.ngayKyDuyet || "—"],
-              ["Kết quả", processingInfo?.ketQua || "Chờ xử lý"],
+              ["Ngày xử lý", "—"],
+              ["Người ký", "—"],
+              ["Ngày ký", "—"],
+              ["Kết quả", "Chờ xử lý"],
             ].map(([lbl, val]) => (
               <div key={lbl} className="flex justify-between gap-3">
                 <span className="text-slate-400">{lbl}</span>
@@ -1312,7 +1264,6 @@ export default function DanhSachGoiThau() {
           entries={HISTORY_LOGS.filter(
             (entry) => entry.goiThauId === historyTarget.id,
           )}
-          processEntries={getXuLyBuocHistory(historyTarget.id)}
           onClose={() => setHistoryTarget(null)}
         />
       )}

@@ -3,68 +3,13 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
-import {
-  completeXuLyBuoc,
-  getCurrentStepName,
-  getXuLyBuoc,
-  getXuLyBuocByStep,
-  type KetQuaXuLy,
-  type XuLyBuocRecord,
-} from "@/pages/DanhSachGoiThau/xuLyBuocService";
+import type { KetQuaXuLy } from "@/pages/DanhSachGoiThau/xuLyBuocService";
 import { getWorkflowState, getWorkflowStepDetail, processStep, type WorkflowStepStateDto } from "@/services/workflowApi";
 import { useFileAttachment } from "@/hooks/useFileAttachment";
 import { fileIcon, formatBytes, openFile, downloadFile } from "@/util/fileAttachment";
 
-const MOCK_CURRENT_USER = "Trần Văn B";
-
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatDateTime() {
-  return new Date().toLocaleString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function getCurrentStep(goiThauId: string) {
-  if (goiThauId === "GT2025-003") return "Biên bản kiểm tra báo giá";
-  if (goiThauId === "GT2025-004") return "Tờ trình chủ trương";
-  return "Tờ trình phê duyệt dự toán";
-}
-
-const WORKFLOW_STEPS = [
-  "Đề xuất mua sắm",
-  "Tờ trình chủ trương",
-  "Đăng tải yêu cầu báo giá",
-  "Biên bản kiểm tra báo giá",
-  "Tờ trình phê duyệt dự toán",
-  "QĐ phê duyệt dự toán",
-  "Tờ trình kế hoạch LCNT",
-  "QĐ kế hoạch LCNT",
-  "Đăng tải kế hoạch LCNT",
-];
-
-function getNextStep(currentStepName: string) {
-  const idx = WORKFLOW_STEPS.indexOf(currentStepName);
-  if (idx < 0) return "Bước tiếp theo";
-  return WORKFLOW_STEPS[Math.min(idx + 1, WORKFLOW_STEPS.length - 1)];
-}
-
-function getPreviousStep(currentStepName: string) {
-  const idx = WORKFLOW_STEPS.indexOf(currentStepName);
-  if (idx <= 0) return WORKFLOW_STEPS[0];
-  return WORKFLOW_STEPS[idx - 1];
-}
-
-function isStepBefore(stepName: string, currentStepName: string) {
-  const stepIdx = WORKFLOW_STEPS.indexOf(stepName);
-  const currentIdx = WORKFLOW_STEPS.indexOf(currentStepName);
-  return stepIdx >= 0 && currentIdx >= 0 && stepIdx < currentIdx;
 }
 
 const inputCls =
@@ -75,6 +20,32 @@ const readonlyCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-100 text-slate-600";
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
+type FormData = {
+  goiThauId: string;
+  buocWorkflow: string;
+  nguoiXuLy: string;
+  ngayXuLy: string;
+  nguoiKyDuyet: string;
+  ngayKyDuyet: string;
+  ketQua: string;
+  ghiChu: string;
+  lyDoKhongDuyet: string;
+  taiLieuDinhKem: string[];
+};
+
+const emptyForm = (goiThauId: string): FormData => ({
+  goiThauId,
+  buocWorkflow: "",
+  nguoiXuLy: "",
+  ngayXuLy: todayInputValue(),
+  nguoiKyDuyet: "",
+  ngayKyDuyet: "",
+  ketQua: "Chờ xử lý",
+  ghiChu: "",
+  lyDoKhongDuyet: "",
+  taiLieuDinhKem: [],
+});
+
 export default function XuLyBuocGoiThau() {
   const navigate = useNavigate();
   const { id = "" } = useParams();
@@ -83,9 +54,10 @@ export default function XuLyBuocGoiThau() {
   const viewingStep = searchParams.get("step") || "";
   const stepIdParam = Number(searchParams.get("stepId"));
   const stepId = Number.isFinite(stepIdParam) && stepIdParam > 0 ? stepIdParam : undefined;
-  const [backendLoading, setBackendLoading] = useState(false);
+
+  const [backendLoading, setBackendLoading] = useState(true);
   const [backendError, setBackendError] = useState("");
-  const [currentBackendStep, setCurrentBackendStep] = useState<WorkflowStepStateDto | null>(null);
+  const [step, setStep] = useState<WorkflowStepStateDto | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [goiThau] = useState<GoiThau>(() => ({
     id, ten: "", tenGoiThau: "", maGoiThau: "",
@@ -93,49 +65,15 @@ export default function XuLyBuocGoiThau() {
     trangThai: "Đang xử lý" as any,
     detail: { nguonVon: "--", ngayTao: "--", hanHT: "--", pct: "0%", buoc: "0/0" },
   }));
-  const activeStepName = readonlyMode
-    ? viewingStep
-    : viewingStep || getCurrentStepName(id, getCurrentStep(id));
-  const currentWorkflowStepName = getCurrentStepName(id, getCurrentStep(id));
-  const existing = id
-    ? readonlyMode
-      ? getXuLyBuocByStep(id, activeStepName)
-      : getXuLyBuoc(id)
-    : null;
-  const isHistoricalStep =
-    readonlyMode && !existing && isStepBefore(activeStepName, currentWorkflowStepName);
-  const initialLocked = readonlyMode || (!!existing && existing.ketQua !== "Chờ xử lý");
+
+  const [form, setForm] = useState<FormData>(emptyForm(id));
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [decision, setDecision] = useState<"" | KetQuaXuLy>("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [locked, setLocked] = useState(readonlyMode);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
-
-  const [form, setForm] = useState<XuLyBuocRecord>(() => ({
-    goiThauId: id,
-    tenGoiThau: goiThau?.ten ?? "",
-    buocWorkflow: existing?.buocWorkflow ?? activeStepName,
-    nguoiXuLy: existing?.nguoiXuLy ?? (readonlyMode ? "K/p mua sắm" : id === "GT2025-003" ? "Nguyễn Văn A" : ""),
-    ngayXuLy: existing?.ngayXuLy ?? (readonlyMode ? "2025-03-12" : todayInputValue()),
-    nguoiKyDuyet: existing?.nguoiKyDuyet ?? (readonlyMode ? "Trần Văn B" : ""),
-    ngayKyDuyet: existing?.ngayKyDuyet ?? (readonlyMode ? "2025-03-12" : ""),
-    ketQua:
-      existing?.ketQua ??
-      (readonlyMode && activeStepName !== currentWorkflowStepName ? "Duyệt" : "Chờ xử lý"),
-    ghiChu:
-      existing?.ghiChu ??
-      (readonlyMode && activeStepName !== currentWorkflowStepName
-        ? "Bước đã hoàn thành theo cấu hình workflow."
-        : ""),
-    lyDoKhongDuyet: existing?.lyDoKhongDuyet ?? "",
-    taiLieuDinhKem: existing?.taiLieuDinhKem ?? [],
-    thoiGianXuLy: existing?.thoiGianXuLy,
-    thaoTacHeThong: existing?.thaoTacHeThong,
-  }));
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [decision, setDecision] = useState<"" | KetQuaXuLy>(
-    existing && existing.ketQua !== "Chờ xử lý" ? existing.ketQua : "",
-  );
-  const [rejectReason, setRejectReason] = useState(existing?.lyDoKhongDuyet ?? "");
-  const [locked, setLocked] = useState(initialLocked);
-  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   useEffect(() => {
     const goiThauId = Number(id.replace(/^GT/i, ""));
@@ -158,25 +96,29 @@ export default function XuLyBuocGoiThau() {
         return;
       }
 
-      const step = await getWorkflowStepDetail(goiThauId, targetStepId);
+      const backendStep = await getWorkflowStepDetail(goiThauId, targetStepId);
       if (cancelled) return;
 
-      const nextKetQua = step.ketQua || (step.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
-      setCurrentBackendStep(step);
-      setForm((prev) => ({
-        ...prev,
-        buocWorkflow: step.tenBuoc || prev.buocWorkflow,
-        nguoiXuLy: step.tenNguoiXuLy || prev.nguoiXuLy,
-        ngayXuLy: step.ngayXuLy?.slice(0, 10) || prev.ngayXuLy,
-        nguoiKyDuyet: step.tenNguoiKyDuyet || prev.nguoiKyDuyet,
-        ngayKyDuyet: step.ngayKyDuyet?.slice(0, 10) || prev.ngayKyDuyet,
-        ketQua: nextKetQua as KetQuaXuLy,
-        lyDoKhongDuyet: step.lyDoKhongDuyet || prev.lyDoKhongDuyet,
-        ghiChu: step.lyDoKhongDuyet || prev.ghiChu,
-      }));
-      setDecision(nextKetQua === "Không duyệt" || nextKetQua === "Duyệt" ? nextKetQua : "");
-      setRejectReason(step.lyDoKhongDuyet || "");
-      setLocked(readonlyMode || Boolean(step.ngayHoanThanh) || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED");
+      setStep(backendStep);
+      const isDone = readonlyMode || Boolean(backendStep.ngayHoanThanh)
+        || backendStep.trangThai === "HOAN_TAT" || backendStep.trangThai === "COMPLETED";
+
+      setForm({
+        goiThauId: id,
+        buocWorkflow: backendStep.tenBuoc || viewingStep,
+        nguoiXuLy: backendStep.tenNguoiXuLy || "",
+        ngayXuLy: backendStep.ngayXuLy?.slice(0, 10) || todayInputValue(),
+        nguoiKyDuyet: backendStep.tenNguoiKyDuyet || "",
+        ngayKyDuyet: backendStep.ngayKyDuyet?.slice(0, 10) || "",
+        ketQua: backendStep.ketQua || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý"),
+        ghiChu: backendStep.lyDoKhongDuyet || "",
+        lyDoKhongDuyet: backendStep.lyDoKhongDuyet || "",
+        taiLieuDinhKem: [],
+      });
+      const nextKetQua = backendStep.ketQua || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
+      setDecision(nextKetQua === "Không duyệt" || nextKetQua === "Duyệt" ? nextKetQua as KetQuaXuLy : "");
+      setRejectReason(backendStep.lyDoKhongDuyet || "");
+      setLocked(isDone);
     };
 
     loadStep()
@@ -187,29 +129,8 @@ export default function XuLyBuocGoiThau() {
         if (!cancelled) setBackendLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [id, readonlyMode, stepId]);
-
-  if (
-    readonlyMode &&
-    !existing &&
-    !isHistoricalStep &&
-    (form.nguoiXuLy || form.ngayXuLy || form.nguoiKyDuyet || form.ngayKyDuyet || form.ghiChu)
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      nguoiXuLy: "",
-      ngayXuLy: "",
-      nguoiKyDuyet: "",
-      ngayKyDuyet: "",
-      ketQua: "Chờ xử lý",
-      ghiChu: "",
-      lyDoKhongDuyet: "",
-      taiLieuDinhKem: [],
-    }));
-  }
+    return () => { cancelled = true; };
+  }, [id, readonlyMode, stepId, viewingStep]);
 
   if (!goiThau) {
     return (
@@ -221,7 +142,7 @@ export default function XuLyBuocGoiThau() {
     );
   }
 
-  function updateField<K extends keyof XuLyBuocRecord>(field: K, value: XuLyBuocRecord[K]) {
+  function updateField(field: keyof FormData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: "" }));
   }
@@ -232,11 +153,7 @@ export default function XuLyBuocGoiThau() {
     if (!form.ngayXuLy) next.ngayXuLy = "Vui lòng chọn ngày xử lý";
     if (!form.nguoiKyDuyet.trim()) next.nguoiKyDuyet = "Vui lòng nhập người ký duyệt";
     if (!form.ngayKyDuyet) next.ngayKyDuyet = "Vui lòng chọn ngày ký duyệt";
-    if (
-      form.ngayXuLy &&
-      form.ngayKyDuyet &&
-      form.ngayKyDuyet < form.ngayXuLy
-    ) {
+    if (form.ngayXuLy && form.ngayKyDuyet && form.ngayKyDuyet < form.ngayXuLy) {
       next.ngayKyDuyet = "Ngày ký duyệt không được trước ngày xử lý";
     }
     if (extra === "reject" && !rejectReason.trim()) {
@@ -249,54 +166,16 @@ export default function XuLyBuocGoiThau() {
     return Object.keys(next).length === 0;
   }
 
-  function saveResult(ketQua: KetQuaXuLy, lyDoKhongDuyet = "") {
-    const nextWorkflowStep =
-      ketQua === "Duyệt"
-        ? getNextStep(form.buocWorkflow)
-        : getPreviousStep(form.buocWorkflow);
-    const nextStep =
-      ketQua === "Duyệt"
-        ? `Chuyển sang bước "${nextWorkflowStep}"`
-        : `Trả về bước "${nextWorkflowStep}" theo cấu hình workflow`;
-    const record: XuLyBuocRecord = {
-      ...form,
-      ketQua,
-      nguoiKyDuyet: form.nguoiKyDuyet || MOCK_CURRENT_USER,
-      lyDoKhongDuyet,
-      taiLieuDinhKem: [
-        ...form.taiLieuDinhKem,
-        ...attachments.map((file) => file.name),
-      ],
-      thoiGianXuLy: formatDateTime(),
-      thaoTacHeThong: nextStep,
-    };
-
-    if (ketQua === "Duyệt") {
-      completeXuLyBuoc(record, nextWorkflowStep);
-      setForm(record);
-      setLocked(true);
-      toast.success(`Duyệt thành công. Đã chuyển sang bước: ${nextWorkflowStep}`);
-    } else {
-      completeXuLyBuoc(record, nextWorkflowStep);
-      setForm(record);
-      setLocked(true);
-      toast.success("Cập nhật kết quả không duyệt thành công.");
-    }
-  }
-
   async function saveUpdate() {
     if (!decision) {
-      setErrors((prev) => ({
-        ...prev,
-        ketQua: "Vui lòng chọn kết quả duyệt",
-      }));
+      setErrors((prev) => ({ ...prev, ketQua: "Vui lòng chọn kết quả duyệt" }));
       return;
     }
     const mode = decision === "Không duyệt" ? "reject" : "approve";
     if (!validateBase(mode)) return;
 
     const goiThauId = Number(id.replace(/^GT/i, ""));
-    if (!Number.isFinite(goiThauId) || goiThauId <= 0 || !currentBackendStep?.id || !currentBackendStep.rowVersion) {
+    if (!Number.isFinite(goiThauId) || goiThauId <= 0 || !step?.id || !step.rowVersion) {
       toast.error("Không đủ dữ liệu bước từ hệ thống. Vui lòng tải lại trang.");
       return;
     }
@@ -304,14 +183,13 @@ export default function XuLyBuocGoiThau() {
     setSubmitting(true);
     try {
       const result = await processStep(goiThauId, {
-        hanhDong: decision === "Không duyệt" ? "KHONG_DUYET" : "DUYET",
+        hanhDong: decision === "Không duyệt" ? "KHONG_DUYET" : "APPROVE",
         ghiChu: decision === "Không duyệt" ? rejectReason.trim() : form.ghiChu,
-        workflowStepInstanceId: currentBackendStep.id,
-        rowVersion: currentBackendStep.rowVersion,
+        workflowStepInstanceId: step.id,
+        rowVersion: step.rowVersion,
         taiLieuDinhKem: attachments.map((file) => file.name).join(", ") || undefined,
       });
 
-      saveResult(decision, decision === "Không duyệt" ? rejectReason.trim() : "");
       toast.success(result.message || "Cập nhật bước thành công.");
       navigate(`/danh-sach-goi-thau?goiThauId=GT${goiThauId}`);
     } catch (error: any) {
@@ -533,14 +411,8 @@ export default function XuLyBuocGoiThau() {
                 </p>
               </div>
             )}
-            {[...form.taiLieuDinhKem, ...attachments.map((file) => file.name)].length > 0 && (
+            {attachments.length > 0 && (
               <ul className="mt-3 space-y-2">
-                {form.taiLieuDinhKem.map((name) => (
-                  <li key={name} className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700">
-                    <i className="fa-solid fa-paperclip mr-2 text-slate-400" />
-                    {name}
-                  </li>
-                ))}
                 {!locked &&
                   attachments.map((file, idx) => {
                     const { icon, color } = fileIcon(file.name);
