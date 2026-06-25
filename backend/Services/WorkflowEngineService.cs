@@ -139,22 +139,12 @@ public class WorkflowEngineService : IWorkflowEngineService
                 throw new ConflictException(
                     "Bước đã được xử lý bởi người khác. Vui lòng tải lại trang.");
 
-            // ─── 7. Resolve người ký duyệt từ tên do user nhập ──────────────
-            int? nguoiKyDuyetId = null;
-            if (!string.IsNullOrWhiteSpace(request.TenNguoiKyDuyet))
-            {
-                nguoiKyDuyetId = await _db.NguoiDungs
-                    .Where(n => n.HoTen == request.TenNguoiKyDuyet && n.TrangThaiHoatDong)
-                    .Select(n => (int?)n.Id)
-                    .FirstOrDefaultAsync();
-            }
-
-            // ─── 8. Route to action handler ───────────────────────────────
+            // ─── 7. Route to action handler ───────────────────────────────
             ProcessStepResponse response = request.HanhDong switch
             {
                 WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET => await HandleApproveAsync(
                     goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong,
-                    taiLieuDinhKem: request.TaiLieuDinhKem, nguoiKyDuyetId: nguoiKyDuyetId),
+                    taiLieuDinhKem: request.TaiLieuDinhKem),
                 WorkflowHanhDong.REJECT or WorkflowHanhDong.KHONG_DUYET => await HandleRejectAsync(
                     goiThau, lockedInstance, lockedStep, currentUserId, request.GhiChu, request.HanhDong,
                     taiLieuDinhKem: request.TaiLieuDinhKem),
@@ -190,7 +180,7 @@ public class WorkflowEngineService : IWorkflowEngineService
     private async Task<ProcessStepResponse> HandleApproveAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
         int currentUserId, string? ghiChu, string hanhDong = WorkflowHanhDong.APPROVE,
-        string? taiLieuDinhKem = null, int? nguoiKyDuyetId = null)
+        string? taiLieuDinhKem = null)
     {
         var buoc = currentStep.BuocWorkflow!;
 
@@ -249,7 +239,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             {
                 // No approval needed → complete this step, move to next
                 return await CompleteStepAndAdvanceAsync(
-                    goiThau, instance, currentStep, buoc, currentUserId, ghiChu, hanhDong, nguoiKyDuyetId);
+                    goiThau, instance, currentStep, buoc, currentUserId, ghiChu, hanhDong);
             }
         }
         else // KY_DUYET
@@ -268,7 +258,7 @@ public class WorkflowEngineService : IWorkflowEngineService
 
             if (allSigned)
             {
-                currentStep.NguoiKyDuyetId = nguoiKyDuyetId ?? currentUserId;
+                currentStep.NguoiKyDuyetId = currentUserId;
                 currentStep.NgayKyDuyet = DateTime.UtcNow;
                 currentStep.KetQua = "DUYET";
 
@@ -308,8 +298,7 @@ public class WorkflowEngineService : IWorkflowEngineService
     /// </summary>
     private async Task<ProcessStepResponse> CompleteStepAndAdvanceAsync(
         GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
-        BuocWorkflow buoc, int currentUserId, string? ghiChu, string hanhDong,
-        int? nguoiKyDuyetId = null)
+        BuocWorkflow buoc, int currentUserId, string? ghiChu, string hanhDong)
     {
         currentStep.TrangThai = WorkflowStepTrangThai.HOAN_TAT;
         currentStep.NgayHoanThanh = DateTime.UtcNow;
@@ -317,7 +306,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             currentStep.QuaHan = true;
         else
             currentStep.QuaHan = false;
-        currentStep.NguoiKyDuyetId ??= nguoiKyDuyetId ?? currentUserId;
+        currentStep.NguoiKyDuyetId ??= currentUserId;
         currentStep.NgayKyDuyet ??= DateTime.UtcNow;
         currentStep.KetQua ??= "DUYET";
         currentStep.GhiChu = ghiChu ?? currentStep.GhiChu;
@@ -354,14 +343,11 @@ public class WorkflowEngineService : IWorkflowEngineService
         }
 
         // ── Find transition for sequential advance ───────────────────────────
-        // Accept both APPROVE and DUYET (frontend/DB legacy mismatch)
         var transition = await _db.ChuyenTiepWorkflows
             .Include(t => t.DenBuoc)
             .FirstOrDefaultAsync(t =>
                 t.TuBuocId == currentStep.BuocWorkflowId &&
-                (t.HanhDong == hanhDong ||
-                 t.HanhDong == WorkflowHanhDong.APPROVE ||
-                 t.HanhDong == WorkflowHanhDong.DUYET));
+                t.HanhDong == hanhDong);
 
         bool isCompleted;
         long? newStepId = null;

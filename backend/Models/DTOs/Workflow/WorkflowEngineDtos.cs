@@ -48,9 +48,6 @@ public class ProcessStepRequest
 
     /// <summary>Tài liệu đính kèm (ghi chú văn bản, không phải file binary).</summary>
     public string? TaiLieuDinhKem { get; set; }
-
-    /// <summary>Tên người ký duyệt — resolve ra NguoiKyDuyetId ở backend.</summary>
-    public string? TenNguoiKyDuyet { get; set; }
 }
 
 public class ProcessStepResponse
