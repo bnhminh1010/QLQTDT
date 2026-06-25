@@ -366,14 +366,15 @@ export default function LapQuyTrinh() {
   }
 
   function handleClone(step: WorkflowStepDraft) {
+    const newMaBuoc = `BUOC_${Date.now()}_${nextId()}`;
     const beId = step.backendId;
     if (beId && generatedWorkflowId) {
-      cloneWorkflowStep(generatedWorkflowId, beId, { maBuocMoi: step.maBuoc || nextId(), tenBuocMoi: step.tenBuoc + " (sao chép)" })
+      cloneWorkflowStep(generatedWorkflowId, beId, { maBuocMoi: newMaBuoc, tenBuocMoi: step.tenBuoc + " (sao chép)" })
         .then(() => reloadSteps())
         .catch(() => toast.error("Nhân bản thất bại"));
       return;
     }
-    setBuocList((prev) => [...prev, { ...step, id: nextId(), tenBuoc: step.tenBuoc + " (sao chép)" }]);
+    setBuocList((prev) => [...prev, { ...step, maBuoc: newMaBuoc, id: nextId(), tenBuoc: step.tenBuoc + " (sao chép)" }]);
     markDirty();
     toast.success("Đã nhân bản bước");
   }
@@ -501,8 +502,8 @@ export default function LapQuyTrinh() {
     markDirty();
   }
 
-  function handleAddStepToBranch(branchId: string) {
-    setModalContext({ type: "branch", branchId });
+  function handleAddStepToBranch(branchId: string, afterStepId?: string) {
+    setModalContext({ type: "branch", branchId, afterStepId });
     setEditTargetIdx(undefined);
     setNewStepForm(emptyStepForm());
     setNewStepErrs({});
@@ -554,14 +555,30 @@ export default function LapQuyTrinh() {
       }
       toast.success("Đã cập nhật bước");
     } else if (isBranch) {
-      setBuocList((prev) => [...prev, newStep]);
+      const branchAfterStepId = modalContext.afterStepId;
+      setBuocList((prev) => {
+        if (!branchAfterStepId) return [...prev, newStep]; // append to end
+        const idx = prev.findIndex((s) => s.id === branchAfterStepId);
+        if (idx === -1) return [...prev, newStep];
+        const copy = [...prev];
+        copy.splice(idx + 1, 0, newStep);
+        return copy;
+      });
       setParallelGroups((prev) => prev.map((g) => ({
         ...g,
-        branches: g.branches.map((b) =>
-          b.id === modalContext.branchId
-            ? { ...b, stepIds: [...b.stepIds, newStep.id] }
-            : b
-        ),
+        branches: g.branches.map((b) => {
+          if (b.id !== modalContext.branchId) return b;
+          // Insert stepId at correct position in branch
+          const existingBranchSteps = buocList.filter((s) => s.nhanhId === b.id);
+          if (!branchAfterStepId || existingBranchSteps.length === 0) {
+            return { ...b, stepIds: [...b.stepIds, newStep.id] };
+          }
+          const stepIdx = b.stepIds.indexOf(branchAfterStepId);
+          if (stepIdx === -1) return { ...b, stepIds: [...b.stepIds, newStep.id] };
+          const newStepIds = [...b.stepIds];
+          newStepIds.splice(stepIdx + 1, 0, newStep.id);
+          return { ...b, stepIds: newStepIds };
+        }),
       })));
       if (generatedWorkflowId) {
         createWorkflowStep(generatedWorkflowId, buildStepCreatePayload(newStepForm, buocList.length + 1))

@@ -9,7 +9,7 @@ interface Props {
   onUpdateGroup: (g: ParallelGroupDraft) => void;
   onAddBranch: () => void;
   onRemoveBranch: (branchId: string) => void;
-  onAddStepToBranch: (branchId: string) => void;
+  onAddStepToBranch: (branchId: string, afterStepId?: string) => void;
 }
 
 const inputCls =
@@ -23,9 +23,13 @@ export default function ParallelGroupEditor({
   onRemoveBranch,
   onAddStepToBranch,
 }: Props) {
-  const stepOptions = steps
-    .filter((s) => s.id !== group.buocTachNhanhId)
-    .map((s) => ({ value: s.id, label: s.tenBuoc }));
+  // Only show main-flow steps that come AFTER the split step
+  const splitStepIdx = steps.findIndex((s) => s.id === group.buocTachNhanhId);
+  const mergeStepOptions = splitStepIdx >= 0
+    ? steps
+        .filter((s, i) => i > splitStepIdx && !s.nhanhId)
+        .map((s) => ({ value: s.id, label: s.tenBuoc }))
+    : [];
 
   const branchSteps = (branchId: string) =>
     steps.filter((s) => s.nhanhId === branchId);
@@ -77,10 +81,21 @@ export default function ParallelGroupEditor({
 
                 {/* Branch steps */}
                 <div className="space-y-1">
-                  {branchStepsList.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2 text-xs text-slate-600">
-                      <i className="fa-solid fa-arrow-right text-[10px] text-slate-300" />
-                      {s.tenBuoc}
+                  {branchStepsList.map((s, si) => (
+                    <div key={s.id} className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-2 text-xs text-slate-600 bg-white rounded-lg border border-slate-200 px-3 py-2">
+                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {si + 1}
+                        </span>
+                        <span className="flex-1 truncate">{s.tenBuoc}</span>
+                      </div>
+                      <button
+                        onClick={() => onAddStepToBranch(branch.id, s.id)}
+                        className="w-6 h-6 flex items-center justify-center rounded text-blue-500 hover:bg-blue-50 shrink-0"
+                        title="Thêm bước vào sau"
+                      >
+                        <i className="fa-solid fa-plus text-[10px]" />
+                      </button>
                     </div>
                   ))}
                   <button
@@ -144,7 +159,7 @@ export default function ParallelGroupEditor({
               }
               options={[
                 { value: "__empty", label: "-- Chọn bước --" },
-                ...stepOptions,
+                ...mergeStepOptions,
               ]}
               triggerClassName={inputCls}
             />

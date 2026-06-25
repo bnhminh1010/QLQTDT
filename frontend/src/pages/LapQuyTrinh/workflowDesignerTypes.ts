@@ -31,6 +31,7 @@ export type StepModalContext = {
 } | {
   type: "branch";
   branchId: string;
+  afterStepId?: string;
 };
 
 /* ─── Step draft (UI model) ─────────────────────────────── */

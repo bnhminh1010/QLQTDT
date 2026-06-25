@@ -21,7 +21,7 @@ interface Props {
   onUpdateGroup: (group: ParallelGroupDraft) => void;
   onAddBranch: (groupId: string) => void;
   onRemoveBranch: (groupId: string, branchId: string) => void;
-  onAddStepToBranch: (branchId: string) => void;
+  onAddStepToBranch: (branchId: string, afterStepId?: string) => void;
 }
 
 export default function WorkflowStepList({
