@@ -21,6 +21,9 @@ public class CreateGoiThauDto
     /// <summary>FK to KhoaPhong. Auto-resolved from current user if omitted.</summary>
     public int? KhoaPhongId { get; set; }
 
+    /// <summary>Workflow template selected by frontend. If omitted, backend auto-suggests by HinhThucId.</summary>
+    public int? WorkflowId { get; set; }
+
     /// <summary>Nguồn vốn: Ngân sách Nhà nước, Ngân sách BV, Tự chủ tài chính, Nguồn khác</summary>
     [MaxLength(200)]
     public string? NguonVon { get; set; }

@@ -364,23 +364,34 @@ public class WorkflowEngineService : IWorkflowEngineService
         }
         else
         {
-            // ── Sequential advance (existing behavior) ──
-            var nextStep = new WorkflowStepInstance
+            // ── Sequential advance: activate existing pending step instance if it was pre-created at workflow start ──
+            var nextStep = await _db.WorkflowStepInstances
+                .FirstOrDefaultAsync(s =>
+                    s.WorkflowInstanceId == instance.Id &&
+                    s.BuocWorkflowId == transition.DenBuocId &&
+                    (s.TrangThai == "PENDING" || s.TrangThai == "CHUA_BAT_DAU"));
+
+            var nextBuoc = transition.DenBuoc;
+            if (nextStep is null)
             {
-                WorkflowInstanceId = instance.Id,
-                BuocWorkflowId = transition.DenBuocId,
-                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
-                PhaHienTai = "LAP_HO_SO",
-                NgayBatDau = DateTime.UtcNow,
-                HanXuLy = transition!.DenBuoc.SoNgayLapHoSo > 0
-                    ? DateTime.UtcNow.AddDays(transition!.DenBuoc.SoNgayLapHoSo)
-                    : null,
-            };
-            _db.WorkflowStepInstances.Add(nextStep);
+                nextStep = new WorkflowStepInstance
+                {
+                    WorkflowInstanceId = instance.Id,
+                    BuocWorkflowId = transition.DenBuocId,
+                    PhaHienTai = "LAP_HO_SO",
+                };
+                _db.WorkflowStepInstances.Add(nextStep);
+            }
+
+            nextStep.TrangThai = WorkflowStepTrangThai.DANG_XU_LY;
+            nextStep.PhaHienTai = "LAP_HO_SO";
+            nextStep.NgayBatDau = DateTime.UtcNow;
+            nextStep.HanXuLy = nextBuoc.SoNgayLapHoSo > 0
+                ? DateTime.UtcNow.AddDays(nextBuoc.SoNgayLapHoSo)
+                : null;
             await _db.SaveChangesAsync();
 
             // Resolve assignee for next step's LAP_HO_SO phase
-            var nextBuoc = transition.DenBuoc;
             if (nextBuoc.VaiTroXuLyHoSoId.HasValue)
             {
                 var assigneeIds = await ResolveAssigneesAsync(nextBuoc.VaiTroXuLyHoSoId.Value, currentUserId, goiThau.KhoaPhongId);
@@ -950,19 +961,31 @@ public class WorkflowEngineService : IWorkflowEngineService
         }
         else
         {
-            var nextStep = new WorkflowStepInstance
-            {
-                WorkflowInstanceId = instance.Id,
-                BuocWorkflowId = transition.DenBuocId,
-                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
-                PhaHienTai = "LAP_HO_SO",
-                NgayBatDau = DateTime.UtcNow,
-                HanXuLy = transition.DenBuoc.SoNgayLapHoSo > 0
-                    ? DateTime.UtcNow.AddDays(transition.DenBuoc.SoNgayLapHoSo)
-                    : null,
-            };
+            var nextStep = await _db.WorkflowStepInstances
+                .FirstOrDefaultAsync(s =>
+                    s.WorkflowInstanceId == instance.Id &&
+                    s.BuocWorkflowId == transition.DenBuocId &&
+                    (s.TrangThai == "PENDING" || s.TrangThai == "CHUA_BAT_DAU"));
 
             var nextBuoc = transition.DenBuoc;
+            if (nextStep is null)
+            {
+                nextStep = new WorkflowStepInstance
+                {
+                    WorkflowInstanceId = instance.Id,
+                    BuocWorkflowId = transition.DenBuocId,
+                    PhaHienTai = "LAP_HO_SO",
+                };
+                _db.WorkflowStepInstances.Add(nextStep);
+            }
+
+            nextStep.TrangThai = WorkflowStepTrangThai.DANG_XU_LY;
+            nextStep.PhaHienTai = "LAP_HO_SO";
+            nextStep.NgayBatDau = DateTime.UtcNow;
+            nextStep.HanXuLy = nextBuoc.SoNgayLapHoSo > 0
+                ? DateTime.UtcNow.AddDays(nextBuoc.SoNgayLapHoSo)
+                : null;
+            await _db.SaveChangesAsync();
             if (nextBuoc.VaiTroXuLyHoSoId.HasValue)
             {
                 var assigneeIds = await ResolveAssigneesAsync(nextBuoc.VaiTroXuLyHoSoId.Value, currentUserId, goiThau.KhoaPhongId);
@@ -1155,21 +1178,23 @@ public class WorkflowEngineService : IWorkflowEngineService
             _db.WorkflowInstances.Add(instance);
             await _db.SaveChangesAsync();
 
-            var stepInstance = new WorkflowStepInstance
+            var stepInstances = steps.Select((step, index) => new WorkflowStepInstance
             {
                 WorkflowInstanceId = instance.Id,
-                BuocWorkflowId = firstStep.Id,
-                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+                BuocWorkflowId = step.Id,
+                TrangThai = index == 0 ? WorkflowStepTrangThai.DANG_XU_LY : "PENDING",
                 PhaHienTai = "LAP_HO_SO",
-                NgayBatDau = DateTime.UtcNow,
-                HanXuLy = firstStep.SoNgayLapHoSo > 0
-                    ? DateTime.UtcNow.AddDays(firstStep.SoNgayLapHoSo)
+                NgayBatDau = index == 0 ? DateTime.UtcNow : default,
+                HanXuLy = index == 0 && step.SoNgayLapHoSo > 0
+                    ? DateTime.UtcNow.AddDays(step.SoNgayLapHoSo)
                     : null,
-            };
-            _db.WorkflowStepInstances.Add(stepInstance);
+            }).ToList();
+            _db.WorkflowStepInstances.AddRange(stepInstances);
             await _db.SaveChangesAsync();
 
-            // Resolve assignees cho LAP_HO_SO phase
+            var stepInstance = stepInstances[0];
+
+            // Resolve assignees cho LAP_HO_SO phase của bước hiện tại
             if (firstStep.VaiTroXuLyHoSoId.HasValue)
             {
                 var assigneeIds = await ResolveAssigneesAsync(firstStep.VaiTroXuLyHoSoId.Value, currentUserId, goiThau.KhoaPhongId);
@@ -1303,6 +1328,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 HanXuLy = s.HanXuLy,
                 QuaHan = s.QuaHan,
                 TinhTrangTienDo = ComputeTinhTrangTienDo(s.HanXuLy, s.TrangThai),
+                RowVersion = s.RowVersion,
             }).ToList();
 
         var completedCount = steps.Count(s =>
@@ -1380,6 +1406,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 HanXuLy = s.HanXuLy,
                 QuaHan = s.QuaHan,
                 TinhTrangTienDo = ComputeTinhTrangTienDo(s.HanXuLy, s.TrangThai),
+                RowVersion = s.RowVersion,
             }).ToList();
     }
 
@@ -1423,7 +1450,8 @@ public class WorkflowEngineService : IWorkflowEngineService
             TenVaiTroKyDuyet = step.BuocWorkflow?.VaiTroKyDuyet?.TenVaiTro,
             HanXuLy = step.HanXuLy,
             QuaHan = step.QuaHan,
-            TinhTrangTienDo = ComputeTinhTrangTienDo(step.HanXuLy, step.TrangThai)
+            TinhTrangTienDo = ComputeTinhTrangTienDo(step.HanXuLy, step.TrangThai),
+            RowVersion = step.RowVersion
         };
     }
     // ════════════════════════════════════════════════════════════════════
@@ -1511,10 +1539,13 @@ public class WorkflowEngineService : IWorkflowEngineService
     {
         if (trangThai is WorkflowStepTrangThai.HOAN_TAT or WorkflowStepTrangThai.TRA_VE
             or WorkflowStepTrangThai.SKIPPED)
-            return null;
+            return "HOAN_TAT";
+
+        if (trangThai is "PENDING" or "CHUA_BAT_DAU")
+            return "CHUA_THUC_HIEN";
 
         if (!hanXuLy.HasValue)
-            return "DUNG_TIEN_DO";
+            return "CHUA_CO_HAN";
 
         var remaining = hanXuLy.Value - DateTime.UtcNow;
 

@@ -447,6 +447,7 @@ export type WorkflowStepStateDto = {
   hanXuLy?: string;
   quaHan?: boolean;
   tinhTrangTienDo?: string;
+  rowVersion?: string;
 };
 
 export type ProcessStepRequest = {

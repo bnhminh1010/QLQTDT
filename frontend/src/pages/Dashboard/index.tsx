@@ -157,6 +157,9 @@ const TIEN_DO_LABEL: Record<string, string> = {
   DUNG_TIEN_DO: "Đúng hạn",
   QUA_HAN: "Quá hạn",
   SAP_QUA_HAN: "Sắp quá hạn",
+  CHUA_THUC_HIEN: "Chưa thực hiện",
+  CHUA_CO_HAN: "Chưa có hạn xử lý",
+  HOAN_TAT: "Hoàn tất",
 };
 
 function mapWorkflowStepStatus(step: WorkflowStepStateDto): StepStatus {
@@ -729,74 +732,82 @@ export default function Dashboard() {
                 Chua co du lieu buoc quy trinh tu backend.
               </div>
             ) : selected.steps.map((step) => (
-              <div key={step.name}>
-                <div className="flex items-start gap-2.5 rounded-lg p-1.5 -m-1.5">
+              <div key={step.name} className="space-y-2">
+              <details className="group">
+                <summary className="flex items-start gap-2.5 rounded-xl cursor-pointer list-none
+                  [&::-webkit-details-marker]:hidden
+                  [&::marker]:hidden
+                  transition-colors
+                  p-1.5 -mx-1.5 hover:bg-slate-50
+                ">
                   <Dot state={step.state} />
                   <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-slate-800">
-                    {step.name}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-xs font-medium text-slate-800 min-w-0">
+                        {step.name}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                          step.status === "Trễ hạn" ? "bg-red-100 text-red-600"
+                          : step.status === "Hoàn tất" ? "bg-emerald-100 text-emerald-600"
+                          : step.status === "Chờ ký duyệt" ? "bg-amber-100 text-amber-600"
+                          : "bg-slate-100 text-slate-500"
+                        }`}>
+                          {step.status}
+                        </span>
+                        <i className="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform group-open:rotate-180" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
-                    <div className="flex justify-between gap-2">
-                      <span>Người xử lý</span>
-                      <span className="font-medium text-slate-700 text-right">
-                        {step.processor}
-                      </span>
+                </summary>
+                <div className="ml-[34px] mt-1.5 space-y-0.5 text-[11px] bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
+                  <div className="text-slate-600 grid gap-1.5">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Người xử lý</span>
+                      <span className="font-semibold text-slate-700 text-right">{step.processor}</span>
                     </div>
-                    {step.ngayXuLy && (
-                      <div className="flex justify-between gap-2">
-                        <span>Ngày xử lý</span>
-                        <span className="font-medium text-slate-700 text-right">
-                          {step.ngayXuLy}
-                        </span>
-                      </div>
-                    )}
-                    {step.nguoiKy && (
-                      <div className="flex justify-between gap-2">
-                        <span>Người ký</span>
-                        <span className="font-medium text-slate-700 text-right">
-                          {step.nguoiKy}
-                        </span>
-                      </div>
-                    )}
-                    {step.ngayKy && (
-                      <div className="flex justify-between gap-2">
-                        <span>Ngày ký</span>
-                        <span className="font-medium text-slate-700 text-right">
-                          {step.ngayKy}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between gap-2">
-                      <span>Trạng thái</span>
-                      <span
-                        className={`font-semibold text-right ${
-                          step.status === "Trễ hạn"
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Ngày xử lý</span>
+                      <span className="font-semibold text-slate-700 text-right">{step.ngayXuLy || "—"}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Người ký</span>
+                      <span className="font-semibold text-slate-700 text-right">{step.nguoiKy || "—"}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Ngày ký</span>
+                      <span className="font-semibold text-slate-700 text-right">{step.ngayKy || "—"}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Kết quả</span>
+                      <span className={`font-semibold text-right ${
+                        step.ketQua === "Duyệt" || step.ketQua === "Đồng ý"
+                          ? "text-emerald-600"
+                          : step.ketQua === "Không duyệt" || step.ketQua === "Từ chối"
                             ? "text-red-600"
-                            : step.status === "Hoàn tất"
-                              ? "text-emerald-600"
-                              : step.status === "Chờ ký duyệt"
-                                ? "text-amber-600"
-                                : "text-slate-600"
-                        }`}
-                      >
-                        {step.status}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span>Tình trạng tiến độ</span>
-                      <span className="font-medium text-slate-700 text-right">
-                        {step.sla}
+                            : "text-slate-700"
+                      }`}>
+                        {step.ketQua || "—"}
                       </span>
                     </div>
                     {step.reason && (
-                      <div className="mt-1 rounded-lg bg-red-50 px-2 py-1 text-red-600">
-                        {step.reason}
+                      <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
+                        <span className="font-semibold">Lý do không duyệt:</span> {step.reason}
                       </div>
                     )}
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Tình trạng tiến độ</span>
+                      <span className={`font-semibold text-right ${
+                        step.sla === "Quá hạn" ? "text-red-600"
+                        : step.sla === "Sắp quá hạn" ? "text-amber-600"
+                        : "text-emerald-600"
+                      }`}>
+                        {step.sla}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                </div>
+              </details>
                 {selected.parallelInfo && step.name.includes("Tổ chuyên gia") && (
                   <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
                     <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">

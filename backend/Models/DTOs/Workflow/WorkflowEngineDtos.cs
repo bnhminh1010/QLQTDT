@@ -144,6 +144,7 @@ public class WorkflowStepStateDto
     public DateTime? HanXuLy { get; set; }
     public bool? QuaHan { get; set; }
     public string? TinhTrangTienDo { get; set; }
+    public byte[]? RowVersion { get; set; }
 }
 
 // BA user-driven: Duyệt bước (POST /duyet)

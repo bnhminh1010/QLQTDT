@@ -11,7 +11,7 @@ import {
   type KetQuaXuLy,
   type XuLyBuocRecord,
 } from "@/pages/DanhSachGoiThau/xuLyBuocService";
-import { getWorkflowStepDetail } from "@/services/workflowApi";
+import { getWorkflowState, getWorkflowStepDetail, processStep, type WorkflowStepStateDto } from "@/services/workflowApi";
 import { useFileAttachment } from "@/hooks/useFileAttachment";
 import { fileIcon, formatBytes, openFile, downloadFile } from "@/util/fileAttachment";
 
@@ -85,6 +85,8 @@ export default function XuLyBuocGoiThau() {
   const stepId = Number.isFinite(stepIdParam) && stepIdParam > 0 ? stepIdParam : undefined;
   const [backendLoading, setBackendLoading] = useState(false);
   const [backendError, setBackendError] = useState("");
+  const [currentBackendStep, setCurrentBackendStep] = useState<WorkflowStepStateDto | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [goiThau] = useState<GoiThau>(() => ({
     id, ten: "", tenGoiThau: "", maGoiThau: "",
     hinhThuc: "", giaTriStr: "0", giaTriNum: 0, donVi: "",
@@ -136,8 +138,6 @@ export default function XuLyBuocGoiThau() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   useEffect(() => {
-    if (!readonlyMode || !stepId) return;
-
     const goiThauId = Number(id.replace(/^GT/i, ""));
     if (!Number.isFinite(goiThauId) || goiThauId <= 0) return;
 
@@ -145,25 +145,41 @@ export default function XuLyBuocGoiThau() {
     setBackendLoading(true);
     setBackendError("");
 
-    getWorkflowStepDetail(goiThauId, stepId)
-      .then((step) => {
-        if (cancelled) return;
-        const nextKetQua = step.ketQua || (step.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
-        setForm((prev) => ({
-          ...prev,
-          buocWorkflow: step.tenBuoc || prev.buocWorkflow,
-          nguoiXuLy: step.tenNguoiXuLy || prev.nguoiXuLy,
-          ngayXuLy: step.ngayXuLy?.slice(0, 10) || prev.ngayXuLy,
-          nguoiKyDuyet: step.tenNguoiKyDuyet || prev.nguoiKyDuyet,
-          ngayKyDuyet: step.ngayKyDuyet?.slice(0, 10) || prev.ngayKyDuyet,
-          ketQua: nextKetQua as KetQuaXuLy,
-          lyDoKhongDuyet: step.lyDoKhongDuyet || prev.lyDoKhongDuyet,
-          ghiChu: step.lyDoKhongDuyet || step.tinhTrangTienDo || prev.ghiChu,
-        }));
-        setDecision(nextKetQua === "Không duyệt" || nextKetQua === "Duyệt" ? nextKetQua : "");
-        setRejectReason(step.lyDoKhongDuyet || "");
-        setLocked(true);
-      })
+    const loadStep = async () => {
+      const targetStepId = readonlyMode
+        ? stepId
+        : (await getWorkflowState(goiThauId)).currentSteps?.[0]?.stepInstanceId;
+
+      if (!targetStepId) {
+        if (!readonlyMode) {
+          setLocked(true);
+          setBackendError("Không còn bước đang xử lý cho gói thầu này.");
+        }
+        return;
+      }
+
+      const step = await getWorkflowStepDetail(goiThauId, targetStepId);
+      if (cancelled) return;
+
+      const nextKetQua = step.ketQua || (step.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
+      setCurrentBackendStep(step);
+      setForm((prev) => ({
+        ...prev,
+        buocWorkflow: step.tenBuoc || prev.buocWorkflow,
+        nguoiXuLy: step.tenNguoiXuLy || prev.nguoiXuLy,
+        ngayXuLy: step.ngayXuLy?.slice(0, 10) || prev.ngayXuLy,
+        nguoiKyDuyet: step.tenNguoiKyDuyet || prev.nguoiKyDuyet,
+        ngayKyDuyet: step.ngayKyDuyet?.slice(0, 10) || prev.ngayKyDuyet,
+        ketQua: nextKetQua as KetQuaXuLy,
+        lyDoKhongDuyet: step.lyDoKhongDuyet || prev.lyDoKhongDuyet,
+        ghiChu: step.lyDoKhongDuyet || prev.ghiChu,
+      }));
+      setDecision(nextKetQua === "Không duyệt" || nextKetQua === "Duyệt" ? nextKetQua : "");
+      setRejectReason(step.lyDoKhongDuyet || "");
+      setLocked(readonlyMode || Boolean(step.ngayHoanThanh) || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED");
+    };
+
+    loadStep()
       .catch(() => {
         if (!cancelled) setBackendError("Không thể tải chi tiết bước từ hệ thống.");
       })
@@ -268,7 +284,7 @@ export default function XuLyBuocGoiThau() {
     }
   }
 
-  function saveUpdate() {
+  async function saveUpdate() {
     if (!decision) {
       setErrors((prev) => ({
         ...prev,
@@ -278,7 +294,31 @@ export default function XuLyBuocGoiThau() {
     }
     const mode = decision === "Không duyệt" ? "reject" : "approve";
     if (!validateBase(mode)) return;
-    saveResult(decision, decision === "Không duyệt" ? rejectReason.trim() : "");
+
+    const goiThauId = Number(id.replace(/^GT/i, ""));
+    if (!Number.isFinite(goiThauId) || goiThauId <= 0 || !currentBackendStep?.id || !currentBackendStep.rowVersion) {
+      toast.error("Không đủ dữ liệu bước từ hệ thống. Vui lòng tải lại trang.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await processStep(goiThauId, {
+        hanhDong: decision === "Không duyệt" ? "KHONG_DUYET" : "DUYET",
+        ghiChu: decision === "Không duyệt" ? rejectReason.trim() : form.ghiChu,
+        workflowStepInstanceId: currentBackendStep.id,
+        rowVersion: currentBackendStep.rowVersion,
+        taiLieuDinhKem: attachments.map((file) => file.name).join(", ") || undefined,
+      });
+
+      saveResult(decision, decision === "Không duyệt" ? rejectReason.trim() : "");
+      toast.success(result.message || "Cập nhật bước thành công.");
+      navigate(`/danh-sach-goi-thau?goiThauId=GT${goiThauId}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Không thể cập nhật bước.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const disabled = locked;
@@ -542,9 +582,10 @@ export default function XuLyBuocGoiThau() {
               <button
                 type="button"
                 onClick={saveUpdate}
-                className="h-10 px-5 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700"
+                disabled={submitting}
+                className="h-10 px-5 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Lưu cập nhật
+                {submitting ? "Đang lưu..." : "Lưu cập nhật"}
               </button>
             </div>
           )}

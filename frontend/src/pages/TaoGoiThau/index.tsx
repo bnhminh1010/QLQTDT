@@ -386,6 +386,7 @@ export default function TaoGoiThau() {
       loaiGoiThau: data.loaiGoiThau as LoaiGoiThau,
       hinhThuc: data.hinhThuc as HinhThuc,
       theoDoi: theoDoiList,
+      workflowId: selectedQT?.id,
       giaTriStr: digits,
       giaTriNum: num,
       donVi: data.donVi,
@@ -421,32 +422,50 @@ export default function TaoGoiThau() {
     setConfirmOpen(true);
   }
 
-  function doSubmit() {
+  function getApiErrorMessage(error: unknown, fallback: string) {
+    const err = error as { response?: { data?: { error?: string; message?: string } }; message?: string };
+    return err.response?.data?.error || err.response?.data?.message || err.message || fallback;
+  }
+
+  async function doSubmit() {
     if (!pendingSubmitData) return;
     const data = pendingSubmitData;
     const item = buildGoiThauFromForm(data, "Chờ duyệt");
-    if (isEditMode) {
-      updateGoiThau(item);
-      toast.success("Gói thầu đã được cập nhật và gửi đề xuất");
-    } else {
-      addGoiThau(item);
-      toast.success("Gói thầu đã được gửi đề xuất và đang chờ duyệt");
+    setSavingChanges(true);
+    try {
+      if (isEditMode) {
+        await updateGoiThau(item);
+        toast.success("Gói thầu đã được cập nhật và gửi đề xuất");
+      } else {
+        await addGoiThau(item);
+        toast.success("Gói thầu đã được gửi đề xuất và đang chờ duyệt");
+      }
+      setConfirmOpen(false);
+      navigate("/danh-sach-goi-thau");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Không thể gửi đề xuất gói thầu"));
+    } finally {
+      setSavingChanges(false);
     }
-    setConfirmOpen(false);
-    navigate("/danh-sach-goi-thau");
   }
 
-  function saveChanges(values: FormData) {
+  async function saveChanges(values: FormData) {
     if (!editingGoiThau) return;
     if (!validateRutGonOrToast(values)) return;
     setSavingChanges(true);
-    updateGoiThau(buildGoiThauFromForm(values, editingGoiThau.trangThai));
-    toast.success("Đã lưu thay đổi gói thầu");
-    navigate("/danh-sach-goi-thau");
+    try {
+      await updateGoiThau(buildGoiThauFromForm(values, editingGoiThau.trangThai));
+      toast.success("Đã lưu thay đổi gói thầu");
+      navigate("/danh-sach-goi-thau");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Không thể lưu thay đổi gói thầu"));
+    } finally {
+      setSavingChanges(false);
+    }
   }
 
   /* ─ Lưu nháp ─ */
-  function saveDraft() {
+  async function saveDraft() {
     const values = watch();
     if (!values.ten?.trim()) {
       toast.error("Vui lòng nhập tên gói thầu trước khi lưu nháp");
@@ -463,10 +482,16 @@ export default function TaoGoiThau() {
     if (!validateRutGonOrToast(values)) return;
 
     setSavingDraft(true);
-    const item = buildGoiThauFromForm(values, "Nháp");
-    addGoiThau(item);
-    toast.success("Gói thầu đã được lưu nháp thành công");
-    navigate("/danh-sach-goi-thau");
+    try {
+      const item = buildGoiThauFromForm(values, "Nháp");
+      await addGoiThau(item);
+      toast.success("Gói thầu đã được lưu nháp thành công");
+      navigate("/danh-sach-goi-thau");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Không thể lưu nháp gói thầu"));
+    } finally {
+      setSavingDraft(false);
+    }
   }
 
   const cls = (field: keyof FormData) =>

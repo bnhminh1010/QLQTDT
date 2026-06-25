@@ -13,14 +13,17 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ITenderAccessService _tenderAccess;
+    private readonly IWorkflowEngineService _workflowEngine;
 
     public GoiThauService(
         AppDbContext db,
         IHttpContextAccessor httpContextAccessor,
-        ITenderAccessService tenderAccess) : base(db)
+        ITenderAccessService tenderAccess,
+        IWorkflowEngineService workflowEngine) : base(db)
     {
         _httpContextAccessor = httpContextAccessor;
         _tenderAccess = tenderAccess;
+        _workflowEngine = workflowEngine;
     }
 
     public async Task<PagedResult<GoiThauDto>> SearchAsync(int page, int pageSize, string? trangThai)
@@ -205,15 +208,28 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
         ValidateRutGonPolicy(hinhThuc.MaHinhThuc, hinhThuc.TenHinhThuc, dto.NganSach, dto.LoaiGoiThau, dto.CanCuApDungRutGon, hinhThuc.HanMucToiDa);
 
-        // Auto-suggest WorkflowId from active Workflow matching HinhThucId
-        int? workflowId = null;
-        var workflow = await _db.Workflows
-            .AsNoTracking()
-            .Where(w => w.HinhThucId == dto.HinhThucId && w.TrangThaiHoatDong)
-            .OrderBy(w => w.Id)
-            .FirstOrDefaultAsync();
-        if (workflow is not null)
-            workflowId = workflow.Id;
+        // Prefer workflow selected by frontend; fallback to active workflow matching HinhThucId.
+        int? workflowId = dto.WorkflowId;
+        Workflow? workflow = null;
+        if (workflowId.HasValue)
+        {
+            workflow = await _db.Workflows
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.Id == workflowId.Value && w.TrangThaiHoatDong)
+                ?? throw new BadRequestException("Quy trình đấu thầu không hợp lệ hoặc đã bị vô hiệu hóa.");
+
+            if (workflow.HinhThucId != dto.HinhThucId)
+                throw new BadRequestException("Quy trình đấu thầu không phù hợp với hình thức đấu thầu đã chọn.");
+        }
+        else
+        {
+            workflow = await _db.Workflows
+                .AsNoTracking()
+                .Where(w => w.HinhThucId == dto.HinhThucId && w.TrangThaiHoatDong)
+                .OrderBy(w => w.Id)
+                .FirstOrDefaultAsync();
+            workflowId = workflow?.Id;
+        }
 
         // Resolve KhoaPhongId from current user if not provided
         int? khoaPhongId = dto.KhoaPhongId;
@@ -258,7 +274,26 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                     NgayTao = DateTime.UtcNow,
                 };
 
-                return await base.CreateAsync(entity);
+                var created = await base.CreateAsync(entity);
+
+                // Auto-start workflow if workflow template matched
+                if (workflowId.HasValue)
+                {
+                    try
+                    {
+                        await _workflowEngine.StartWorkflowAsync(created.Id, new Models.DTOs.Workflow.StartWorkflowRequest
+                        {
+                            WorkflowId = workflowId.Value,
+                            AutoSuggest = false
+                        });
+                    }
+                    catch
+                    {
+                        // Workflow start failed — gói thầu vẫn tồn tại ở DU_THAO để xử lý sau
+                    }
+                }
+
+                return created;
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
                 when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx

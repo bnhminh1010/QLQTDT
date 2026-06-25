@@ -36,6 +36,7 @@ export type GoiThau = {
   ghiChu?: string;
   canCuApDungRutGon?: string;
   theoDoi?: string[];
+  workflowId?: number;
   giaTriStr: string;
   giaTriNum: number;
   donVi: string;
@@ -71,6 +72,20 @@ function tenHinhThucToId(tenHinhThuc?: string): number | undefined {
   if (!tenHinhThuc) return undefined;
   if (!_hinhThucCache) return undefined;
   return _hinhThucCache.find(ht => ht.tenHinhThuc === tenHinhThuc)?.id;
+}
+
+/** Resolve tenKhoaPhong → khoaPhongId (for KhoaPhong dropdown in form) */
+let _khoaPhongCache: { id: number; tenKhoaPhong: string }[] | null = null;
+function tenKhoaPhongToId(ten?: string): number | undefined {
+  if (!ten || !_khoaPhongCache) return undefined;
+  return _khoaPhongCache.find(kp => kp.tenKhoaPhong === ten)?.id;
+}
+async function ensureKhoaPhongCache(): Promise<void> {
+  if (_khoaPhongCache) return;
+  try {
+    const { getKhoaPhongs } = await import('@/services/adminApi');
+    _khoaPhongCache = await getKhoaPhongs();
+  } catch { _khoaPhongCache = []; }
 }
 
 function mapItem(item: GoiThauItem): GoiThau {
@@ -127,21 +142,22 @@ export const getGoiThauById = async (id: string): Promise<GoiThau | undefined> =
 
 /** Send full payload with hinhThucId resolution */
 export const addGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
-  try {
-    await getHinhThucList();
+  await getHinhThucList();
 
-    const payload: CreateGoiThauFullRequest = {
-      tenGoiThau: item.tenGoiThau || item.ten || '',
-      moTa: item.ghiChu || '',
-      nganSach: item.giaTriNum || 0,
-      hinhThucId: tenHinhThucToId(item.hinhThuc) ?? 0,
-      nguonVon: item.detail?.nguonVon,
-      loaiGoiThau: item.loaiGoiThau,
-      theoDoi: item.theoDoi ? JSON.stringify(item.theoDoi) : undefined,
-    };
+  const payload: CreateGoiThauFullRequest = {
+    tenGoiThau: item.tenGoiThau || item.ten || '',
+    moTa: item.ghiChu || '',
+    nganSach: item.giaTriNum || 0,
+    hinhThucId: tenHinhThucToId(item.hinhThuc) ?? 0,
+    khoaPhongId: tenKhoaPhongToId(item.donVi),
+    workflowId: item.workflowId,
+    nguonVon: item.detail?.nguonVon,
+    loaiGoiThau: item.loaiGoiThau,
+    canCuApDungRutGon: item.canCuApDungRutGon,
+    theoDoi: item.theoDoi ? JSON.stringify(item.theoDoi) : undefined,
+  };
 
-    await createGoiThauFullApi(payload);
-  } catch { /* silent */ }
+  await createGoiThauFullApi(payload);
 };
 export const themGoiThau = addGoiThau;
 
@@ -149,21 +165,20 @@ export const themGoiThau = addGoiThau;
 export const updateGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
   const numId = parseInt((item.id || '').replace(/^GT/, ''), 10);
   if (isNaN(numId)) return;
-  try {
-    await getHinhThucList();
+  await getHinhThucList();
 
-    const payload: UpdateGoiThauFullRequest = {
-      tenGoiThau: item.tenGoiThau || item.ten || '',
-      moTa: item.ghiChu || '',
-      nganSach: item.giaTriNum || 0,
-      hinhThucId: tenHinhThucToId(item.hinhThuc),
-      nguonVon: item.detail?.nguonVon,
-      loaiGoiThau: item.loaiGoiThau,
-      theoDoi: item.theoDoi ? JSON.stringify(item.theoDoi) : undefined,
-    };
+  const payload: UpdateGoiThauFullRequest = {
+    tenGoiThau: item.tenGoiThau || item.ten || '',
+    moTa: item.ghiChu || '',
+    nganSach: item.giaTriNum || 0,
+    hinhThucId: tenHinhThucToId(item.hinhThuc),
+    nguonVon: item.detail?.nguonVon,
+    loaiGoiThau: item.loaiGoiThau,
+    canCuApDungRutGon: item.canCuApDungRutGon,
+    theoDoi: item.theoDoi ? JSON.stringify(item.theoDoi) : undefined,
+  };
 
-    await updateGoiThauFullApi(numId, payload);
-  } catch { /* silent */ }
+  await updateGoiThauFullApi(numId, payload);
 };
 export const capNhatGoiThau = updateGoiThau;
 
