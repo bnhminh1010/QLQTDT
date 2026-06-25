@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
@@ -11,6 +11,7 @@ import {
   type KetQuaXuLy,
   type XuLyBuocRecord,
 } from "@/pages/DanhSachGoiThau/xuLyBuocService";
+import { getWorkflowStepDetail } from "@/services/workflowApi";
 import { useFileAttachment } from "@/hooks/useFileAttachment";
 import { fileIcon, formatBytes, openFile, downloadFile } from "@/util/fileAttachment";
 
@@ -80,6 +81,10 @@ export default function XuLyBuocGoiThau() {
   const [searchParams] = useSearchParams();
   const readonlyMode = searchParams.get("mode") === "view";
   const viewingStep = searchParams.get("step") || "";
+  const stepIdParam = Number(searchParams.get("stepId"));
+  const stepId = Number.isFinite(stepIdParam) && stepIdParam > 0 ? stepIdParam : undefined;
+  const [backendLoading, setBackendLoading] = useState(false);
+  const [backendError, setBackendError] = useState("");
   const [goiThau] = useState<GoiThau>(() => ({
     id, ten: "", tenGoiThau: "", maGoiThau: "",
     hinhThuc: "", giaTriStr: "0", giaTriNum: 0, donVi: "",
@@ -129,6 +134,47 @@ export default function XuLyBuocGoiThau() {
   const [rejectReason, setRejectReason] = useState(existing?.lyDoKhongDuyet ?? "");
   const [locked, setLocked] = useState(initialLocked);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!readonlyMode || !stepId) return;
+
+    const goiThauId = Number(id.replace(/^GT/i, ""));
+    if (!Number.isFinite(goiThauId) || goiThauId <= 0) return;
+
+    let cancelled = false;
+    setBackendLoading(true);
+    setBackendError("");
+
+    getWorkflowStepDetail(goiThauId, stepId)
+      .then((step) => {
+        if (cancelled) return;
+        const nextKetQua = step.ketQua || (step.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
+        setForm((prev) => ({
+          ...prev,
+          buocWorkflow: step.tenBuoc || prev.buocWorkflow,
+          nguoiXuLy: step.tenNguoiXuLy || prev.nguoiXuLy,
+          ngayXuLy: step.ngayXuLy?.slice(0, 10) || prev.ngayXuLy,
+          nguoiKyDuyet: step.tenNguoiKyDuyet || prev.nguoiKyDuyet,
+          ngayKyDuyet: step.ngayKyDuyet?.slice(0, 10) || prev.ngayKyDuyet,
+          ketQua: nextKetQua as KetQuaXuLy,
+          lyDoKhongDuyet: step.lyDoKhongDuyet || prev.lyDoKhongDuyet,
+          ghiChu: step.lyDoKhongDuyet || step.tinhTrangTienDo || prev.ghiChu,
+        }));
+        setDecision(nextKetQua === "Không duyệt" || nextKetQua === "Duyệt" ? nextKetQua : "");
+        setRejectReason(step.lyDoKhongDuyet || "");
+        setLocked(true);
+      })
+      .catch(() => {
+        if (!cancelled) setBackendError("Không thể tải chi tiết bước từ hệ thống.");
+      })
+      .finally(() => {
+        if (!cancelled) setBackendLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, readonlyMode, stepId]);
 
   if (
     readonlyMode &&
@@ -286,6 +332,17 @@ export default function XuLyBuocGoiThau() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-5">
+          {backendLoading && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+              <i className="fa-solid fa-circle-notch fa-spin mr-2" />
+              Đang tải chi tiết bước từ hệ thống...
+            </div>
+          )}
+          {backendError && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              {backendError} Đang hiển thị dữ liệu sẵn có trên giao diện.
+            </div>
+          )}
           {locked && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
               Bước này chỉ hiển thị để tra cứu, không cho phép chỉnh sửa kết quả xử lý.

@@ -13,6 +13,7 @@ export type WorkflowItem = {
   hinhThucId?: number;
   trangThaiHoatDong: boolean;
   loaiHinhDauThau?: string;
+  laQuyTrinhChuan?: boolean;
   soBuoc: number;
   ngayTao: string;
 };
@@ -488,6 +489,14 @@ export async function getWorkflowState(goiThauId: number): Promise<WorkflowState
 
 export async function getWorkflowSteps(goiThauId: number): Promise<WorkflowStepStateDto[]> {
   const res = await http.get<ApiResponse<WorkflowStepStateDto[]>>(`/goi-thau/${goiThauId}/steps`);
+  return res.data;
+}
+
+export async function getWorkflowStepDetail(
+  goiThauId: number,
+  stepId: number
+): Promise<WorkflowStepStateDto> {
+  const res = await http.get<ApiResponse<WorkflowStepStateDto>>(`/goi-thau/${goiThauId}/steps/${stepId}`);
   return res.data;
 }
 

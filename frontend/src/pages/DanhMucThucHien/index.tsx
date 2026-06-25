@@ -278,9 +278,13 @@ export default function DanhMucThucHien() {
     if (!selItem) return;
     try {
       const workflows = await getWorkflows(selItem.ten);
+      const related = workflows.filter((w) =>
+        w.hinhThucId === selItem.id || w.loaiHinhDauThau === selItem.ten
+      );
       const workflow =
-        workflows.find((w) => w.hinhThucId === selItem.id) ??
-        workflows.find((w) => w.loaiHinhDauThau === selItem.ten);
+        related.find((w) => w.laQuyTrinhChuan) ??
+        related.find((w) => w.trangThaiHoatDong) ??
+        related[0];
 
       if (workflow) {
         navigate(`/lap-quy-trinh?id=${workflow.id}`);
@@ -548,7 +552,7 @@ function AuditLogView({
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    http.get<any>("/audit-log", { params: { page: 1, pageSize: 50 } })
+    http.get<any>("/audit-log", { params: { page: 1, pageSize: 200 } })
       .then((res: any) => {
         const items = res?.data?.items ?? res?.items ?? [];
         const list = Array.isArray(items) ? items : [];
@@ -573,6 +577,7 @@ function AuditLogView({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs text-slate-700 font-medium">{l.hanhDong}</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">{formatAuditDetail(l.moTaChiTiet)}</p>
             <div className="mt-0.5 space-y-0.5 text-[11px] text-slate-400">
               <p>Thời gian: {l.thoiGianThucHien ? new Date(l.thoiGianThucHien).toLocaleString("vi-VN") : "—"}</p>
               <p>Người thực hiện: {l.nguoiThucHienId ?? "—"}</p>
@@ -594,12 +599,53 @@ function isHinhThucAuditLog(log: any, id: number, ma: string, ten: string) {
     const recordId = Number(detail._banGhiId ?? detail.recordId);
     if (table === "HinhThucDauThau" && recordId === id) return true;
   } catch {
-    // Older audit rows may be plain text or partial JSON.
+    // Bản ghi cũ có thể là text hoặc JSON thiếu metadata.
   }
 
-  return raw.includes(ma) ||
-    raw.includes(ten) ||
-    raw.includes("maHinhThuc") ||
-    raw.includes("tenHinhThuc") ||
-    raw.includes("hanMucToiDa");
+  const lower = raw.toLowerCase();
+  const knownKeys = ["TenHinhThuc", "MaHinhThuc", "HanMucToiDa", "tenHinhThuc", "maHinhThuc", "hanMucToiDa"];
+  return lower.includes(ma.toLowerCase()) ||
+    lower.includes(ten.toLowerCase()) ||
+    knownKeys.some((key) => lower.includes(key.toLowerCase()));
+}
+
+function formatAuditDetail(raw?: string): string {
+  if (!raw) return "Không có mô tả chi tiết";
+
+  try {
+    const detail = JSON.parse(raw);
+    if (!detail || typeof detail !== "object") return String(raw);
+
+    const labels: Record<string, string> = {
+      TenHinhThuc: "Tên hình thức",
+      tenHinhThuc: "Tên hình thức",
+      MaHinhThuc: "Mã hình thức",
+      maHinhThuc: "Mã hình thức",
+      HanMucToiDa: "Hạn mức tối đa",
+      hanMucToiDa: "Hạn mức tối đa",
+      TrangThaiHoatDong: "Trạng thái",
+      trangThaiHoatDong: "Trạng thái",
+    };
+
+    const parts = Object.entries(detail)
+      .filter(([key]) => !key.startsWith("_"))
+      .map(([key, value]) => {
+        const label = labels[key] ?? key;
+        if (value && typeof value === "object" && "cu" in value && "moi" in value) {
+          const change = value as { cu?: unknown; moi?: unknown };
+          return `${label}: ${formatAuditValue(change.cu)} → ${formatAuditValue(change.moi)}`;
+        }
+        return `${label}: ${formatAuditValue(value)}`;
+      });
+
+    return parts.length > 0 ? parts.join("; ") : "Không có mô tả chi tiết";
+  } catch {
+    return raw.length > 120 ? `${raw.slice(0, 120)}...` : raw;
+  }
+}
+
+function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Có" : "Không";
+  return String(value);
 }

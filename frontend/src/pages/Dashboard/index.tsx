@@ -143,11 +143,11 @@ function Dot({ state }: { state: DotState }) {
 }
 
 function mapWorkflowStepStatus(step: WorkflowStepStateDto): StepStatus {
-  if (step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "HoÃ n táº¥t";
-  if (step.quaHan || step.tinhTrangTienDo === "QUA_HAN") return "Trá»… háº¡n";
-  if (step.trangThai === "CHO_KY_DUYET") return "Chá» kÃ½ duyá»‡t";
-  if (step.trangThai === "IN_PROGRESS" || step.ngayBatDau) return "Äang xá»­ lÃ½";
-  return "ChÆ°a báº¯t Ä‘áº§u";
+  if (step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Hoàn tất";
+  if (step.quaHan || step.tinhTrangTienDo === "QUA_HAN") return "Trễ hạn";
+  if (step.trangThai === "CHO_KY_DUYET") return "Chờ ký duyệt";
+  if (step.trangThai === "IN_PROGRESS" || step.ngayBatDau) return "Đang xử lý";
+  return "Chưa bắt đầu";
 }
 
 function mapWorkflowStep(
@@ -163,7 +163,7 @@ function mapWorkflowStep(
     name: step.tenBuoc,
     processor: step.tenNguoiXuLy || step.tenVaiTroXuLy || step.phaHienTai || "-",
     status: mapWorkflowStepStatus(step),
-    sla: overdue ? "QuÃ¡ háº¡n" : step.tinhTrangTienDo || step.hanXuLy?.slice(0, 10) || "-",
+    sla: overdue ? "Quá hạn" : step.tinhTrangTienDo || step.hanXuLy?.slice(0, 10) || "-",
     ngayXuLy: step.ngayXuLy?.slice(0, 10),
     nguoiKy: step.tenNguoiKyDuyet,
     ngayKy: step.ngayKyDuyet?.slice(0, 10),
@@ -174,10 +174,10 @@ function mapWorkflowStep(
 
 function getProgressStatus(state?: WorkflowStateDto): TableRow["progressStatus"] {
   if (state?.tinhTrangTienDo === "QUA_HAN" || state?.steps.some((step) => step.quaHan)) {
-    return "QuÃ¡ háº¡n";
+    return "Quá hạn";
   }
-  if (state?.tinhTrangTienDo === "SAP_QUA_HAN") return "Sáº¯p quÃ¡ háº¡n";
-  return "ÄÃºng háº¡n";
+  if (state?.tinhTrangTienDo === "SAP_QUA_HAN") return "Sắp quá hạn";
+  return "Đúng hạn";
 }
 
 export default function Dashboard() {
@@ -726,6 +726,14 @@ export default function Dashboard() {
                         {step.processor}
                       </span>
                     </div>
+                    {step.ngayXuLy && (
+                      <div className="flex justify-between gap-2">
+                        <span>Ngày xử lý</span>
+                        <span className="font-medium text-slate-700 text-right">
+                          {step.ngayXuLy}
+                        </span>
+                      </div>
+                    )}
                     {step.nguoiKy && (
                       <div className="flex justify-between gap-2">
                         <span>Người ký</span>

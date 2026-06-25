@@ -33,8 +33,14 @@ type QuyTrinhStepDetail = {
   state: DotState;
   ten: string;
   donVi: string;
+  backendId?: number;
   current?: boolean;
   nguoiXuLy?: string;
+  ngayXuLy?: string;
+  nguoiKy?: string;
+  ngayKy?: string;
+  ketQua?: string;
+  lyDoKhongDuyet?: string;
   slaText?: string;
 };
 
@@ -148,9 +154,15 @@ function mapWorkflowStepState(
     state: completed ? "done" : current || overdue ? "warn" : "idle",
     ten: step.tenBuoc,
     donVi: step.tenVaiTroXuLy || step.phaHienTai || "-",
+    backendId: step.id,
     current,
     nguoiXuLy: step.tenNguoiXuLy,
-    slaText: overdue ? "Qua han" : step.tinhTrangTienDo || undefined,
+    ngayXuLy: step.ngayXuLy?.slice(0, 10),
+    nguoiKy: step.tenNguoiKyDuyet,
+    ngayKy: step.ngayKyDuyet?.slice(0, 10),
+    ketQua: step.ketQua,
+    lyDoKhongDuyet: step.lyDoKhongDuyet,
+    slaText: overdue ? "Quá hạn" : step.tinhTrangTienDo || undefined,
   };
 }
 
@@ -515,10 +527,10 @@ export default function DanhSachGoiThau() {
     navigate(`/xu-ly-buoc/${encodeURIComponent(item.id)}`);
   }
 
-  function goToStepResult(item: GoiThau, stepName: string) {
-    navigate(
-      `/xu-ly-buoc/${encodeURIComponent(item.id)}?mode=view&step=${encodeURIComponent(stepName)}`,
-    );
+  function goToStepResult(item: GoiThau, stepName: string, stepId?: number) {
+    const params = new URLSearchParams({ mode: "view", step: stepName });
+    if (stepId) params.set("stepId", String(stepId));
+    navigate(`/xu-ly-buoc/${encodeURIComponent(item.id)}?${params.toString()}`);
   }
 
   /* ─ Detail panel content ─ */
@@ -685,11 +697,11 @@ export default function DanhSachGoiThau() {
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => goToStepResult(selected, step.ten)}
+                onClick={() => goToStepResult(selected, step.ten, step.backendId)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    goToStepResult(selected, step.ten);
+                    goToStepResult(selected, step.ten, step.backendId);
                   }
                 }}
                 className={`flex items-start gap-2.5 rounded-xl ${
@@ -736,6 +748,35 @@ export default function DanhSachGoiThau() {
                       <div className="text-slate-600">
                         Người xử lý:{" "}
                         <span className="font-semibold">{step.nguoiXuLy}</span>
+                      </div>
+                    )}
+                    {step.ngayXuLy && (
+                      <div className="text-slate-600">
+                        Ngày xử lý:{" "}
+                        <span className="font-semibold">{step.ngayXuLy}</span>
+                      </div>
+                    )}
+                    {step.nguoiKy && (
+                      <div className="text-slate-600">
+                        Người ký duyệt:{" "}
+                        <span className="font-semibold">{step.nguoiKy}</span>
+                      </div>
+                    )}
+                    {step.ngayKy && (
+                      <div className="text-slate-600">
+                        Ngày ký duyệt:{" "}
+                        <span className="font-semibold">{step.ngayKy}</span>
+                      </div>
+                    )}
+                    {step.ketQua && (
+                      <div className="text-slate-600">
+                        Kết quả:{" "}
+                        <span className="font-semibold">{step.ketQua}</span>
+                      </div>
+                    )}
+                    {step.lyDoKhongDuyet && (
+                      <div className="rounded-lg bg-red-50 px-2 py-1 text-red-600">
+                        Lý do không duyệt: <span className="font-semibold">{step.lyDoKhongDuyet}</span>
                       </div>
                     )}
                     {step.slaText && (
@@ -1109,6 +1150,9 @@ export default function DanhSachGoiThau() {
                             >
                               {row.trangThai}
                             </span>
+                            <div className="mt-1 text-[11px] text-slate-400">
+                              Tiến độ: <span className="font-semibold text-slate-600">{row.detail.buoc}</span>
+                            </div>
                           </td>
                           <td
                             className="px-5 py-3"

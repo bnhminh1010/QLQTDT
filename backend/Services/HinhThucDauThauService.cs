@@ -16,12 +16,11 @@ public class HinhThucDauThauService : BaseService<HinhThucDauThau>, IHinhThucDau
 
     public async Task<PagedResult<HinhThucDauThau>> SearchAsync(int page, int pageSize, string? search)
     {
-        Expression<Func<HinhThucDauThau, bool>> filter = h => h.TrangThaiHoatDong;
+        Expression<Func<HinhThucDauThau, bool>> filter = h => true;
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            filter = h => h.TrangThaiHoatDong &&
-                (h.MaHinhThuc.Contains(search) || h.TenHinhThuc.Contains(search));
+            filter = h => h.MaHinhThuc.Contains(search) || h.TenHinhThuc.Contains(search);
         }
 
         var result = await base.GetAllAsync(page, pageSize, filter,
@@ -47,7 +46,7 @@ public class HinhThucDauThauService : BaseService<HinhThucDauThau>, IHinhThucDau
     public override async Task<HinhThucDauThau?> GetByIdAsync(int id)
     {
         var entity = await _set.FindAsync(id);
-        if (entity is null || !entity.TrangThaiHoatDong)
+        if (entity is null)
             return null;
 
         entity.SoGoi = await _db.GoiThaus.CountAsync(g => g.TrangThaiHoatDong && g.HinhThucId == id);
@@ -75,9 +74,6 @@ public class HinhThucDauThauService : BaseService<HinhThucDauThau>, IHinhThucDau
     {
         var existing = await _set.FindAsync(id)
             ?? throw new NotFoundException($"Không tìm thấy hình thức đấu thầu với Id = {id}");
-
-        if (!existing.TrangThaiHoatDong)
-            throw new NotFoundException($"Không tìm thấy hình thức đấu thầu với Id = {id}");
 
         if (dto.TenHinhThuc != null) existing.TenHinhThuc = dto.TenHinhThuc;
         if (dto.HanMucToiDa.HasValue) existing.HanMucToiDa = dto.HanMucToiDa;

@@ -8,6 +8,7 @@ public class WorkflowListItemDto
     public int HinhThucId { get; set; }
     public bool TrangThaiHoatDong { get; set; }
     public string? LoaiHinhDauThau { get; set; }
+    public bool LaQuyTrinhChuan { get; set; }
     public int SoBuoc { get; set; }
     public DateTime NgayTao { get; set; }
 }

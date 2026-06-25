@@ -230,12 +230,25 @@ public static class WorkflowTemplateSeeder
                 await context.SaveChangesAsync();
             }
 
-            // 3. Seed BuocWorkflow
+            // 3. Seed BuocWorkflow với node kỹ thuật START/END.
+            var fullSteps = new List<(string MaBuoc, string TenBuoc, string LoaiBuoc, string? NhomGiaiDoan, string? TenVaiTro, int SoNgay, bool ChoPhepTuChoi, bool ChoPhepBoQua)>();
+            fullSteps.Add(("START", "Bắt đầu", "BAT_DAU", null, null, 0, false, false));
+            fullSteps.AddRange(steps.Select(s => (
+                s.MaBuoc,
+                s.TenBuoc,
+                "THUC_HIEN",
+                (string?)s.LoaiBuoc,
+                (string?)s.TenVaiTro,
+                s.SoNgay,
+                s.ChoPhepTuChoi,
+                s.ChoPhepBoQua)));
+            fullSteps.Add(("END", "Kết thúc", "KET_THUC", null, null, 0, false, false));
+
             var existingBuocs = await context.BuocWorkflows
                 .Where(b => b.WorkflowId == wf.Id)
                 .ToListAsync();
 
-            var templateMaBuocs = steps.Select(s => s.MaBuoc).ToHashSet();
+            var templateMaBuocs = fullSteps.Select(s => s.MaBuoc).ToHashSet();
 
             // Xóa bước không thuộc template (test data dư)
             var extraBuocs = existingBuocs.Where(b => !templateMaBuocs.Contains(b.MaBuoc)).ToList();
@@ -252,15 +265,25 @@ public static class WorkflowTemplateSeeder
                     logger.LogInformation("Seed: Xóa bước dư [{Ma}] khỏi workflow [{Wf}]", b.MaBuoc, maWorkflow);
             }
 
-            var buocList = new List<BuocWorkflow>();
-            for (int i = 0; i < steps.Length; i++)
-            {
-                var (maBuoc, tenBuoc, loaiBuoc, tenVaiTro, sla, choPhepTuChoi, choPhepBoQua) = steps[i];
+            existingBuocs = await context.BuocWorkflows
+                .Where(b => b.WorkflowId == wf.Id)
+                .ToListAsync();
 
-                if (!vaiTroMap.TryGetValue(tenVaiTro, out var vaiTroId))
+            for (int i = 0; i < fullSteps.Count; i++)
+            {
+                var (maBuoc, tenBuoc, loaiBuoc, nhomGiaiDoan, tenVaiTro, sla, choPhepTuChoi, choPhepBoQua) = fullSteps[i];
+                int? vaiTroId = null;
+
+                if (!string.IsNullOrWhiteSpace(tenVaiTro))
                 {
-                    logger.LogWarning("Seed: Không tìm thấy vai trò [{VT}] cho bước [{Buoc}]", tenVaiTro, maBuoc);
-                    continue;
+                    if (vaiTroMap.TryGetValue(tenVaiTro, out var foundVaiTroId))
+                    {
+                        vaiTroId = foundVaiTroId;
+                    }
+                    else
+                    {
+                        logger.LogWarning("Seed: Không tìm thấy vai trò [{VT}] cho bước [{Buoc}]", tenVaiTro, maBuoc);
+                    }
                 }
 
                 var buoc = existingBuocs.FirstOrDefault(b => b.MaBuoc == maBuoc);
@@ -269,49 +292,50 @@ public static class WorkflowTemplateSeeder
                     buoc = new BuocWorkflow
                     {
                         WorkflowId = wf.Id,
-                        MaBuoc = maBuoc,
-                        TenBuoc = tenBuoc,
-                        LoaiBuoc = loaiBuoc,
-                        VaiTroXuLyHoSoId = vaiTroId,
-                        SoNgayLapHoSo = sla,
-                        SoNgayXuLy = sla,
-                        LoaiHan = "CANH_BAO",
-                        ChoPhepTuChoi = choPhepTuChoi,
-                        ChoPhepBoQua = choPhepBoQua,
+                        MaBuoc = maBuoc
                     };
                     context.BuocWorkflows.Add(buoc);
                 }
-                buocList.Add(buoc);
+
+                buoc.TenBuoc = tenBuoc;
+                buoc.LoaiBuoc = loaiBuoc;
+                buoc.ThuTu = i + 1;
+                buoc.VaiTroXuLyHoSoId = vaiTroId;
+                buoc.SoNgayLapHoSo = sla;
+                buoc.SoNgayXuLy = sla;
+                buoc.LoaiHan = "CANH_BAO";
+                buoc.ChoPhepTuChoi = choPhepTuChoi;
+                buoc.ChoPhepBoQua = choPhepBoQua;
+                buoc.NhomGiaiDoan = nhomGiaiDoan;
             }
             await context.SaveChangesAsync();
 
-            // 4. Seed ChuyenTiepWorkflow (APPROVE transitions: step i → step i+1)
+            // 4. Seed ChuyenTiepWorkflow: START → business steps → END
             var savedBuocs = await context.BuocWorkflows
                 .Where(b => b.WorkflowId == wf.Id)
                 .ToListAsync();
 
-            var orderedBuocs = steps
+            var orderedBuocs = fullSteps
                 .Select(s => savedBuocs.FirstOrDefault(b => b.MaBuoc == s.MaBuoc))
                 .Where(b => b != null)
+                .Cast<BuocWorkflow>()
+                .OrderBy(b => b.ThuTu)
                 .ToList();
+
+            var orderedBuocIds = orderedBuocs.Select(b => b.Id).ToList();
+            var oldTransitions = await context.ChuyenTiepWorkflows
+                .Where(t => orderedBuocIds.Contains(t.TuBuocId))
+                .ToListAsync();
+            context.ChuyenTiepWorkflows.RemoveRange(oldTransitions);
 
             for (int i = 0; i < orderedBuocs.Count - 1; i++)
             {
-                var tuBuoc = orderedBuocs[i]!;
-                var denBuoc = orderedBuocs[i + 1]!;
-
-                var existingTransition = await context.ChuyenTiepWorkflows
-                    .AnyAsync(t => t.TuBuocId == tuBuoc.Id && t.DenBuocId == denBuoc.Id && t.HanhDong == "APPROVE");
-
-                if (!existingTransition)
+                context.ChuyenTiepWorkflows.Add(new ChuyenTiepWorkflow
                 {
-                    context.ChuyenTiepWorkflows.Add(new ChuyenTiepWorkflow
-                    {
-                        TuBuocId = tuBuoc.Id,
-                        DenBuocId = denBuoc.Id,
-                        HanhDong = "APPROVE"
-                    });
-                }
+                    TuBuocId = orderedBuocs[i].Id,
+                    DenBuocId = orderedBuocs[i + 1].Id,
+                    HanhDong = "APPROVE"
+                });
             }
             await context.SaveChangesAsync();
         }

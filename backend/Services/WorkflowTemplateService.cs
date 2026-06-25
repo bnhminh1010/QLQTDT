@@ -199,7 +199,7 @@ public class WorkflowTemplateService : IWorkflowTemplateService
         // Copy parallel groups with new step ids
         var templateGroups = await _db.NhomNhanhWorkflows
             .Include(pg => pg.Nhanhs)
-            .Where(pg => pg.WorkflowId == request.TemplateWorkflowId)
+            .Where(pg => pg.WorkflowId == template.Id)
             .ToListAsync();
 
         foreach (var g in templateGroups)
@@ -240,7 +240,7 @@ public class WorkflowTemplateService : IWorkflowTemplateService
         {
             WorkflowId = newWorkflow.Id,
             VersionNumber = 1,
-            SnapshotData = "{\"generatedFrom\":\"" + request.TemplateWorkflowId + "\"}",
+            SnapshotData = "{\"generatedFrom\":\"" + template.Id + "\"}",
             NgayTao = DateTime.UtcNow,
             NguoiTaoId = nguoiTaoId
         });
@@ -249,7 +249,7 @@ public class WorkflowTemplateService : IWorkflowTemplateService
         await tx.CommitAsync();
 
         _logger.LogInformation("Generated workflow {NewId} from template {TemplateId}",
-            newWorkflow.Id, request.TemplateWorkflowId);
+            newWorkflow.Id, template.Id);
 
         // Return preview for generated workflow (not a template)
         return await BuildPreviewAsync(newWorkflow.Id, requireTemplate: false);

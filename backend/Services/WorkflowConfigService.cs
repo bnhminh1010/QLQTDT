@@ -45,6 +45,7 @@ public class WorkflowConfigService : IWorkflowConfigService
                 HinhThucId = w.HinhThucId,
                 TrangThaiHoatDong = w.TrangThaiHoatDong,
                 LoaiHinhDauThau = w.LoaiHinhDauThau,
+                LaQuyTrinhChuan = w.LaQuyTrinhChuan,
                 SoBuoc = w.BuocWorkflows.Count,
                 NgayTao = EF.Property<DateTime>(w, "NgayTao")
             })
@@ -71,6 +72,7 @@ public class WorkflowConfigService : IWorkflowConfigService
                 HinhThucId = w.HinhThucId,
                 TrangThaiHoatDong = w.TrangThaiHoatDong,
                 LoaiHinhDauThau = w.LoaiHinhDauThau,
+                LaQuyTrinhChuan = w.LaQuyTrinhChuan,
                 SoBuoc = w.BuocWorkflows.Count,
                 NgayTao = EF.Property<DateTime>(w, "NgayTao")
             })
