@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { SelectField } from "@/components/ui/select";
 import type { UserAddFormValues, VaiTro } from "./types";
-import { PHONG_OPTIONS, VAI_TRO_OPTIONS } from "./types";
 
 type Props = {
   existingUsernames: string[];

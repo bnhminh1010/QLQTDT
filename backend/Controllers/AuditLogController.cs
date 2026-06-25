@@ -21,9 +21,10 @@ public class AuditLogController : ControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] string? hanhDong = null)
+        [FromQuery] string? hanhDong = null,
+        [FromQuery] string? bang = null)
     {
-        var result = await _service.GetAllAsync(page, pageSize, hanhDong);
+        var result = await _service.GetAllAsync(page, pageSize, hanhDong, bang);
         return Ok(ApiResponse<PagedResult<NhatKyKiemToan>>.Ok(result));
     }
 

@@ -3,6 +3,7 @@
 ───────────────────────────────────────────────────────────── */
 import http from "@/util/http";
 import type { ApiResponse, PagedResult } from "./types";
+import { toGoiThauTrangThaiLabel } from "@/util/goiThauTrangThai";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -88,8 +89,6 @@ export const TRANG_THAI_GOI_THAU = {
 } as const;
 
 export function resolveTrangThaiLabel(tt: string): string {
-  // delegate to shared mapper
-  const { toGoiThauTrangThaiLabel } = require("@/util/goiThauTrangThai");
   return toGoiThauTrangThaiLabel(tt);
 }
 

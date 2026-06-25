@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
 import { taoGoiThauSchema } from "@/util/validate";
-import { getRutGonThreshold, isRutGonHinhThuc } from "@/util/goiThauRutGonValidation";
+import { getRutGonThreshold, isRutGonHinhThuc, validateRutGonGoiThau } from "@/util/goiThauRutGonValidation";
 import type { InferType } from "yup";
 import { useFileAttachment } from "@/hooks/useFileAttachment";
 import {
@@ -401,15 +401,12 @@ export default function TaoGoiThau() {
   }
 
   function validateRutGonOrToast(data: FormData) {
-    const result = (() => {
-      const { validateRutGonGoiThau } = require("@/util/goiThauRutGonValidation");
-      return validateRutGonGoiThau({
-        hinhThuc: data.hinhThuc,
-        loaiGoiThau: data.loaiGoiThau,
-        giaTriStr: data.giaTriStr,
-        canCuApDungRutGon: data.canCuApDungRutGon,
-      });
-    })();
+    const result = validateRutGonGoiThau({
+      hinhThuc: data.hinhThuc,
+      loaiGoiThau: data.loaiGoiThau,
+      giaTriStr: data.giaTriStr,
+      canCuApDungRutGon: data.canCuApDungRutGon,
+    });
     if (!result.valid) {
       toast.error(result.message);
       return false;

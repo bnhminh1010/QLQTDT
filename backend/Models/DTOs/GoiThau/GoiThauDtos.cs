@@ -75,6 +75,11 @@ public class GoiThauDto
     public string? TenKhoaPhong { get; set; }
     public int? HinhThucId { get; set; }
     public string? TenHinhThuc { get; set; }
+
+    // Workflow progress (filled after query)
+    public int TongSoBuoc { get; set; }
+    public int SoBuocHoanThanh { get; set; }
+    public double PhanTramHoanThanh { get; set; }
 }
 
 public class GoiThauDetailDto

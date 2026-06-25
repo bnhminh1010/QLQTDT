@@ -142,11 +142,28 @@ function Dot({ state }: { state: DotState }) {
   );
 }
 
+const STEP_STATUS_LABEL: Record<string, StepStatus> = {
+  HOAN_TAT: "Hoàn tất",
+  COMPLETED: "Hoàn tất",
+  DANG_XU_LY: "Đang xử lý",
+  IN_PROGRESS: "Đang xử lý",
+  CHO_DUYET: "Chờ ký duyệt",
+  CHO_KY_DUYET: "Chờ ký duyệt",
+  TRE_HAN: "Trễ hạn",
+  QUA_HAN: "Trễ hạn",
+};
+
+const TIEN_DO_LABEL: Record<string, string> = {
+  DUNG_TIEN_DO: "Đúng hạn",
+  QUA_HAN: "Quá hạn",
+  SAP_QUA_HAN: "Sắp quá hạn",
+};
+
 function mapWorkflowStepStatus(step: WorkflowStepStateDto): StepStatus {
-  if (step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Hoàn tất";
+  if (step.ngayHoanThanh) return "Hoàn tất";
+  if (step.trangThai && STEP_STATUS_LABEL[step.trangThai]) return STEP_STATUS_LABEL[step.trangThai];
   if (step.quaHan || step.tinhTrangTienDo === "QUA_HAN") return "Trễ hạn";
-  if (step.trangThai === "CHO_KY_DUYET") return "Chờ ký duyệt";
-  if (step.trangThai === "IN_PROGRESS" || step.ngayBatDau) return "Đang xử lý";
+  if (step.ngayBatDau) return "Đang xử lý";
   return "Chưa bắt đầu";
 }
 
@@ -163,7 +180,7 @@ function mapWorkflowStep(
     name: step.tenBuoc,
     processor: step.tenNguoiXuLy || step.tenVaiTroXuLy || step.phaHienTai || "-",
     status: mapWorkflowStepStatus(step),
-    sla: overdue ? "Quá hạn" : step.tinhTrangTienDo || step.hanXuLy?.slice(0, 10) || "-",
+    sla: overdue ? "Quá hạn" : TIEN_DO_LABEL[step.tinhTrangTienDo ?? ""] || step.hanXuLy?.slice(0, 10) || "-",
     ngayXuLy: step.ngayXuLy?.slice(0, 10),
     nguoiKy: step.tenNguoiKyDuyet,
     ngayKy: step.ngayKyDuyet?.slice(0, 10),
@@ -172,7 +189,7 @@ function mapWorkflowStep(
   };
 }
 
-function getProgressStatus(state?: WorkflowStateDto): TableRow["progressStatus"] {
+function getProgressStatus(state?: WorkflowStateDto | null): TableRow["progressStatus"] {
   if (state?.tinhTrangTienDo === "QUA_HAN" || state?.steps.some((step) => step.quaHan)) {
     return "Quá hạn";
   }

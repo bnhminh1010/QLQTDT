@@ -43,13 +43,16 @@ function getPrimaryPath(path: string) {
 export function getRoleCode(user?: LoginUserDto | null): RoleCode {
   if (!user?.roles?.length) return "THAP";
 
-  const hasAdmin = user.roles.some((r) => r.maVaiTro === "ADMIN" || r.tenVaiTro?.toUpperCase() === "ADMIN");
+  const hasAdmin = user.roles.some((r) => r.tenVaiTro?.toUpperCase() === "ADMIN");
   if (hasAdmin) return "ADMIN";
+
+  // User gắn với khoa/phòng → at least TRUNG_BINH (có quyền xem dashboard, DS gói thầu, báo cáo theo khoa)
+  const belongsToDepartment = user.roles.some(r => r.khoaPhongId != null);
 
   const priorities = user.roles
     .map((r) => r.doUuTien)
     .filter((priority): priority is number => priority != null);
-  const priority = priorities.length > 0 ? Math.min(...priorities) : 5;
+  const priority = priorities.length > 0 ? Math.min(...priorities) : (belongsToDepartment ? 3 : 5);
 
   if (priority <= 1) return "CAP_CAO";
   if (priority <= 3) return "TRUNG_BINH";

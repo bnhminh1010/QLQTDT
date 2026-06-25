@@ -69,6 +69,32 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             })
             .ToListAsync();
 
+        // Populate workflow step counts for all items in one batch
+        var goiThauIds = items.Select(i => i.Id).ToList();
+        var stepCounts = await _db.WorkflowInstances
+            .Where(wi => goiThauIds.Contains(wi.GoiThauId))
+            .GroupBy(wi => wi.GoiThauId)
+            .Select(g => new
+            {
+                GoiThauId = g.Key,
+                Total = g.SelectMany(wi => wi.WorkflowStepInstances).Count(),
+                Completed = g.SelectMany(wi => wi.WorkflowStepInstances).Count(wsi => wsi.TrangThai == "HOAN_TAT" || wsi.TrangThai == "COMPLETED" || wsi.NgayHoanThanh != null)
+            })
+            .ToListAsync();
+
+        var stepCountsByGoiThauId = stepCounts.ToDictionary(s => s.GoiThauId);
+        foreach (var item in items)
+        {
+            if (stepCountsByGoiThauId.TryGetValue(item.Id, out var sc))
+            {
+                item.TongSoBuoc = sc.Total;
+                item.SoBuocHoanThanh = sc.Completed;
+                item.PhanTramHoanThanh = sc.Total > 0
+                    ? Math.Round((double)sc.Completed / sc.Total * 100, 1)
+                    : 0;
+            }
+        }
+
         return new PagedResult<GoiThauDto>
         {
             Items = items,

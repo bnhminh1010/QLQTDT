@@ -11,7 +11,6 @@ import {
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 import {
-  getCurrentStepName,
   getXuLyBuoc,
   getXuLyBuocByStep,
   getXuLyBuocHistory,
@@ -142,11 +141,17 @@ function parseGoiThauNumericId(id: string) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+const TIEN_DO_LABEL: Record<string, string> = {
+  DUNG_TIEN_DO: "Đúng hạn",
+  QUA_HAN: "Quá hạn",
+  SAP_QUA_HAN: "Sắp quá hạn",
+};
+
 function mapWorkflowStepState(
   step: WorkflowStepStateDto,
   currentStepId?: number,
 ): QuyTrinhStepDetail {
-  const completed = step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
+  const completed = step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED";
   const current = step.id === currentStepId;
   const overdue = Boolean(step.quaHan) || step.tinhTrangTienDo === "QUA_HAN";
 
@@ -162,7 +167,7 @@ function mapWorkflowStepState(
     ngayKy: step.ngayKyDuyet?.slice(0, 10),
     ketQua: step.ketQua,
     lyDoKhongDuyet: step.lyDoKhongDuyet,
-    slaText: overdue ? "Quá hạn" : step.tinhTrangTienDo || undefined,
+    slaText: overdue ? "Quá hạn" : TIEN_DO_LABEL[step.tinhTrangTienDo ?? ""] || undefined,
   };
 }
 
@@ -176,9 +181,9 @@ function mapWorkflowStateToDetailInfo(state?: WorkflowStateDto | null): GoiThauD
       state.steps.find((step) => step.id === currentStep?.stepInstanceId)?.tenNguoiXuLy || "",
     donViXuLy: currentStep?.phaHienTai || "",
     sla:
-      state.tinhTrangTienDo === "QUA_HAN"
-        ? "Qua han"
-        : state.tinhTrangTienDo || "Dang theo doi",
+      state.tinhTrangTienDo
+        ? (TIEN_DO_LABEL[state.tinhTrangTienDo] ?? state.tinhTrangTienDo)
+        : "Đang theo dõi",
     steps: state.steps.map((step) =>
       mapWorkflowStepState(step, currentStep?.stepInstanceId),
     ),
@@ -541,7 +546,6 @@ export default function DanhSachGoiThau() {
       DEFAULT_DETAIL_INFO;
     const currentStepName = detailInfo.buocHienTai;
     const processingInfo = getXuLyBuoc(selected.id);
-    const currentBackendStep = workflowState?.steps.find((step) => step.tenBuoc === currentStepName);
     const progressStatus =
       selected.trangThai === "Trễ hạn"
         ? "Quá hạn"

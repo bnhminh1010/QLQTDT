@@ -17,7 +17,6 @@ const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
 export function SuaKhoaPhongModal({
   phong,
-  existingIds,
   onSave,
   onClose,
 }: Props) {
