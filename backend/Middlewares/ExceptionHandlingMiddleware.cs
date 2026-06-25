@@ -41,6 +41,7 @@ public class ExceptionHandlingMiddleware
 
     private static async Task WriteErrorResponse(HttpContext context, int statusCode, string error, string message, string? detail = null)
     {
+        ApplyCorsHeaders(context);
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
 
@@ -59,5 +60,23 @@ public class ExceptionHandlingMiddleware
             Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
         };
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, options));
+    }
+
+    private static void ApplyCorsHeaders(HttpContext context)
+    {
+        var origin = context.Request.Headers.Origin.ToString();
+        if (string.IsNullOrWhiteSpace(origin))
+            return;
+
+        var allowedOrigins = Environment.GetEnvironmentVariable("CORS_ORIGINS")?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            ?? ["http://localhost:5173"];
+
+        if (!allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+            return;
+
+        context.Response.Headers.AccessControlAllowOrigin = origin;
+        context.Response.Headers.AccessControlAllowCredentials = "true";
+        context.Response.Headers.Vary = "Origin";
     }
 }

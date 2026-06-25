@@ -105,6 +105,13 @@ public class AuditInterceptor : SaveChangesInterceptor
             }
         }
 
+        var tableName = entry.Context?.Model.FindEntityType(entry.Entity.GetType())?.GetTableName()
+            ?? entry.Entity.GetType().Name;
+        var recordId = entry.Property("Id")?.CurrentValue ?? entry.Property("Id")?.OriginalValue;
+
+        changes["_bang"] = tableName;
+        changes["_banGhiId"] = recordId;
+
         return JsonSerializer.Serialize(changes, new JsonSerializerOptions
         {
             WriteIndented = false,
