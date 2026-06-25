@@ -97,7 +97,36 @@ public class HinhThucDauThauService : BaseService<HinhThucDauThau>, IHinhThucDau
         // FK constraint trong DB tự ngăn xoá nếu có workflow liên quan
         // (Workflow entity sẽ được tạo ở Task 12 — bổ sung check khi đó)
 
+        var activeGoiThauCount = await _db.GoiThaus
+            .CountAsync(g => g.TrangThaiHoatDong && g.HinhThucId == id);
+
+        if (activeGoiThauCount > 0)
+        {
+            throw new ConflictException(
+                $"Không thể xóa hình thức đấu thầu '{entity.TenHinhThuc}' " +
+                $"vì đang được sử dụng bởi {activeGoiThauCount} gói thầu.");
+        }
+
+        var activeWorkflowCount = await _db.Workflows
+            .CountAsync(w => w.TrangThaiHoatDong && w.HinhThucId == id);
+
+        if (activeWorkflowCount > 0)
+        {
+            throw new ConflictException(
+                $"Không thể xóa hình thức đấu thầu '{entity.TenHinhThuc}' " +
+                $"vì đang được sử dụng bởi {activeWorkflowCount} quy trình.");
+        }
+
         entity.TrangThaiHoatDong = false;
-        await _db.SaveChangesAsync();
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            throw new ConflictException(
+                $"Không thể xóa hình thức đấu thầu '{entity.TenHinhThuc}' vì đang được sử dụng.");
+        }
     }
 }

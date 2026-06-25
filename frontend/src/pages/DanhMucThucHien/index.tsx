@@ -7,7 +7,7 @@ import { EditModal } from "./EditModal";
 import { DeleteModal } from "./DeleteModal";
 import { getAllHinhThuc, createHinhThuc, updateHinhThuc, deleteHinhThuc } from "@/services/hinhThauApi";
 import type { HinhThucDauThau } from "@/services/hinhThauApi";
-import { getWorkflowTemplates, previewWorkflowTemplate } from "@/services/workflowApi";
+import { getWorkflowTemplates, previewWorkflowTemplate, getWorkflows } from "@/services/workflowApi";
 import http from "@/util/http";
 
 /* ─ Typical steps per loại hình (informational only) ──── */
@@ -256,7 +256,13 @@ export default function DanhMucThucHien() {
       toast.success(`Đã xóa danh mục "${deleteTarget.ten}"`);
       setDeleteTarget(null);
       reload();
-    } catch { toast.error("Xóa thất bại"); }
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+        "Xóa thất bại";
+      toast.error(message);
+    }
   }
 
   function requestDelete(item: DanhMuc, e: React.MouseEvent) {
@@ -271,14 +277,19 @@ export default function DanhMucThucHien() {
   async function goEditQuyTrinh() {
     if (!selItem) return;
     try {
-      const templates = await getWorkflowTemplates(selItem.ten);
-      if (templates.length > 0) {
-        navigate(`/lap-quy-trinh?workflowTemplateId=${templates[0].id}`);
+      const workflows = await getWorkflows(selItem.ten);
+      const workflow =
+        workflows.find((w) => w.hinhThucId === selItem.id) ??
+        workflows.find((w) => w.loaiHinhDauThau === selItem.ten);
+
+      if (workflow) {
+        navigate(`/lap-quy-trinh?id=${workflow.id}`);
         return;
       }
-    } catch { /* no template found */ }
-    // Fallback: create blank workflow for this hinhThuc
-    navigate(`/lap-quy-trinh?loaiHinh=${encodeURIComponent(selItem.ten)}`);
+      toast.info("Hình thức này chưa có quy trình để mở.");
+    } catch {
+      toast.error("Không thể tải quy trình của hình thức này.");
+    }
   }
 
   return (
@@ -495,11 +506,17 @@ export default function DanhMucThucHien() {
                 </div>
                 <button type="button" onClick={goEditQuyTrinh}
                   className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors">
-                  <i className="fa-solid fa-diagram-project text-xs" /> Chỉnh sửa quy trình
+                  <i className="fa-solid fa-diagram-project text-xs" /> Đi tới quy trình
                 </button>
               </div>
             )}
-            {detailTab === "history" && <AuditLogView hinhThucMa={selItem.maHinhThuc} />}
+            {detailTab === "history" && (
+              <AuditLogView
+                hinhThucId={selItem.id}
+                hinhThucMa={selItem.maHinhThuc}
+                hinhThucTen={selItem.ten}
+              />
+            )}
           </aside>
         )}
       </div>
@@ -519,18 +536,27 @@ export default function DanhMucThucHien() {
 }
 
 /* ─── Audit Log component ─── */
-function AuditLogView({ hinhThucMa }: { hinhThucMa: string }) {
+function AuditLogView({
+  hinhThucId,
+  hinhThucMa,
+  hinhThucTen,
+}: {
+  hinhThucId: number;
+  hinhThucMa: string;
+  hinhThucTen: string;
+}) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     http.get<any>("/audit-log", { params: { page: 1, pageSize: 50 } })
       .then((res: any) => {
-        const items = res?.items ?? res?.data ?? [];
-        setLogs(items.filter((l: any) => l.moTaChiTiet?.includes(hinhThucMa)));
+        const items = res?.data?.items ?? res?.items ?? [];
+        const list = Array.isArray(items) ? items : [];
+        setLogs(list.filter((l: any) => isHinhThucAuditLog(l, hinhThucId, hinhThucMa, hinhThucTen)));
       })
       .catch(() => setLogs([]))
       .finally(() => setLoading(false));
-  }, [hinhThucMa]);
+  }, [hinhThucId, hinhThucMa, hinhThucTen]);
   if (loading) return <div className="p-5 text-center text-xs text-slate-400">Đang tải...</div>;
   if (logs.length === 0) return (
     <div className="p-5 text-center">
@@ -556,4 +582,24 @@ function AuditLogView({ hinhThucMa }: { hinhThucMa: string }) {
       ))}
     </div>
   );
+}
+
+function isHinhThucAuditLog(log: any, id: number, ma: string, ten: string) {
+  const raw = String(log?.moTaChiTiet ?? "");
+  if (!raw) return false;
+
+  try {
+    const detail = JSON.parse(raw);
+    const table = detail._bang ?? detail.tableName;
+    const recordId = Number(detail._banGhiId ?? detail.recordId);
+    if (table === "HinhThucDauThau" && recordId === id) return true;
+  } catch {
+    // Older audit rows may be plain text or partial JSON.
+  }
+
+  return raw.includes(ma) ||
+    raw.includes(ten) ||
+    raw.includes("maHinhThuc") ||
+    raw.includes("tenHinhThuc") ||
+    raw.includes("hanMucToiDa");
 }
