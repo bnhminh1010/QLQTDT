@@ -103,8 +103,10 @@ function nextDraftId(): string {
 
 export function previewToWorkflowDraft(
   preview: WorkflowTemplatePreview,
-  loaiHinh: string
+  loaiHinh: string,
+  options: { preserveBackendIds?: boolean } = {},
 ): WorkflowDraft {
+  const preserveBackendIds = options.preserveBackendIds ?? true;
   const stepMap = new Map<number, string>(); // backend step id → draft id
 
   // First pass: build branch ID map
@@ -123,7 +125,7 @@ export function previewToWorkflowDraft(
 
     return {
       id: draftId,
-      backendId: s.id,
+      backendId: preserveBackendIds ? s.id : undefined,
       maBuoc: s.maBuoc,
       tenBuoc: s.tenBuoc,
       loaiBuoc: mapLoaiBuocToUi(s.loaiBuoc),
@@ -155,14 +157,14 @@ export function previewToWorkflowDraft(
       const branchDraftId = branchIdMap.get(b.id)?.branchDraftId ?? nextDraftId();
       return {
         id: branchDraftId,
-        backendId: b.id,
+        backendId: preserveBackendIds ? b.id : undefined,
         tenNhanh: b.tenNhanh,
         stepIds: steps.filter((s) => s.nhanhId === branchDraftId).map((s) => s.id),
       };
     });
     return {
       id: groupDraftId,
-      backendId: pg.id,
+      backendId: preserveBackendIds ? pg.id : undefined,
       buocTachNhanhId: stepMap.get(pg.buocTachNhanhId) ?? String(pg.buocTachNhanhId),
       dieuKienHopNhat: mapDieuKienHopNhatToUi(pg.dieuKienHopNhat),
       soNhanhHopNhatToiThieu: pg.soNhanhHopNhatToiThieu ?? 2,

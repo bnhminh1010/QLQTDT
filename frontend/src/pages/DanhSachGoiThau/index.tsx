@@ -589,6 +589,7 @@ export default function DanhSachGoiThau() {
         <div className="space-y-2 mb-5">
           {(
             [
+              ["Quy trình", workflowState?.workflowTen || "—"],
               ["Bước hiện tại", currentStepName],
               ["Giá trị", formatCurrencyDisplay(selected.giaTriStr)],
               ["Nguồn vốn", selected.detail.nguonVon],

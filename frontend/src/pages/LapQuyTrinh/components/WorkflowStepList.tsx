@@ -160,8 +160,8 @@ export default function WorkflowStepList({
               return (
                 <li key={s.id}>
                   {group ? (
-                    <div className="border border-purple-200 bg-white rounded-2xl p-3 shadow-sm">
-                      <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,1fr)_minmax(320px,1.2fr)] gap-3 items-stretch">
+                    <div className="border border-purple-200 bg-white rounded-2xl p-3 shadow-sm overflow-x-auto">
+                      <div className="grid min-w-[760px] grid-cols-[minmax(260px,0.9fr)_minmax(360px,1.1fr)] gap-3 items-stretch">
                         {stepCard}
                         <ParallelGroupEditor
                           group={group}
