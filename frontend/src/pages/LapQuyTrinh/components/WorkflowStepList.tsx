@@ -134,7 +134,7 @@ export default function WorkflowStepList({
         </div>
       ) : (
         <ol className="space-y-2.5">
-          {steps.map((s, idx) => {
+          {steps.filter((s) => !s.nhanhId).map((s, idx) => {
             const isOrphan = orphanIds.has(s.id);
             const group = parallelGroups.find((g) => g.buocTachNhanhId === s.id);
             return (

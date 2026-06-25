@@ -36,7 +36,8 @@ public class BuocWorkflowService : IBuocWorkflowService
 
         return await _context.BuocWorkflows
             .Where(b => b.WorkflowId == workflowId)
-            .OrderBy(b => b.Id)
+            .OrderBy(b => b.ThuTu)
+            .ThenBy(b => b.Id)
             .Select(b => new BuocWorkflowListItemDto
             {
                 Id = b.Id,

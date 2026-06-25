@@ -27,11 +27,30 @@ export type HuongXuLyValue = "TRA_VE_BUOC_TRUOC" | "DUNG_QUY_TRINH";
 
 /* ─── Workflow Design-time ──────────────────────────────── */
 
-export async function getWorkflows(search?: string): Promise<WorkflowItem[]> {
+export async function getWorkflowsPaged(params?: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<PagedResult<WorkflowItem>> {
   const res = await http.get<ApiResponse<PagedResult<WorkflowItem>>>("/workflows", {
-    params: { search },
+    params,
   });
-  return res.data.items ?? [];
+  return res.data;
+}
+
+export async function getWorkflows(search?: string): Promise<WorkflowItem[]> {
+  const pageSize = 100;
+  const firstPage = await getWorkflowsPaged({ search, page: 1, pageSize });
+  const items = [...(firstPage.items ?? [])];
+  const total = firstPage.total ?? items.length;
+  const totalPages = Math.ceil(total / pageSize);
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const result = await getWorkflowsPaged({ search, page, pageSize });
+    items.push(...(result.items ?? []));
+  }
+
+  return items;
 }
 
 export async function getWorkflowById(id: number): Promise<WorkflowItem> {
