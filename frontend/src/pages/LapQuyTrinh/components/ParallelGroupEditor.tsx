@@ -6,6 +6,7 @@ interface Props {
   group: ParallelGroupDraft;
   idx: number;
   steps: WorkflowStepDraft[];
+  inline?: boolean;
   onUpdateGroup: (g: ParallelGroupDraft) => void;
   onAddBranch: () => void;
   onRemoveBranch: (branchId: string) => void;
@@ -18,6 +19,7 @@ const inputCls =
 export default function ParallelGroupEditor({
   group,
   steps,
+  inline = false,
   onUpdateGroup,
   onAddBranch,
   onRemoveBranch,
@@ -35,7 +37,7 @@ export default function ParallelGroupEditor({
     steps.filter((s) => s.nhanhId === branchId);
 
   return (
-    <div className="ml-8 border-l-2 border-purple-300 pl-4 my-2 space-y-3">
+    <div className={inline ? "h-full border border-purple-100 rounded-xl bg-purple-50/40 p-3 space-y-3" : "ml-8 border-l-2 border-purple-300 pl-4 my-2 space-y-3"}>
       {/* Group header */}
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-purple-700 flex items-center gap-1">
@@ -58,7 +60,7 @@ export default function ParallelGroupEditor({
           Chưa có nhánh nào.
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className={inline ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
           {group.branches.map((branch, bi) => {
             const branchStepsList = branchSteps(branch.id);
 
