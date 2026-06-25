@@ -1,8 +1,10 @@
 using FluentValidation;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QLQTDT.Api.Data;
@@ -198,6 +200,27 @@ builder.Services.AddHttpContextAccessor();
 // MemoryCache (cho LoginAttemptGuard và rate limiting)
 builder.Services.AddMemoryCache();
 
+// Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    // Global default: 100 request/phút/IP
+    options.AddFixedWindowLimiter("Global", cfg =>
+    {
+        cfg.PermitLimit = 100;
+        cfg.Window = TimeSpan.FromMinutes(1);
+        cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        cfg.QueueLimit = 5;
+    });
+    // Login: 20 request/phút/IP
+    options.AddFixedWindowLimiter("Login", cfg =>
+    {
+        cfg.PermitLimit = 20;
+        cfg.Window = TimeSpan.FromMinutes(1);
+        cfg.QueueLimit = 0;
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 // DataProtection keys — persist trong container volume để cookie/token không mất sau restart
 builder.Services.AddDataProtection()
     .SetApplicationName("QLQTDT")
@@ -220,6 +243,7 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IIntegrationService, IntegrationService>();
 builder.Services.AddScoped<IWorkflowConfigService, WorkflowConfigService>();
 builder.Services.AddScoped<IWorkflowEngineService, WorkflowEngineService>();
+builder.Services.AddScoped<ITenderAccessService, TenderAccessService>();
 
 builder.Services.AddScoped<IFtpService, FtpService>();
 builder.Services.AddScoped<IHinhThucDauThauService, HinhThucDauThauService>();
@@ -268,7 +292,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRouting();
 app.UseCors("AllowFrontend");
+
+// Security Headers
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
+// Rate Limiting
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

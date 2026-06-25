@@ -22,7 +22,6 @@ public static class WorkflowHanhDong
     public const string REASSIGN = "REASSIGN";
     public const string RETRY = "RETRY";
 
-    // BA feedback: conditional transition actions
     public const string DUYET = "DUYET";
     public const string KHONG_DUYET = "KHONG_DUYET";
     public const string TRA_VE = "TRA_VE";
@@ -40,7 +39,6 @@ public static class WorkflowTrangThai
 
 public static class WorkflowStepTrangThai
 {
-    // Aligned with SRS (BA feedback)
     public const string DANG_XU_LY = "DANG_XU_LY";
     public const string CHO_DUYET = "CHO_DUYET";
     public const string HOAN_TAT = "HOAN_TAT";
@@ -49,11 +47,9 @@ public static class WorkflowStepTrangThai
     public const string YEU_CAU_KIEM_TRA = "YEU_CAU_KIEM_TRA";
     public const string TRE_HAN = "TRE_HAN";
 
-    // 2-pha tracking
     public const string CHO_LAP_HO_SO = "CHO_LAP_HO_SO";
     public const string CHO_KY_DUYET = "CHO_KY_DUYET";
 
-    // Legacy aliases (consistency layer, will be removed after full migration)
     public const string PENDING = DANG_XU_LY;
     public const string APPROVED = HOAN_TAT;
     public const string REJECTED = TRA_VE;
@@ -80,6 +76,19 @@ public class GoiThau : IBaseEntity
     public DateTime NgayTao { get; set; }
     public DateTime? NgayCapNhat { get; set; }
 
-    /// <summary>JSON array theo dõi: ["KP:1","VT:3"]</summary>
+    /// <summary>Nguồn vốn: Ngân sách Nhà nước, Ngân sách BV, Tự chủ tài chính, Nguồn khác</summary>
+    public string? NguonVon { get; set; }
+
+    /// <summary>Loại gói thầu: Hàng hóa, Dịch vụ tư vấn, Dịch vụ phi tư vấn, Xây lắp</summary>
+    public string? LoaiGoiThau { get; set; }
+
+    /// <summary>Căn cứ/lý do áp dụng quy trình rút gọn.</summary>
+    public string? CanCuApDungRutGon { get; set; }
+
+    /// <summary>JSON array theo dõi: ["Khoa/Phòng mua sắm","BCN"]</summary>
     public string? TheoDoi { get; set; }
+
+    // Navigation properties
+    public HinhThucDauThau? HinhThuc { get; set; }
+    public KhoaPhong? KhoaPhong { get; set; }
 }

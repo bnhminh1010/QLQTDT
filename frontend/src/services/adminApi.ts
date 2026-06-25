@@ -31,12 +31,12 @@ export async function getUsers(params?: {
   search?: string;
 }): Promise<PagedResult<NguoiDung>> {
   const res = await http.get<any>("/admin/users", { params });
-  // Backend trả { data, totalCount, page, pageSize } — map về PagedResult
+  // Backend trả AdminUserListDto trực tiếp: { data: [...], totalCount, page, pageSize }
   return {
-    items: res.data?.data ?? res.data?.items ?? [],
-    total: res.data?.totalCount ?? res.data?.total ?? 0,
-    page: res.data?.page ?? 1,
-    pageSize: res.data?.pageSize ?? 10,
+    items: res?.data ?? res?.items ?? [],
+    total: res?.totalCount ?? res?.total ?? 0,
+    page: res?.page ?? 1,
+    pageSize: res?.pageSize ?? 10,
   };
 }
 
@@ -52,6 +52,19 @@ export async function updateUser(id: number, data: Partial<CreateNguoiDungReques
 
 export async function deleteUser(id: number): Promise<void> {
   await http.del(`/admin/users/${id}`);
+}
+
+export type UserAuditLog = {
+  id: number;
+  hanhDong: string;
+  moTaChiTiet: string;
+  thoiGianThucHien: string;
+  nguoiThucHienId: number;
+};
+
+export async function getUserAuditLogs(userId: number): Promise<UserAuditLog[]> {
+  const res = await http.get<ApiResponse<UserAuditLog[]>>(`/admin/users/${userId}/audit-log`);
+  return res.data ?? [];
 }
 
 /* ─── Khoa phòng ────────────────────────────────────────── */
@@ -95,13 +108,14 @@ export type UserRoleInfo = {
 };
 
 export async function getAllRoles(): Promise<RoleItem[]> {
-  const res = await http.get<RoleItem[]>("/vai-tro");
-  return res;
+  const res = await http.get<RoleItem[] | ApiResponse<RoleItem[]>>("/vai-tro");
+  // Backend VaiTroController returns List<VaiTro> directly (no ApiResponse wrapper)
+  return Array.isArray(res) ? res : (res as ApiResponse<RoleItem[]>).data ?? [];
 }
 
 export async function getUserRoles(userId: number): Promise<UserRoleInfo[]> {
-  const res = await http.get<UserRoleInfo[]>(`/users/${userId}/roles`);
-  return res;
+  const res = await http.get<ApiResponse<UserRoleInfo[]>>(`/users/${userId}/roles`);
+  return res.data ?? [];
 }
 
 export async function assignUserRole(userId: number, data: UserRoleAssign): Promise<void> {

@@ -10,15 +10,22 @@ import type {
   UserAddFormValues,
   UserEditFormValues,
 } from "./types";
-import { getUsers, createUser, updateUser, deleteUser, getAllRoles, getUserRoles, assignUserRole, removeUserRole } from "@/services/adminApi";
-import type { RoleItem, UserRoleInfo } from "@/services/adminApi";
+import { getUsers, createUser, updateUser, deleteUser, getAllRoles, getUserRoles, assignUserRole, removeUserRole, getKhoaPhongs, getUserAuditLogs } from "@/services/adminApi";
+import type { RoleItem, UserRoleInfo, KhoaPhong, UserAuditLog } from "@/services/adminApi";
 
 /* ─── Badge maps ──────────────────────────────────────── */
-const VAI_TRO_BADGE: Record<VaiTro, string> = {
-  Admin: "bg-red-100 text-red-700",
-  "Quản lý": "bg-purple-100 text-purple-700",
-  "Nhân viên": "bg-slate-100 text-slate-600",
-};
+const VAI_TRO_COLORS = [
+  "bg-red-100 text-red-700", "bg-purple-100 text-purple-700",
+  "bg-blue-100 text-blue-700", "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700", "bg-cyan-100 text-cyan-700",
+  "bg-indigo-100 text-indigo-700", "bg-pink-100 text-pink-700",
+  "bg-teal-100 text-teal-700", "bg-orange-100 text-orange-700",
+];
+function getVaiTroBadge(v: string): string {
+  let hash = 0;
+  for (let i = 0; i < v.length; i++) hash = (hash * 31 + v.charCodeAt(i)) | 0;
+  return VAI_TRO_COLORS[Math.abs(hash) % VAI_TRO_COLORS.length];
+}
 
 const TT_BADGE: Record<TrangThai, string> = {
   "Hoạt động": "bg-emerald-100 text-emerald-700",
@@ -54,6 +61,31 @@ function formatDate(raw?: string): string {
   if (!raw) return "—";
   const d = new Date(raw);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function formatDateTime(raw?: string): string {
+  if (!raw) return "—";
+  const d = new Date(raw);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} ${formatDate(raw)}`;
+}
+
+function formatAuditAction(action: string): string {
+  const labels: Record<string, string> = {
+    CREATE_USER: "Tạo người dùng",
+    UPDATE_USER: "Cập nhật người dùng",
+    DELETE_USER: "Xóa người dùng",
+  };
+  return labels[action] ?? action;
+}
+
+function formatAuditDescription(raw: string): string {
+  if (!raw) return "—";
+  try {
+    const parsed = JSON.parse(raw) as { moTa?: string };
+    return parsed.moTa || raw;
+  } catch {
+    return raw;
+  }
 }
 
 /* ─── Confirm modal ───────────────────────────────────── */
@@ -115,11 +147,15 @@ export default function NguoiDung() {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [lockTarget, setLockTarget] = useState<User | null>(null);
   const [disableTarget, setDisableTarget] = useState<User | null>(null);
-  const [detailTab, setDetailTab] = useState<"info" | "history" | "roles">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "roles" | "history" | "access">("info");
   const [pageSizeOpt] = useState(PAGE_SIZE);
   const [allRoles, setAllRoles] = useState<RoleItem[]>([]);
   const [userRoles, setUserRoles] = useState<UserRoleInfo[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState("");
+  const [khoaPhongList, setKhoaPhongList] = useState<KhoaPhong[]>([]);
+  const [selectedKhoaPhongId, setSelectedKhoaPhongId] = useState("");
+  const [auditLogs, setAuditLogs] = useState<UserAuditLog[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -132,8 +168,8 @@ export default function NguoiDung() {
         username: u.tenDangNhap,
         email: u.email,
         sdt: u.soDienThoai || "",
-        phong: "",
-        vaiTro: "Nhân viên" as VaiTro,
+        phong: u.roles?.find((r: any) => r.laChinh)?.tenKhoaPhong ?? u.roles?.[0]?.tenKhoaPhong ?? "",
+        vaiTro: u.roles?.map((r: any) => r.tenVaiTro).filter(Boolean).join(", ") || "Không có vai trò",
         trangThai: u.trangThaiHoatDong ? "Hoạt động" as TrangThai : "Ngưng hoạt động" as TrangThai,
         ngayTao: formatDate(u.ngayTao),
       }));
@@ -148,11 +184,34 @@ export default function NguoiDung() {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { getAllRoles().then(setAllRoles).catch(() => {}); }, []);
+  useEffect(() => { getKhoaPhongs().then(setKhoaPhongList).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [search, filterVaiTro, filterTT, sortCol, sortDir]);
   useEffect(() => {
     const numId = parseInt(selected.id);
     if (numId) getUserRoles(numId).then(setUserRoles).catch(() => setUserRoles([]));
   }, [selected.id]);
+
+  const loadAuditLogs = useCallback(async (userId: string) => {
+    const numId = parseInt(userId);
+    if (!numId) {
+      setAuditLogs([]);
+      return;
+    }
+
+    setAuditLoading(true);
+    try {
+      const logs = await getUserAuditLogs(numId);
+      setAuditLogs(logs);
+    } catch {
+      setAuditLogs([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAuditLogs(selected.id);
+  }, [selected.id, loadAuditLogs]);
 
   const filtered = useMemo(() => {
     let list = data.filter(
@@ -224,7 +283,10 @@ export default function NguoiDung() {
     }).then(() => {
       const updated: User = { ...editTarget, ...values };
       setData((prev) => prev.map((u) => (u.id === editTarget.id ? updated : u)));
-      if (selected.id === editTarget.id) setSelected(updated);
+      if (selected.id === editTarget.id) {
+        setSelected(updated);
+        loadAuditLogs(editTarget.id);
+      }
       toast.success(`Đã cập nhật "${updated.hoTen}"`);
       setEditTarget(null);
     }).catch(() => toast.error("Không thể cập nhật người dùng"));
@@ -252,8 +314,8 @@ export default function NguoiDung() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex flex-1 min-h-0 flex-col 2xl:flex-row overflow-hidden">
+        <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-4">
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             {([
               ["fa-users", "blue", "TỔNG", data.length, "tài khoản", "text-blue-600"],
@@ -285,7 +347,12 @@ export default function NguoiDung() {
                 {search && <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-xs" /></button>}
               </div>
               <SelectField value={filterVaiTro || "__all"} onValueChange={(value) => setFilterVaiTro(value === "__all" ? "" : value)}
-                options={[{ value: "__all", label: "Tất cả vai trò" }, { value: "Admin", label: "Admin" }, { value: "Quản lý", label: "Quản lý" }, { value: "Nhân viên", label: "Nhân viên" }]}
+                options={[
+                  { value: "__all", label: "Tất cả vai trò" },
+                  ...Array.from(new Set(data.map(u => u.vaiTro).filter(Boolean)))
+                    .sort()
+                    .map(v => ({ value: v, label: v }))
+                ]}
                 triggerClassName="h-10 min-w-[150px] bg-white" />
               <SelectField value={filterTT || "__all"} onValueChange={(value) => setFilterTT(value === "__all" ? "" : value)}
                 options={[{ value: "__all", label: "Tất cả trạng thái" }, { value: "Hoạt động", label: "Hoạt động" }, { value: "Bị khóa", label: "Bị khóa" }, { value: "Ngưng hoạt động", label: "Ngưng hoạt động" }]}
@@ -341,7 +408,7 @@ export default function NguoiDung() {
                             </div>
                           </td>
                           <td className="px-5 py-3 text-slate-500">{u.phong}</td>
-                          <td className="px-5 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${VAI_TRO_BADGE[u.vaiTro]}`}>{u.vaiTro}</span></td>
+                          <td className="px-5 py-3"><span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getVaiTroBadge(u.vaiTro)}`}>{u.vaiTro}</span></td>
                           <td className="px-5 py-3">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TT_BADGE[u.trangThai]}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${TT_DOT[u.trangThai]}`} />{u.trangThai}
@@ -386,8 +453,8 @@ export default function NguoiDung() {
           </div>
         </main>
 
-        <aside className="w-[300px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden xl:block">
-          {(() => {
+        <aside className="w-full shrink-0 border-t border-slate-200 bg-white overflow-y-auto 2xl:w-[340px] 2xl:border-l 2xl:border-t-0">
+          {selected?.id ? (() => {
             const i = data.findIndex((u) => u.id === selected.id);
             const idx = i >= 0 ? i : 0;
             return (
@@ -397,17 +464,17 @@ export default function NguoiDung() {
                   <div className="text-sm font-bold text-slate-900 mb-0.5">{selected.hoTen}</div>
                   <div className="text-xs text-slate-400 mb-3">@{selected.username}</div>
                   <div className="flex flex-wrap gap-1.5">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${VAI_TRO_BADGE[selected.vaiTro]}`}>{selected.vaiTro}</span>
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getVaiTroBadge(selected.vaiTro)}`}>{selected.vaiTro}</span>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TT_BADGE[selected.trangThai]}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${TT_DOT[selected.trangThai]}`} />{selected.trangThai}
                     </span>
                   </div>
                 </div>
-                <div className="flex border-b border-slate-100">
-                  {(["info", "roles", "history"] as const).map((tab) => (
+                <div className="flex overflow-x-auto border-b border-slate-100">
+                  {(["info", "roles", "access", "history"] as const).map((tab) => (
                     <button key={tab} onClick={() => setDetailTab(tab)}
-                      className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${detailTab === tab ? "border-b-2 border-blue-600 text-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
-                      {tab === "info" ? "Thông tin" : tab === "roles" ? "Phân quyền" : "Lịch sử"}
+                      className={`min-w-[72px] flex-1 py-2.5 text-xs font-semibold transition-colors ${detailTab === tab ? "border-b-2 border-blue-600 text-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
+                      {tab === "info" ? "Thông tin" : tab === "roles" ? "Phân quyền" : tab === "access" ? "Truy cập" : "Lịch sử"}
                     </button>
                   ))}
                 </div>
@@ -447,6 +514,7 @@ export default function NguoiDung() {
                             </div>
                             <button onClick={() => removeUserRole(r.id).then(() => {
                               setUserRoles((prev) => prev.filter((x) => x.id !== r.id));
+                              loadAuditLogs(selected.id);
                               toast.success("Đã gỡ vai trò");
                             }).catch(() => toast.error("Gỡ vai trò thất bại"))}
                               className="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:bg-red-50">
@@ -457,22 +525,28 @@ export default function NguoiDung() {
                       </div>
                     )}
                     <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-2">Thêm vai trò</p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
                       <SelectField value={selectedRoleId} onValueChange={setSelectedRoleId}
-                        options={[{ value: "__empty", label: "-- Chọn --" }, ...allRoles.map((r) => ({ value: String(r.id), label: `${r.tenVaiTro} (${r.maVaiTro})` }))]}
-                        triggerClassName="h-9 flex-1 min-w-0 bg-white text-xs" />
+                        options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...allRoles.map((r) => ({ value: String(r.id), label: `${r.tenVaiTro} (${r.maVaiTro})` }))]}
+                        triggerClassName="h-9 w-full bg-white text-xs" />
+                      <SelectField value={selectedKhoaPhongId} onValueChange={setSelectedKhoaPhongId}
+                        options={[{ value: "__empty", label: "-- Chọn khoa/phòng --" }, ...khoaPhongList.filter(k => k.trangThaiHoatDong).map((k) => ({ value: String(k.id), label: k.tenKhoaPhong }))]}
+                        triggerClassName="h-9 w-full bg-white text-xs" />
                       <button onClick={() => {
                         const roleId = parseInt(selectedRoleId);
                         if (!roleId) { toast.error("Chọn vai trò"); return; }
                         const userIdNum = parseInt(selected.id);
                         if (!userIdNum) { toast.error("User ID không hợp lệ"); return; }
-                        assignUserRole(userIdNum, { khoaPhongId: 1, vaiTroId: roleId })
+                        assignUserRole(userIdNum, { khoaPhongId: parseInt(selectedKhoaPhongId), vaiTroId: roleId })
                           .then(() => {
                             toast.success("Đã thêm vai trò");
                             setSelectedRoleId("");
                             return getUserRoles(userIdNum);
                           })
-                          .then(setUserRoles)
+                          .then((roles) => {
+                            setUserRoles(roles);
+                            loadAuditLogs(selected.id);
+                          })
                           .catch(() => toast.error("Gán vai trò thất bại"));
                       }}
                         className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1">
@@ -481,18 +555,44 @@ export default function NguoiDung() {
                     </div>
                     <p className="text-[10px] text-slate-400 mt-1">Thay đổi vai trò yêu cầu user đăng nhập lại để cập nhật quyền.</p>
                   </div>
+                ) : detailTab === "access" ? (
+                  <AccessTabView userRoles={userRoles} />
                 ) : (
                   <div className="p-5">
                     <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-3">Lịch sử thao tác</p>
-                    <div className="text-center py-8">
-                      <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
-                      <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
-                    </div>
+                    {auditLoading ? (
+                      <div className="text-center py-8 text-slate-400">
+                        <i className="fa-solid fa-circle-notch fa-spin text-2xl text-blue-400" />
+                        <p className="text-xs mt-2">Đang tải lịch sử...</p>
+                      </div>
+                    ) : auditLogs.length === 0 ? (
+                      <div className="text-center py-8">
+                        <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
+                        <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {auditLogs.map((log) => (
+                          <div key={log.id} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-slate-700">{formatAuditAction(log.hanhDong)}</span>
+                              <span className="text-[10px] text-slate-400 whitespace-nowrap">{formatDateTime(log.thoiGianThucHien)}</span>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500 break-words">{formatAuditDescription(log.moTaChiTiet)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
             );
-          })()}
+          })() : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <i className="fa-solid fa-user text-3xl mb-2" />
+              <p className="text-xs">Chọn người dùng để xem chi tiết</p>
+            </div>
+          )}
         </aside>
       </div>
 
@@ -500,6 +600,8 @@ export default function NguoiDung() {
         <ThemNguoiDungModal
           existingUsernames={existingUsernames}
           existingEmails={existingEmails}
+          khoaPhongOptions={khoaPhongList.filter(k => k.trangThaiHoatDong).map(k => k.tenKhoaPhong)}
+          vaiTroOptions={allRoles.map(r => r.tenVaiTro)}
           onSave={handleAdd}
           onClose={() => setAddOpen(false)}
         />
@@ -508,6 +610,8 @@ export default function NguoiDung() {
         <SuaNguoiDungModal
           user={editTarget}
           existingEmails={existingEmails.filter((e) => e !== editTarget.email.toLowerCase())}
+          khoaPhongOptions={khoaPhongList.filter(k => k.trangThaiHoatDong).map(k => k.tenKhoaPhong)}
+          vaiTroOptions={allRoles.map(r => r.tenVaiTro)}
           onSave={handleEdit}
           onClose={() => setEditTarget(null)}
         />
@@ -528,6 +632,7 @@ export default function NguoiDung() {
           onClose={() => setDeleteTarget(null)}
         />
       )}
+
       {lockTarget && (
         <ConfirmModal danger title="Khóa tài khoản"
           message={`Bạn có chắc muốn khóa tài khoản "${lockTarget.hoTen}"?`}
@@ -553,5 +658,46 @@ export default function NguoiDung() {
         />
       )}
     </>
+  );
+}
+
+/* ─── Access Tab ─────────────────────────────────────── */
+const PAGE_ACCESS: { key: string; label: string; level: number; desc: string }[] = [
+  { key: "dashboard", label: "Dashboard", level: 5, desc: "Xem tổng quan" },
+  { key: "tao-goi-thau", label: "Tạo gói thầu", level: 5, desc: "Tạo mới gói thầu" },
+  { key: "danh-sach-goi-thau", label: "DS gói thầu", level: 3, desc: "Danh sách gói thầu" },
+  { key: "danh-sach-quy-trinh", label: "DS quy trình", level: 3, desc: "Danh sách quy trình" },
+  { key: "lap-quy-trinh", label: "Lập quy trình", level: 3, desc: "Thiết lập quy trình" },
+  { key: "bao-cao", label: "Báo cáo", level: 3, desc: "Báo cáo & thống kê" },
+  { key: "xu-ly-buoc", label: "Xử lý bước", level: 3, desc: "Xử lý bước workflow" },
+  { key: "danh-muc-thuc-hien", label: "Danh mục thực hiện", level: 1, desc: "QL hình thức đấu thầu" },
+  { key: "khoa-phong", label: "Khoa/phòng", level: 1, desc: "QL khoa phòng" },
+  { key: "nguoi-dung", label: "Người dùng", level: 1, desc: "QL người dùng & phân quyền" },
+];
+const LEVEL_NAME: Record<number, string> = { 1: "CAP_CAO", 3: "TRUNG_BINH", 5: "THAP" };
+function AccessTabView({ userRoles }: { userRoles: UserRoleInfo[] }) {
+  const isAdmin = userRoles.some((r) => r.maVaiTro === "ADMIN");
+  const level = isAdmin ? 1 : (userRoles.length > 0 ? 3 : 5);
+  return (
+    <div className="p-5 space-y-3">
+      <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-2">
+        Cấp hiện tại: <span className="text-blue-600">{LEVEL_NAME[level] ?? "CHƯA CÓ"}</span>
+      </p>
+      <div className="space-y-0.5">
+        {PAGE_ACCESS.map((p) => {
+          const ok = level <= p.level;
+          return (
+            <div key={p.key} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs ${ok ? "bg-emerald-50" : "bg-slate-50"}`}>
+              <i className={`fa-solid ${ok ? "fa-circle-check text-emerald-500" : "fa-circle-xmark text-slate-300"}`} />
+              <span className={`font-medium ${ok ? "text-slate-800" : "text-slate-400"}`}>{p.label}</span>
+              <span className="text-[10px] text-slate-400 ml-auto">{p.desc}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-slate-400 mt-2">
+        Để thay đổi quyền truy cập, vào tab <strong>Phân quyền</strong> để gán vai trò cao hơn.
+      </p>
+    </div>
   );
 }

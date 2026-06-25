@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QLQTDT.Api.Data;
@@ -57,8 +59,8 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Tên đăng nhập hoặc mật khẩu không chính xác.");
         }
 
-        if (!user.TrangThaiHoatDong)
-            throw new ForbiddenException("Tài khoản đang chờ quản trị viên phê duyệt hoặc đã bị khóa.");
+        if (user.DaXoa || !user.TrangThaiHoatDong)
+            throw new ForbiddenException("Tài khoản đang chờ quản trị viên phê duyệt, đã bị khóa hoặc đã bị xóa.");
 
         await _loginGuard.ResetAttemptsAsync(lockoutKey);
 
@@ -68,7 +70,7 @@ public class AuthService : IAuthService
 
         // Lấy danh sách roles và permissions
         var userRoles = await GetUserRoles(user.Id);
-        var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var roleNames = userRoles.Select(r => r.MaVaiTro ?? r.TenVaiTro).Distinct().ToList();
         var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
         var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
@@ -100,9 +102,10 @@ public class AuthService : IAuthService
 
     public async Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken)
     {
+        var tokenHash = HashToken(refreshToken);
         var storedToken = await _context.RefreshTokens
             .Include(rt => rt.NguoiDung)
-            .FirstOrDefaultAsync(rt => rt.Token == refreshToken)
+            .FirstOrDefaultAsync(rt => rt.Token == tokenHash)
             ?? throw new UnauthorizedException("Refresh token không hợp lệ.");
 
         if (!storedToken.IsActive)
@@ -112,11 +115,11 @@ public class AuthService : IAuthService
         storedToken.RevokedAt = DateTime.UtcNow;
 
         var user = storedToken.NguoiDung!;
-        if (!user.TrangThaiHoatDong)
-            throw new ForbiddenException("Tài khoản đã bị khóa.");
+        if (user.DaXoa || !user.TrangThaiHoatDong)
+            throw new ForbiddenException("Tài khoản đã bị khóa hoặc đã bị xóa.");
 
         var userRoles = await GetUserRoles(user.Id);
-        var roleNames = userRoles.Select(r => r.TenVaiTro).Distinct().ToList();
+        var roleNames = userRoles.Select(r => r.MaVaiTro ?? r.TenVaiTro).Distinct().ToList();
         var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
         var newToken = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
@@ -150,8 +153,9 @@ public class AuthService : IAuthService
 
     public async Task RevokeRefreshTokenAsync(string refreshToken)
     {
+        var tokenHash = HashToken(refreshToken);
         var storedToken = await _context.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
+            .FirstOrDefaultAsync(rt => rt.Token == tokenHash);
 
         if (storedToken != null)
         {
@@ -160,12 +164,28 @@ public class AuthService : IAuthService
         }
     }
 
+    private static string HashToken(string token)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    private async Task RevokeAllRefreshTokensAsync(int userId)
+    {
+        var activeTokens = await _context.RefreshTokens
+            .Where(rt => rt.NguoiDungId == userId && rt.RevokedAt == null && !rt.IsExpired)
+            .ToListAsync();
+
+        foreach (var token in activeTokens)
+            token.RevokedAt = DateTime.UtcNow;
+    }
+
     private async Task<string> CreateRefreshTokenAsync(int userId)
     {
         var tokenString = _jwtService.GenerateRefreshToken();
         _context.RefreshTokens.Add(new RefreshToken
         {
-            Token = tokenString,
+            Token = HashToken(tokenString),
             NguoiDungId = userId,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
@@ -258,6 +278,7 @@ public class AuthService : IAuthService
         {
             resetToken.NguoiDung.MatKhauHash = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
             resetToken.Used = true;
+            await RevokeAllRefreshTokensAsync(resetToken.NguoiDungId);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
         }
@@ -277,6 +298,7 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Mật khẩu hiện tại không chính xác.");
 
         user.MatKhauHash = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
+        await RevokeAllRefreshTokensAsync(userId);
         await _context.SaveChangesAsync();
     }
 
@@ -299,7 +321,7 @@ public class AuthService : IAuthService
         return await _context.NguoiDungKhoaPhongVaiTros
             .Where(r => r.NguoiDungId == userId)
             .Include(r => r.KhoaPhong)
-            .Include(r => r.VaiTro)
+            .Include(r => r.VaiTro).ThenInclude(v => v.NhomVaiTro)
             .Select(r => new UserRoleDto
             {
                 KhoaPhongId = r.KhoaPhongId,
@@ -307,7 +329,9 @@ public class AuthService : IAuthService
                 MaKhoaPhong = r.KhoaPhong != null ? r.KhoaPhong.MaKhoaPhong : null,
                 VaiTroId = r.VaiTroId,
                 TenVaiTro = r.VaiTro.TenVaiTro,
-                LaChinh = r.LaChinh
+                MaVaiTro = r.VaiTro.MaVaiTro,
+                LaChinh = r.LaChinh,
+                DoUuTien = r.VaiTro.NhomVaiTro != null ? r.VaiTro.NhomVaiTro.DoUuTien : null
             })
             .ToListAsync();
     }

@@ -46,11 +46,7 @@ public class ProcessStepRequest
     /// <summary>Step instance ID for multi-step (branch) context. Required when multiple active steps exist.</summary>
     public long? WorkflowStepInstanceId { get; set; }
 
-    // Fields for single-form submit (DUYET/KHONG_DUYET)
-    public int? NguoiXuLyId { get; set; }
-    public DateTime? NgayXuLy { get; set; }
-    public int? NguoiKyDuyetId { get; set; }
-    public DateTime? NgayKyDuyet { get; set; }
+    /// <summary>Tài liệu đính kèm (ghi chú văn bản, không phải file binary).</summary>
     public string? TaiLieuDinhKem { get; set; }
 }
 
@@ -148,15 +144,12 @@ public class WorkflowStepStateDto
     public DateTime? HanXuLy { get; set; }
     public bool? QuaHan { get; set; }
     public string? TinhTrangTienDo { get; set; }
+    public byte[]? RowVersion { get; set; }
 }
 
 // BA user-driven: Duyệt bước (POST /duyet)
 public class DuyetStepRequest
 {
-    public int? NguoiXuLyId { get; set; }
-    public DateTime? NgayXuLy { get; set; }
-    public int? NguoiKyDuyetId { get; set; }
-    public DateTime? NgayKyDuyet { get; set; }
     public string? TaiLieuDinhKem { get; set; }
     public string? GhiChu { get; set; }
     public byte[]? RowVersion { get; set; }
@@ -165,10 +158,6 @@ public class DuyetStepRequest
 // BA user-driven: Không duyệt (POST /khong-duyet) — GhiChu bắt buộc
 public class KhongDuyetStepRequest
 {
-    public int? NguoiXuLyId { get; set; }
-    public DateTime? NgayXuLy { get; set; }
-    public int? NguoiKyDuyetId { get; set; }
-    public DateTime? NgayKyDuyet { get; set; }
     public string? TaiLieuDinhKem { get; set; }
     public string GhiChu { get; set; } = null!;
     public byte[]? RowVersion { get; set; }

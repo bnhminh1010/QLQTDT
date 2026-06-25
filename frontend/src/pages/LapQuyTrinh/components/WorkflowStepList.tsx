@@ -21,7 +21,7 @@ interface Props {
   onUpdateGroup: (group: ParallelGroupDraft) => void;
   onAddBranch: (groupId: string) => void;
   onRemoveBranch: (groupId: string, branchId: string) => void;
-  onAddStepToBranch: (branchId: string) => void;
+  onAddStepToBranch: (branchId: string, afterStepId?: string) => void;
 }
 
 export default function WorkflowStepList({
@@ -134,11 +134,13 @@ export default function WorkflowStepList({
         </div>
       ) : (
         <ol className="space-y-2.5">
-          {steps.map((s, idx) => {
-            const isOrphan = orphanIds.has(s.id);
-            const group = parallelGroups.find((g) => g.buocTachNhanhId === s.id);
-            return (
-              <li key={s.id} className="space-y-2">
+          {(() => {
+            const mainSteps = steps.filter((s) => !s.nhanhId);
+
+            return mainSteps.map((s, idx) => {
+              const isOrphan = orphanIds.has(s.id);
+              const group = parallelGroups.find((g) => g.buocTachNhanhId === s.id);
+              const stepCard = (
                 <WorkflowStepCard
                   step={s}
                   idx={idx}
@@ -147,26 +149,39 @@ export default function WorkflowStepList({
                   onMoveUp={() => onMoveUp(idx)}
                   onMoveDown={() => onMoveDown(idx)}
                   isFirst={idx === 0}
-                  isLast={idx === steps.length - 1}
+                  isLast={idx === mainSteps.length - 1}
                   onInsertAfter={() => onInsertAfter(s)}
                   onCreateParallel={() => onCreateParallel(s)}
                   onClone={() => onClone(s)}
                   onDelete={() => onDelete(s)}
                 />
-                {group && (
-                  <ParallelGroupEditor
-                    group={group}
-                    idx={idx}
-                    steps={steps}
-                    onUpdateGroup={(g) => onUpdateGroup(g)}
-                    onAddBranch={() => onAddBranch(group.id)}
-                    onRemoveBranch={(branchId) => onRemoveBranch(group.id, branchId)}
-                    onAddStepToBranch={onAddStepToBranch}
-                  />
-                )}
-              </li>
-            );
-          })}
+              );
+
+              return (
+                <li key={s.id}>
+                  {group ? (
+                    <div className="border border-purple-200 bg-white rounded-2xl p-3 shadow-sm overflow-x-auto">
+                      <div className="grid min-w-[760px] grid-cols-[minmax(260px,0.9fr)_minmax(360px,1.1fr)] gap-3 items-stretch">
+                        {stepCard}
+                        <ParallelGroupEditor
+                          group={group}
+                          idx={idx}
+                          steps={steps}
+                          inline
+                          onUpdateGroup={(g) => onUpdateGroup(g)}
+                          onAddBranch={() => onAddBranch(group.id)}
+                          onRemoveBranch={(branchId) => onRemoveBranch(group.id, branchId)}
+                          onAddStepToBranch={onAddStepToBranch}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    stepCard
+                  )}
+                </li>
+              );
+            });
+          })()}
         </ol>
       )}
     </section>

@@ -33,7 +33,7 @@ public class NhaThauController : BaseController<NhaThau, INhaThauService>
     {
         var entity = await _service.GetByIdAsync(id);
         if (entity is null)
-            return NotFound(ApiResponse.Fail($"Khong tim thay nha thau voi Id = {id}"));
+            return NotFound(ApiResponse.Fail($"Không tìm thấy nhà thầu với Id = {id}"));
         return Ok(ApiResponse<NhaThau>.Ok(entity));
     }
 

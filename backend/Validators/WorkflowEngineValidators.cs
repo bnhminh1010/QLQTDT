@@ -22,23 +22,6 @@ public class DuyetStepValidator : AbstractValidator<DuyetStepRequest>
         RuleFor(x => x.RowVersion)
             .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
 
-        RuleFor(x => x.NguoiXuLyId)
-            .GreaterThan(0).WithMessage("Người xử lý hồ sơ là bắt buộc.");
-
-        RuleFor(x => x.NgayXuLy)
-            .NotNull().WithMessage("Ngày xử lý là bắt buộc.");
-
-        RuleFor(x => x.NguoiKyDuyetId)
-            .GreaterThan(0).WithMessage("Người ký duyệt là bắt buộc.");
-
-        RuleFor(x => x.NgayKyDuyet)
-            .NotNull().WithMessage("Ngày ký duyệt là bắt buộc.");
-
-        RuleFor(x => x.NgayKyDuyet)
-            .GreaterThanOrEqualTo(x => x.NgayXuLy)
-            .When(x => x.NgayXuLy.HasValue && x.NgayKyDuyet.HasValue)
-            .WithMessage("Ngày ký duyệt phải lớn hơn hoặc bằng ngày xử lý.");
-
         RuleFor(x => x.GhiChu)
             .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
 
@@ -53,23 +36,6 @@ public class KhongDuyetStepValidator : AbstractValidator<KhongDuyetStepRequest>
     {
         RuleFor(x => x.RowVersion)
             .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
-
-        RuleFor(x => x.NguoiXuLyId)
-            .GreaterThan(0).WithMessage("Người xử lý hồ sơ là bắt buộc.");
-
-        RuleFor(x => x.NgayXuLy)
-            .NotNull().WithMessage("Ngày xử lý là bắt buộc.");
-
-        RuleFor(x => x.NguoiKyDuyetId)
-            .GreaterThan(0).WithMessage("Người ký duyệt là bắt buộc.");
-
-        RuleFor(x => x.NgayKyDuyet)
-            .NotNull().WithMessage("Ngày ký duyệt là bắt buộc.");
-
-        RuleFor(x => x.NgayKyDuyet)
-            .GreaterThanOrEqualTo(x => x.NgayXuLy)
-            .When(x => x.NgayXuLy.HasValue && x.NgayKyDuyet.HasValue)
-            .WithMessage("Ngày ký duyệt phải lớn hơn hoặc bằng ngày xử lý.");
 
         RuleFor(x => x.GhiChu)
             .NotEmpty().WithMessage("Lý do từ chối là bắt buộc khi không duyệt bước.")
@@ -115,16 +81,7 @@ public class ProcessStepValidator : AbstractValidator<ProcessStepRequest>
         RuleFor(x => x.RowVersion)
             .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
 
-        When(x => x.HanhDong is WorkflowHanhDong.DUYET or WorkflowHanhDong.KHONG_DUYET, () =>
-        {
-            RuleFor(x => x.NguoiXuLyId)
-                .GreaterThan(0).WithMessage("Người xử lý hồ sơ là bắt buộc.");
-            RuleFor(x => x.NgayXuLy)
-                .NotNull().WithMessage("Ngày xử lý là bắt buộc.");
-            RuleFor(x => x.NguoiKyDuyetId)
-                .GreaterThan(0).WithMessage("Người ký duyệt là bắt buộc.");
-            RuleFor(x => x.NgayKyDuyet)
-                .NotNull().WithMessage("Ngày ký duyệt là bắt buộc.");
-        });
+        // Actor/time are derived server-side from JWT claims and DateTime.UtcNow.
+        // Client must NOT send NguoiXuLyId/NguoiKyDuyetId/NgayXuLy/NgayKyDuyet.
     }
 }

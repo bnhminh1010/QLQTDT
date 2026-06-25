@@ -10,7 +10,7 @@ declare module "axios" {
 }
 
 const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_BASE_API,
+  baseURL: import.meta.env.VITE_BASE_API ?? "http://localhost:5208/api",
 });
 
 const _send = async <T>(

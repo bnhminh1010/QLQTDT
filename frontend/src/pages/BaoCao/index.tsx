@@ -395,6 +395,8 @@ export default function BaoCao() {
           </div>
         </main>
 
+        {/* BaoCao side panel — chỉ hiện khi chọn đơn vị */}
+        {selectedUnit && (
         <aside className="w-[320px] shrink-0 border-l border-slate-200 bg-white hidden xl:block p-5">
           <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">CHI TIẾT ĐƠN VỊ</div>
           <div className="rounded-2xl border border-slate-200 p-4">
@@ -422,6 +424,7 @@ export default function BaoCao() {
             </div>
           </div>
         </aside>
+        )}
       </div>
     </>
   );

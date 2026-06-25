@@ -34,25 +34,49 @@ public class AuditInterceptor : SaveChangesInterceptor
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
 
         var userId = GetCurrentUserId();
-
-        // Không audit khi không có user đăng nhập (ví dụ: seed data khi khởi động)
         if (userId == 0)
             return await base.SavingChangesAsync(eventData, result, cancellationToken);
 
+        var ipAddress = GetClientIpAddress();
         var auditLogs = new List<NhatKyKiemToan>();
 
         foreach (var entry in entries)
         {
             var tableName = context.Model.FindEntityType(entry.Entity.GetType())?.GetTableName()
                             ?? entry.Entity.GetType().Name;
-            var recordId = entry.Property("Id")?.CurrentValue;
+            var recordId = entry.Property("Id")?.CurrentValue ?? entry.Property("Id")?.OriginalValue;
             var goiThauId = ExtractGoiThauId(entry);
+
+            string? duLieuCu = null;
+            string? duLieuMoi = null;
+
+            if (entry.State == EntityState.Modified)
+            {
+                var oldValues = new Dictionary<string, object?>();
+                var newValues = new Dictionary<string, object?>();
+                foreach (var prop in entry.Properties)
+                {
+                    if (prop.Metadata.Name is "Id" or "NgayTao" or "NgayCapNhat") continue;
+                    if (prop.IsModified)
+                    {
+                        oldValues[prop.Metadata.Name] = prop.OriginalValue;
+                        newValues[prop.Metadata.Name] = prop.CurrentValue;
+                    }
+                }
+                duLieuCu = JsonSerializer.Serialize(oldValues, JsonOptions);
+                duLieuMoi = JsonSerializer.Serialize(newValues, JsonOptions);
+            }
 
             var log = new NhatKyKiemToan
             {
                 GoiThauId = goiThauId,
                 HanhDong = entry.State.ToString().ToUpper(),
+                Bang = tableName,
+                BanGhiId = recordId is not null ? Convert.ToInt64(recordId) : null,
+                DuLieuCu = duLieuCu,
+                DuLieuMoi = duLieuMoi,
                 MoTaChiTiet = FormatChangeDescription(entry),
+                DiaChiIP = ipAddress,
                 NguoiThucHienId = userId,
                 ThoiGianThucHien = DateTime.UtcNow
             };
@@ -64,10 +88,28 @@ public class AuditInterceptor : SaveChangesInterceptor
         return await base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = false,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private int GetCurrentUserId()
     {
         var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
         return claim is not null && int.TryParse(claim.Value, out var id) ? id : 0;
+    }
+
+    private string? GetClientIpAddress()
+    {
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext is null) return null;
+
+        var forwarded = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+            return forwarded.Split(',')[0].Trim();
+
+        return httpContext.Connection.RemoteIpAddress?.ToString();
     }
 
     private static long? ExtractGoiThauId(EntityEntry entry)
@@ -75,7 +117,6 @@ public class AuditInterceptor : SaveChangesInterceptor
         var prop = entry.Properties.FirstOrDefault(p =>
             p.Metadata.Name.Equals("GoiThauId", StringComparison.OrdinalIgnoreCase));
         if (prop?.CurrentValue is null) return null;
-        // Handle both int and long GoiThauId
         return Convert.ToInt64(prop.CurrentValue);
     }
 
@@ -105,10 +146,13 @@ public class AuditInterceptor : SaveChangesInterceptor
             }
         }
 
-        return JsonSerializer.Serialize(changes, new JsonSerializerOptions
-        {
-            WriteIndented = false,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        var tableName = entry.Context?.Model.FindEntityType(entry.Entity.GetType())?.GetTableName()
+            ?? entry.Entity.GetType().Name;
+        var recordId = entry.Property("Id")?.CurrentValue ?? entry.Property("Id")?.OriginalValue;
+
+        changes["_bang"] = tableName;
+        changes["_banGhiId"] = recordId;
+
+        return JsonSerializer.Serialize(changes, JsonOptions);
     }
 }

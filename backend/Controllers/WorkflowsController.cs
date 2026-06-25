@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.Workflow;
@@ -24,6 +25,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpGet]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkflowListItemDto>>>> GetAll(
         [FromQuery] string? search,
         [FromQuery] int page = 1,
@@ -53,6 +55,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<WorkflowListItemDto>>> GetById(int id)
     {
         var item = await _workflowService.GetWorkflowByIdAsync(id);
@@ -83,6 +86,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpGet("{id}/versions")]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<List<WorkflowVersionListItemDto>>>> GetVersions(int id)
     {
         var versions = await _workflowService.GetVersionsAsync(id);
@@ -90,6 +94,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpGet("{id}/versions/{versionId}")]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<WorkflowVersionDetailDto>>> GetVersion(int id, long versionId)
     {
         var version = await _workflowService.GetVersionByIdAsync(id, versionId);

@@ -13,6 +13,7 @@ export type WorkflowItem = {
   hinhThucId?: number;
   trangThaiHoatDong: boolean;
   loaiHinhDauThau?: string;
+  laQuyTrinhChuan?: boolean;
   soBuoc: number;
   ngayTao: string;
 };
@@ -26,11 +27,45 @@ export type HuongXuLyValue = "TRA_VE_BUOC_TRUOC" | "DUNG_QUY_TRINH";
 
 /* ─── Workflow Design-time ──────────────────────────────── */
 
-export async function getWorkflows(search?: string): Promise<WorkflowItem[]> {
+export async function getWorkflowsPaged(params?: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<PagedResult<WorkflowItem>> {
   const res = await http.get<ApiResponse<PagedResult<WorkflowItem>>>("/workflows", {
-    params: { search },
+    params,
   });
-  return res.data.items ?? [];
+  return res.data;
+}
+
+export async function getWorkflows(search?: string): Promise<WorkflowItem[]> {
+  const pageSize = 100;
+  const firstPage = await getWorkflowsPaged({ search, page: 1, pageSize });
+  const items = [...(firstPage.items ?? [])];
+  const total = firstPage.total ?? items.length;
+  const totalPages = Math.ceil(total / pageSize);
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const result = await getWorkflowsPaged({ search, page, pageSize });
+    items.push(...(result.items ?? []));
+  }
+
+  return items;
+}
+
+export type WorkflowCreateRequest = {
+  tenWorkflow: string;
+  hinhThucId: number;
+};
+
+export type WorkflowCreateResponse = {
+  id: number;
+  tenWorkflow: string;
+};
+
+export async function createWorkflow(request: WorkflowCreateRequest): Promise<WorkflowCreateResponse> {
+  const res = await http.post<ApiResponse<WorkflowCreateResponse>>("/workflows", request);
+  return res.data;
 }
 
 export async function getWorkflowById(id: number): Promise<WorkflowItem> {
@@ -446,6 +481,7 @@ export type WorkflowStepStateDto = {
   hanXuLy?: string;
   quaHan?: boolean;
   tinhTrangTienDo?: string;
+  rowVersion?: string;
 };
 
 export type ProcessStepRequest = {
@@ -488,6 +524,14 @@ export async function getWorkflowState(goiThauId: number): Promise<WorkflowState
 
 export async function getWorkflowSteps(goiThauId: number): Promise<WorkflowStepStateDto[]> {
   const res = await http.get<ApiResponse<WorkflowStepStateDto[]>>(`/goi-thau/${goiThauId}/steps`);
+  return res.data;
+}
+
+export async function getWorkflowStepDetail(
+  goiThauId: number,
+  stepId: number
+): Promise<WorkflowStepStateDto> {
+  const res = await http.get<ApiResponse<WorkflowStepStateDto>>(`/goi-thau/${goiThauId}/steps/${stepId}`);
   return res.data;
 }
 

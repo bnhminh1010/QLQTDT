@@ -7,7 +7,8 @@ import { EditModal } from "./EditModal";
 import { DeleteModal } from "./DeleteModal";
 import { getAllHinhThuc, createHinhThuc, updateHinhThuc, deleteHinhThuc } from "@/services/hinhThauApi";
 import type { HinhThucDauThau } from "@/services/hinhThauApi";
-import { getWorkflowTemplates } from "@/services/workflowApi";
+import { getWorkflowTemplates, previewWorkflowTemplate, getWorkflows } from "@/services/workflowApi";
+import http from "@/util/http";
 
 /* ─ Typical steps per loại hình (informational only) ──── */
 type DotState = "done" | "warn" | "idle";
@@ -107,14 +108,6 @@ type DanhMuc = {
   steps: { state: DotState; ten: string; donVi: string; thoiHan: string }[];
 };
 
-type DMAuditEntry = {
-  id: string;
-  dmMa: string;
-  hanhDong: string;
-  nguoiThucHien: string;
-  thoiGian: string;
-};
-
 function Dot({ state }: { state: DotState }) {
   const dotCls: Record<DotState, string> = {
     done: "bg-emerald-500 text-white",
@@ -136,7 +129,7 @@ function mapToDanhMuc(item: HinhThucDauThau): DanhMuc {
     maHinhThuc: item.maHinhThuc,
     ten: item.tenHinhThuc,
     badge: HT_BADGE[item.tenHinhThuc] ?? "bg-slate-100 text-slate-600",
-    soGoi: 0,
+    soGoi: item.soGoi,
     active: item.trangThaiHoatDong,
     steps,
   };
@@ -157,7 +150,8 @@ export default function DanhMucThucHien() {
   const [editTarget, setEditTarget] = useState<DanhMuc | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DanhMuc | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
-  const [auditLog, setAuditLog] = useState<DMAuditEntry[]>([]);
+  const [loadingSteps, setLoadingSteps] = useState(false);
+  const [selectedSteps, setSelectedSteps] = useState<StepRow[]>([]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -165,7 +159,6 @@ export default function DanhMucThucHien() {
       const data = await getAllHinhThuc();
       const mapped = data.map(mapToDanhMuc);
       setItems(mapped);
-      if (!selected && mapped.length > 0) setSelected(mapped[0]);
     } catch {
       toast.error("Không thể tải danh mục thực hiện");
       setItems([]);
@@ -176,11 +169,24 @@ export default function DanhMucThucHien() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  function addAudit(ma: string, hanhDong: string) {
-    setAuditLog((prev) => [
-      { id: Date.now().toString(), dmMa: ma, hanhDong, nguoiThucHien: "Admin", thoiGian: new Date().toLocaleString("vi-VN") },
-      ...prev,
-    ]);
+  // Load template steps khi chọn item
+  async function handleSelectItem(item: DanhMuc) {
+    setSelected(item);
+    setSelectedSteps([]);
+    setLoadingSteps(true);
+    try {
+      const templates = await getWorkflowTemplates(item.ten);
+      if (templates.length > 0) {
+        const preview = await previewWorkflowTemplate(templates[0].id);
+        setSelectedSteps(preview.steps.map((s, i) => ({
+          state: "idle" as DotState,
+          ten: `${i + 1}. ${s.tenBuoc}`,
+          donVi: String(s.donViXuLyId ?? "—"),
+          thoiHan: `${s.soNgayLapHoSo} ngày`,
+        })));
+      }
+    } catch { /* fallback về DEFAULT_STEPS */ }
+    setLoadingSteps(false);
   }
 
   function toggleSort(field: typeof sortField) {
@@ -220,7 +226,6 @@ export default function DanhMucThucHien() {
   async function onAdd(values: { id: string; hinhThuc: string; badge: string }) {
     try {
       await createHinhThuc({ maHinhThuc: values.id.trim().toUpperCase(), tenHinhThuc: values.hinhThuc.trim() });
-      addAudit(values.id, `Tạo hình thức đấu thầu "${values.hinhThuc}"`);
       toast.success(`Đã thêm danh mục "${values.hinhThuc}"`);
       setAddOpen(false);
       reload();
@@ -231,17 +236,15 @@ export default function DanhMucThucHien() {
     if (!editTarget) return;
     try {
       await updateHinhThuc(editTarget.id, { tenHinhThuc: values.hinhThuc.trim() });
-      addAudit(values.id, `Cập nhật danh mục "${values.hinhThuc}"`);
       toast.success("Đã cập nhật danh mục");
       setEditTarget(null);
       reload();
     } catch { toast.error("Cập nhật thất bại"); }
   }
 
-  function toggleActive(id: number, ma: string, ten: string, e: React.MouseEvent) {
+  function toggleActive(item: DanhMuc, e: React.MouseEvent) {
     e.stopPropagation();
-    updateHinhThuc(id, { tenHinhThuc: ten }).then(() => {
-      addAudit(ma, `Đổi trạng thái hoạt động "${ten}"`);
+    updateHinhThuc(item.id, { trangThaiHoatDong: !item.active }).then(() => {
       reload();
     }).catch(() => toast.error("Cập nhật thất bại"));
   }
@@ -250,11 +253,16 @@ export default function DanhMucThucHien() {
     if (!deleteTarget) return;
     try {
       await deleteHinhThuc(deleteTarget.id);
-      addAudit(deleteTarget.maHinhThuc, `Xóa danh mục "${deleteTarget.ten}"`);
       toast.success(`Đã xóa danh mục "${deleteTarget.ten}"`);
       setDeleteTarget(null);
       reload();
-    } catch { toast.error("Xóa thất bại"); }
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+        "Xóa thất bại";
+      toast.error(message);
+    }
   }
 
   function requestDelete(item: DanhMuc, e: React.MouseEvent) {
@@ -269,14 +277,23 @@ export default function DanhMucThucHien() {
   async function goEditQuyTrinh() {
     if (!selItem) return;
     try {
-      const templates = await getWorkflowTemplates(selItem.ten);
-      if (templates.length > 0) {
-        navigate(`/lap-quy-trinh?workflowTemplateId=${templates[0].id}`);
+      const workflows = await getWorkflows(selItem.ten);
+      const related = workflows.filter((w) =>
+        w.hinhThucId === selItem.id || w.loaiHinhDauThau === selItem.ten
+      );
+      const workflow =
+        related.find((w) => w.laQuyTrinhChuan) ??
+        related.find((w) => w.trangThaiHoatDong) ??
+        related[0];
+
+      if (workflow) {
+        navigate(`/lap-quy-trinh?id=${workflow.id}`);
         return;
       }
-    } catch { /* no template found */ }
-    // Fallback: create blank workflow for this hinhThuc
-    navigate(`/lap-quy-trinh?loaiHinh=${encodeURIComponent(selItem.ten)}`);
+      toast.info("Hình thức này chưa có quy trình để mở.");
+    } catch {
+      toast.error("Không thể tải quy trình của hình thức này.");
+    }
   }
 
   return (
@@ -315,26 +332,6 @@ export default function DanhMucThucHien() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-                {items.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => setSelected(d)}
-                    className={`bg-white rounded-2xl border p-4 text-left transition-all ${
-                      selItem?.id === d.id
-                        ? "border-blue-400 ring-1 ring-blue-300"
-                        : "border-slate-200 hover:border-slate-300"
-                    } ${!d.active ? "opacity-50" : ""}`}
-                  >
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium mb-2 ${d.badge}`}>
-                      {d.ten}
-                    </span>
-                    <div className="text-2xl font-extrabold text-slate-800">{d.soGoi}</div>
-                    <div className="text-xs text-slate-400">gói thầu · {d.steps.length} bước</div>
-                  </button>
-                ))}
-              </div>
-
               {/* TABLE */}
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-4 flex-wrap">
@@ -385,7 +382,7 @@ export default function DanhMucThucHien() {
                         <tr><td colSpan={5} className="text-center py-10 text-slate-400 text-sm">Không tìm thấy danh mục phù hợp</td></tr>
                       ) : (
                         paginated.map((d) => (
-                          <tr key={d.id} onClick={() => setSelected(d)}
+                          <tr key={d.id} onClick={() => handleSelectItem(d)}
                             className={`cursor-pointer transition-colors ${selItem?.id === d.id ? "bg-blue-50" : "hover:bg-slate-50"}`}>
                             <td className="px-5 py-3">
                               <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${d.badge} ${!d.active ? "opacity-50" : ""}`}>
@@ -417,7 +414,7 @@ export default function DanhMucThucHien() {
                                   <i className="fa-solid fa-pen text-xs" />
                                 </button>
                                 <button title={d.active ? "Ẩn danh mục" : "Hiện danh mục"}
-                                  onClick={(e) => toggleActive(d.id, d.maHinhThuc, d.ten, e)}
+                                  onClick={(e) => toggleActive(d, e)}
                                   className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${d.active ? "text-slate-400 hover:text-amber-500 hover:bg-amber-50" : "text-amber-500 hover:text-slate-400 hover:bg-slate-100"}`}>
                                   <i className={`fa-solid ${d.active ? "fa-eye-slash" : "fa-eye"} text-xs`} />
                                 </button>
@@ -491,13 +488,15 @@ export default function DanhMucThucHien() {
               ))}
             </div>
 
-            {detailTab === "info" ? (
+            {detailTab === "info" && (
               <div className="p-5">
                 <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">CÁC BƯỚC QUY TRÌNH</div>
                 <div className="space-y-3">
-                  {selItem.steps.map((s) => (
+                  {selectedSteps.length === 0 && !loadingSteps && <p className="text-xs text-slate-400 italic">Chưa có bước cấu hình.</p>}
+                  {loadingSteps && <p className="text-xs text-slate-400 italic">Đang tải...</p>}
+                  {(selectedSteps.length > 0 ? selectedSteps : selItem.steps).map((s: any) => (
                     <div key={s.ten} className="flex items-start gap-2.5">
-                      <Dot state={s.state} />
+                      <Dot state={s.state || "idle"} />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-medium text-slate-800">{s.ten}</div>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -508,40 +507,19 @@ export default function DanhMucThucHien() {
                       </div>
                     </div>
                   ))}
-                  {selItem.steps.length === 0 && <p className="text-xs text-slate-400 italic">Chưa có bước nào.</p>}
                 </div>
                 <button type="button" onClick={goEditQuyTrinh}
                   className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors">
-                  <i className="fa-solid fa-diagram-project text-xs" /> Chỉnh sửa quy trình
+                  <i className="fa-solid fa-diagram-project text-xs" /> Đi tới quy trình
                 </button>
               </div>
-            ) : (
-              <div className="p-5">
-                <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-3">Lịch sử thao tác</p>
-                {auditLog.filter((a) => a.dmMa === selItem.maHinhThuc).length === 0 ? (
-                  <div className="text-center py-8">
-                    <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
-                    <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {auditLog.filter((a) => a.dmMa === selItem.maHinhThuc).map((a) => (
-                      <div key={a.id} className="flex gap-2.5">
-                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                          <i className="fa-solid fa-clock-rotate-left text-blue-500 text-[10px]" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-slate-700 font-medium">{a.hanhDong}</p>
-                          <div className="mt-0.5 space-y-0.5 text-[11px] text-slate-400">
-                            <p>Thời gian: {a.thoiGian}</p>
-                            <p>Người thực hiện: {a.nguoiThucHien}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            )}
+            {detailTab === "history" && (
+              <AuditLogView
+                hinhThucId={selItem.id}
+                hinhThucMa={selItem.maHinhThuc}
+                hinhThucTen={selItem.ten}
+              />
             )}
           </aside>
         )}
@@ -559,4 +537,115 @@ export default function DanhMucThucHien() {
       {deleteTarget && <DeleteModal tenDanhMuc={deleteTarget.ten} onConfirm={doDelete} onClose={() => setDeleteTarget(null)} />}
     </>
   );
+}
+
+/* ─── Audit Log component ─── */
+function AuditLogView({
+  hinhThucId,
+  hinhThucMa,
+  hinhThucTen,
+}: {
+  hinhThucId: number;
+  hinhThucMa: string;
+  hinhThucTen: string;
+}) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    http.get<any>("/audit-log", { params: { page: 1, pageSize: 200 } })
+      .then((res: any) => {
+        const items = res?.data?.items ?? res?.items ?? [];
+        const list = Array.isArray(items) ? items : [];
+        setLogs(list.filter((l: any) => isHinhThucAuditLog(l, hinhThucId, hinhThucMa, hinhThucTen)));
+      })
+      .catch(() => setLogs([]))
+      .finally(() => setLoading(false));
+  }, [hinhThucId, hinhThucMa, hinhThucTen]);
+  if (loading) return <div className="p-5 text-center text-xs text-slate-400">Đang tải...</div>;
+  if (logs.length === 0) return (
+    <div className="p-5 text-center">
+      <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
+      <p className="text-xs text-slate-400 mt-2">Chưa có lịch sử</p>
+    </div>
+  );
+  return (
+    <div className="p-5 space-y-3">
+      {logs.map((l: any) => (
+        <div key={l.id ?? l.idCongKhai} className="flex gap-2.5">
+          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+            <i className="fa-solid fa-clock-rotate-left text-blue-500 text-[10px]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-slate-700 font-medium">{l.hanhDong}</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">{formatAuditDetail(l.moTaChiTiet)}</p>
+            <div className="mt-0.5 space-y-0.5 text-[11px] text-slate-400">
+              <p>Thời gian: {l.thoiGianThucHien ? new Date(l.thoiGianThucHien).toLocaleString("vi-VN") : "—"}</p>
+              <p>Người thực hiện: {l.nguoiThucHienId ?? "—"}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function isHinhThucAuditLog(log: any, id: number, ma: string, ten: string) {
+  const raw = String(log?.moTaChiTiet ?? "");
+  if (!raw) return false;
+
+  try {
+    const detail = JSON.parse(raw);
+    const table = detail._bang ?? detail.tableName;
+    const recordId = Number(detail._banGhiId ?? detail.recordId);
+    if (table === "HinhThucDauThau" && recordId === id) return true;
+  } catch {
+    // Bản ghi cũ có thể là text hoặc JSON thiếu metadata.
+  }
+
+  const lower = raw.toLowerCase();
+  const knownKeys = ["TenHinhThuc", "MaHinhThuc", "HanMucToiDa", "tenHinhThuc", "maHinhThuc", "hanMucToiDa"];
+  return lower.includes(ma.toLowerCase()) ||
+    lower.includes(ten.toLowerCase()) ||
+    knownKeys.some((key) => lower.includes(key.toLowerCase()));
+}
+
+function formatAuditDetail(raw?: string): string {
+  if (!raw) return "Không có mô tả chi tiết";
+
+  try {
+    const detail = JSON.parse(raw);
+    if (!detail || typeof detail !== "object") return String(raw);
+
+    const labels: Record<string, string> = {
+      TenHinhThuc: "Tên hình thức",
+      tenHinhThuc: "Tên hình thức",
+      MaHinhThuc: "Mã hình thức",
+      maHinhThuc: "Mã hình thức",
+      HanMucToiDa: "Hạn mức tối đa",
+      hanMucToiDa: "Hạn mức tối đa",
+      TrangThaiHoatDong: "Trạng thái",
+      trangThaiHoatDong: "Trạng thái",
+    };
+
+    const parts = Object.entries(detail)
+      .filter(([key]) => !key.startsWith("_"))
+      .map(([key, value]) => {
+        const label = labels[key] ?? key;
+        if (value && typeof value === "object" && "cu" in value && "moi" in value) {
+          const change = value as { cu?: unknown; moi?: unknown };
+          return `${label}: ${formatAuditValue(change.cu)} → ${formatAuditValue(change.moi)}`;
+        }
+        return `${label}: ${formatAuditValue(value)}`;
+      });
+
+    return parts.length > 0 ? parts.join("; ") : "Không có mô tả chi tiết";
+  } catch {
+    return raw.length > 120 ? `${raw.slice(0, 120)}...` : raw;
+  }
+}
+
+function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Có" : "Không";
+  return String(value);
 }

@@ -6,10 +6,11 @@ interface Props {
   group: ParallelGroupDraft;
   idx: number;
   steps: WorkflowStepDraft[];
+  inline?: boolean;
   onUpdateGroup: (g: ParallelGroupDraft) => void;
   onAddBranch: () => void;
   onRemoveBranch: (branchId: string) => void;
-  onAddStepToBranch: (branchId: string) => void;
+  onAddStepToBranch: (branchId: string, afterStepId?: string) => void;
 }
 
 const inputCls =
@@ -18,20 +19,25 @@ const inputCls =
 export default function ParallelGroupEditor({
   group,
   steps,
+  inline = false,
   onUpdateGroup,
   onAddBranch,
   onRemoveBranch,
   onAddStepToBranch,
 }: Props) {
-  const stepOptions = steps
-    .filter((s) => s.id !== group.buocTachNhanhId)
-    .map((s) => ({ value: s.id, label: s.tenBuoc }));
+  // Only show main-flow steps that come AFTER the split step
+  const splitStepIdx = steps.findIndex((s) => s.id === group.buocTachNhanhId);
+  const mergeStepOptions = splitStepIdx >= 0
+    ? steps
+        .filter((s, i) => i > splitStepIdx && !s.nhanhId)
+        .map((s) => ({ value: s.id, label: s.tenBuoc }))
+    : [];
 
   const branchSteps = (branchId: string) =>
     steps.filter((s) => s.nhanhId === branchId);
 
   return (
-    <div className="ml-8 border-l-2 border-purple-300 pl-4 my-2 space-y-3">
+    <div className={inline ? "h-full border border-purple-100 rounded-xl bg-purple-50/40 p-3 space-y-3" : "ml-8 border-l-2 border-purple-300 pl-4 my-2 space-y-3"}>
       {/* Group header */}
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-purple-700 flex items-center gap-1">
@@ -54,9 +60,10 @@ export default function ParallelGroupEditor({
           Chưa có nhánh nào.
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className={inline ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
           {group.branches.map((branch, bi) => {
             const branchStepsList = branchSteps(branch.id);
+            const hasStep = branchStepsList.length > 0;
 
             return (
               <div
@@ -77,18 +84,28 @@ export default function ParallelGroupEditor({
 
                 {/* Branch steps */}
                 <div className="space-y-1">
-                  {branchStepsList.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2 text-xs text-slate-600">
-                      <i className="fa-solid fa-arrow-right text-[10px] text-slate-300" />
-                      {s.tenBuoc}
+                  {branchStepsList.map((s, si) => (
+                    <div key={s.id} className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-2 text-xs text-slate-600 bg-white rounded-lg border border-slate-200 px-3 py-2">
+                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {si + 1}
+                        </span>
+                        <span className="flex-1 truncate">{s.tenBuoc}</span>
+                      </div>
                     </div>
                   ))}
-                  <button
-                    onClick={() => onAddStepToBranch(branch.id)}
-                    className="text-[10px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                  >
-                    <i className="fa-solid fa-plus" /> Thêm bước
-                  </button>
+                  {hasStep ? (
+                    <p className="text-[10px] text-slate-400 italic">
+                      Mỗi nhánh chỉ gồm 1 bước.
+                    </p>
+                  ) : (
+                    <button
+                      onClick={() => onAddStepToBranch(branch.id)}
+                      className="text-[10px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                    >
+                      <i className="fa-solid fa-plus" /> Thêm bước
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -144,7 +161,7 @@ export default function ParallelGroupEditor({
               }
               options={[
                 { value: "__empty", label: "-- Chọn bước --" },
-                ...stepOptions,
+                ...mergeStepOptions,
               ]}
               triggerClassName={inputCls}
             />

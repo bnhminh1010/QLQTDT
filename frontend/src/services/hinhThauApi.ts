@@ -12,6 +12,7 @@ export type HinhThucDauThau = {
   tenHinhThuc: string;
   hanMucToiDa?: number;
   trangThaiHoatDong: boolean;
+  soGoi: number;
 };
 
 export type CreateHinhThucRequest = {
@@ -21,8 +22,9 @@ export type CreateHinhThucRequest = {
 };
 
 export type UpdateHinhThucRequest = {
-  tenHinhThuc: string;
+  tenHinhThuc?: string;
   hanMucToiDa?: number;
+  trangThaiHoatDong?: boolean;
 };
 
 /* ─── APIs ──────────────────────────────────────────────── */

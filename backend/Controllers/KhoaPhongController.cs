@@ -109,6 +109,13 @@ public class KhoaPhongController : ControllerBase
         if (entity is null || entity.DaXoa)
             return NotFound(ApiResponse.Fail("Không tìm thấy khoa phòng."));
 
+        var hasUsers = await _db.NguoiDungKhoaPhongVaiTros
+            .AnyAsync(nkv => nkv.KhoaPhongId == id
+                && nkv.NguoiDung.TrangThaiHoatDong
+                && !nkv.NguoiDung.DaXoa);
+        if (hasUsers)
+            return Conflict(ApiResponse.Fail("Không thể xóa khoa/phòng đang có người dùng. Vui lòng chuyển người dùng sang khoa/phòng khác trước."));
+
         entity.DaXoa = true;
         await _db.SaveChangesAsync();
         return Ok(ApiResponse.Ok("Xóa khoa phòng thành công"));

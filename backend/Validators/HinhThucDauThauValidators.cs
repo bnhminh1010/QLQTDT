@@ -25,7 +25,8 @@ public class UpdateHinhThucDauThauValidator : AbstractValidator<UpdateHinhThucDa
     public UpdateHinhThucDauThauValidator()
     {
         RuleFor(x => x.TenHinhThuc)
-            .NotEmpty().MaximumLength(255);
+            .NotEmpty().MaximumLength(255)
+            .When(x => x.TenHinhThuc is not null);
 
         RuleFor(x => x.HanMucToiDa)
             .GreaterThanOrEqualTo(0).When(x => x.HanMucToiDa.HasValue);

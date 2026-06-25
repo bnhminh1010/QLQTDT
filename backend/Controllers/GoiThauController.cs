@@ -52,8 +52,20 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         [FromBody] CreateGoiThauDto dto)
     {
         var created = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id },
+        return CreatedAtAction(nameof(GetByIdSafe), new { id = created.Id },
             ApiResponse<GoiThau>.Ok(created, "Tạo gói thầu thành công"));
+    }
+
+    [NonAction]
+    public override Task<ActionResult<ApiResponse<GoiThau>>> GetById(int id)
+        => throw new NotSupportedException("Sử dụng GetByIdSafe.");
+
+    [HttpGet("{id}")]
+    [HasPermission("GOITHAU.VIEW")]
+    public async Task<ActionResult<ApiResponse<GoiThauDetailDto>>> GetByIdSafe(int id)
+    {
+        var detail = await _service.GetChiTietAsync(id);
+        return Ok(ApiResponse<GoiThauDetailDto>.Ok(detail));
     }
 
     [HttpPut("{id}")]
@@ -116,10 +128,6 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
             HanhDong = WorkflowHanhDong.DUYET,
             GhiChu = request.GhiChu,
             RowVersion = request.RowVersion,
-            NguoiXuLyId = request.NguoiXuLyId,
-            NgayXuLy = request.NgayXuLy,
-            NguoiKyDuyetId = request.NguoiKyDuyetId,
-            NgayKyDuyet = request.NgayKyDuyet,
             TaiLieuDinhKem = request.TaiLieuDinhKem
         };
         var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);
@@ -144,10 +152,6 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
             HanhDong = WorkflowHanhDong.KHONG_DUYET,
             GhiChu = request.GhiChu,
             RowVersion = request.RowVersion,
-            NguoiXuLyId = request.NguoiXuLyId,
-            NgayXuLy = request.NgayXuLy,
-            NguoiKyDuyetId = request.NguoiKyDuyetId,
-            NgayKyDuyet = request.NgayKyDuyet,
             TaiLieuDinhKem = request.TaiLieuDinhKem
         };
         var result = await _workflowEngine.ProcessStepAsync(id, engineRequest);

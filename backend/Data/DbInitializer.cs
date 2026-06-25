@@ -146,7 +146,9 @@ public static class DbInitializer
         ["KHOA_PHONG"] =
         [
             "DEXUAT.CREATE", "DEXUAT.VIEW", "DEXUAT.EDIT", "DEXUAT.DELETE", "DEXUAT.SUBMIT",
-            "DEXUAT.ATTACH_FILE", "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY", "WORKFLOW.CHOOSE"
+            "DEXUAT.ATTACH_FILE", "GOITHAU.VIEW", "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY",
+            "WORKFLOW.VIEW", "WORKFLOW.CHOOSE",
+            "REPORT.VIEW", "REPORT.VIEW_INTERNAL"
         ],
 
         ["BCN_KHOA_PHONG"] =
@@ -173,7 +175,7 @@ public static class DbInitializer
             "HOSODUTHAU.CREATE", "HOSODUTHAU.VIEW", "HOSODUTHAU.EDIT", "HOSODUTHAU.DELETE",
             "HOSODUTHAU.EVALUATE", "HOSODUTHAU.AWARD",
             "HOSONANGLUC.VIEW", "HOSONANGLUC.CREATE", "HOSONANGLUC.DELETE",
-            "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.DELETE", "WORKFLOW.CHOOSE",
+            "WORKFLOW.VIEW", "WORKFLOW.CHOOSE",
             "NHATHAU.CREATE", "NHATHAU.VIEW", "NHATHAU.EDIT", "NHATHAU.DELETE",
             "HOPDONG.CREATE", "HOPDONG.VIEW", "HOPDONG.EDIT", "HOPDONG.DELETE", "HOPDONG.QUYETTOAN",
             "TAILIEU.UPLOAD", "TAILIEU.DOWNLOAD", "TAILIEU.VIEW", "TAILIEU.DELETE",
@@ -190,8 +192,8 @@ public static class DbInitializer
 
         ["BCN_HCQT"] =
         [
-            "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.CHOOSE",
-            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "WORKFLOW.CHOOSE",
+            "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
@@ -202,7 +204,7 @@ public static class DbInitializer
             "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.EDIT", "GOITHAU.DELETE",
             "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY", "GOITHAU.DISABLE",
             "HOPDONG.CREATE", "HOPDONG.VIEW", "HOPDONG.EDIT", "HOPDONG.DELETE", "HOPDONG.QUYETTOAN",
-            "WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.UPDATE", "WORKFLOW.CHOOSE",
+            "WORKFLOW.CHOOSE",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL",
             "TAILIEU.UPLOAD", "TAILIEU.DOWNLOAD", "TAILIEU.VIEW",
@@ -387,10 +389,13 @@ public static class DbInitializer
                 .ToListAsync();
 
             var newPermIds = targetPermIds.Except(existingPermIds).ToList();
-            if (newPermIds.Count == 0)
+            var stalePermIds = existingPermIds.Except(targetPermIds).ToList();
+
+            if (stalePermIds.Count > 0)
             {
-                logger.LogInformation("Seed: Vai trò {MaVaiTro} đã có đủ mapping quyền, bỏ qua.", maVaiTro);
-                continue;
+                await context.VaiTroQuyens
+                    .Where(vq => vq.VaiTroId == vaiTro.Id && stalePermIds.Contains(vq.QuyenId))
+                    .ExecuteDeleteAsync();
             }
 
             foreach (var permId in newPermIds)
@@ -399,7 +404,11 @@ public static class DbInitializer
             }
 
             await context.SaveChangesAsync();
-            logger.LogInformation("Seed: Thêm {Count} quyền mới cho vai trò {MaVaiTro}", newPermIds.Count, maVaiTro);
+            logger.LogInformation(
+                "Seed: Đồng bộ quyền vai trò {MaVaiTro}: thêm {Added}, xóa {Removed}",
+                maVaiTro,
+                newPermIds.Count,
+                stalePermIds.Count);
         }
     }
 }

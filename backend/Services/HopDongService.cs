@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
@@ -11,14 +12,24 @@ namespace QLQTDT.Api.Services;
 public class HopDongService : IHopDongService
 {
     private readonly AppDbContext _db;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITenderAccessService _tenderAccess;
 
-    public HopDongService(AppDbContext db)
+    public HopDongService(
+        AppDbContext db,
+        IHttpContextAccessor httpContextAccessor,
+        ITenderAccessService tenderAccess)
     {
         _db = db;
+        _httpContextAccessor = httpContextAccessor;
+        _tenderAccess = tenderAccess;
     }
 
     public async Task<HopDongDetailDto> CreateAsync(CreateHopDongRequest request)
     {
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanEditAsync(currentUserId, request.GoiThauId);
+
         var distinctFileIds = (request.FileIds ?? []).Distinct().ToList();
 
         var entity = new HopDong
@@ -181,5 +192,13 @@ public class HopDongService : IHopDongService
             .FirstOrDefaultAsync();
 
         return dto ?? throw new NotFoundException($"Không tìm thấy hợp đồng với Id = {id}");
+    }
+
+    private int GetCurrentUserId()
+    {
+        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        if (claim is null || !int.TryParse(claim.Value, out var id))
+            throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        return id;
     }
 }

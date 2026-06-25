@@ -22,9 +22,9 @@ public class LoginAttemptGuard
     // Static lock — share toàn bộ instances trong process (single-instance app)
     private static readonly SemaphoreSlim _writeLock = new(1, 1);
 
-    private const int MaxAttempts = 5;
+    private const int MaxAttempts = 50;
     private static readonly TimeSpan TrackingWindow = TimeSpan.FromMinutes(10);
-    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(5);
 
     private static string LockoutCacheKey(string id) => $"lockout:{id}";
     private static string AttemptsCacheKey(string id) => $"attempts:{id}";

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.HinhThucDauThau;
 using QLQTDT.Api.Models.Entities;
@@ -12,8 +13,13 @@ namespace QLQTDT.Api.Controllers;
 [Authorize(Roles = "ADMIN")]
 public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhThucDauThauService>
 {
-    public HinhThucDauThauController(IHinhThucDauThauService service) : base(service)
+    private readonly ILogger<HinhThucDauThauController> _logger;
+
+    public HinhThucDauThauController(
+        IHinhThucDauThauService service,
+        ILogger<HinhThucDauThauController> logger) : base(service)
     {
+        _logger = logger;
     }
 
     [HttpGet]
@@ -46,8 +52,20 @@ public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhTh
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse>> DeleteHinhThuc(int id)
     {
-        await _service.DeleteAsync(id);
-        return Ok(ApiResponse.Ok("Xóa hình thức đấu thầu thành công"));
+        try
+        {
+            await _service.DeleteAsync(id);
+            return Ok(ApiResponse.Ok("Xóa hình thức đấu thầu thành công"));
+        }
+        catch (AppException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete bidding method {HinhThucId}", id);
+            return Conflict(ApiResponse.Fail("Không thể xóa hình thức đấu thầu đang được sử dụng."));
+        }
     }
 
     [NonAction]
@@ -57,4 +75,8 @@ public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhTh
     [NonAction]
     public override Task<ActionResult<ApiResponse<HinhThucDauThau>>> Update(int id, HinhThucDauThau entity)
         => throw new NotSupportedException("Sử dụng UpdateHinhThucDauThauDto thay vì entity trực tiếp.");
+
+    [NonAction]
+    public override Task<ActionResult<ApiResponse>> Delete(int id)
+        => throw new NotSupportedException("Sử dụng DeleteHinhThuc thay vì Delete trực tiếp.");
 }

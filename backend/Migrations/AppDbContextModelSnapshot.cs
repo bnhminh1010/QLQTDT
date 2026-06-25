@@ -343,6 +343,9 @@ namespace QLQTDT.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CanCuApDungRutGon")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("DeXuatId")
                         .HasColumnType("int");
 
@@ -356,6 +359,10 @@ namespace QLQTDT.Api.Migrations
 
                     b.Property<int?>("KhoaPhongId")
                         .HasColumnType("int");
+
+                    b.Property<string>("LoaiGoiThau")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("MaGoiThau")
                         .IsRequired()
@@ -379,6 +386,10 @@ namespace QLQTDT.Api.Migrations
 
                     b.Property<int?>("NguoiTaoId")
                         .HasColumnType("int");
+
+                    b.Property<string>("NguonVon")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("TenGoiThau")
                         .IsRequired()
@@ -405,8 +416,12 @@ namespace QLQTDT.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("HinhThucId");
+
                     b.HasIndex("IdCongKhai")
                         .IsUnique();
+
+                    b.HasIndex("KhoaPhongId");
 
                     b.HasIndex("MaGoiThau")
                         .IsUnique();
@@ -1634,6 +1649,23 @@ namespace QLQTDT.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("BanGhiId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Bang")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DiaChiIP")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DuLieuCu")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DuLieuMoi")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<long?>("GoiThauId")
                         .HasColumnType("bigint");
 
@@ -1759,6 +1791,23 @@ namespace QLQTDT.Api.Migrations
                     b.Navigation("KhoaPhong");
 
                     b.Navigation("NguoiDeXuat");
+                });
+
+            modelBuilder.Entity("QLQTDT.Api.Models.Entities.GoiThau", b =>
+                {
+                    b.HasOne("QLQTDT.Api.Models.Entities.HinhThucDauThau", "HinhThuc")
+                        .WithMany()
+                        .HasForeignKey("HinhThucId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("QLQTDT.Api.Models.Entities.KhoaPhong", "KhoaPhong")
+                        .WithMany()
+                        .HasForeignKey("KhoaPhongId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("HinhThuc");
+
+                    b.Navigation("KhoaPhong");
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.HoSoDuThau", b =>

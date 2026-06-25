@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { SelectField } from "@/components/ui/select";
 import type { UserAddFormValues, VaiTro } from "./types";
-import { PHONG_OPTIONS, VAI_TRO_OPTIONS } from "./types";
 
 type Props = {
   existingUsernames: string[];
   existingEmails: string[];
+  khoaPhongOptions: string[];
+  vaiTroOptions: string[];
   onSave: (values: UserAddFormValues) => void;
   onClose: () => void;
 };
@@ -20,6 +20,8 @@ const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 export function ThemNguoiDungModal({
   existingUsernames,
   existingEmails,
+  khoaPhongOptions,
+  vaiTroOptions,
   onSave,
   onClose,
 }: Props) {
@@ -203,7 +205,7 @@ export function ThemNguoiDungModal({
                 }
                 options={[
                   { value: "__empty", label: "-- Chọn khoa/phòng --" },
-                  ...PHONG_OPTIONS.map((p) => ({ value: p, label: p })),
+                  ...khoaPhongOptions.map((p) => ({ value: p, label: p })),
                 ]}
                 triggerClassName={errors.phong ? inputErrCls : inputCls}
               />
@@ -227,7 +229,7 @@ export function ThemNguoiDungModal({
                 }
                 options={[
                   { value: "__empty", label: "-- Chọn vai trò --" },
-                  ...VAI_TRO_OPTIONS.map((v) => ({ value: v, label: v })),
+                  ...vaiTroOptions.map((v) => ({ value: v, label: v })),
                 ]}
                 triggerClassName={errors.vaiTro ? inputErrCls : inputCls}
               />

@@ -3,14 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import { getUserGoiThauList } from "./goiThauService";
-import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
+import { deleteGoiThau } from "@/services/goiThauApi";
 import {
-  getCurrentStepName,
-  getXuLyBuoc,
-  getXuLyBuocByStep,
-  getXuLyBuocHistory,
-  type XuLyBuocRecord,
-} from "./xuLyBuocService";
+  getWorkflowState,
+  type WorkflowStateDto,
+  type WorkflowStepStateDto,
+} from "@/services/workflowApi";
+import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 
 /* ─── Types ───────────────────────────────────────────── */
 type DotState = "done" | "warn" | "idle";
@@ -27,8 +26,14 @@ type QuyTrinhStepDetail = {
   state: DotState;
   ten: string;
   donVi: string;
+  backendId?: number;
   current?: boolean;
   nguoiXuLy?: string;
+  ngayXuLy?: string;
+  nguoiKy?: string;
+  ngayKy?: string;
+  ketQua?: string;
+  lyDoKhongDuyet?: string;
   slaText?: string;
 };
 
@@ -68,6 +73,7 @@ const BADGE: Record<TrangThai, string> = {
   "Chờ duyệt": "bg-amber-100 text-amber-700",
   "Đã hủy": "bg-slate-100 text-slate-500",
   "Nháp": "bg-purple-100 text-purple-600",
+  "Đã chọn nhà thầu": "bg-emerald-100 text-emerald-700",
 };
 const HT_BADGE: Partial<Record<HinhThuc, string>> = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
@@ -89,6 +95,7 @@ const BAR_COLOR: Record<TrangThai, string> = {
   "Chờ duyệt": "bg-amber-500",
   "Đã hủy": "bg-slate-400",
   "Nháp": "bg-purple-400",
+  "Đã chọn nhà thầu": "bg-emerald-400",
 };
 const DOT_CLS: Record<DotState, string> = {
   done: "bg-emerald-500 text-white",
@@ -122,6 +129,63 @@ const canEditGoiThau = (item?: GoiThau | null) =>
   item ? EDITABLE_STATUSES.includes(item.trangThai) : false;
 const canUpdateCurrentStep = (item?: GoiThau | null) =>
   item ? STEP_UPDATE_STATUSES.includes(item.trangThai) : false;
+
+function parseGoiThauNumericId(id: string) {
+  const parsed = Number(id.replace(/^GT/i, ""));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+const TIEN_DO_LABEL: Record<string, string> = {
+  DUNG_TIEN_DO: "Đúng hạn",
+  QUA_HAN: "Quá hạn",
+  SAP_QUA_HAN: "Sắp quá hạn",
+  CHUA_THUC_HIEN: "Chưa thực hiện",
+  CHUA_CO_HAN: "Chưa có hạn xử lý",
+  HOAN_TAT: "Hoàn tất",
+};
+
+function mapWorkflowStepState(
+  step: WorkflowStepStateDto,
+  currentStepId?: number,
+): QuyTrinhStepDetail {
+  const completed = step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED";
+  const current = step.id === currentStepId;
+  const overdue = Boolean(step.quaHan) || step.tinhTrangTienDo === "QUA_HAN";
+
+  return {
+    state: completed ? "done" : current || overdue ? "warn" : "idle",
+    ten: step.tenBuoc,
+    donVi: step.tenVaiTroXuLy || step.phaHienTai || "-",
+    backendId: step.id,
+    current,
+    nguoiXuLy: step.tenNguoiXuLy,
+    ngayXuLy: step.ngayXuLy?.slice(0, 10),
+    nguoiKy: step.tenNguoiKyDuyet,
+    ngayKy: step.ngayKyDuyet?.slice(0, 10),
+    ketQua: step.ketQua,
+    lyDoKhongDuyet: step.lyDoKhongDuyet,
+    slaText: overdue ? "Quá hạn" : TIEN_DO_LABEL[step.tinhTrangTienDo ?? ""] || undefined,
+  };
+}
+
+function mapWorkflowStateToDetailInfo(state?: WorkflowStateDto | null): GoiThauDetailInfo {
+  if (!state) return DEFAULT_DETAIL_INFO;
+
+  const currentStep = state.currentSteps?.[0];
+  return {
+    buocHienTai: state.tenBuocHienTai || currentStep?.tenBuoc || "",
+    nguoiXuLy:
+      state.steps.find((step) => step.id === currentStep?.stepInstanceId)?.tenNguoiXuLy || "",
+    donViXuLy: currentStep?.phaHienTai || "",
+    sla:
+      state.tinhTrangTienDo
+        ? (TIEN_DO_LABEL[state.tinhTrangTienDo] ?? state.tinhTrangTienDo)
+        : "Đang theo dõi",
+    steps: state.steps.map((step) =>
+      mapWorkflowStepState(step, currentStep?.stepInstanceId),
+    ),
+  };
+}
 
 /* ─── Sub-components ──────────────────────────────────── */
 function Dot({ state }: { state: DotState }) {
@@ -199,12 +263,11 @@ function ConfirmModal({
 type HistoryModalProps = {
   goiThau: GoiThau;
   entries: LichSuGoiThau[];
-  processEntries: XuLyBuocRecord[];
   onClose: () => void;
 };
 
-function HistoryModal({ goiThau, entries, processEntries, onClose }: HistoryModalProps) {
-  const hasEntries = entries.length > 0 || processEntries.length > 0;
+function HistoryModal({ goiThau, entries, onClose }: HistoryModalProps) {
+  const hasEntries = entries.length > 0;
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
@@ -237,29 +300,6 @@ function HistoryModal({ goiThau, entries, processEntries, onClose }: HistoryModa
             </div>
           ) : (
             <div className="relative space-y-5 before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-px before:bg-slate-200">
-              {processEntries.map((entry) => (
-                <div key={`${entry.goiThauId}-${entry.thoiGianXuLy}`} className="relative flex gap-4">
-                  <div className="relative z-10 mt-1 h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                    <i className="fa-solid fa-clipboard-check text-[10px]" />
-                  </div>
-                  <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {entry.thoiGianXuLy ?? "—"}
-                    </p>
-                    <div className="mt-2 grid gap-1 text-sm text-slate-600">
-                      <p><span className="text-slate-400">Người xử lý:</span> {entry.nguoiXuLy || "—"}</p>
-                      <p><span className="text-slate-400">Bước workflow:</span> {entry.buocWorkflow}</p>
-                      <p><span className="text-slate-400">Người ký duyệt:</span> {entry.nguoiKyDuyet || "—"}</p>
-                      <p><span className="text-slate-400">Ngày ký duyệt:</span> {entry.ngayKyDuyet || "—"}</p>
-                      <p><span className="text-slate-400">Kết quả xử lý:</span> {entry.ketQua}</p>
-                      {entry.lyDoKhongDuyet && (
-                        <p><span className="text-slate-400">Lý do không duyệt:</span> {entry.lyDoKhongDuyet}</p>
-                      )}
-                      <p><span className="text-slate-400">Hệ thống:</span> {entry.thaoTacHeThong || "—"}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
               {entries.map((entry) => (
                 <div key={entry.id} className="relative flex gap-4">
                   <div className="relative z-10 mt-1 h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -308,6 +348,9 @@ export default function DanhSachGoiThau() {
   // Real loading from API
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [workflowState, setWorkflowState] = useState<WorkflowStateDto | null>(null);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
 
   // Confirm modals
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
@@ -340,6 +383,13 @@ export default function DanhSachGoiThau() {
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("goiThauId");
     if (!id) return;
+    loadData();
+    setWorkflowRefreshKey((k) => k + 1); // Force re-fetch workflowState when navigating back
+  }, [location.search, loadData]);
+
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("goiThauId");
+    if (!id) return;
     const target = data.find((item) => item.id === id);
     if (target) {
       setSelected(target);
@@ -349,6 +399,31 @@ export default function DanhSachGoiThau() {
   useEffect(() => {
     setPage(1);
   }, [search, filterHT, filterTT, sortCol, sortDir]);
+
+  useEffect(() => {
+    const numericId = parseGoiThauNumericId(selected.id);
+    if (!numericId) {
+      setWorkflowState(null);
+      return;
+    }
+
+    let cancelled = false;
+    setWorkflowLoading(true);
+    getWorkflowState(numericId)
+      .then((state) => {
+        if (!cancelled) setWorkflowState(state);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkflowState(null);
+      })
+      .finally(() => {
+        if (!cancelled) setWorkflowLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected.id, workflowRefreshKey]);
 
   /* ─ Derived list ─ */
   const filtered = useMemo(() => {
@@ -396,12 +471,16 @@ export default function DanhSachGoiThau() {
 
   function handleDelete() {
     if (!deleteTarget) return;
-    const remaining = data.filter((r) => r.id !== deleteTarget.id);
-    setData(remaining);
-    if (selected.id === deleteTarget.id && remaining.length > 0)
-      setSelected(remaining[0]);
-    toast.success(`Đã xóa "${deleteTarget.ten}"`);
-    setDeleteTarget(null);
+    const numId = parseInt(deleteTarget.id.replace(/^GT/, ''), 10);
+    if (!numId) { toast.error("ID gói thầu không hợp lệ"); return; }
+    deleteGoiThau(numId).then(() => {
+      const remaining = data.filter((r) => r.id !== deleteTarget.id);
+      setData(remaining);
+      if (selected.id === deleteTarget.id && remaining.length > 0)
+        setSelected(remaining[0]);
+      toast.success(`Đã xóa "${deleteTarget.ten}"`);
+      setDeleteTarget(null);
+    }).catch(() => toast.error("Không thể xóa gói thầu"));
   }
 
   function goToEdit(item: GoiThau) {
@@ -434,17 +513,27 @@ export default function DanhSachGoiThau() {
     navigate(`/xu-ly-buoc/${encodeURIComponent(item.id)}`);
   }
 
-  function goToStepResult(item: GoiThau, stepName: string) {
-    navigate(
-      `/xu-ly-buoc/${encodeURIComponent(item.id)}?mode=view&step=${encodeURIComponent(stepName)}`,
-    );
+  function goToStepResult(item: GoiThau, stepName: string, stepId?: number) {
+    const params = new URLSearchParams({ mode: "view", step: stepName });
+    if (stepId) params.set("stepId", String(stepId));
+    navigate(`/xu-ly-buoc/${encodeURIComponent(item.id)}?${params.toString()}`);
   }
 
   /* ─ Detail panel content ─ */
   function DetailPanel() {
-    const detailInfo = DETAIL_INFO_BY_ID[selected.id] ?? DEFAULT_DETAIL_INFO;
-    const currentStepName = getCurrentStepName(selected.id, detailInfo.buocHienTai);
-    const processingInfo = getXuLyBuoc(selected.id);
+    const detailInfo =
+      mapWorkflowStateToDetailInfo(workflowState) ||
+      DETAIL_INFO_BY_ID[selected.id] ||
+      DEFAULT_DETAIL_INFO;
+    const currentStepName = detailInfo.buocHienTai;
+    const activeStepIds = new Set(workflowState?.currentSteps?.map((step) => step.stepInstanceId) ?? []);
+    const canProcessWorkflowStep = (step: QuyTrinhStepDetail) =>
+      canUpdateCurrentStep(selected) &&
+      step.backendId != null &&
+      activeStepIds.has(step.backendId) &&
+      step.state !== "done" &&
+      !step.ngayXuLy &&
+      !step.ketQua;
     const progressStatus =
       selected.trangThai === "Trễ hạn"
         ? "Quá hạn"
@@ -452,36 +541,13 @@ export default function DanhSachGoiThau() {
           ? "Sắp quá hạn"
           : "Đúng hạn";
     const displaySteps = detailInfo.steps.map((step) => {
-      const stepRecord = getXuLyBuocByStep(selected.id, step.ten);
       const isCurrent = step.ten === currentStepName;
-      if (!isCurrent) {
-        if (stepRecord?.ketQua === "Duyệt") {
-          return {
-            ...step,
-            state: "done" as DotState,
-            current: false,
-          };
-        }
-        return {
-          ...step,
-          current: false,
-        };
-      }
-      if (stepRecord?.ketQua === "Duyệt") {
-        return {
-          ...step,
-          state: "done" as DotState,
-          current: false,
-        };
-      }
       return {
         ...step,
-        state: canUpdateCurrentStep(selected) ? ("warn" as DotState) : step.state,
-        current: true,
-        nguoiXuLy: processingInfo
-          ? processingInfo.nguoiXuLy
-          : step.nguoiXuLy || detailInfo.nguoiXuLy,
-        slaText: progressStatus,
+        current: isCurrent,
+        state: isCurrent && canUpdateCurrentStep(selected) ? ("warn" as DotState) : step.state,
+        nguoiXuLy: step.nguoiXuLy || detailInfo.nguoiXuLy,
+        slaText: isCurrent ? progressStatus : step.slaText,
       };
     });
 
@@ -523,6 +589,7 @@ export default function DanhSachGoiThau() {
         <div className="space-y-2 mb-5">
           {(
             [
+              ["Quy trình", workflowState?.workflowTen || "—"],
               ["Bước hiện tại", currentStepName],
               ["Giá trị", formatCurrencyDisplay(selected.giaTriStr)],
               ["Nguồn vốn", selected.detail.nguonVon],
@@ -563,14 +630,12 @@ export default function DanhSachGoiThau() {
             {[
               [
                 "Người xử lý",
-                processingInfo
-                  ? processingInfo.nguoiXuLy || "—"
-                  : detailInfo.nguoiXuLy || "—",
+                detailInfo.nguoiXuLy || "—",
               ],
-              ["Ngày xử lý", processingInfo?.ngayXuLy || "—"],
-              ["Người ký", processingInfo?.nguoiKyDuyet || "—"],
-              ["Ngày ký", processingInfo?.ngayKyDuyet || "—"],
-              ["Kết quả", processingInfo?.ketQua || "Chờ xử lý"],
+              ["Ngày xử lý", "—"],
+              ["Người ký", "—"],
+              ["Ngày ký", "—"],
+              ["Kết quả", "Chờ xử lý"],
             ].map(([lbl, val]) => (
               <div key={lbl} className="flex justify-between gap-3">
                 <span className="text-slate-400">{lbl}</span>
@@ -585,84 +650,109 @@ export default function DanhSachGoiThau() {
           CÁC BƯỚC QUY TRÌNH
         </div>
         <div className="space-y-3 mb-5">
-          {displaySteps.map((step) => (
-            <div key={step.ten}>
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => goToStepResult(selected, step.ten)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    goToStepResult(selected, step.ten);
-                  }
-                }}
-                className={`flex items-start gap-2.5 rounded-xl ${
-                  step.current
-                    ? "border border-amber-200 bg-amber-50 p-2 -mx-2 cursor-pointer"
-                    : "p-1.5 -mx-1.5 hover:bg-slate-50 cursor-pointer"
-                }`}
-              >
+          {workflowLoading ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+              <i className="fa-solid fa-circle-notch fa-spin mr-1" />
+              Dang tai cac buoc quy trinh...
+            </div>
+          ) : displaySteps.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+              Chua co du lieu buoc quy trinh tu backend.
+            </div>
+          ) : (
+          displaySteps.map((step) => (
+            <div key={step.ten} className="space-y-2">
+            <details className="group">
+              <summary className="flex items-start gap-2.5 rounded-xl cursor-pointer list-none
+                [&::-webkit-details-marker]:hidden
+                [&::marker]:hidden
+                transition-colors
+                p-1.5 -mx-1.5 hover:bg-slate-50
+              ">
                 <Dot state={step.state} />
                 <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {step.current && (
-                        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
-                          BƯỚC HIỆN TẠI
-                        </span>
-                      )}
-                      <div className="text-xs font-medium text-slate-800">
-                        {step.ten}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {step.current && (
+                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+                            BƯỚC HIỆN TẠI
+                          </span>
+                        )}
+                        <div className="text-xs font-medium text-slate-800">
+                          {step.ten}
+                        </div>
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-slate-400">
+                        Đơn vị/Vai trò xử lý:{" "}
+                        <span className="font-medium text-slate-500">{step.donVi}</span>
                       </div>
                     </div>
-                    <div className="mt-0.5 text-[11px] text-slate-400">
-                      Đơn vị/Vai trò xử lý:{" "}
-                      <span className="font-medium text-slate-500">{step.donVi}</span>
-                    </div>
-                  </div>
-                  {step.current && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        goToCurrentStep(selected);
-                      }}
-                      className="shrink-0 rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
-                    >
-                      Cập nhật
-                    </button>
-                  )}
-                </div>
-                {step.current && (
-                  <div className="mt-1 space-y-0.5 text-[11px]">
-                    {step.nguoiXuLy && (
-                      <div className="text-slate-600">
-                        Người xử lý:{" "}
-                        <span className="font-semibold">{step.nguoiXuLy}</span>
-                      </div>
-                    )}
-                    {step.slaText && (
-                      <div className="text-slate-600">
-                        Tình trạng tiến độ:{" "}
-                        <span
-                          className={`font-semibold ${
-                            step.slaText.includes("Quá hạn")
-                              ? "text-red-600"
-                              : step.slaText.includes("Sắp")
-                                ? "text-amber-600"
-                                : "text-emerald-600"
-                          }`}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {step.current && canProcessWorkflowStep(step) && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); goToCurrentStep(selected); }}
+                          className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
                         >
-                          {step.slaText}
-                        </span>
-                      </div>
-                    )}
+                          Cập nhật
+                        </button>
+                      )}
+                      <i className="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform group-open:rotate-180" />
+                    </div>
                   </div>
-                )}
+                </div>
+              </summary>
+              <div className="ml-[34px] mt-1.5 space-y-0.5 text-[11px] bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
+                <div className="text-slate-600 grid gap-1.5">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">Người xử lý</span>
+                    <span className="font-semibold text-slate-700 text-right">{step.nguoiXuLy || "—"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">Ngày xử lý</span>
+                    <span className="font-semibold text-slate-700 text-right">{step.ngayXuLy || "—"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">Người ký duyệt</span>
+                    <span className="font-semibold text-slate-700 text-right">{step.nguoiKy || "—"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">Ngày ký duyệt</span>
+                    <span className="font-semibold text-slate-700 text-right">{step.ngayKy || "—"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">Kết quả</span>
+                    <span className={`font-semibold text-right ${
+                      step.ketQua === "Duyệt" || step.ketQua === "Đồng ý"
+                        ? "text-emerald-600"
+                        : step.ketQua === "Không duyệt" || step.ketQua === "Từ chối"
+                          ? "text-red-600"
+                          : "text-slate-700"
+                    }`}>
+                      {step.ketQua || "—"}
+                    </span>
+                  </div>
+                  {step.lyDoKhongDuyet && (
+                    <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
+                      <span className="font-semibold">Lý do không duyệt:</span> {step.lyDoKhongDuyet}
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">Tình trạng tiến độ</span>
+                    <span className={`font-semibold text-right ${
+                      step.slaText?.includes("Quá hạn")
+                        ? "text-red-600"
+                        : step.slaText?.includes("Sắp")
+                          ? "text-amber-600"
+                          : "text-emerald-600"
+                    }`}>
+                      {step.slaText || "Đang theo dõi"}
+                    </span>
+                  </div>
+                </div>
               </div>
-              </div>
+            </details>
               {detailInfo.parallelInfo && step.ten.includes("Tổ chuyên gia") && (
                 <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
                   <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
@@ -755,7 +845,8 @@ export default function DanhSachGoiThau() {
                 </div>
               )}
             </div>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Actions */}
@@ -861,11 +952,7 @@ export default function DanhSachGoiThau() {
               onValueChange={(value) => setFilterHT(value === "__all" ? "" : value)}
               options={[
                 { value: "__all", label: "Tất cả hình thức" },
-                { value: "Chỉ định thầu rút gọn", label: "Chỉ định thầu rút gọn" },
-                { value: "Chỉ định thầu tự quyết định", label: "Chỉ định thầu tự quyết định" },
-                { value: "Chỉ định thầu thông thường", label: "Chỉ định thầu thông thường" },
-                { value: "Chào hàng cạnh tranh", label: "Chào hàng cạnh tranh" },
-                { value: "Đấu thầu rộng rãi", label: "Đấu thầu rộng rãi" },
+                ...Array.from(new Set(data.map((r) => r.hinhThuc).filter(Boolean))).sort().map((ht) => ({ value: ht, label: ht })),
               ]}
               triggerClassName="h-[42px] min-w-[190px] bg-white"
             />
@@ -1017,6 +1104,9 @@ export default function DanhSachGoiThau() {
                             >
                               {row.trangThai}
                             </span>
+                            <div className="mt-1 text-[11px] text-slate-400">
+                              Tiến độ: <span className="font-semibold text-slate-600">{row.detail.buoc}</span>
+                            </div>
                           </td>
                           <td
                             className="px-5 py-3"
@@ -1122,11 +1212,12 @@ export default function DanhSachGoiThau() {
           </div>
         </main>
 
-        {/* DETAIL PANEL — wide desktop: always visible; smaller screens: drawer overlay */}
-        {/* Desktop */}
+        {/* DETAIL PANEL — chỉ hiện desktop khi click gói thầu */}
+        {selected.id && (
         <aside className="w-[320px] shrink-0 border-l border-slate-200 bg-white overflow-y-auto p-5 hidden 2xl:block">
           <DetailPanel />
         </aside>
+        )}
 
         {/* Drawer */}
         {detailOpen && (
@@ -1174,7 +1265,6 @@ export default function DanhSachGoiThau() {
           entries={HISTORY_LOGS.filter(
             (entry) => entry.goiThauId === historyTarget.id,
           )}
-          processEntries={getXuLyBuocHistory(historyTarget.id)}
           onClose={() => setHistoryTarget(null)}
         />
       )}

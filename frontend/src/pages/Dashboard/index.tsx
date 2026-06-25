@@ -1,14 +1,25 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SelectField } from "@/components/ui/select";
-import { searchBaoCaoGoiThau } from "@/services/baoCaoApi";
+import { searchGoiThau } from "@/services/goiThauApi";
+import {
+  getWorkflowState,
+  type WorkflowStateDto,
+  type WorkflowStepStateDto,
+} from "@/services/workflowApi";
+import {
+  getGoiThauTrangThaiBarColor,
+  toGoiThauTrangThaiLabel,
+  type GoiThauBarColor,
+  type GoiThauTrangThaiLabel,
+} from "@/util/goiThauTrangThai";
 
 /* ─ RBAC ─ */
 const CAN_CREATE = true;
 const CAN_APPROVE = true;
 
-type BadgeStatus = "Đang xử lý" | "Hoàn thành" | "Trễ hạn" | "Chờ duyệt";
-type BarColor = "blue" | "green" | "red" | "amber";
+type BadgeStatus = GoiThauTrangThaiLabel;
+type BarColor = GoiThauBarColor;
 type DotState = "done" | "warn" | "idle";
 type StepStatus =
   | "Hoàn tất"
@@ -48,16 +59,21 @@ type ParallelInfo = {
 };
 
 const BADGE: Record<BadgeStatus, string> = {
+  "Nháp": "bg-purple-100 text-purple-600",
+  "Chờ duyệt": "bg-amber-100 text-amber-700",
   "Đang xử lý": "bg-blue-100 text-blue-700",
   "Hoàn thành": "bg-emerald-100 text-emerald-700",
   "Trễ hạn": "bg-red-100 text-red-600",
-  "Chờ duyệt": "bg-amber-100 text-amber-700",
+  "Đã hủy": "bg-slate-100 text-slate-500",
+  "Đã chọn nhà thầu": "bg-emerald-100 text-emerald-700",
 };
 const BAR_COLOR: Record<BarColor, string> = {
   blue: "bg-blue-500",
   green: "bg-emerald-500",
   red: "bg-red-500",
   amber: "bg-amber-500",
+  slate: "bg-slate-400",
+  purple: "bg-purple-400",
 };
 const DOT_CLS: Record<DotState, string> = {
   done: "bg-emerald-500 text-white",
@@ -66,6 +82,7 @@ const DOT_CLS: Record<DotState, string> = {
 };
 
 type TableRow = {
+  id: number;
   code: string;
   name: string;
   unit: string;
@@ -125,6 +142,64 @@ function Dot({ state }: { state: DotState }) {
   );
 }
 
+const STEP_STATUS_LABEL: Record<string, StepStatus> = {
+  HOAN_TAT: "Hoàn tất",
+  COMPLETED: "Hoàn tất",
+  DANG_XU_LY: "Đang xử lý",
+  IN_PROGRESS: "Đang xử lý",
+  CHO_DUYET: "Chờ ký duyệt",
+  CHO_KY_DUYET: "Chờ ký duyệt",
+  TRE_HAN: "Trễ hạn",
+  QUA_HAN: "Trễ hạn",
+};
+
+const TIEN_DO_LABEL: Record<string, string> = {
+  DUNG_TIEN_DO: "Đúng hạn",
+  QUA_HAN: "Quá hạn",
+  SAP_QUA_HAN: "Sắp quá hạn",
+  CHUA_THUC_HIEN: "Chưa thực hiện",
+  CHUA_CO_HAN: "Chưa có hạn xử lý",
+  HOAN_TAT: "Hoàn tất",
+};
+
+function mapWorkflowStepStatus(step: WorkflowStepStateDto): StepStatus {
+  if (step.ngayHoanThanh) return "Hoàn tất";
+  if (step.trangThai && STEP_STATUS_LABEL[step.trangThai]) return STEP_STATUS_LABEL[step.trangThai];
+  if (step.quaHan || step.tinhTrangTienDo === "QUA_HAN") return "Trễ hạn";
+  if (step.ngayBatDau) return "Đang xử lý";
+  return "Chưa bắt đầu";
+}
+
+function mapWorkflowStep(
+  step: WorkflowStepStateDto,
+  currentStepId?: number,
+): WorkflowStep {
+  const completed = step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
+  const current = step.id === currentStepId;
+  const overdue = Boolean(step.quaHan) || step.tinhTrangTienDo === "QUA_HAN";
+
+  return {
+    state: completed ? "done" : current || overdue ? "warn" : "idle",
+    name: step.tenBuoc,
+    processor: step.tenNguoiXuLy || step.tenVaiTroXuLy || step.phaHienTai || "-",
+    status: mapWorkflowStepStatus(step),
+    sla: overdue ? "Quá hạn" : TIEN_DO_LABEL[step.tinhTrangTienDo ?? ""] || step.hanXuLy?.slice(0, 10) || "-",
+    ngayXuLy: step.ngayXuLy?.slice(0, 10),
+    nguoiKy: step.tenNguoiKyDuyet,
+    ngayKy: step.ngayKyDuyet?.slice(0, 10),
+    ketQua: step.ketQua,
+    reason: step.lyDoKhongDuyet,
+  };
+}
+
+function getProgressStatus(state?: WorkflowStateDto | null): TableRow["progressStatus"] {
+  if (state?.tinhTrangTienDo === "QUA_HAN" || state?.steps.some((step) => step.quaHan)) {
+    return "Quá hạn";
+  }
+  if (state?.tinhTrangTienDo === "SAP_QUA_HAN") return "Sắp quá hạn";
+  return "Đúng hạn";
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
@@ -142,30 +217,44 @@ export default function Dashboard() {
     (async () => {
       setLoading(true);
       try {
-        const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 50 });
-        const rows: TableRow[] = result.items.map((item) => ({
-          code: item.maGoiThau || '',
+        const result = await searchGoiThau({ page: 1, pageSize: 50 });
+        const rows: TableRow[] = await Promise.all(result.items.map(async (item) => {
+          const status = toGoiThauTrangThaiLabel(item.trangThai);
+          const color = getGoiThauTrangThaiBarColor(item.trangThai);
+          let workflowState: WorkflowStateDto | null = null;
+          try {
+            workflowState = await getWorkflowState(item.id);
+          } catch {
+            workflowState = null;
+          }
+          const currentStep = workflowState?.currentSteps?.[0];
+          const currentStepDetail = workflowState?.steps.find(
+            (step) => step.id === currentStep?.stepInstanceId,
+          );
+          return {
+          id: item.id,
+          code: item.maGoiThau || `GT${item.id}`,
           name: item.tenGoiThau || '',
           unit: item.tenKhoaPhong || '',
-          status: item.trangThai === 'HOAN_THANH' ? 'Hoàn thành' as BadgeStatus :
-                  item.trangThai === 'DANG_XU_LY' ? 'Đang xử lý' as BadgeStatus :
-                  item.trangThai === 'QUA_HAN' ? 'Trễ hạn' as BadgeStatus :
-                  'Chờ duyệt' as BadgeStatus,
-          color: 'blue' as BarColor,
+          status,
+          color,
           pct: `${item.phanTramHoanThanh}%`,
           txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
           nguonVon: '',
           ngayTao: item.ngayTao?.slice(0, 10) || '',
-          hanHT: '',
+          hanHT: currentStepDetail?.hanXuLy?.slice(0, 10) || '',
           hinhThuc: item.tenHinhThuc || '',
-          currentStep: '',
-          currentProcessor: '',
-          currentProcessDate: '',
-          currentSigner: '',
-          currentSignedDate: '',
-          currentResult: '',
-          progressStatus: 'Đúng hạn' as const,
-          steps: [],
+          currentStep: workflowState?.tenBuocHienTai || currentStep?.tenBuoc || '',
+          currentProcessor: currentStepDetail?.tenNguoiXuLy || currentStepDetail?.tenVaiTroXuLy || '',
+          currentProcessDate: currentStepDetail?.ngayXuLy?.slice(0, 10) || '',
+          currentSigner: currentStepDetail?.tenNguoiKyDuyet || '',
+          currentSignedDate: currentStepDetail?.ngayKyDuyet?.slice(0, 10) || '',
+          currentResult: currentStepDetail?.ketQua || currentStepDetail?.trangThai || '',
+          progressStatus: getProgressStatus(workflowState),
+          steps: workflowState?.steps.map((step) =>
+            mapWorkflowStep(step, currentStep?.stepInstanceId),
+          ) ?? [],
+          };
         }));
         setTableRows(rows);
       } catch (e) {
@@ -298,8 +387,8 @@ export default function Dashboard() {
                 "fa-box-archive",
                 "gray",
                 "TỔNG GÓI THẦU",
-                "24",
-                "năm 2025",
+                tableRows.length,
+                "gói thầu",
                 "text-slate-800",
                 "",
               ],
@@ -307,7 +396,7 @@ export default function Dashboard() {
                 "fa-hourglass-half",
                 "blue",
                 "ĐANG XỬ LÝ",
-                "8",
+                tableRows.filter((r) => r.status === "Đang xử lý").length,
                 "gói",
                 "text-blue-600",
                 "Đang xử lý",
@@ -316,7 +405,7 @@ export default function Dashboard() {
                 "fa-triangle-exclamation",
                 "red",
                 "TRỄ HẠN",
-                "3",
+                tableRows.filter((r) => r.status === "Trễ hạn").length,
                 "cần xử lý gấp",
                 "text-red-500",
                 "Trễ hạn",
@@ -325,7 +414,7 @@ export default function Dashboard() {
                 "fa-circle-check",
                 "green",
                 "HOÀN THÀNH",
-                "13",
+                tableRows.filter((r) => r.status === "Hoàn thành").length,
                 "gói",
                 "text-emerald-600",
                 "Hoàn thành",
@@ -638,67 +727,87 @@ export default function Dashboard() {
             CÁC BƯỚC QUY TRÌNH
           </div>
           <div className="space-y-3 mb-5">
-            {selected.steps.map((step) => (
-              <div key={step.name}>
-                <div className="flex items-start gap-2.5 rounded-lg p-1.5 -m-1.5">
+            {selected.steps.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                Chua co du lieu buoc quy trinh tu backend.
+              </div>
+            ) : selected.steps.map((step) => (
+              <div key={step.name} className="space-y-2">
+              <details className="group">
+                <summary className="flex items-start gap-2.5 rounded-xl cursor-pointer list-none
+                  [&::-webkit-details-marker]:hidden
+                  [&::marker]:hidden
+                  transition-colors
+                  p-1.5 -mx-1.5 hover:bg-slate-50
+                ">
                   <Dot state={step.state} />
                   <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-slate-800">
-                    {step.name}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-xs font-medium text-slate-800 min-w-0">
+                        {step.name}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                          step.status === "Trễ hạn" ? "bg-red-100 text-red-600"
+                          : step.status === "Hoàn tất" ? "bg-emerald-100 text-emerald-600"
+                          : step.status === "Chờ ký duyệt" ? "bg-amber-100 text-amber-600"
+                          : "bg-slate-100 text-slate-500"
+                        }`}>
+                          {step.status}
+                        </span>
+                        <i className="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform group-open:rotate-180" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
-                    <div className="flex justify-between gap-2">
-                      <span>Người xử lý</span>
-                      <span className="font-medium text-slate-700 text-right">
-                        {step.processor}
-                      </span>
+                </summary>
+                <div className="ml-[34px] mt-1.5 space-y-0.5 text-[11px] bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
+                  <div className="text-slate-600 grid gap-1.5">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Người xử lý</span>
+                      <span className="font-semibold text-slate-700 text-right">{step.processor}</span>
                     </div>
-                    {step.nguoiKy && (
-                      <div className="flex justify-between gap-2">
-                        <span>Người ký</span>
-                        <span className="font-medium text-slate-700 text-right">
-                          {step.nguoiKy}
-                        </span>
-                      </div>
-                    )}
-                    {step.ngayKy && (
-                      <div className="flex justify-between gap-2">
-                        <span>Ngày ký</span>
-                        <span className="font-medium text-slate-700 text-right">
-                          {step.ngayKy}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between gap-2">
-                      <span>Trạng thái</span>
-                      <span
-                        className={`font-semibold text-right ${
-                          step.status === "Trễ hạn"
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Ngày xử lý</span>
+                      <span className="font-semibold text-slate-700 text-right">{step.ngayXuLy || "—"}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Người ký</span>
+                      <span className="font-semibold text-slate-700 text-right">{step.nguoiKy || "—"}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Ngày ký</span>
+                      <span className="font-semibold text-slate-700 text-right">{step.ngayKy || "—"}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Kết quả</span>
+                      <span className={`font-semibold text-right ${
+                        step.ketQua === "Duyệt" || step.ketQua === "Đồng ý"
+                          ? "text-emerald-600"
+                          : step.ketQua === "Không duyệt" || step.ketQua === "Từ chối"
                             ? "text-red-600"
-                            : step.status === "Hoàn tất"
-                              ? "text-emerald-600"
-                              : step.status === "Chờ ký duyệt"
-                                ? "text-amber-600"
-                                : "text-slate-600"
-                        }`}
-                      >
-                        {step.status}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span>Tình trạng tiến độ</span>
-                      <span className="font-medium text-slate-700 text-right">
-                        {step.sla}
+                            : "text-slate-700"
+                      }`}>
+                        {step.ketQua || "—"}
                       </span>
                     </div>
                     {step.reason && (
-                      <div className="mt-1 rounded-lg bg-red-50 px-2 py-1 text-red-600">
-                        {step.reason}
+                      <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
+                        <span className="font-semibold">Lý do không duyệt:</span> {step.reason}
                       </div>
                     )}
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-400">Tình trạng tiến độ</span>
+                      <span className={`font-semibold text-right ${
+                        step.sla === "Quá hạn" ? "text-red-600"
+                        : step.sla === "Sắp quá hạn" ? "text-amber-600"
+                        : "text-emerald-600"
+                      }`}>
+                        {step.sla}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                </div>
+              </details>
                 {selected.parallelInfo && step.name.includes("Tổ chuyên gia") && (
                   <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
                     <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">

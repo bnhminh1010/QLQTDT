@@ -14,7 +14,7 @@ public class AuditLogService : IAuditLogService
         _db = db;
     }
 
-    public async Task<PagedResult<NhatKyKiemToan>> GetAllAsync(int page, int pageSize, string? hanhDong)
+    public async Task<PagedResult<NhatKyKiemToan>> GetAllAsync(int page, int pageSize, string? hanhDong, string? bang)
     {
         if (page < 1)
             throw new BadRequestException("page phải >= 1");
@@ -25,6 +25,9 @@ public class AuditLogService : IAuditLogService
 
         if (!string.IsNullOrWhiteSpace(hanhDong))
             query = query.Where(l => l.HanhDong.Contains(hanhDong));
+
+        if (!string.IsNullOrWhiteSpace(bang))
+            query = query.Where(l => l.Bang != null && l.Bang.Contains(bang));
 
         var total = await query.CountAsync();
         var items = await query

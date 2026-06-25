@@ -45,6 +45,7 @@ public class WorkflowConfigService : IWorkflowConfigService
                 HinhThucId = w.HinhThucId,
                 TrangThaiHoatDong = w.TrangThaiHoatDong,
                 LoaiHinhDauThau = w.LoaiHinhDauThau,
+                LaQuyTrinhChuan = w.LaQuyTrinhChuan,
                 SoBuoc = w.BuocWorkflows.Count,
                 NgayTao = EF.Property<DateTime>(w, "NgayTao")
             })
@@ -71,6 +72,7 @@ public class WorkflowConfigService : IWorkflowConfigService
                 HinhThucId = w.HinhThucId,
                 TrangThaiHoatDong = w.TrangThaiHoatDong,
                 LoaiHinhDauThau = w.LoaiHinhDauThau,
+                LaQuyTrinhChuan = w.LaQuyTrinhChuan,
                 SoBuoc = w.BuocWorkflows.Count,
                 NgayTao = EF.Property<DateTime>(w, "NgayTao")
             })
@@ -180,8 +182,33 @@ public class WorkflowConfigService : IWorkflowConfigService
 
         var hasActiveInstance = await _context.WorkflowInstances
             .AnyAsync(i => i.WorkflowId == id && i.TrangThai == "ACTIVE");
-        if (hasActiveInstance || entity.TrangThaiHoatDong)
-            throw new AppException(400, "HAS_INSTANCE", "Workflow dang hoat dong hoac co workflow instance active nen khong the xoa.");
+        if (hasActiveInstance)
+            throw new AppException(400, "HAS_INSTANCE", "Workflow co instance active nen khong the xoa.");
+
+        // Xoá toàn bộ dữ liệu liên quan để tránh FK violation
+        var buocIds = await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == id)
+            .Select(b => b.Id)
+            .ToListAsync();
+
+        if (buocIds.Count > 0)
+        {
+            await _context.ChuyenTiepWorkflows
+                .Where(t => buocIds.Contains(t.TuBuocId) || buocIds.Contains(t.DenBuocId))
+                .ExecuteDeleteAsync();
+
+            await _context.BuocWorkflows
+                .Where(b => b.WorkflowId == id)
+                .ExecuteDeleteAsync();
+        }
+
+        await _context.NhomNhanhWorkflows
+            .Where(pg => pg.WorkflowId == id)
+            .ExecuteDeleteAsync();
+
+        await _context.WorkflowVersionHistories
+            .Where(v => v.WorkflowId == id)
+            .ExecuteDeleteAsync();
 
         _context.Workflows.Remove(entity);
         await _context.SaveChangesAsync();

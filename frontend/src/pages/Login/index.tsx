@@ -67,10 +67,10 @@ export default function Login() {
               />
             </div>
             <div>
-              <h1 className="text-white text-[27px] font-extrabold">
-                BV Ung Bướu TP.HCM
+              <h1 className="text-white text-[23px] font-extrabold">
+                Bệnh viện Ung Bướu TP.HCM
               </h1>
-              <p className="text-cyan-200 text-[19px]">
+              <p className="text-cyan-200 text-[17px]">
                 Hệ thống Quản lý Đấu thầu
               </p>
             </div>

@@ -8,6 +8,7 @@ public static class HinhThucDauThauSeeder
     private static readonly (string MaHinhThuc, string TenHinhThuc, decimal? HanMucToiDa)[] DefaultData =
     [
         ("CHI_DINH_THAU", "Chỉ định thầu", 500_000_000),
+        ("CHI_DINH_THAU_RUT_GON", "Chỉ định thầu rút gọn", 500_000_000),
         ("CHAO_HANG_CANH_TRANH", "Chào hàng cạnh tranh", 5_000_000_000),
         ("DAU_THAU_RONG_RAI", "Đấu thầu rộng rãi", null),
         ("MUA_SAM_TRUC_TIEP", "Mua sắm trực tiếp", 100_000_000),

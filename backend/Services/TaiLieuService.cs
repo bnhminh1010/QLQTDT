@@ -16,12 +16,18 @@ public partial class TaiLieuService : ITaiLieuService
     private readonly AppDbContext _db;
     private readonly IFtpService _ftp;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITenderAccessService _tenderAccess;
 
-    public TaiLieuService(AppDbContext db, IFtpService ftp, IHttpContextAccessor httpContextAccessor)
+    public TaiLieuService(
+        AppDbContext db,
+        IFtpService ftp,
+        IHttpContextAccessor httpContextAccessor,
+        ITenderAccessService tenderAccess)
     {
         _db = db;
         _ftp = ftp;
         _httpContextAccessor = httpContextAccessor;
+        _tenderAccess = tenderAccess;
     }
 
     public async Task<List<TaiLieuUploadResultDto>> UploadAsync(
@@ -46,15 +52,11 @@ public partial class TaiLieuService : ITaiLieuService
                 throw new BadRequestException($"File '{displayName}' vượt quá giới hạn 50MB.");
         }
 
-        var userId = GetCurrentUserId();
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
 
-        // Check GoiThau exists before FTP upload
+        // Check GoiThau scope before FTP upload
         if (goiThauId.HasValue)
-        {
-            var goiThauExists = await _db.GoiThaus.AnyAsync(g => g.Id == goiThauId.Value && g.TrangThaiHoatDong, ct);
-            if (!goiThauExists)
-                throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId.Value}");
-        }
+            await _tenderAccess.EnsureCanEditAsync(userId, goiThauId.Value);
 
         var entities = new List<TaiLieuHoSo>();
         var uploadedPaths = new List<string>();
@@ -116,14 +118,11 @@ public partial class TaiLieuService : ITaiLieuService
         if (entity is null || entity.DaXoa)
             throw new NotFoundException($"Không tìm thấy tài liệu với Id = {id}");
 
-        // IDOR guard: user must be owner or have full scope
-        var userId = GetCurrentUserId();
-        if (entity.NguoiUploadId != userId)
-        {
-            var isAdmin = _httpContextAccessor.HttpContext?.User?.IsInRole("ADMIN") == true;
-            if (!isAdmin)
-                throw new ForbiddenException("Bạn không có quyền truy cập tài liệu này.");
-        }
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        if (entity.GoiThauId.HasValue)
+            await _tenderAccess.EnsureCanViewAsync(userId, entity.GoiThauId.Value);
+        else if (entity.NguoiUploadId != userId)
+            throw new ForbiddenException("Bạn không có quyền truy cập tài liệu này.");
 
         var stream = await _ftp.DownloadAsync(entity.DuongDanFtp, ct);
         return (stream, entity.TenFile, entity.ContentType);
@@ -137,9 +136,10 @@ public partial class TaiLieuService : ITaiLieuService
         if (entity is null || entity.DaXoa)
             throw new NotFoundException($"Không tìm thấy tài liệu với Id = {id}");
 
-        // IDOR guard: user must be owner
-        var userId = GetCurrentUserId();
-        if (entity.NguoiUploadId != userId)
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        if (entity.GoiThauId.HasValue)
+            await _tenderAccess.EnsureCanEditAsync(userId, entity.GoiThauId.Value);
+        else if (entity.NguoiUploadId != userId)
             throw new ForbiddenException("Bạn không có quyền xóa tài liệu này.");
 
         try
@@ -163,17 +163,17 @@ public partial class TaiLieuService : ITaiLieuService
         if (!string.IsNullOrWhiteSpace(normalizedLoai) && !LoaiTaiLieu.All.Contains(normalizedLoai))
             throw new BadRequestException($"loaiTaiLieu không hợp lệ. Giá trị hợp lệ: {string.Join(", ", LoaiTaiLieu.All)}");
 
-        var userId = GetCurrentUserId();
-        var isAdmin = _httpContextAccessor.HttpContext?.User?.IsInRole("ADMIN") == true;
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+
+        if (goiThauId.HasValue)
+            await _tenderAccess.EnsureCanViewAsync(userId, goiThauId.Value);
 
         var query = _db.TaiLieuHoSos.Where(t => !t.DaXoa);
 
-        // Non-admin users only see their own uploads
-        if (!isAdmin && userId.HasValue)
-            query = query.Where(t => t.NguoiUploadId == userId.Value);
-
         if (goiThauId.HasValue)
             query = query.Where(t => t.GoiThauId == goiThauId);
+        else
+            query = query.Where(t => t.NguoiUploadId == userId);
 
         if (!string.IsNullOrWhiteSpace(normalizedLoai))
             query = query.Where(t => t.LoaiTaiLieu == normalizedLoai);
