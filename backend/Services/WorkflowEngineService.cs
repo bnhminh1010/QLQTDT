@@ -1308,7 +1308,8 @@ public class WorkflowEngineService : IWorkflowEngineService
             : null;
 
         var steps = instance.WorkflowStepInstances
-            .OrderBy(s => s.Id)
+            .OrderBy(s => s.BuocWorkflow?.ThuTu ?? int.MaxValue)
+            .ThenBy(s => s.Id)
             .Select(s => new WorkflowStepStateDto
             {
                 Id = s.Id,
@@ -1386,7 +1387,8 @@ public class WorkflowEngineService : IWorkflowEngineService
         if (instance is null) return [];
 
         return instance.WorkflowStepInstances
-            .OrderBy(s => s.Id)
+            .OrderBy(s => s.BuocWorkflow?.ThuTu ?? int.MaxValue)
+            .ThenBy(s => s.Id)
             .Select(s => new WorkflowStepStateDto
             {
                 Id = s.Id,

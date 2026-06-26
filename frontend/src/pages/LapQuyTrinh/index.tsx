@@ -12,7 +12,7 @@ import {
   getWorkflowDesignSteps, getWorkflowTransitions, getParallelGroups,
   deleteWorkflowStep, cloneWorkflowStep, updateWorkflowStep,
   insertStepAfter, createWorkflowStep, reorderWorkflowSteps,
-  createParallelGroup, createParallelBranch, updateParallelGroup, deleteParallelGroup,
+  createParallelGroup, createParallelBranch, updateParallelGroup, updateParallelBranch, deleteParallelGroup,
 } from "@/services/workflowApi";
 import { previewToWorkflowDraft, templateSummaryToInfo, mapLoaiBuocToUi, mapLoaiBuocToBackend, mapLoaiHanToUi, mapLoaiHanToBackend, mapHuongXuLyToUi, mapDieuKienHopNhatToUi } from "./workflowDesignerMappers";
 import http from "@/util/http";
@@ -431,8 +431,6 @@ export default function LapQuyTrinh() {
     setDeletingStep(false);
     toast.success("Da xoa buoc");
     return;
-    if (beId) { deleteWorkflowStep(beId).catch(() => { toast.error("Xóa trên server thất bại"); reloadSteps(); }); }
-    toast.success("Đã xóa bước");
   }
 
   function handleClone(step: WorkflowStepDraft) {
@@ -779,8 +777,9 @@ export default function LapQuyTrinh() {
             })
           );
 
-          if (branch?.backendId) {
-            await updateParallelBranch(branch.backendId, { buocDauTienId: createdStep.id });
+          const branchBackendId = branch?.backendId;
+          if (branchBackendId) {
+            await updateParallelBranch(branchBackendId, { buocDauTienId: createdStep.id });
             setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
               ...s,
               backendId: createdStep.id,

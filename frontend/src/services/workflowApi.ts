@@ -53,6 +53,21 @@ export async function getWorkflows(search?: string): Promise<WorkflowItem[]> {
   return items;
 }
 
+export type WorkflowCreateRequest = {
+  tenWorkflow: string;
+  hinhThucId: number;
+};
+
+export type WorkflowCreateResponse = {
+  id: number;
+  tenWorkflow: string;
+};
+
+export async function createWorkflow(request: WorkflowCreateRequest): Promise<WorkflowCreateResponse> {
+  const res = await http.post<ApiResponse<WorkflowCreateResponse>>("/workflows", request);
+  return res.data;
+}
+
 export async function getWorkflowById(id: number): Promise<WorkflowItem> {
   const res = await http.get<ApiResponse<WorkflowItem>>(`/workflows/${id}`);
   return res.data;

@@ -166,8 +166,8 @@ export default function WorkflowStepList({
               return (
                 <li key={s.id}>
                   {group ? (
-                    <div className="rounded-3xl border border-purple-200/80 bg-[linear-gradient(135deg,rgba(250,245,255,0.95),rgba(255,255,255,0.98))] p-4 shadow-sm">
-                      <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,0.9fr)_minmax(360px,1.25fr)] gap-4 items-start">
+                    <div className="rounded-3xl border border-purple-200/80 bg-[linear-gradient(135deg,rgba(250,245,255,0.95),rgba(255,255,255,0.98))] p-4 shadow-sm overflow-x-auto">
+                      <div className="grid min-w-[760px] grid-cols-1 lg:grid-cols-[minmax(280px,0.9fr)_minmax(360px,1.25fr)] gap-4 items-start">
                         <div className="self-start space-y-2">
                           <div className="flex items-center justify-between gap-2 px-1">
                             <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-purple-700">

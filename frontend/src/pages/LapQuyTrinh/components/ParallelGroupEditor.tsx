@@ -76,6 +76,7 @@ export default function ParallelGroupEditor({
         <div className={inline ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
           {group.branches.map((branch, bi) => {
             const branchStepsList = branchSteps(branch.id);
+            const hasStep = branchStepsList.length > 0;
 
             return (
               <div
@@ -120,21 +121,20 @@ export default function ParallelGroupEditor({
                           </button>
                         </div>
                       </div>
-                      <button
-                        onClick={() => onAddStepToBranch(branch.id, s.id)}
-                        className="w-6 h-6 flex items-center justify-center rounded text-blue-500 hover:bg-blue-50 shrink-0"
-                        title="Thêm bước vào sau"
-                      >
-                        <i className="fa-solid fa-plus text-[10px]" />
-                      </button>
                     </div>
                   ))}
-                  <button
-                    onClick={() => onAddStepToBranch(branch.id)}
-                    className="text-[10px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                  >
-                    <i className="fa-solid fa-plus" /> Thêm bước
-                  </button>
+                  {hasStep ? (
+                    <p className="text-[10px] text-slate-400 italic">
+                      Mỗi nhánh chỉ gồm 1 bước.
+                    </p>
+                  ) : (
+                    <button
+                      onClick={() => onAddStepToBranch(branch.id)}
+                      className="text-[10px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                    >
+                      <i className="fa-solid fa-plus" /> Thêm bước
+                    </button>
+                  )}
                 </div>
               </div>
             );
