@@ -48,12 +48,15 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
 
     [HttpPost]
     [HasPermission("GOITHAU.CREATE")]
-    public async Task<ActionResult<ApiResponse<GoiThau>>> Create(
+    public async Task<ActionResult<ApiResponse<GoiThauDetailDto>>> Create(
         [FromBody] CreateGoiThauDto dto)
     {
         var created = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetByIdSafe), new { id = created.Id },
-            ApiResponse<GoiThau>.Ok(created, "Tạo gói thầu thành công"));
+        return CreatedAtAction(
+            nameof(GetByIdSafe),
+            new { id = created.Id },
+            ApiResponse<GoiThauDetailDto>.Ok(created, "Tạo gói thầu thành công")
+        );
     }
 
     [NonAction]
@@ -70,11 +73,11 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
 
     [HttpPut("{id}")]
     [HasPermission("GOITHAU.EDIT")]
-    public async Task<ActionResult<ApiResponse<GoiThau>>> Update(
+    public async Task<ActionResult<ApiResponse<GoiThauDetailDto>>> Update(
         int id, [FromBody] UpdateGoiThauDto dto)
     {
         var updated = await _service.UpdateAsync(id, dto);
-        return Ok(ApiResponse<GoiThau>.Ok(updated, "Cập nhật gói thầu thành công"));
+        return Ok(ApiResponse<GoiThauDetailDto>.Ok(updated, "Cập nhật gói thầu thành công"));
     }
 
     /// <summary>Hủy gói thầu (chuyển trạng thái HUY_BO)</summary>

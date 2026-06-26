@@ -98,6 +98,7 @@ public class GoiThauDetailDto
     public DateTime NgayTao { get; set; }
     public DateTime? NgayCapNhat { get; set; }
     public int? KhoaPhongId { get; set; }
+    public string? TenKhoaPhong { get; set; }
     public int? HinhThucId { get; set; }
     public string? TenHinhThuc { get; set; }
     public string? NguonVon { get; set; }

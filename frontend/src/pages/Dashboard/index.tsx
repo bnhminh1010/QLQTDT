@@ -4,6 +4,7 @@ import { SelectField } from "@/components/ui/select";
 import { searchGoiThau } from "@/services/goiThauApi";
 import {
   getWorkflowState,
+  formatWorkflowKetQua,
   type WorkflowStateDto,
   type WorkflowStepStateDto,
 } from "@/services/workflowApi";
@@ -181,13 +182,18 @@ function mapWorkflowStep(
   return {
     state: completed ? "done" : current || overdue ? "warn" : "idle",
     name: step.tenBuoc,
-    processor: step.tenNguoiXuLy || step.tenVaiTroXuLy || step.phaHienTai || "-",
+    processor:
+      step.tenNguoiXuLy ||
+      step.tenNguoiKyDuyet ||
+      step.tenVaiTroXuLy ||
+      step.tenVaiTroKyDuyet ||
+      "-",
     status: mapWorkflowStepStatus(step),
     sla: overdue ? "Quá hạn" : TIEN_DO_LABEL[step.tinhTrangTienDo ?? ""] || step.hanXuLy?.slice(0, 10) || "-",
     ngayXuLy: step.ngayXuLy?.slice(0, 10),
     nguoiKy: step.tenNguoiKyDuyet,
     ngayKy: step.ngayKyDuyet?.slice(0, 10),
-    ketQua: step.ketQua,
+    ketQua: formatWorkflowKetQua(step.ketQua),
     reason: step.lyDoKhongDuyet,
   };
 }
@@ -245,11 +251,18 @@ export default function Dashboard() {
           hanHT: currentStepDetail?.hanXuLy?.slice(0, 10) || '',
           hinhThuc: item.tenHinhThuc || '',
           currentStep: workflowState?.tenBuocHienTai || currentStep?.tenBuoc || '',
-          currentProcessor: currentStepDetail?.tenNguoiXuLy || currentStepDetail?.tenVaiTroXuLy || '',
+          currentProcessor:
+            currentStepDetail?.tenNguoiXuLy ||
+            currentStepDetail?.tenNguoiKyDuyet ||
+            currentStepDetail?.tenVaiTroXuLy ||
+            currentStepDetail?.tenVaiTroKyDuyet ||
+            '',
           currentProcessDate: currentStepDetail?.ngayXuLy?.slice(0, 10) || '',
           currentSigner: currentStepDetail?.tenNguoiKyDuyet || '',
           currentSignedDate: currentStepDetail?.ngayKyDuyet?.slice(0, 10) || '',
-          currentResult: currentStepDetail?.ketQua || currentStepDetail?.trangThai || '',
+          currentResult:
+            formatWorkflowKetQua(currentStepDetail?.ketQua) ||
+            (currentStepDetail?.trangThai === "HOAN_TAT" ? "Duyệt" : currentStepDetail?.trangThai || ''),
           progressStatus: getProgressStatus(workflowState),
           steps: workflowState?.steps.map((step) =>
             mapWorkflowStep(step, currentStep?.stepInstanceId),

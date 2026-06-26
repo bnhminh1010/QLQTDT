@@ -4,7 +4,13 @@ import { toast } from "sonner";
 import { formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { KetQuaXuLy } from "@/pages/DanhSachGoiThau/xuLyBuocService";
-import { getWorkflowState, getWorkflowStepDetail, processStep, type WorkflowStepStateDto } from "@/services/workflowApi";
+import {
+  formatWorkflowKetQua,
+  getWorkflowState,
+  getWorkflowStepDetail,
+  processStep,
+  type WorkflowStepStateDto,
+} from "@/services/workflowApi";
 import { useFileAttachment } from "@/hooks/useFileAttachment";
 import { fileIcon, formatBytes, openFile, downloadFile } from "@/util/fileAttachment";
 
@@ -110,12 +116,12 @@ export default function XuLyBuocGoiThau() {
         ngayXuLy: backendStep.ngayXuLy?.slice(0, 10) || todayInputValue(),
         nguoiKyDuyet: backendStep.tenNguoiKyDuyet || "",
         ngayKyDuyet: backendStep.ngayKyDuyet?.slice(0, 10) || "",
-        ketQua: backendStep.ketQua || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý"),
+        ketQua: formatWorkflowKetQua(backendStep.ketQua) || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý"),
         ghiChu: backendStep.lyDoKhongDuyet || "",
         lyDoKhongDuyet: backendStep.lyDoKhongDuyet || "",
         taiLieuDinhKem: [],
       });
-      const nextKetQua = backendStep.ketQua || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
+      const nextKetQua = formatWorkflowKetQua(backendStep.ketQua) || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
       setDecision(nextKetQua === "Không duyệt" || nextKetQua === "Duyệt" ? nextKetQua as KetQuaXuLy : "");
       setRejectReason(backendStep.lyDoKhongDuyet || "");
       setLocked(isDone);
@@ -188,6 +194,12 @@ export default function XuLyBuocGoiThau() {
         workflowStepInstanceId: step.id,
         rowVersion: step.rowVersion,
         taiLieuDinhKem: attachments.map((file) => file.name).join(", ") || undefined,
+        // include form fields so backend/response can reflect them in UI
+        nguoiXuLy: form.nguoiXuLy || undefined,
+        ngayXuLy: form.ngayXuLy || undefined,
+        nguoiKyDuyet: form.nguoiKyDuyet || undefined,
+        ngayKyDuyet: form.ngayKyDuyet || undefined,
+        ketQua: decision === "Không duyệt" ? "KHONG_DUYET" : "DUYET",
       });
 
       toast.success(result.message || "Cập nhật bước thành công.");

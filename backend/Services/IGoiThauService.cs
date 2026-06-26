@@ -7,8 +7,8 @@ namespace QLQTDT.Api.Services;
 public interface IGoiThauService : IBaseService<GoiThau>
 {
     Task<PagedResult<GoiThauDto>> SearchAsync(int page, int pageSize, string? trangThai);
-    Task<GoiThau> CreateAsync(CreateGoiThauDto dto);
-    Task<GoiThau> UpdateAsync(int id, UpdateGoiThauDto dto);
+    Task<GoiThauDetailDto> CreateAsync(CreateGoiThauDto dto);
+    Task<GoiThauDetailDto> UpdateAsync(int id, UpdateGoiThauDto dto);
     Task<GoiThauDetailDto> GetChiTietAsync(int id);
     Task<IReadOnlyList<LichSuTrangThaiGoiThauDto>> GetLichSuTrangThaiAsync(int id);
     Task CancelAsync(int id);

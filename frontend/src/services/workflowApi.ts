@@ -496,6 +496,10 @@ export type ProcessStepRequest = {
   nguoiKyDuyetId?: number;
   ngayKyDuyet?: string;
   taiLieuDinhKem?: string;
+  // UI-provided display fields (optional)
+  nguoiXuLy?: string;
+  nguoiKyDuyet?: string;
+  ketQua?: string;
 };
 
 export type ProcessStepResponse = {
@@ -517,6 +521,21 @@ export type ProcessStepResponse = {
   phaHienTai?: string;
   choKyDuyet: boolean;
 };
+
+const WORKFLOW_KET_QUA_LABEL: Record<string, string> = {
+  DUYET: "Duyệt",
+  KHONG_DUYET: "Không duyệt",
+  TRA_VE: "Trả về",
+  BO_QUA: "Bỏ qua",
+  CHO_XU_LY: "Chờ xử lý",
+  CHO_DUYET: "Chờ duyệt",
+  CHO_KY_DUYET: "Chờ ký duyệt",
+};
+
+export function formatWorkflowKetQua(value?: string | null): string {
+  if (!value) return "";
+  return WORKFLOW_KET_QUA_LABEL[value] ?? value;
+}
 
 export async function getWorkflowState(goiThauId: number): Promise<WorkflowStateDto> {
   const res = await http.get<ApiResponse<WorkflowStateDto>>(`/goi-thau/${goiThauId}/workflow`);

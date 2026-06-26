@@ -1,6 +1,6 @@
+import { SelectField } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import type { User, UserEditFormValues, VaiTro } from "./types";
-import { PHONG_OPTIONS, VAI_TRO_OPTIONS } from "./types";
 
 type Props = {
   user: User;

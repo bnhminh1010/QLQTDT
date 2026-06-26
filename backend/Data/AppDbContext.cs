@@ -383,6 +383,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NgayKyDuyet).HasColumnType("datetime2");
             entity.Property(e => e.HanXuLy).HasColumnType("datetime2");
             entity.Property(e => e.QuaHan);
+            entity.Property(e => e.NguoiXuLyText).HasMaxLength(200);
+            entity.Property(e => e.NguoiKyDuyetText).HasMaxLength(200);
             entity.Property(e => e.KetQua).HasMaxLength(20);
             entity.Property(e => e.LyDoKhongDuyet).HasMaxLength(1000);
             entity.Property(e => e.TaiLieuDinhKem);

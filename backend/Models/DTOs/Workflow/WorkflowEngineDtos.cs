@@ -48,6 +48,15 @@ public class ProcessStepRequest
 
     /// <summary>Tài liệu đính kèm (ghi chú văn bản, không phải file binary).</summary>
     public string? TaiLieuDinhKem { get; set; }
+
+    // Optional: allow UI to provide manual handling fields. When present, server will persist and return them.
+    public int? NguoiXuLyId { get; set; }
+    public DateTime? NgayXuLy { get; set; }
+    public int? NguoiKyDuyetId { get; set; }
+    public DateTime? NgayKyDuyet { get; set; }
+    public string? KetQua { get; set; }
+    public string? NguoiXuLy { get; set; }
+    public string? NguoiKyDuyet { get; set; }
 }
 
 public class ProcessStepResponse

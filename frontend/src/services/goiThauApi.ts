@@ -64,6 +64,7 @@ export type CreateGoiThauFullRequest = {
   workflowId?: number;
   nguonVon?: string;
   loaiGoiThau?: string;
+  canCuApDungRutGon?: string;
   theoDoi?: string;
 };
 

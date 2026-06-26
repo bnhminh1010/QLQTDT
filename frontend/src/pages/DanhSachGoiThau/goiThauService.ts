@@ -68,10 +68,22 @@ async function getHinhThucList(): Promise<HinhThucDauThau[]> {
   return result;
 }
 
+function normalizeText(value?: string): string {
+  return (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
 function tenHinhThucToId(tenHinhThuc?: string): number | undefined {
   if (!tenHinhThuc) return undefined;
   if (!_hinhThucCache) return undefined;
-  return _hinhThucCache.find(ht => ht.tenHinhThuc === tenHinhThuc)?.id;
+
+  const normalizedName = normalizeText(tenHinhThuc);
+
+  return _hinhThucCache.find(
+    ht => normalizeText(ht.tenHinhThuc) === normalizedName
+  )?.id;
 }
 
 /** Resolve tenKhoaPhong → khoaPhongId (for KhoaPhong dropdown in form) */
@@ -150,12 +162,19 @@ export const getGoiThauById = async (id: string): Promise<GoiThau | undefined> =
 /** Send full payload with hinhThucId resolution */
 export const addGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
   await getHinhThucList();
+  await ensureKhoaPhongCache();
 
+    console.log("item.hinhThuc =", item.hinhThuc);
+  console.log("_hinhThucCache =", _hinhThucCache);
+
+  const hinhThucId = tenHinhThucToId(item.hinhThuc);
+
+  console.log("resolved hinhThucId =", hinhThucId);
   const payload: CreateGoiThauFullRequest = {
     tenGoiThau: item.tenGoiThau || item.ten || '',
     moTa: item.ghiChu || '',
     nganSach: item.giaTriNum || 0,
-    hinhThucId: tenHinhThucToId(item.hinhThuc) ?? 0,
+    hinhThucId: hinhThucId ?? 0,
     khoaPhongId: tenKhoaPhongToId(item.donVi),
     workflowId: item.workflowId,
     nguonVon: item.detail?.nguonVon,
@@ -173,12 +192,19 @@ export const updateGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
   const numId = parseInt((item.id || '').replace(/^GT/, ''), 10);
   if (isNaN(numId)) return;
   await getHinhThucList();
+  await ensureKhoaPhongCache();
+
+  const hinhThucId = tenHinhThucToId(item.hinhThuc);
+
+  if (!hinhThucId) {
+    throw new Error(`Không tìm thấy hình thức đấu thầu: ${item.hinhThuc}`);
+  }
 
   const payload: UpdateGoiThauFullRequest = {
     tenGoiThau: item.tenGoiThau || item.ten || '',
     moTa: item.ghiChu || '',
     nganSach: item.giaTriNum || 0,
-    hinhThucId: tenHinhThucToId(item.hinhThuc),
+    hinhThucId,
     nguonVon: item.detail?.nguonVon,
     loaiGoiThau: item.loaiGoiThau,
     canCuApDungRutGon: item.canCuApDungRutGon,

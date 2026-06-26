@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace QLQTDT.Api.Models.Entities;
 
 public class HinhThucDauThau : IBaseEntity
@@ -12,5 +14,6 @@ public class HinhThucDauThau : IBaseEntity
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public int SoGoi { get; set; }
 
+    [JsonIgnore]
     public ICollection<Workflow> Workflows { get; set; } = [];
 }

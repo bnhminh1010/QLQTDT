@@ -19,6 +19,8 @@ public class WorkflowStepInstance
     // Pha 2 — người ký duyệt
     public int? NguoiKyDuyetId { get; set; }
     public DateTime? NgayKyDuyet { get; set; }
+    public string? NguoiXuLyText { get; set; }
+    public string? NguoiKyDuyetText { get; set; }
     public string? KetQua { get; set; }           // DUYET / KHONG_DUYET
     public string? LyDoKhongDuyet { get; set; }
 

@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.Constants;
 using QLQTDT.Api.Models.DTOs.GoiThau;
@@ -14,16 +16,19 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ITenderAccessService _tenderAccess;
     private readonly IWorkflowEngineService _workflowEngine;
+    private readonly ILogger<GoiThauService> _logger;
 
     public GoiThauService(
         AppDbContext db,
         IHttpContextAccessor httpContextAccessor,
         ITenderAccessService tenderAccess,
-        IWorkflowEngineService workflowEngine) : base(db)
+        IWorkflowEngineService workflowEngine,
+        ILogger<GoiThauService> logger) : base(db)
     {
         _httpContextAccessor = httpContextAccessor;
         _tenderAccess = tenderAccess;
         _workflowEngine = workflowEngine;
+        _logger = logger;
     }
 
     public async Task<PagedResult<GoiThauDto>> SearchAsync(int page, int pageSize, string? trangThai)
@@ -196,40 +201,49 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             .ToListAsync();
     }
 
-    public async Task<GoiThau> CreateAsync(CreateGoiThauDto dto)
+    public async Task<GoiThauDetailDto> CreateAsync(CreateGoiThauDto dto)
     {
         var currentUserId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
 
         // Validate HinhThucDauThau exists and is active
-        var hinhThuc = await _db.HinhThucDauThaus
+        var selectedHinhThuc = await _db.HinhThucDauThaus
             .AsNoTracking()
             .FirstOrDefaultAsync(h => h.Id == dto.HinhThucId && h.TrangThaiHoatDong)
             ?? throw new BadRequestException("Hình thức đấu thầu không hợp lệ hoặc đã bị vô hiệu hóa.");
 
-        ValidateRutGonPolicy(hinhThuc.MaHinhThuc, hinhThuc.TenHinhThuc, dto.NganSach, dto.LoaiGoiThau, dto.CanCuApDungRutGon, hinhThuc.HanMucToiDa);
-
         // Prefer workflow selected by frontend; fallback to active workflow matching HinhThucId.
         int? workflowId = dto.WorkflowId;
         Workflow? workflow = null;
+        var resolvedHinhThuc = selectedHinhThuc;
         if (workflowId.HasValue)
         {
             workflow = await _db.Workflows
                 .AsNoTracking()
+                .Include(w => w.HinhThuc)
                 .FirstOrDefaultAsync(w => w.Id == workflowId.Value && w.TrangThaiHoatDong)
                 ?? throw new BadRequestException("Quy trình đấu thầu không hợp lệ hoặc đã bị vô hiệu hóa.");
 
-            if (workflow.HinhThucId != dto.HinhThucId)
+            if (!HinhThucDauThauCompatibility.AreCompatible(selectedHinhThuc, workflow.HinhThuc))
                 throw new BadRequestException("Quy trình đấu thầu không phù hợp với hình thức đấu thầu đã chọn.");
+            resolvedHinhThuc = workflow.HinhThuc;
         }
         else
         {
             workflow = await _db.Workflows
                 .AsNoTracking()
-                .Where(w => w.HinhThucId == dto.HinhThucId && w.TrangThaiHoatDong)
+                .Where(w => w.HinhThucId == selectedHinhThuc.Id && w.TrangThaiHoatDong)
                 .OrderBy(w => w.Id)
                 .FirstOrDefaultAsync();
             workflowId = workflow?.Id;
         }
+
+        ValidateRutGonPolicy(
+            resolvedHinhThuc.MaHinhThuc,
+            resolvedHinhThuc.TenHinhThuc,
+            dto.NganSach,
+            dto.LoaiGoiThau,
+            dto.CanCuApDungRutGon,
+            resolvedHinhThuc.HanMucToiDa);
 
         // Resolve KhoaPhongId from current user if not provided
         int? khoaPhongId = dto.KhoaPhongId;
@@ -262,7 +276,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                     MoTa = dto.MoTa,
                     DeXuatId = dto.DeXuatId,
                     NganSach = dto.NganSach,
-                    HinhThucId = dto.HinhThucId,
+                    HinhThucId = resolvedHinhThuc.Id,
                     WorkflowId = workflowId,
                     KhoaPhongId = khoaPhongId,
                     NguoiTaoId = currentUserId,
@@ -287,13 +301,14 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                             AutoSuggest = false
                         });
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Workflow start failed — gói thầu vẫn tồn tại ở DU_THAO để xử lý sau
+                        _logger.LogError(ex, "Failed to auto-start workflow for GoiThauId={GoiThauId}, WorkflowId={WorkflowId}", created.Id, workflowId.Value);
+                        throw;
                     }
                 }
 
-                return created;
+                return await GetChiTietAsync(created.Id);
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
                 when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx
@@ -307,7 +322,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         throw new ConflictException("Không thể tạo mã gói thầu. Vui lòng thử lại.");
     }
 
-    public async Task<GoiThau> UpdateAsync(int id, UpdateGoiThauDto dto)
+    public async Task<GoiThauDetailDto> UpdateAsync(int id, UpdateGoiThauDto dto)
     {
         var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
         await _tenderAccess.EnsureCanEditAsync(userId, id);
@@ -350,7 +365,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             entity.TheoDoi = dto.TheoDoi;
 
         await _db.SaveChangesAsync();
-        return entity;
+        return await GetChiTietAsync(entity.Id);
     }
 
     public override async Task DeleteAsync(int id)
