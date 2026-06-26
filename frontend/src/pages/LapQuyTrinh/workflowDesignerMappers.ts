@@ -101,6 +101,13 @@ function nextDraftId(): string {
   return `draft_${Date.now()}_${_draftCounter}`;
 }
 
+function buildBranchStepIds(steps: WorkflowStepDraft[], branchDraftId: string): string[] {
+  return steps
+    .filter((step) => step.nhanhId === branchDraftId)
+    .sort((a, b) => a.thuTu - b.thuTu)
+    .map((step) => step.id);
+}
+
 export function previewToWorkflowDraft(
   preview: WorkflowTemplatePreview,
   loaiHinh: string,
@@ -159,7 +166,7 @@ export function previewToWorkflowDraft(
         id: branchDraftId,
         backendId: preserveBackendIds ? b.id : undefined,
         tenNhanh: b.tenNhanh,
-        stepIds: steps.filter((s) => s.nhanhId === branchDraftId).map((s) => s.id),
+        stepIds: buildBranchStepIds(steps, branchDraftId),
       };
     });
     return {

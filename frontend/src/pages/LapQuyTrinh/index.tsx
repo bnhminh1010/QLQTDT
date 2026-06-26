@@ -7,12 +7,14 @@ import type { StepLibraryEntry } from "./stepLibrary";
 import WorkflowPreview from "./components/WorkflowPreview";
 import type { WorkflowTemplatePreview, WorkflowTemplateSummary } from "@/services/workflowApi";
 import {
+  createWorkflow,
+  createWorkflowTransition,
   getWorkflowTemplates, previewWorkflowTemplate, generateWorkflowFromTemplate,
   getWorkflowById,
   getWorkflowDesignSteps, getWorkflowTransitions, getParallelGroups,
   deleteWorkflowStep, cloneWorkflowStep, updateWorkflowStep,
   insertStepAfter, createWorkflowStep, reorderWorkflowSteps,
-  createParallelGroup, createParallelBranch, updateParallelGroup, updateParallelBranch, deleteParallelGroup,
+  createParallelGroup, createParallelBranch, updateParallelGroup, updateParallelBranch, deleteParallelGroup, deleteParallelBranch,
 } from "@/services/workflowApi";
 import { previewToWorkflowDraft, templateSummaryToInfo, mapLoaiBuocToUi, mapLoaiBuocToBackend, mapLoaiHanToUi, mapLoaiHanToBackend, mapHuongXuLyToUi, mapDieuKienHopNhatToUi } from "./workflowDesignerMappers";
 import http from "@/util/http";
@@ -152,7 +154,7 @@ export default function LapQuyTrinh() {
                 id: `branch_${b.id}`,
                 backendId: b.id,
                 tenNhanh: b.tenNhanh,
-                stepIds: steps.filter((s) => s.nhanhId === `branch_${b.id}`).map((s) => s.id),
+                stepIds: buildBranchStepIds(steps, `branch_${b.id}`),
               }));
               return {
                 id: groupId,
@@ -180,6 +182,34 @@ export default function LapQuyTrinh() {
   }, [isDirty]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
+
+  function buildBranchStepIds(steps: WorkflowStepDraft[], branchId: string): string[] {
+    return steps
+      .filter((step) => step.nhanhId === branchId)
+      .sort((a, b) => a.thuTu - b.thuTu)
+      .map((step) => step.id);
+  }
+
+  function findBranchDraft(branchId: string): ParallelBranchDraft | undefined {
+    return parallelGroups.flatMap((group) => group.branches).find((branch) => branch.id === branchId);
+  }
+
+  function getOrderedBranchSteps(
+    branchId: string,
+    sourceSteps: WorkflowStepDraft[] = buocList,
+  ): WorkflowStepDraft[] {
+    const branch = findBranchDraft(branchId);
+    const stepMap = new Map(sourceSteps.map((step) => [step.id, step] as const));
+    const orderedSteps = branch?.stepIds
+      .map((stepId) => stepMap.get(stepId))
+      .filter((step): step is WorkflowStepDraft => Boolean(step)) ?? [];
+
+    if (orderedSteps.length > 0 || branch) {
+      return orderedSteps;
+    }
+
+    return sourceSteps.filter((step) => step.nhanhId === branchId);
+  }
 
   async function saveDraftWorkflow(hinhThucId?: number) {
     try {
@@ -243,15 +273,45 @@ export default function LapQuyTrinh() {
           buocSauHopNhatId: mergeStepBackendId,
         });
 
-        for (const branch of group.branches) {
-          await createParallelBranch(createdGroup.id, {
+        for (const [branchIndex, branch] of group.branches.entries()) {
+          const orderedBranchSteps = getOrderedBranchSteps(branch.id);
+          if (orderedBranchSteps.length === 0) {
+            continue;
+          }
+
+          const [firstBranchStep, ...remainingBranchSteps] = orderedBranchSteps;
+          const createdFirstStep = await createWorkflowStep(
+            newWorkflowId,
+            buildDraftStepCreatePayload(firstBranchStep, thuTu++)
+          );
+          stepIdMap.set(firstBranchStep.id, createdFirstStep.id);
+
+          const createdBranch = await createParallelBranch(createdGroup.id, {
             maNhanh: `BR_${Date.now()}`,
             tenNhanh: branch.tenNhanh,
-            thuTu: 1,
+            thuTu: branchIndex + 1,
             thoiHanNgay: 1,
             loaiHan: "CANH_BAO",
-            buocDauTienId: 0,
+            buocDauTienId: createdFirstStep.id,
           });
+
+          await updateWorkflowStep(createdFirstStep.id, {
+            nhanhWorkflowId: createdBranch.id,
+          });
+
+          let previousBackendStepId = createdFirstStep.id;
+          for (const branchStep of remainingBranchSteps) {
+            const createdBranchStep = await insertStepAfter(
+              newWorkflowId,
+              previousBackendStepId,
+              buildDraftStepInsertPayload(branchStep)
+            );
+            stepIdMap.set(branchStep.id, createdBranchStep.id);
+            await updateWorkflowStep(createdBranchStep.id, {
+              nhanhWorkflowId: createdBranch.id,
+            });
+            previousBackendStepId = createdBranchStep.id;
+          }
         }
       }
 
@@ -407,7 +467,7 @@ export default function LapQuyTrinh() {
           id: `branch_${b.id}`,
           backendId: b.id,
           tenNhanh: b.tenNhanh,
-          stepIds: steps.filter((s) => s.nhanhId === `branch_${b.id}`).map((s) => s.id),
+          stepIds: buildBranchStepIds(steps, `branch_${b.id}`),
         })),
       })));
     } catch { toast.error("Không thể tải lại danh sách bước"); }
@@ -475,7 +535,7 @@ export default function LapQuyTrinh() {
       return;
     }
     if (step.nhanhId) {
-      const branchStepCount = buocList.filter((s) => s.nhanhId === step.nhanhId).length;
+      const branchStepCount = getOrderedBranchSteps(step.nhanhId).length;
       if (branchStepCount <= 1) {
         toast.error("Không thể xóa bước cuối của nhánh song song");
         return;
@@ -499,10 +559,22 @@ export default function LapQuyTrinh() {
     if (!deleteTarget) return;
     const step = deleteTarget;
     const beId = step.backendId;
+    const branch = step.nhanhId ? findBranchDraft(step.nhanhId) : undefined;
+    const branchStepIds = branch?.stepIds ?? [];
+    const deletedBranchStepIdx = branchStepIds.indexOf(step.id);
+    const nextFirstBranchStepId = deletedBranchStepIdx === 0 ? branchStepIds[1] : undefined;
+    const nextFirstBranchStep = nextFirstBranchStepId
+      ? buocList.find((candidate) => candidate.id === nextFirstBranchStepId)
+      : undefined;
     setDeletingStep(true);
     try {
       if (beId) {
         await deleteWorkflowStep(beId);
+      }
+      if (branch?.backendId && deletedBranchStepIdx === 0 && nextFirstBranchStep?.backendId) {
+        await updateParallelBranch(branch.backendId, {
+          buocDauTienId: nextFirstBranchStep.backendId,
+        });
       }
       removeStepFromState(step.id);
       setDeleteTarget(null);
@@ -610,6 +682,47 @@ export default function LapQuyTrinh() {
       choPhepTuChoi: true,
       choPhepBoQua: false,
       nhanhWorkflowId: options?.nhanhWorkflowId,
+    };
+  }
+
+  function buildDraftStepCreatePayload(
+    step: WorkflowStepDraft,
+    thuTu: number,
+    options?: { nhanhWorkflowId?: number }
+  ) {
+    return {
+      maBuoc: step.maBuoc || `BUOC_${Date.now()}_${thuTu}`,
+      tenBuoc: step.tenBuoc,
+      loaiBuoc: mapLoaiBuocToBackend(step.loaiBuoc),
+      thuTu,
+      soNgayLapHoSo: step.slaNgay,
+      soNgayXuLy: step.soNgayKyDuyet ?? 0,
+      loaiHan: mapLoaiHanToBackend(step.loaiThoiHan),
+      laBuocJoin: false,
+      moTa: step.moTa || undefined,
+      batBuocGhiChu: step.batBuocGhiChu,
+      batBuocTaiLieu: step.batBuocTaiLieu,
+      batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
+      batBuocDungSLA: step.batBuocDungSLA,
+      choPhepTuChoi: true,
+      choPhepBoQua: false,
+      nhanhWorkflowId: options?.nhanhWorkflowId,
+    };
+  }
+
+  function buildDraftStepInsertPayload(step: WorkflowStepDraft) {
+    return {
+      maBuoc: step.maBuoc || `BUOC_${Date.now()}`,
+      tenBuoc: step.tenBuoc,
+      loaiBuoc: mapLoaiBuocToBackend(step.loaiBuoc),
+      soNgayLapHoSo: step.slaNgay,
+      soNgayXuLy: step.soNgayKyDuyet ?? 0,
+      loaiHan: mapLoaiHanToBackend(step.loaiThoiHan),
+      createDefaultTransition: true,
+      batBuocGhiChu: step.batBuocGhiChu,
+      batBuocTaiLieu: step.batBuocTaiLieu,
+      batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
+      batBuocDungSLA: step.batBuocDungSLA,
     };
   }
 
@@ -843,14 +956,16 @@ export default function LapQuyTrinh() {
       toast.success("Đã cập nhật bước");
     } else if (isBranch) {
       const branchAfterStepId = modalContext.afterStepId;
-      const branch = parallelGroups.flatMap((g) => g.branches).find((b) => b.id === modalContext.branchId);
+      const branch = findBranchDraft(modalContext.branchId);
       const group = parallelGroups.find((g) => g.branches.some((b) => b.id === modalContext.branchId));
-      const branchSteps = buocList.filter((s) => s.nhanhId === modalContext.branchId);
-      const anchorStepId = branchAfterStepId || branchSteps[branchSteps.length - 1]?.id;
+      const branchSteps = getOrderedBranchSteps(modalContext.branchId);
+      const resolvedAfterStepId = branchAfterStepId || (branch ? branch.stepIds[branch.stepIds.length - 1] : undefined);
+      const anchorStepId = resolvedAfterStepId || branchSteps[branchSteps.length - 1]?.id;
       const anchorStep = anchorStepId ? buocList.find((s) => s.id === anchorStepId) : undefined;
+      const isEmptyBranch = branchSteps.length === 0;
       setBuocList((prev) => {
-        if (!branchAfterStepId) return [...prev, newStep]; // append to end
-        const idx = prev.findIndex((s) => s.id === branchAfterStepId);
+        if (!resolvedAfterStepId) return [...prev, newStep];
+        const idx = prev.findIndex((s) => s.id === resolvedAfterStepId);
         if (idx === -1) return [...prev, newStep];
         const copy = [...prev];
         copy.splice(idx + 1, 0, newStep);
@@ -861,11 +976,10 @@ export default function LapQuyTrinh() {
         branches: g.branches.map((b) => {
           if (b.id !== modalContext.branchId) return b;
           // Insert stepId at correct position in branch
-          const existingBranchSteps = buocList.filter((s) => s.nhanhId === b.id);
-          if (!branchAfterStepId || existingBranchSteps.length === 0) {
+          if (!resolvedAfterStepId || b.stepIds.length === 0) {
             return { ...b, stepIds: [...b.stepIds, newStep.id] };
           }
-          const stepIdx = b.stepIds.indexOf(branchAfterStepId);
+          const stepIdx = b.stepIds.indexOf(resolvedAfterStepId);
           if (stepIdx === -1) return { ...b, stepIds: [...b.stepIds, newStep.id] };
           const newStepIds = [...b.stepIds];
           newStepIds.splice(stepIdx + 1, 0, newStep.id);
@@ -888,6 +1002,11 @@ export default function LapQuyTrinh() {
               batBuocKyTruocChuyenBuoc: stepFormToPersist.batBuocKyTruocChuyenBuoc,
               batBuocDungSLA: stepFormToPersist.batBuocDungSLA,
             });
+            if (branch?.backendId) {
+              await updateWorkflowStep(createdStep.id, {
+                nhanhWorkflowId: branch.backendId,
+              });
+            }
             setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
               ...s,
               backendId: createdStep.id,
@@ -907,8 +1026,19 @@ export default function LapQuyTrinh() {
           );
 
           const branchBackendId = branch?.backendId;
-          if (branchBackendId) {
+          if (branchBackendId && isEmptyBranch) {
             await updateParallelBranch(branchBackendId, { buocDauTienId: createdStep.id });
+            setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
+              ...s,
+              backendId: createdStep.id,
+              maBuoc: createdStep.maBuoc || s.maBuoc,
+              thuTu: createdStep.thuTu,
+              tenBuoc: createdStep.tenBuoc,
+              loaiBuoc: mapLoaiBuocToUi(createdStep.loaiBuoc),
+            } : s));
+            return;
+          }
+          if (branchBackendId) {
             setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
               ...s,
               backendId: createdStep.id,
@@ -1018,7 +1148,7 @@ export default function LapQuyTrinh() {
     // Validate parallel groups
     for (const g of parallelGroups) {
       if (g.branches.length < 2) { setSaveErr(`Nhánh song song tại bước "${buocList.find((s) => s.id === g.buocTachNhanhId)?.tenBuoc ?? "?"}" cần ít nhất 2 nhánh.`); return; }
-      const emptyBranches = g.branches.filter((b) => !buocList.some((s) => s.nhanhId === b.id));
+      const emptyBranches = g.branches.filter((b) => b.stepIds.length === 0);
       if (emptyBranches.length > 0) { setSaveErr(`Nhánh "${emptyBranches[0].tenNhanh}" chưa có bước nào.`); return; }
       if (!g.buocSauHopNhatId) { setSaveErr("Vui lòng chọn bước sau hợp nhất cho nhánh song song."); return; }
     }

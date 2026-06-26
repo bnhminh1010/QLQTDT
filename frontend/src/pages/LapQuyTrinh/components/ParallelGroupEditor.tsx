@@ -31,6 +31,8 @@ export default function ParallelGroupEditor({
   onEditStep,
   onDeleteStep,
 }: Props) {
+  const stepMap = new Map(steps.map((step) => [step.id, step] as const));
+
   // Only show main-flow steps that come AFTER the split step
   const splitStepIdx = steps.findIndex((s) => s.id === group.buocTachNhanhId);
   const mergeStepOptions = splitStepIdx >= 0
@@ -39,8 +41,10 @@ export default function ParallelGroupEditor({
         .map((s) => ({ value: s.id, label: s.tenBuoc }))
     : [];
 
-  const branchSteps = (branchId: string) =>
-    steps.filter((s) => s.nhanhId === branchId);
+  const branchSteps = (stepIds: string[]) =>
+    stepIds
+      .map((stepId) => stepMap.get(stepId))
+      .filter((step): step is WorkflowStepDraft => Boolean(step));
 
   return (
     <div className={inline ? "h-full border border-purple-100 rounded-xl bg-purple-50/40 p-3 space-y-3" : "ml-8 border-l-2 border-purple-300 pl-4 my-2 space-y-3"}>
@@ -75,7 +79,7 @@ export default function ParallelGroupEditor({
       ) : (
         <div className={inline ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-2"}>
           {group.branches.map((branch, bi) => {
-            const branchStepsList = branchSteps(branch.id);
+            const branchStepsList = branchSteps(branch.stepIds);
             const hasStep = branchStepsList.length > 0;
 
             return (
@@ -105,6 +109,13 @@ export default function ParallelGroupEditor({
                         </span>
                         <span className="flex-1 truncate">{s.tenBuoc}</span>
                         <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => onAddStepToBranch(branch.id, s.id)}
+                            className="w-6 h-6 flex items-center justify-center rounded text-blue-500 hover:bg-blue-50"
+                            title="Thêm bước sau bước này"
+                          >
+                            <i className="fa-solid fa-plus text-[10px]" />
+                          </button>
                           <button
                             onClick={() => onEditStep(s)}
                             className="w-6 h-6 flex items-center justify-center rounded text-emerald-500 hover:bg-emerald-50"
