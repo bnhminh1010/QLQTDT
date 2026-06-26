@@ -6,10 +6,15 @@ import { getUserGoiThauList } from "./goiThauService";
 import { deleteGoiThau } from "@/services/goiThauApi";
 import {
   getWorkflowState,
+
   getWorkflowSteps,
   formatWorkflowKetQua,
+
+  getWorkflowDesignSteps,
+
   type WorkflowStateDto,
   type WorkflowStepStateDto,
+  type BuocWorkflowDto,
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 
@@ -365,7 +370,8 @@ export default function DanhSachGoiThau() {
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
 
-  // Confirm modals
+  // Design-time step preview (fallback when workflow not started)
+  const [designSteps, setDesignSteps] = useState<BuocWorkflowDto[]>([]);
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GoiThau | null>(null);
   const [historyTarget, setHistoryTarget] = useState<GoiThau | null>(null);
@@ -422,32 +428,51 @@ export default function DanhSachGoiThau() {
     if (!numericId) {
       setWorkflowState(null);
       setWorkflowSteps(null);
+      setDesignSteps([]);
       return;
     }
 
     let cancelled = false;
-    setWorkflowLoading(true);
-    Promise.all([getWorkflowState(numericId), getWorkflowSteps(numericId)])
-      .then(([state, steps]) => {
-        if (!cancelled) {
-          setWorkflowState(state);
-          setWorkflowSteps(steps);
+    const loadWorkflow = async () => {
+      setWorkflowLoading(true);
+
+      try {
+        const [state, steps] = await Promise.all([
+          getWorkflowState(numericId),
+          getWorkflowSteps(numericId),
+        ]);
+
+        if (cancelled) return;
+        setWorkflowState(state);
+        setWorkflowSteps(steps);
+        setDesignSteps([]);
+      } catch {
+        if (cancelled) return;
+        setWorkflowState(null);
+        setWorkflowSteps(null);
+
+        if (!selected.workflowId) {
+          setDesignSteps([]);
+          return;
         }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setWorkflowState(null);
-          setWorkflowSteps(null);
+
+        try {
+          const steps = await getWorkflowDesignSteps(selected.workflowId);
+          if (!cancelled) setDesignSteps(steps);
+        } catch {
+          if (!cancelled) setDesignSteps([]);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setWorkflowLoading(false);
-      });
+      }
+    };
+
+    void loadWorkflow();
 
     return () => {
       cancelled = true;
     };
-  }, [selected.id, workflowRefreshKey]);
+  }, [selected.id, selected.workflowId, workflowRefreshKey]);
 
   /* ─ Derived list ─ */
   const filtered = useMemo(() => {
@@ -562,27 +587,52 @@ export default function DanhSachGoiThau() {
       step.state !== "done" &&
       !step.ngayXuLy &&
       !step.ketQua;
-    const progressStatus =
-      selected.trangThai === "Trễ hạn"
-        ? "Quá hạn"
-        : selected.trangThai === "Chờ duyệt"
-          ? "Sắp quá hạn"
-          : "Đúng hạn";
+        const progressStatus =
+          selected.trangThai === "Trễ hạn"
+            ? "Quá hạn"
+            : selected.trangThai === "Chờ duyệt"
+              ? "Sắp quá hạn"
+              : "Đúng hạn";
     const progressText = workflowState
       ? `${workflowState.soBuocHoanThanh}/${workflowState.tongSoBuoc}`
       : selected.detail.buoc;
-    const progressPct = workflowState && workflowState.tongSoBuoc > 0
-      ? `${Math.round((workflowState.soBuocHoanThanh / workflowState.tongSoBuoc) * 100)}%`
-      : selected.detail.pct;
-    const displaySteps = detailInfo.steps.map((step) => {
-      const isCurrent = step.ten === currentStepName;
-      return {
-        ...step,
-        current: isCurrent,
-        state: isCurrent && canUpdateCurrentStep(selected) ? ("warn" as DotState) : step.state,
-        slaText: isCurrent ? progressStatus : step.slaText,
-      };
-    });
+
+    const progressPct =
+      workflowState && workflowState.tongSoBuoc > 0
+        ? `${Math.round(
+            (workflowState.soBuocHoanThanh / workflowState.tongSoBuoc) * 100,
+          )}%`
+        : selected.detail.pct;
+
+    const displaySteps =
+      detailInfo.steps.length > 0
+        ? detailInfo.steps.map((step) => {
+            const isCurrent = step.ten === currentStepName;
+            return {
+              ...step,
+              current: isCurrent,
+              state:
+                isCurrent && canUpdateCurrentStep(selected)
+                  ? ("warn" as DotState)
+                  : step.state,
+              nguoiXuLy: step.nguoiXuLy || detailInfo.nguoiXuLy,
+              slaText: isCurrent ? progressStatus : step.slaText,
+        };
+      })
+    : designSteps.map((s) => ({
+        state: "idle" as DotState,
+        ten: s.tenBuoc,
+        donVi: String(s.donViXuLyId ?? ""),
+        backendId: s.id,
+        current: false,
+        nguoiXuLy: undefined,
+        ngayXuLy: undefined,
+        nguoiKy: undefined,
+        ngayKy: undefined,
+        ketQua: undefined,
+        lyDoKhongDuyet: undefined,
+        slaText: undefined,
+      }));
 
     return (
       <>
@@ -1301,4 +1351,3 @@ export default function DanhSachGoiThau() {
     </>
   );
 }
-
