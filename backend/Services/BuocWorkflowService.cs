@@ -10,6 +10,9 @@ namespace QLQTDT.Api.Services;
 
 public class BuocWorkflowService : IBuocWorkflowService
 {
+    private static readonly string[] EndStepTypes = ["KET_THUC", "Kết thúc"];
+    private static readonly string[] StartStepTypes = ["BAT_DAU", "Bắt đầu"];
+
     private readonly AppDbContext _context;
 
     private readonly ILogger<BuocWorkflowService> _logger;
@@ -28,37 +31,107 @@ public class BuocWorkflowService : IBuocWorkflowService
         return Regex.Replace(input, @"\r\n?|\n", " ");
     }
 
+    private static string NormalizeLoaiBuoc(string? loaiBuoc) => loaiBuoc switch
+    {
+        "Bắt đầu" => "BAT_DAU",
+        "Thường" => "THUC_HIEN",
+        "Kết thúc" => "KET_THUC",
+        "APPROVAL" => "THUC_HIEN",
+        "REVIEW" => "THUC_HIEN",
+        "SIGN" => "THUC_HIEN",
+        _ => loaiBuoc ?? "THUC_HIEN"
+    };
+
+    private static bool IsSpecialStepType(string loaiBuoc) =>
+        StartStepTypes.Contains(loaiBuoc) || EndStepTypes.Contains(loaiBuoc);
+
+    private static BuocWorkflowListItemDto ToListItemDto(BuocWorkflow step) => new()
+    {
+        Id = step.Id,
+        MaBuoc = step.MaBuoc,
+        TenBuoc = step.TenBuoc,
+        LoaiBuoc = step.LoaiBuoc,
+        VaiTroXuLyHoSoId = step.VaiTroXuLyHoSoId,
+        SoNgayLapHoSo = step.SoNgayLapHoSo,
+        VaiTroKyDuyetId = step.VaiTroKyDuyetId,
+        SoNgayXuLy = step.SoNgayXuLy,
+        LoaiHan = step.LoaiHan,
+        NhomSongSong = step.NhomSongSong,
+        LaBuocJoin = step.LaBuocJoin,
+        ThuTu = step.ThuTu,
+        NhomGiaiDoan = step.NhomGiaiDoan,
+        MoTa = step.MoTa,
+        DonViXuLyId = step.DonViXuLyId,
+        DonViKyHoSoId = step.DonViKyHoSoId,
+        BatBuocGhiChu = step.BatBuocGhiChu,
+        BatBuocTaiLieu = step.BatBuocTaiLieu,
+        BatBuocKyTruocChuyenBuoc = step.BatBuocKyTruocChuyenBuoc,
+        BatBuocDungSLA = step.BatBuocDungSLA,
+        NhanhWorkflowId = step.NhanhWorkflowId,
+        ChoPhepTuChoi = step.ChoPhepTuChoi,
+        ChoPhepBoQua = step.ChoPhepBoQua
+    };
+
+    private async Task ValidateBranchAsync(int workflowId, int? nhanhWorkflowId)
+    {
+        if (!nhanhWorkflowId.HasValue)
+            return;
+
+        var branchExists = await _context.NhanhWorkflows
+            .Include(n => n.NhomNhanhWorkflow)
+            .AnyAsync(n =>
+                n.Id == nhanhWorkflowId.Value &&
+                n.NhomNhanhWorkflow != null &&
+                n.NhomNhanhWorkflow.WorkflowId == workflowId);
+
+        if (!branchExists)
+            throw new NotFoundException($"Branch not found in workflow: {nhanhWorkflowId.Value}");
+    }
+
+    private async Task<int> ResolveInsertOrderAsync(int workflowId, int requestedThuTu, string loaiBuoc)
+    {
+        var stepCount = await _context.BuocWorkflows.CountAsync(b => b.WorkflowId == workflowId);
+        var insertOrder = requestedThuTu > 0
+            ? Math.Clamp(requestedThuTu, 1, stepCount + 1)
+            : stepCount + 1;
+
+        if (!EndStepTypes.Contains(loaiBuoc))
+        {
+            var endStepOrder = await _context.BuocWorkflows
+                .Where(b => b.WorkflowId == workflowId && EndStepTypes.Contains(b.LoaiBuoc))
+                .OrderBy(b => b.ThuTu)
+                .Select(b => (int?)b.ThuTu)
+                .FirstOrDefaultAsync();
+
+            if (endStepOrder.HasValue)
+                insertOrder = Math.Min(insertOrder, endStepOrder.Value);
+        }
+
+        return insertOrder;
+    }
+
     public async Task<List<BuocWorkflowListItemDto>> GetStepsByWorkflowIdAsync(int workflowId)
     {
         var exists = await _context.Workflows.AnyAsync(w => w.Id == workflowId);
         if (!exists)
             throw new NotFoundException($"Workflow not found: {workflowId}");
 
-        return await _context.BuocWorkflows
+        var steps = await _context.BuocWorkflows
             .Where(b => b.WorkflowId == workflowId)
             .OrderBy(b => b.ThuTu)
             .ThenBy(b => b.Id)
-            .Select(b => new BuocWorkflowListItemDto
-            {
-                Id = b.Id,
-                MaBuoc = b.MaBuoc,
-                TenBuoc = b.TenBuoc,
-                LoaiBuoc = b.LoaiBuoc,
-                VaiTroXuLyHoSoId = b.VaiTroXuLyHoSoId,
-                SoNgayLapHoSo = b.SoNgayLapHoSo,
-                VaiTroKyDuyetId = b.VaiTroKyDuyetId,
-                SoNgayXuLy = b.SoNgayXuLy,
-                LoaiHan = b.LoaiHan,
-                NhomSongSong = b.NhomSongSong,
-                LaBuocJoin = b.LaBuocJoin,
-                ChoPhepTuChoi = b.ChoPhepTuChoi,
-                ChoPhepBoQua = b.ChoPhepBoQua
-            })
             .ToListAsync();
+
+        return steps.Select(ToListItemDto).ToList();
     }
 
     public async Task<BuocWorkflowListItemDto> CreateStepAsync(int workflowId, BuocWorkflowCreateRequest request)
     {
+        request.LoaiBuoc = NormalizeLoaiBuoc(request.LoaiBuoc);
+        if (IsSpecialStepType(request.LoaiBuoc))
+            throw new AppException(400, "INVALID_STEP_TYPE",
+                "Chi duoc tao buoc Thuong trong workflow da ton tai.");
+
         var workflowExists = await _context.Workflows.AnyAsync(w => w.Id == workflowId);
         if (!workflowExists)
             throw new NotFoundException($"Workflow not found: {workflowId}");
@@ -82,13 +155,21 @@ public class BuocWorkflowService : IBuocWorkflowService
         if (duplicate)
             throw new ConflictException($"Buoc '{request.MaBuoc}' already exists in this workflow.");
 
+        await ValidateBranchAsync(workflowId, request.NhanhWorkflowId);
+
+        var insertOrder = await ResolveInsertOrderAsync(workflowId, request.ThuTu, request.LoaiBuoc);
+
+        await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == workflowId && b.ThuTu >= insertOrder)
+            .ExecuteUpdateAsync(set => set.SetProperty(b => b.ThuTu, b => b.ThuTu + 1));
+
         var entity = new BuocWorkflow
         {
             WorkflowId = workflowId,
             MaBuoc = request.MaBuoc,
             TenBuoc = request.TenBuoc,
             LoaiBuoc = request.LoaiBuoc,
-            ThuTu = request.ThuTu,
+            ThuTu = insertOrder,
             NhomGiaiDoan = request.NhomGiaiDoan,
             MoTa = request.MoTa,
             VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId,
@@ -115,26 +196,16 @@ public class BuocWorkflowService : IBuocWorkflowService
         _logger.LogInformation("Created step: id={StepId}, ma={MaBuoc}, workflow={WorkflowId}",
             entity.Id, SanitizeForLog(entity.MaBuoc), workflowId);
 
-        return new BuocWorkflowListItemDto
-        {
-            Id = entity.Id,
-            MaBuoc = entity.MaBuoc,
-            TenBuoc = entity.TenBuoc,
-            LoaiBuoc = entity.LoaiBuoc,
-            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
-            SoNgayLapHoSo = entity.SoNgayLapHoSo,
-            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
-            SoNgayXuLy = entity.SoNgayXuLy,
-            LoaiHan = entity.LoaiHan,
-            NhomSongSong = entity.NhomSongSong,
-            LaBuocJoin = entity.LaBuocJoin,
-            ChoPhepTuChoi = entity.ChoPhepTuChoi,
-            ChoPhepBoQua = entity.ChoPhepBoQua
-        };
+        return ToListItemDto(entity);
     }
 
     public async Task UpdateStepAsync(int id, BuocWorkflowUpdateRequest request)
     {
+        if (request.LoaiBuoc != null)
+        {
+            request.LoaiBuoc = NormalizeLoaiBuoc(request.LoaiBuoc);
+        }
+
         var entity = await _context.BuocWorkflows.FindAsync(id)
             ?? throw new NotFoundException($"BuocWorkflow not found: {id}");
 
@@ -142,7 +213,20 @@ public class BuocWorkflowService : IBuocWorkflowService
             entity.TenBuoc = request.TenBuoc;
 
         if (request.LoaiBuoc != null)
+        {
+            var currentIsSpecial = IsSpecialStepType(entity.LoaiBuoc);
+            var requestedIsSpecial = IsSpecialStepType(request.LoaiBuoc);
+
+            if (!currentIsSpecial && requestedIsSpecial)
+                throw new AppException(400, "INVALID_STEP_TYPE",
+                    "Chi duoc tao buoc Bat dau/Ket thuc khi khoi tao workflow.");
+
+            if (currentIsSpecial && request.LoaiBuoc != entity.LoaiBuoc)
+                throw new AppException(400, "IMMUTABLE_STEP_TYPE",
+                    "Khong the doi loai cua buoc Bat dau/Ket thuc.");
+
             entity.LoaiBuoc = request.LoaiBuoc;
+        }
 
         if (request.VaiTroXuLyHoSoId.HasValue)
         {
@@ -212,6 +296,18 @@ public class BuocWorkflowService : IBuocWorkflowService
             entity.BatBuocKyTruocChuyenBuoc = request.BatBuocKyTruocChuyenBuoc.Value;
         if (request.BatBuocDungSLA.HasValue)
             entity.BatBuocDungSLA = request.BatBuocDungSLA.Value;
+        if (request.NhanhWorkflowId.HasValue)
+        {
+            if (request.NhanhWorkflowId.Value == 0)
+            {
+                entity.NhanhWorkflowId = null;
+            }
+            else
+            {
+                await ValidateBranchAsync(entity.WorkflowId, request.NhanhWorkflowId);
+                entity.NhanhWorkflowId = request.NhanhWorkflowId;
+            }
+        }
 
         await _context.SaveChangesAsync();
 
@@ -224,9 +320,9 @@ public class BuocWorkflowService : IBuocWorkflowService
             ?? throw new NotFoundException($"BuocWorkflow not found: {id}");
 
         // Không cho xóa bước BẮT ĐẦU hoặc KẾT THÚC
-        if (entity.LoaiBuoc == "BAT_DAU")
+        if (StartStepTypes.Contains(entity.LoaiBuoc))
             throw new AppException(400, "CANNOT_DELETE_START", "Không thể xóa bước Bắt đầu.");
-        if (entity.LoaiBuoc == "KET_THUC")
+        if (EndStepTypes.Contains(entity.LoaiBuoc))
             throw new AppException(400, "CANNOT_DELETE_END", "Không thể xóa bước Kết thúc.");
 
         var workflowActive = await _context.Workflows.AnyAsync(w => w.Id == entity.WorkflowId && w.TrangThaiHoatDong);
@@ -234,17 +330,71 @@ public class BuocWorkflowService : IBuocWorkflowService
             throw new AppException(409, "WORKFLOW_ACTIVE",
                 "Cannot delete step when its workflow template is active. Deactivate the workflow first.");
 
-        var hasTransitions = await _context.ChuyenTiepWorkflows.AnyAsync(
-            t => t.TuBuocId == id || t.DenBuocId == id);
-        if (hasTransitions)
-            throw new AppException(409, "HAS_TRANSITIONS",
-                "Cannot delete step with existing transitions. Remove transitions first.");
-
         var hasActiveInstance = await _context.WorkflowInstances.AnyAsync(
             i => i.TrangThai == "ACTIVE" && i.WorkflowStepInstances.Any(s => s.BuocWorkflowId == id));
         if (hasActiveInstance)
             throw new AppException(409, "HAS_ACTIVE_INSTANCE",
                 "Cannot delete step referenced by an active workflow instance.");
+
+        var incomingTransitions = await _context.ChuyenTiepWorkflows
+            .Where(t => t.DenBuocId == id)
+            .ToListAsync();
+        var outgoingTransitions = await _context.ChuyenTiepWorkflows
+            .Where(t => t.TuBuocId == id)
+            .ToListAsync();
+
+        if (entity.NhanhWorkflowId.HasValue)
+        {
+            var branchId = entity.NhanhWorkflowId.Value;
+            var branch = await _context.NhanhWorkflows.FindAsync(branchId)
+                ?? throw new NotFoundException($"Branch not found: {branchId}");
+
+            var branchSteps = await _context.BuocWorkflows
+                .Where(b => b.NhanhWorkflowId == branchId)
+                .OrderBy(b => b.ThuTu)
+                .ThenBy(b => b.Id)
+                .ToListAsync();
+
+            if (branchSteps.Count <= 1)
+                throw new AppException(400, "BRANCH_EMPTY", "Khong duoc de nhanh song song rong.");
+
+            var branchStepIndex = branchSteps.FindIndex(s => s.Id == id);
+            var previousBranchStep = branchStepIndex > 0 ? branchSteps[branchStepIndex - 1] : null;
+            var nextBranchStep = branchStepIndex >= 0 && branchStepIndex < branchSteps.Count - 1
+                ? branchSteps[branchStepIndex + 1]
+                : null;
+
+            if (previousBranchStep is null && nextBranchStep is not null)
+                branch.BuocDauTienId = nextBranchStep.Id;
+
+            ChuyenTiepWorkflow? rewiredIncomingTransition = null;
+            if (previousBranchStep is not null && nextBranchStep is not null)
+            {
+                rewiredIncomingTransition = incomingTransitions
+                    .FirstOrDefault(t => t.TuBuocId == previousBranchStep.Id && t.HanhDong == "DUYET")
+                    ?? incomingTransitions.FirstOrDefault(t => t.TuBuocId == previousBranchStep.Id);
+
+                if (rewiredIncomingTransition is not null)
+                    rewiredIncomingTransition.DenBuocId = nextBranchStep.Id;
+            }
+
+            _context.ChuyenTiepWorkflows.RemoveRange(outgoingTransitions);
+            _context.ChuyenTiepWorkflows.RemoveRange(
+                incomingTransitions.Where(t => rewiredIncomingTransition is null || t.Id != rewiredIncomingTransition.Id));
+        }
+        else
+        {
+            var hasTransitions = incomingTransitions.Count > 0 || outgoingTransitions.Count > 0;
+            if (hasTransitions)
+                throw new AppException(409, "HAS_TRANSITIONS",
+                    "Cannot delete step with existing transitions. Remove transitions first.");
+        }
+
+        var laterSteps = await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == entity.WorkflowId && b.ThuTu > entity.ThuTu)
+            .ToListAsync();
+        foreach (var step in laterSteps)
+            step.ThuTu -= 1;
 
         _context.BuocWorkflows.Remove(entity);
         await _context.SaveChangesAsync();
@@ -344,6 +494,11 @@ public class BuocWorkflowService : IBuocWorkflowService
 
     public async Task<BuocWorkflowListItemDto> InsertStepAfterAsync(int workflowId, int stepId, InsertStepAfterRequest request)
     {
+        request.LoaiBuoc = NormalizeLoaiBuoc(request.LoaiBuoc);
+        if (IsSpecialStepType(request.LoaiBuoc))
+            throw new AppException(400, "INVALID_STEP_TYPE",
+                "Chi duoc chen buoc Thuong sau mot buoc khac.");
+
         var workflowExists = await _context.Workflows.AnyAsync(w => w.Id == workflowId);
         if (!workflowExists)
             throw new NotFoundException($"Workflow not found: {workflowId}");
@@ -353,6 +508,10 @@ public class BuocWorkflowService : IBuocWorkflowService
 
         if (afterStep.WorkflowId != workflowId)
             throw new AppException(400, "CROSS_WORKFLOW", "Step does not belong to this workflow.");
+
+        if (EndStepTypes.Contains(afterStep.LoaiBuoc) && !EndStepTypes.Contains(request.LoaiBuoc))
+            throw new AppException(400, "INVALID_AFTER_STEP",
+                "Khong duoc chen buoc thuong sau buoc KET_THUC.");
 
         // Check duplicate MaBuoc
         var duplicateMa = await _context.BuocWorkflows.AnyAsync(b =>
@@ -384,7 +543,8 @@ public class BuocWorkflowService : IBuocWorkflowService
             BatBuocKyTruocChuyenBuoc = request.BatBuocKyTruocChuyenBuoc,
             BatBuocDungSLA = request.BatBuocDungSLA,
             DonViXuLyId = request.DonViXuLyId,
-            DonViKyHoSoId = request.DonViKyHoSoId
+            DonViKyHoSoId = request.DonViKyHoSoId,
+            NhanhWorkflowId = afterStep.NhanhWorkflowId
         };
 
         _context.BuocWorkflows.Add(entity);
@@ -421,21 +581,7 @@ public class BuocWorkflowService : IBuocWorkflowService
         _logger.LogInformation("Inserted step after {AfterStepId}: id={NewStepId}, ma={MaBuoc}",
             stepId, entity.Id, SanitizeForLog(entity.MaBuoc));
 
-        return new BuocWorkflowListItemDto
-        {
-            Id = entity.Id,
-            MaBuoc = entity.MaBuoc,
-            TenBuoc = entity.TenBuoc,
-            LoaiBuoc = entity.LoaiBuoc,
-            ThuTu = entity.ThuTu,
-            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
-            SoNgayLapHoSo = entity.SoNgayLapHoSo,
-            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
-            SoNgayXuLy = entity.SoNgayXuLy,
-            LoaiHan = entity.LoaiHan,
-            ChoPhepTuChoi = entity.ChoPhepTuChoi,
-            ChoPhepBoQua = entity.ChoPhepBoQua
-        };
+        return ToListItemDto(entity);
     }
 
     public async Task<BuocWorkflowListItemDto> CloneStepAsync(int workflowId, int stepId, CloneStepRequest request)
@@ -476,7 +622,12 @@ public class BuocWorkflowService : IBuocWorkflowService
             BatBuocGhiChu = source.BatBuocGhiChu,
             BatBuocTaiLieu = source.BatBuocTaiLieu,
             BatBuocKyTruocChuyenBuoc = source.BatBuocKyTruocChuyenBuoc,
-            BatBuocDungSLA = source.BatBuocDungSLA
+            BatBuocDungSLA = source.BatBuocDungSLA,
+            NhomGiaiDoan = source.NhomGiaiDoan,
+            MoTa = source.MoTa,
+            DonViXuLyId = source.DonViXuLyId,
+            DonViKyHoSoId = source.DonViKyHoSoId,
+            NhanhWorkflowId = source.NhanhWorkflowId
         };
 
         _context.BuocWorkflows.Add(entity);
@@ -485,21 +636,7 @@ public class BuocWorkflowService : IBuocWorkflowService
         _logger.LogInformation("Cloned step {SourceId} -> new step id={NewId}, ma={MaBuoc}",
             stepId, entity.Id, SanitizeForLog(entity.MaBuoc));
 
-        return new BuocWorkflowListItemDto
-        {
-            Id = entity.Id,
-            MaBuoc = entity.MaBuoc,
-            TenBuoc = entity.TenBuoc,
-            LoaiBuoc = entity.LoaiBuoc,
-            ThuTu = entity.ThuTu,
-            VaiTroXuLyHoSoId = entity.VaiTroXuLyHoSoId,
-            SoNgayLapHoSo = entity.SoNgayLapHoSo,
-            VaiTroKyDuyetId = entity.VaiTroKyDuyetId,
-            SoNgayXuLy = entity.SoNgayXuLy,
-            LoaiHan = entity.LoaiHan,
-            ChoPhepTuChoi = entity.ChoPhepTuChoi,
-            ChoPhepBoQua = entity.ChoPhepBoQua
-        };
+        return ToListItemDto(entity);
     }
 
     public async Task ReorderStepsAsync(int workflowId, ReorderStepsRequest request)
