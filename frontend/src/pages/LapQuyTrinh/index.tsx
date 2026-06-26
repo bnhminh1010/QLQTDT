@@ -31,7 +31,6 @@ function loaiHinhToId(ten: string): number | undefined {
   const idx = LOAI_HINH_DAU_THAU.indexOf(ten as any);
   return idx >= 0 ? idx + 1 : undefined;
 }
-
 let _idCounter = 0;
 function nextId(): string {
   _idCounter += 1;
@@ -392,7 +391,7 @@ export default function LapQuyTrinh() {
     if (step.nhanhId) {
       const branchStepCount = buocList.filter((s) => s.nhanhId === step.nhanhId).length;
       if (branchStepCount <= 1) {
-        toast.error("KhÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ nhÃ¡nh song song rÃ´ng");
+        toast.error("Không thể xóa bước cuối của nhánh song song");
         return;
       }
     }
@@ -1037,3 +1036,4 @@ export default function LapQuyTrinh() {
     </>
   );
 }
+

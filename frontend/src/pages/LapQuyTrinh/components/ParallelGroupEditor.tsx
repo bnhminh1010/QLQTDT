@@ -114,8 +114,9 @@ export default function ParallelGroupEditor({
                           </button>
                           <button
                             onClick={() => onDeleteStep(s)}
-                            className="w-6 h-6 flex items-center justify-center rounded text-red-500 hover:bg-red-50"
-                            title="Xóa bước"
+                            disabled={branchStepsList.length <= 1}
+                            className="w-6 h-6 flex items-center justify-center rounded text-red-500 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={branchStepsList.length <= 1 ? "Nhánh phải có ít nhất 1 bước" : "Xóa bước"}
                           >
                             <i className="fa-solid fa-trash text-[10px]" />
                           </button>
@@ -125,7 +126,7 @@ export default function ParallelGroupEditor({
                   ))}
                   {hasStep ? (
                     <p className="text-[10px] text-slate-400 italic">
-                      Mỗi nhánh chỉ gồm 1 bước.
+                      Mỗi nhánh phải có ít nhất 1 bước.
                     </p>
                   ) : (
                     <button
