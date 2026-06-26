@@ -610,8 +610,8 @@ public class WorkflowEngineService : IWorkflowEngineService
         {
             _logger.LogWarning("Merge step already exists for group {GroupId}, skipping duplicate creation", group.Id);
             {
-                    var resp = await BuildResponse2Phase(currentStep, instance, goiThau, hanhDong,
-                        false, null, null, currentStep.RowVersion, request: request);
+                var resp = await BuildResponse2Phase(currentStep, instance, goiThau, hanhDong,
+                    false, null, null, currentStep.RowVersion, request: request);
                 resp.Message = "Nhánh đã hoàn tất. Bước merge đã được tạo trước đó.";
                 resp.NewRowVersion = currentStep.RowVersion;
                 resp.TinhTrangTienDo = "DUNG_TIEN_DO";
@@ -808,7 +808,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             currentUserId, goiThau.Id,
             $"{hanhDong}_STEP: từ chối tại bước '{buoc?.TenBuoc}'");
 
-                return await BuildResponse2Phase(currentStep, instance, goiThau, hanhDong, true, request: request);
+        return await BuildResponse2Phase(currentStep, instance, goiThau, hanhDong, true, request: request);
     }
 
     // ════════════════════════════════════════════════════════════════════
