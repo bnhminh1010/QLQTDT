@@ -6,8 +6,10 @@ import { getUserGoiThauList } from "./goiThauService";
 import { deleteGoiThau } from "@/services/goiThauApi";
 import {
   getWorkflowState,
+  getWorkflowDesignSteps,
   type WorkflowStateDto,
   type WorkflowStepStateDto,
+  type BuocWorkflowDto,
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 
@@ -352,7 +354,9 @@ export default function DanhSachGoiThau() {
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
 
-  // Confirm modals
+  // Design-time step preview (fallback when workflow not started)
+  const [designSteps, setDesignSteps] = useState<BuocWorkflowDto[]>([]);
+  const [designWorkflowName, setDesignWorkflowName] = useState("");
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GoiThau | null>(null);
   const [historyTarget, setHistoryTarget] = useState<GoiThau | null>(null);
@@ -404,17 +408,32 @@ export default function DanhSachGoiThau() {
     const numericId = parseGoiThauNumericId(selected.id);
     if (!numericId) {
       setWorkflowState(null);
+      setDesignSteps([]);
+      setDesignWorkflowName("");
       return;
     }
+
+    const wfId = selected.workflowId;
 
     let cancelled = false;
     setWorkflowLoading(true);
     getWorkflowState(numericId)
       .then((state) => {
-        if (!cancelled) setWorkflowState(state);
+        if (!cancelled) {
+          setWorkflowState(state);
+          setDesignSteps([]); // runtime steps exist, clear design fallback
+        }
       })
       .catch(() => {
-        if (!cancelled) setWorkflowState(null);
+        if (!cancelled) {
+          setWorkflowState(null);
+          // Design-time fallback when workflow not started
+          if (wfId) {
+            getWorkflowDesignSteps(wfId).then((steps) => {
+              if (!cancelled) setDesignSteps(steps);
+            }).catch(() => {});
+          }
+        }
       })
       .finally(() => {
         if (!cancelled) setWorkflowLoading(false);
@@ -540,16 +559,31 @@ export default function DanhSachGoiThau() {
         : selected.trangThai === "Chờ duyệt"
           ? "Sắp quá hạn"
           : "Đúng hạn";
-    const displaySteps = detailInfo.steps.map((step) => {
-      const isCurrent = step.ten === currentStepName;
-      return {
-        ...step,
-        current: isCurrent,
-        state: isCurrent && canUpdateCurrentStep(selected) ? ("warn" as DotState) : step.state,
-        nguoiXuLy: step.nguoiXuLy || detailInfo.nguoiXuLy,
-        slaText: isCurrent ? progressStatus : step.slaText,
-      };
-    });
+    const displaySteps = detailInfo.steps.length > 0
+      ? detailInfo.steps.map((step) => {
+          const isCurrent = step.ten === currentStepName;
+          return {
+            ...step,
+            current: isCurrent,
+            state: isCurrent && canUpdateCurrentStep(selected) ? ("warn" as DotState) : step.state,
+            nguoiXuLy: step.nguoiXuLy || detailInfo.nguoiXuLy,
+            slaText: isCurrent ? progressStatus : step.slaText,
+          };
+        })
+      : designSteps.map((s) => ({
+          state: "idle" as DotState,
+          ten: s.tenBuoc,
+          donVi: String(s.donViXuLyId ?? ""),
+          backendId: s.id,
+          current: false,
+          nguoiXuLy: undefined,
+          ngayXuLy: undefined,
+          nguoiKy: undefined,
+          ngayKy: undefined,
+          ketQua: undefined,
+          lyDoKhongDuyet: undefined,
+          slaText: undefined,
+        }));
 
     return (
       <>
