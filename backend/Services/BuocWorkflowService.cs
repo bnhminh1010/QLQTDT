@@ -128,7 +128,9 @@ public class BuocWorkflowService : IBuocWorkflowService
     public async Task<BuocWorkflowListItemDto> CreateStepAsync(int workflowId, BuocWorkflowCreateRequest request)
     {
         request.LoaiBuoc = NormalizeLoaiBuoc(request.LoaiBuoc);
-        if (IsSpecialStepType(request.LoaiBuoc))
+
+        var existingStepCount = await _context.BuocWorkflows.CountAsync(b => b.WorkflowId == workflowId);
+        if (IsSpecialStepType(request.LoaiBuoc) && existingStepCount > 0)
             throw new AppException(400, "INVALID_STEP_TYPE",
                 "Chi duoc tao buoc Thuong trong workflow da ton tai.");
 

@@ -69,6 +69,67 @@ export async function createWorkflow(request: WorkflowCreateRequest): Promise<Wo
   return res.data;
 }
 
+export type WorkflowDesignStepRequest = {
+  id: string;
+  maBuoc: string;
+  tenBuoc: string;
+  loaiBuoc: LoaiBuocValue;
+  thuTu: number;
+  vaiTroXuLyHoSoId?: number;
+  soNgayLapHoSo: number;
+  vaiTroKyDuyetId?: number;
+  soNgayXuLy: number;
+  loaiHan: LoaiHanValue;
+  nhomSongSong?: string;
+  laBuocJoin: boolean;
+  nhomGiaiDoan?: string;
+  moTa?: string;
+  donViXuLyId?: number;
+  donViKyHoSoId?: number;
+  batBuocGhiChu: boolean;
+  batBuocTaiLieu: boolean;
+  batBuocKyTruocChuyenBuoc: boolean;
+  batBuocDungSLA: boolean;
+  nhanhId?: string;
+  choPhepTuChoi: boolean;
+  choPhepBoQua: boolean;
+};
+
+export type WorkflowDesignBranchRequest = {
+  id: string;
+  maNhanh: string;
+  tenNhanh: string;
+  thuTu: number;
+  donViXuLyId?: number;
+  vaiTroXuLyId?: number;
+  thoiHanNgay: number;
+  loaiHan: LoaiHanValue;
+  stepIds: string[];
+};
+
+export type WorkflowDesignParallelGroupRequest = {
+  id: string;
+  buocTachNhanhId: string;
+  tenNhom: string;
+  dieuKienHopNhat: string;
+  soNhanhHopNhatToiThieu?: number;
+  buocSauHopNhatId: string;
+  branches: WorkflowDesignBranchRequest[];
+};
+
+export type WorkflowDesignSaveRequest = {
+  tenWorkflow: string;
+  hinhThucId: number;
+  loaiHinhDauThau?: string;
+  steps: WorkflowDesignStepRequest[];
+  parallelGroups: WorkflowDesignParallelGroupRequest[];
+};
+
+export async function createWorkflowFromDesign(request: WorkflowDesignSaveRequest): Promise<WorkflowCreateResponse> {
+  const res = await http.post<ApiResponse<WorkflowCreateResponse>>("/workflows/from-design", request);
+  return res.data;
+}
+
 export async function getWorkflowById(id: number): Promise<WorkflowItem> {
   const res = await http.get<ApiResponse<WorkflowItem>>(`/workflows/${id}`);
   return res.data;

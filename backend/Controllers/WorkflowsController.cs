@@ -40,7 +40,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "ADMIN")]
+    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> Create(
         [FromBody] WorkflowCreateRequest request,
@@ -54,6 +54,17 @@ public class WorkflowsController : ControllerBase
             ApiResponse<WorkflowCreateResponse>.Ok(created, "Workflow created successfully"));
     }
 
+    [HttpPost("from-design")]
+    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> CreateFromDesign(
+        [FromBody] WorkflowDesignSaveRequest request)
+    {
+        var created = await _workflowService.CreateWorkflowFromDesignAsync(request, GetCurrentUserId());
+        return StatusCode(StatusCodes.Status201Created,
+            ApiResponse<WorkflowCreateResponse>.Ok(created, "Workflow created from design successfully"));
+    }
+
     [HttpGet("{id}")]
     [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<WorkflowListItemDto>>> GetById(int id)
@@ -63,7 +74,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "ADMIN")]
+    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse>> Update(
         int id,
