@@ -275,6 +275,288 @@ public class BaoCaoService : IBaoCaoService
         }).ToList();
     }
 
+    public async Task<List<WorkflowStepReportDto>> GetStepReportAsync(
+        int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
+    {
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
+
+        var goiThauQuery = _db.GoiThaus.Where(g => g.TrangThaiHoatDong);
+        if (!isFullScope)
+            goiThauQuery = goiThauQuery.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+
+        var allowedGoiThauIds = await goiThauQuery.Select(g => g.Id).ToListAsync();
+
+        var query = _db.WorkflowInstances
+            .Where(wi => allowedGoiThauIds.Contains(wi.GoiThauId))
+            .Where(wi => wi.TrangThai == WorkflowTrangThai.ACTIVE || wi.TrangThai == WorkflowTrangThai.COMPLETED)
+            .AsQueryable();
+
+        if (tuNgay.HasValue) query = query.Where(wi => wi.NgayBatDau >= tuNgay.Value);
+        if (denNgay.HasValue) query = query.Where(wi => wi.NgayBatDau <= denNgay.Value);
+        if (hinhThucId.HasValue)
+            query = query.Where(wi => wi.Workflow!.HinhThucId == hinhThucId.Value);
+
+        var raw = await query
+            .SelectMany(wi => wi.WorkflowStepInstances)
+            .GroupBy(wsi => wsi.BuocWorkflow!.TenBuoc)
+            .Select(g => new
+            {
+                TenBuoc = g.Key,
+                TongSo = g.Count(),
+                HoanThanh = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT
+                    || wsi.TrangThai == WorkflowStepTrangThai.SKIPPED),
+                DangXuLy = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.DANG_XU_LY),
+                ChoDuyet = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.CHO_DUYET),
+                QuaHanCount = g.Count(wsi => wsi.QuaHan == true),
+            })
+            .ToListAsync();
+
+        return raw.Select(r => new WorkflowStepReportDto
+        {
+            TenBuoc = r.TenBuoc,
+            TongSo = r.TongSo,
+            HoanThanh = r.HoanThanh,
+            DangXuLy = r.DangXuLy,
+            ChoDuyet = r.ChoDuyet,
+            QuaHan = r.QuaHanCount,
+            TiLeHoanThanh = r.TongSo > 0 ? Math.Round((double)r.HoanThanh / r.TongSo * 100, 1) : 0
+        }).OrderBy(r => r.TiLeHoanThanh).ThenByDescending(r => r.TongSo).ToList();
+    }
+
+    public async Task<List<BaoCaoTietKiemDto>> GetTietKiemAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
+    {
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
+
+        var query = _db.GoiThaus
+            .Where(g => g.TrangThaiHoatDong)
+            .AsQueryable();
+
+        if (!isFullScope)
+            query = query.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+
+        if (tuNgay.HasValue) query = query.Where(g => g.NgayTao >= tuNgay.Value);
+        if (denNgay.HasValue) query = query.Where(g => g.NgayTao <= denNgay.Value);
+        if (hinhThucId.HasValue) query = query.Where(g => g.HinhThucId == hinhThucId.Value);
+
+        var goiThauData = await query
+            .Select(g => new
+            {
+                g.Id,
+                g.KhoaPhongId,
+                NganSach = g.NganSach ?? 0,
+            })
+            .ToListAsync();
+
+        var goiThauIds = goiThauData.Select(g => g.Id).ToList();
+        var hopDongData = await _db.HopDongs
+            .Where(h => goiThauIds.Contains(h.GoiThauId))
+            .Select(h => new { h.GoiThauId, h.TongGiaTri })
+            .ToListAsync();
+
+        var hopDongByGoiThau = hopDongData
+            .GroupBy(h => h.GoiThauId)
+            .ToDictionary(g => g.Key, g => g.Sum(h => h.TongGiaTri));
+
+        // Group by department
+        var result = goiThauData
+            .GroupBy(g => g.KhoaPhongId)
+            .Select(g =>
+            {
+                var tongNganSach = g.Sum(x => x.NganSach);
+                var tongHopDong = g.Sum(x => hopDongByGoiThau.GetValueOrDefault(x.Id, 0));
+                var tienTietKiem = tongNganSach - tongHopDong;
+                var phanTram = tongNganSach > 0
+                    ? Math.Round((double)(tienTietKiem / tongNganSach) * 100, 1)
+                    : 0;
+                return new BaoCaoTietKiemDto
+                {
+                    KhoaPhongId = g.Key,
+                    TenKhoaPhong = "", // resolve below
+                    TongGoiThau = g.Count(),
+                    TongNganSach = tongNganSach,
+                    TongGiaTriHopDong = tongHopDong,
+                    TienTietKiem = tienTietKiem,
+                    PhanTramTietKiem = phanTram,
+                };
+            })
+            .ToList();
+
+        // Resolve department names
+        var khoaPhongIds = result.Where(r => r.KhoaPhongId.HasValue).Select(r => r.KhoaPhongId!.Value).Distinct().ToList();
+        var khoaPhongDict = khoaPhongIds.Count > 0
+            ? await _db.KhoaPhongs.Where(k => khoaPhongIds.Contains(k.Id)).ToDictionaryAsync(k => k.Id, k => k.TenKhoaPhong)
+            : new Dictionary<int, string>();
+
+        foreach (var item in result)
+        {
+            item.TenKhoaPhong = item.KhoaPhongId.HasValue
+                ? khoaPhongDict.GetValueOrDefault(item.KhoaPhongId.Value, "(Không xác định)")
+                : "(Không xác định)";
+        }
+
+        return result.OrderByDescending(r => r.TienTietKiem).ToList();
+    }
+
+    public async Task<List<BaoCaoHieuSuatNguoiDungDto>> GetHieuSuatNguoiDungAsync(
+        int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
+    {
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
+
+        var goiThauQuery = _db.GoiThaus.Where(g => g.TrangThaiHoatDong);
+        if (!isFullScope)
+            goiThauQuery = goiThauQuery.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+
+        var allowedGoiThauIds = await goiThauQuery.Select(g => g.Id).ToListAsync();
+
+        var wsiQuery = _db.WorkflowInstances
+            .Where(wi => allowedGoiThauIds.Contains(wi.GoiThauId))
+            .SelectMany(wi => wi.WorkflowStepInstances)
+            .AsQueryable();
+
+        if (tuNgay.HasValue)
+            wsiQuery = wsiQuery.Where(wsi => wsi.NgayBatDau >= tuNgay.Value);
+        if (denNgay.HasValue)
+            wsiQuery = wsiQuery.Where(wsi => wsi.NgayBatDau <= denNgay.Value);
+
+        var raw = await wsiQuery.ToListAsync();
+
+        // Collect user activity: both processor and approver
+        var userActivity = new Dictionary<int, (int total, int completed, int overdue, double totalHours, int completedWithTime)>();
+        void AddActivity(int? nguoiDungId, string trangThai, DateTime? ngayBatDau, DateTime? ngayHoanThanh, bool? quaHan)
+        {
+            if (nguoiDungId == null) return;
+            var id = nguoiDungId.Value;
+            if (!userActivity.ContainsKey(id))
+                userActivity[id] = (0, 0, 0, 0, 0);
+            var cur = userActivity[id];
+            cur.total++;
+            if (trangThai == WorkflowStepTrangThai.HOAN_TAT || trangThai == WorkflowStepTrangThai.SKIPPED)
+            {
+                cur.completed++;
+                if (ngayBatDau.HasValue && ngayHoanThanh.HasValue)
+                {
+                    cur.totalHours += (ngayHoanThanh.Value - ngayBatDau.Value).TotalHours;
+                    cur.completedWithTime++;
+                }
+            }
+            if (quaHan == true)
+                cur.overdue++;
+            userActivity[id] = cur;
+        }
+
+        foreach (var wsi in raw)
+        {
+            AddActivity(wsi.NguoiXuLyId, wsi.TrangThai, wsi.NgayBatDau, wsi.NgayHoanThanh, wsi.QuaHan);
+            // Also count approver if different
+            if (wsi.NguoiKyDuyetId != null && wsi.NguoiKyDuyetId != wsi.NguoiXuLyId)
+            {
+                AddActivity(wsi.NguoiKyDuyetId, wsi.KetQua == "DUYET" ? WorkflowStepTrangThai.HOAN_TAT : WorkflowStepTrangThai.TRA_VE, wsi.NgayBatDau, wsi.NgayKyDuyet, wsi.QuaHan);
+            }
+        }
+
+        if (userActivity.Count == 0)
+            return [];
+
+        // Resolve user names
+        var userIds = userActivity.Keys.ToList();
+        var users = await _db.NguoiDungs
+            .Where(u => userIds.Contains(u.Id) && u.TrangThaiHoatDong)
+            .ToDictionaryAsync(u => u.Id, u => new { u.HoTen, u.TenDangNhap });
+
+        return userActivity
+            .Select(kv =>
+            {
+                var (total, completed, overdue, totalHours, completedWithTime) = kv.Value;
+                var u = users.GetValueOrDefault(kv.Key);
+                return new BaoCaoHieuSuatNguoiDungDto
+                {
+                    NguoiDungId = kv.Key,
+                    HoTen = u?.HoTen ?? "(Đã xóa)",
+                    TenDangNhap = u?.TenDangNhap ?? "?",
+                    TongBuocXuLy = total,
+                    SoBuocHoanThanh = completed,
+                    SoBuocQuaHan = overdue,
+                    ThoiGianXuLyTrungBinhGio = completedWithTime > 0
+                        ? Math.Round(totalHours / completedWithTime, 1)
+                        : 0,
+                    TiLeQuaHan = total > 0
+                        ? Math.Round((double)overdue / total * 100, 1)
+                        : 0,
+                };
+            })
+            .OrderByDescending(d => d.TongBuocXuLy)
+            .ToList();
+    }
+
+    public async Task<List<WorkflowBottleneckDto>> GetWorkflowBottleneckAsync(
+        int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
+    {
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
+
+        var goiThauQuery = _db.GoiThaus.Where(g => g.TrangThaiHoatDong);
+        if (!isFullScope)
+            goiThauQuery = goiThauQuery.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+
+        var allowedGoiThauIds = await goiThauQuery.Select(g => g.Id).ToListAsync();
+
+        var query = _db.WorkflowInstances
+            .Where(wi => allowedGoiThauIds.Contains(wi.GoiThauId))
+            .SelectMany(wi => wi.WorkflowStepInstances)
+            .AsQueryable();
+
+        if (tuNgay.HasValue) query = query.Where(wsi => wsi.NgayBatDau >= tuNgay.Value);
+        if (denNgay.HasValue) query = query.Where(wsi => wsi.NgayBatDau <= denNgay.Value);
+
+        var raw = await query.ToListAsync();
+
+        var grouped = raw
+            .GroupBy(wsi => wsi.BuocWorkflow!.TenBuoc)
+            .Select(g =>
+            {
+                var completed = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT || wsi.TrangThai == WorkflowStepTrangThai.SKIPPED);
+                var dangXuLy = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.DANG_XU_LY);
+                var choDuyet = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.CHO_DUYET);
+                var quaHan = g.Count(wsi => wsi.QuaHan == true);
+                var total = g.Count();
+
+                // Average hours for completed steps only
+                var completedWithTime = g.Where(wsi =>
+                    (wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT || wsi.TrangThai == WorkflowStepTrangThai.SKIPPED)
+                    && wsi.NgayBatDau != null && wsi.NgayHoanThanh != null);
+                var avgHours = completedWithTime.Any()
+                    ? Math.Round(completedWithTime.Average(wsi => (wsi.NgayHoanThanh!.Value - wsi.NgayBatDau).TotalHours), 1)
+                    : 0;
+
+                // Warning level
+                var waiting = dangXuLy + choDuyet;
+                var overdueRate = total > 0 ? (double)quaHan / total : 0;
+                string mucDo;
+                if (overdueRate > 0.3 || waiting > 20)
+                    mucDo = "CRITICAL";
+                else if (overdueRate > 0.1 || waiting > 10)
+                    mucDo = "WARN";
+                else
+                    mucDo = "OK";
+
+                return new WorkflowBottleneckDto
+                {
+                    TenBuoc = g.Key,
+                    TongSo = total,
+                    HoanThanh = completed,
+                    DangXuLy = dangXuLy,
+                    ChoDuyet = choDuyet,
+                    QuaHan = quaHan,
+                    ThoiGianTrungBinhGio = avgHours,
+                    MucDoCanhBao = mucDo,
+                };
+            })
+            .OrderByDescending(d => d.MucDoCanhBao == "CRITICAL" ? 2 : d.MucDoCanhBao == "WARN" ? 1 : 0)
+            .ThenByDescending(d => d.QuaHan)
+            .ToList();
+
+        return grouped;
+    }
+
     public async Task<byte[]> ExportCsvAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId)
     {
         // Use chi-tieu data as CSV source, plus tong-hop stats

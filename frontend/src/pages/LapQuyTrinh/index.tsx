@@ -188,6 +188,7 @@ export default function LapQuyTrinh() {
       const workflow = await createWorkflow({
         tenWorkflow: tenQuyTrinh.trim(),
         hinhThucId: hinhThucId ?? 1,
+        loaiHinhDauThau: loaiHinh || undefined,
       });
       const newWorkflowId = workflow.id;
 

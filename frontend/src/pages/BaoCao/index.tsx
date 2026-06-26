@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
-import { searchBaoCaoGoiThau } from "@/services/baoCaoApi";
+import { searchBaoCaoGoiThau, getWorkflowStepReport, getBaoCaoTietKiem, getBaoCaoHieuSuatNguoiDung, getWorkflowBottleneck, type WorkflowStepReport, type BaoCaoTietKiem, type BaoCaoHieuSuatNguoiDung, type WorkflowBottleneck } from "@/services/baoCaoApi";
 
 type TimeMode = "day" | "month" | "year";
 
@@ -74,6 +74,7 @@ const TRANG_THAI_MAP: Record<string, string> = {
 };
 
 export default function BaoCao() {
+  const printRef = useRef<HTMLDivElement>(null);
   const [packages, setPackages] = useState<PackageReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [unitFilter, setUnitFilter] = useState("Tất cả");
@@ -88,6 +89,12 @@ export default function BaoCao() {
   const [month, setMonth] = useState(String(new Date().getMonth() + 1));
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [selectedUnit, setSelectedUnit] = useState("");
+  const [stepReport, setStepReport] = useState<WorkflowStepReport[]>([]);
+  const [stepReportLoading, setStepReportLoading] = useState(false);
+  const [tietKiemData, setTietKiemData] = useState<BaoCaoTietKiem[]>([]);
+  const [hieuSuatData, setHieuSuatData] = useState<BaoCaoHieuSuatNguoiDung[]>([]);
+  const [bottleneckData, setBottleneckData] = useState<WorkflowBottleneck[]>([]);
+  const [extraLoading, setExtraLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -113,7 +120,26 @@ export default function BaoCao() {
         setLoading(false);
       }
     })();
+    fetchStepReport();
+    fetchExtraReports();
   }, []);
+
+  async function fetchExtraReports() {
+    setExtraLoading(true);
+    try { setTietKiemData(await getBaoCaoTietKiem()); } catch { /* ignore */ }
+    try { setHieuSuatData(await getBaoCaoHieuSuatNguoiDung()); } catch { /* ignore */ }
+    try { setBottleneckData(await getWorkflowBottleneck()); } catch { /* ignore */ }
+    setExtraLoading(false);
+  }
+
+  async function fetchStepReport() {
+    setStepReportLoading(true);
+    try {
+      const data = await getWorkflowStepReport();
+      setStepReport(data);
+    } catch { /* ignore */ }
+    finally { setStepReportLoading(false); }
+  }
 
   const allUnits = useMemo(() => Array.from(new Set(packages.map((p) => p.unit))).sort(), [packages]);
   const allMethods = useMemo(() => Array.from(new Set(packages.map((p) => p.method))).sort(), [packages]);
@@ -189,7 +215,18 @@ export default function BaoCao() {
 
   function exportCurrent(type: "Excel" | "PDF") {
     if (type === "Excel") downloadCsv(filteredPackages, `bao-cao-${Date.now()}.csv`);
-    toast.success(`Xuất ${type} ${filteredPackages.length} gói thầu`);
+    if (type === "PDF") window.print();
+  }
+
+  function applyFilter(status?: string) {
+    if (status) setStatusFilter(status);
+    toast.success("Đã áp dụng bộ lọc");
+  }
+
+  // Drill-down: click KPI → filter gói tương ứng
+  function drillKpi(idx: number) {
+    if (idx === 0) resetFilters(); // tổng giá trị → xem tất cả
+    if (idx === 2) applyFilter("Trễ hạn"); // tỉ lệ đúng hạn → lọc Trễ hạn
   }
 
   if (loading) {
@@ -212,8 +249,8 @@ export default function BaoCao() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+      <div className="flex flex-1 overflow-hidden" ref={printRef}>
+        <main className="flex-1 overflow-y-auto p-6 space-y-5 bao-cao-print">
           {/* ── FILTER BAR ── */}
           <section className="bg-white rounded-2xl border border-slate-200 p-4 lg:p-5">
             <div className="flex flex-wrap items-end gap-3">
@@ -294,8 +331,8 @@ export default function BaoCao() {
           </section>
 
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-            {kpi.map((item) => (
-              <div key={item.label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4">
+            {kpi.map((item, ki) => (
+              <button key={item.label} onClick={() => drillKpi(ki)} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4 text-left hover:shadow-md transition-shadow cursor-pointer">
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg ${ICON_BG[item.color]}`}>
                   <i className={`fa-solid ${item.icon}`} />
                 </div>
@@ -304,7 +341,7 @@ export default function BaoCao() {
                   <div className={`text-2xl font-extrabold ${item.valCls}`}>{item.val}</div>
                   <div className="text-xs text-slate-400">{item.sub}</div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -350,18 +387,270 @@ export default function BaoCao() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-              <span className="font-semibold text-slate-800 text-sm">Báo cáo chi tiết theo đơn vị</span>
-              <div className="flex gap-2">
-                <button onClick={() => exportCurrent("Excel")} className="flex items-center gap-1.5 border border-emerald-500 text-emerald-600 hover:bg-emerald-50 text-xs font-medium px-3 py-1.5 rounded-lg">
-                  <i className="fa-solid fa-file-excel" /> Xuất Excel
-                </button>
-                <button onClick={() => exportCurrent("PDF")} className="flex items-center gap-1.5 border border-red-400 text-red-500 hover:bg-red-50 text-xs font-medium px-3 py-1.5 rounded-lg">
-                  <i className="fa-solid fa-file-pdf" /> Xuất PDF
-                </button>
+          {/* Workflow step report — dropdown closed by default */}
+          <details className="bg-white rounded-2xl border border-slate-200 overflow-hidden group" open>
+            <summary className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50 transition-colors">
+              <span className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                <i className="fa-solid fa-diagram-project text-slate-400" />
+                Tiến độ các bước quy trình
+              </span>
+              <i className="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" />
+            </summary>
+            {stepReportLoading ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                <i className="fa-solid fa-circle-notch fa-spin mr-1" /> Đang tải...
               </div>
-            </div>
+            ) : stepReport.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">Chưa có dữ liệu.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 tracking-wide uppercase">
+                      <th className="px-5 py-3 text-left">Bước</th>
+                      <th className="px-5 py-3 text-right">Tổng</th>
+                      <th className="px-5 py-3 text-right">Hoàn thành</th>
+                      <th className="px-5 py-3 text-right">Đang xử lý</th>
+                      <th className="px-5 py-3 text-right">Chờ duyệt</th>
+                      <th className="px-5 py-3 text-right">Quá hạn</th>
+                      <th className="px-5 py-3 text-right">Tỉ lệ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {stepReport.map((s) => (
+                      <tr key={s.tenBuoc} className="hover:bg-slate-50">
+                        <td className="px-5 py-3 text-slate-800 font-medium">{s.tenBuoc}</td>
+                        <td className="px-5 py-3 text-right text-slate-700">{s.tongSo}</td>
+                        <td className="px-5 py-3 text-right text-emerald-700 font-semibold">{s.hoanThanh}</td>
+                        <td className="px-5 py-3 text-right text-blue-700 font-semibold">{s.dangXuLy}</td>
+                        <td className="px-5 py-3 text-right text-amber-700 font-semibold">{s.choDuyet}</td>
+                        <td className="px-5 py-3 text-right text-red-500 font-semibold">{s.quaHan}</td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${s.tiLeHoanThanh}%` }} />
+                            </div>
+                            <span className="text-xs font-semibold text-slate-700 w-9 text-right">{s.tiLeHoanThanh}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </details>
+
+          {/* ── 1. PHÂN TÍCH TIẾT KIỆM NGÂN SÁCH ── */}
+          <details className="bg-white rounded-2xl border border-slate-200 overflow-hidden group" open>
+            <summary className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50 transition-colors">
+              <span className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                <i className="fa-solid fa-piggy-bank text-emerald-500" />
+                Phân tích tiết kiệm ngân sách
+              </span>
+              <i className="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" />
+            </summary>
+            {extraLoading ? (
+              <div className="py-8 text-center text-xs text-slate-400"><i className="fa-solid fa-circle-notch fa-spin mr-1" />Đang tải...</div>
+            ) : tietKiemData.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">Chưa có dữ liệu.</div>
+            ) : (
+              <>
+                {/* Summary KPI */}
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 p-5">
+                  {(() => {
+                    const tongNS = tietKiemData.reduce((s, r) => s + r.tongNganSach, 0);
+                    const tongHD = tietKiemData.reduce((s, r) => s + (r.tongGiaTriHopDong || 0), 0);
+                    const tongTK = tietKiemData.reduce((s, r) => s + (r.tienTietKiem || 0), 0);
+                    const pct = tongNS > 0 ? (tongTK / tongNS * 100).toFixed(1) : "0.0";
+                    return [
+                      { label: "TỔNG NGÂN SÁCH", val: formatMoney(tongNS), cls: "text-blue-700" },
+                      { label: "TỔNG HỢP ĐỒNG", val: formatMoney(tongHD), cls: "text-purple-700" },
+                      { label: "TIẾT KIỆM", val: formatMoney(tongTK), cls: "text-emerald-600" },
+                      { label: "TỈ LỆ TIẾT KIỆM", val: `${pct}%`, cls: tongTK >= 0 ? "text-emerald-600" : "text-red-600" },
+                    ].map((k) => (
+                      <div key={k.label} className="rounded-xl border border-slate-100 p-3">
+                        <div className="text-[10px] font-bold text-slate-400 tracking-wide">{k.label}</div>
+                        <div className={`text-lg font-extrabold ${k.cls}`}>{k.val}</div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+                {/* Table by department */}
+                <div className="overflow-x-auto border-t border-slate-100">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 tracking-wide uppercase">
+                        <th className="px-5 py-3 text-left">Khoa/Phòng</th>
+                        <th className="px-5 py-3 text-right">Số gói</th>
+                        <th className="px-5 py-3 text-right">Ngân sách</th>
+                        <th className="px-5 py-3 text-right">Giá trị HĐ</th>
+                        <th className="px-5 py-3 text-right">Tiết kiệm</th>
+                        <th className="px-5 py-3 text-right">%</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {tietKiemData.map((r) => (
+                        <tr key={r.tenKhoaPhong} className="hover:bg-slate-50">
+                          <td className="px-5 py-3 text-slate-800 font-medium">{r.tenKhoaPhong}</td>
+                          <td className="px-5 py-3 text-right text-slate-700">{r.tongGoiThau}</td>
+                          <td className="px-5 py-3 text-right text-slate-700 font-medium">{formatCurrency(r.tongNganSach)}</td>
+                          <td className="px-5 py-3 text-right text-purple-700 font-semibold">{r.tongGiaTriHopDong ? formatCurrency(r.tongGiaTriHopDong) : "—"}</td>
+                          <td className="px-5 py-3 text-right font-semibold">
+                            <span className={r.tienTietKiem && r.tienTietKiem >= 0 ? "text-emerald-600" : "text-red-600"}>
+                              {r.tienTietKiem != null ? formatCurrency(r.tienTietKiem) : "—"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${r.phanTramTietKiem >= 0 ? "bg-emerald-500" : "bg-red-500"}`}
+                                  style={{ width: `${Math.abs(r.phanTramTietKiem)}%` }} />
+                              </div>
+                              <span className={`text-xs font-semibold w-9 text-right ${r.phanTramTietKiem >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                {r.phanTramTietKiem >= 0 ? "+" : ""}{r.phanTramTietKiem}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </details>
+
+          {/* ── 2. HIỆU SUẤT NGƯỜI DÙNG ── */}
+          <details className="bg-white rounded-2xl border border-slate-200 overflow-hidden group" open>
+            <summary className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50 transition-colors">
+              <span className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                <i className="fa-solid fa-users text-indigo-500" />
+                Hiệu suất người dùng
+              </span>
+              <i className="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" />
+            </summary>
+            {extraLoading ? (
+              <div className="py-8 text-center text-xs text-slate-400"><i className="fa-solid fa-circle-notch fa-spin mr-1" />Đang tải...</div>
+            ) : hieuSuatData.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">Chưa có dữ liệu.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 tracking-wide uppercase">
+                      <th className="px-5 py-3 text-left">Người dùng</th>
+                      <th className="px-5 py-3 text-right">Tổng bước</th>
+                      <th className="px-5 py-3 text-right">Hoàn thành</th>
+                      <th className="px-5 py-3 text-right">Quá hạn</th>
+                      <th className="px-5 py-3 text-right">Giờ TB</th>
+                      <th className="px-5 py-3 text-right">Tỉ lệ quá hạn</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {hieuSuatData.map((u) => (
+                      <tr key={u.nguoiDungId} className="hover:bg-slate-50">
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">{u.hoTen.charAt(0)}</div>
+                            <div>
+                              <div className="text-slate-800 font-medium text-sm">{u.hoTen}</div>
+                              <div className="text-[10px] text-slate-400">{u.tenDangNhap}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-700 font-semibold">{u.tongBuocXuLy}</td>
+                        <td className="px-5 py-3 text-right text-emerald-700 font-semibold">{u.soBuocHoanThanh}</td>
+                        <td className="px-5 py-3 text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            u.soBuocQuaHan > 0 ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-500"
+                          }`}>{u.soBuocQuaHan}</span>
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-700">{u.thoiGianXuLyTrungBinhGio > 0 ? `${u.thoiGianXuLyTrungBinhGio}h` : "—"}</td>
+                        <td className="px-5 py-3 text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            u.tiLeQuaHan > 30 ? "bg-red-100 text-red-600" :
+                            u.tiLeQuaHan > 10 ? "bg-amber-100 text-amber-700" :
+                            "bg-emerald-100 text-emerald-700"
+                          }`}>{u.tiLeQuaHan}%</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </details>
+
+          {/* ── 3. DASHBOARD WORKFLOW BOTTLENECK ── */}
+          <details className="bg-white rounded-2xl border border-slate-200 overflow-hidden group" open>
+            <summary className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50 transition-colors">
+              <span className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                <i className="fa-solid fa-gauge-high text-orange-500" />
+                Dashboard workflow — điểm nghẽn
+              </span>
+              <i className="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" />
+            </summary>
+            {extraLoading ? (
+              <div className="py-8 text-center text-xs text-slate-400"><i className="fa-solid fa-circle-notch fa-spin mr-1" />Đang tải...</div>
+            ) : bottleneckData.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">Chưa có dữ liệu.</div>
+            ) : (
+              <div className="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {bottleneckData.map((b) => {
+                  const warnColor = b.mucDoCanhBao === "CRITICAL" ? "border-red-400 bg-red-50" :
+                    b.mucDoCanhBao === "WARN" ? "border-amber-400 bg-amber-50" : "border-emerald-300 bg-emerald-50";
+                  const badgeColor = b.mucDoCanhBao === "CRITICAL" ? "bg-red-500" :
+                    b.mucDoCanhBao === "WARN" ? "bg-amber-500" : "bg-emerald-500";
+                  return (
+                    <div key={b.tenBuoc} className={`rounded-xl border-2 p-4 ${warnColor}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-slate-800">{b.tenBuoc}</span>
+                        <span className={`text-[10px] font-bold text-white px-2 py-0.5 rounded-full ${badgeColor}`}>
+                          {b.mucDoCanhBao}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-slate-400">Tổng:</span> <span className="font-semibold text-slate-700">{b.tongSo}</span></div>
+                        <div><span className="text-slate-400">Hoàn thành:</span> <span className="font-semibold text-emerald-700">{b.hoanThanh}</span></div>
+                        <div><span className="text-slate-400">Đang xử lý:</span> <span className="font-semibold text-blue-700">{b.dangXuLy}</span></div>
+                        <div><span className="text-slate-400">Chờ duyệt:</span> <span className="font-semibold text-amber-700">{b.choDuyet}</span></div>
+                        <div><span className="text-slate-400">Quá hạn:</span> <span className="font-semibold text-red-600">{b.quaHan}</span></div>
+                        <div><span className="text-slate-400">Giờ TB:</span> <span className="font-semibold text-slate-700">{b.thoiGianTrungBinhGio > 0 ? `${b.thoiGianTrungBinhGio}h` : "—"}</span></div>
+                      </div>
+                      {/* Mini progress bar */}
+                      <div className="mt-3 h-1.5 bg-slate-200 rounded-full overflow-hidden flex">
+                        {b.tongSo > 0 && (
+                          <>
+                            <div className="h-full bg-emerald-500" style={{ width: `${(b.hoanThanh / b.tongSo) * 100}%` }} />
+                            <div className="h-full bg-blue-500" style={{ width: `${(b.dangXuLy / b.tongSo) * 100}%` }} />
+                            <div className="h-full bg-amber-400" style={{ width: `${(b.choDuyet / b.tongSo) * 100}%` }} />
+                            <div className="h-full bg-red-500" style={{ width: `${(b.quaHan / b.tongSo) * 100}%` }} />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </details>
+
+          <details className="bg-white rounded-2xl border border-slate-200 overflow-hidden group" open>
+            <summary className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50 transition-colors">
+              <span className="font-semibold text-slate-800 text-sm">Báo cáo chi tiết theo đơn vị</span>
+              <div className="flex items-center gap-2">
+                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => exportCurrent("Excel")} className="flex items-center gap-1.5 border border-emerald-500 text-emerald-600 hover:bg-emerald-50 text-xs font-medium px-3 py-1.5 rounded-lg">
+                    <i className="fa-solid fa-file-excel" /> Xuất Excel
+                  </button>
+                  <button onClick={() => exportCurrent("PDF")} className="flex items-center gap-1.5 border border-red-400 text-red-500 hover:bg-red-50 text-xs font-medium px-3 py-1.5 rounded-lg">
+                    <i className="fa-solid fa-file-pdf" /> Xuất PDF
+                  </button>
+                </div>
+                <i className="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" />
+              </div>
+            </summary>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -392,13 +681,67 @@ export default function BaoCao() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </details>
+
+          {/* Danh sách gói thầu chi tiết */}
+          <details className="bg-white rounded-2xl border border-slate-200 overflow-hidden group" open>
+            <summary className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50 transition-colors">
+              <span className="font-semibold text-slate-800 text-sm">Danh sách gói thầu</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">{filteredPackages.length} gói</span>
+                <i className="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" />
+              </div>
+            </summary>
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white">
+                  <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 tracking-wide uppercase">
+                    <th className="px-5 py-3 text-left">Mã gói</th>
+                    <th className="px-5 py-3 text-left">Tên gói thầu</th>
+                    <th className="px-5 py-3 text-left">Đơn vị</th>
+                    <th className="px-5 py-3 text-left">Hình thức</th>
+                    <th className="px-5 py-3 text-right">Giá trị</th>
+                    <th className="px-5 py-3 text-left">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredPackages.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center py-10 text-slate-400">Không có gói thầu</td></tr>
+                  ) : (
+                    filteredPackages.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50">
+                        <td className="px-5 py-3 font-mono text-xs text-blue-700 font-bold whitespace-nowrap">{p.id}</td>
+                        <td className="px-5 py-3 text-slate-800 max-w-[200px]"><div className="line-clamp-2">{p.name}</div></td>
+                        <td className="px-5 py-3 text-slate-500 whitespace-nowrap">{p.unit}</td>
+                        <td className="px-5 py-3 text-slate-500 whitespace-nowrap">{p.method}</td>
+                        <td className="px-5 py-3 text-right font-medium text-slate-700 whitespace-nowrap">{formatCurrency(p.value)}</td>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                            p.status === "Hoàn thành" ? "bg-emerald-100 text-emerald-700" :
+                            p.status === "Trễ hạn" ? "bg-red-100 text-red-600" :
+                            p.status === "Đang xử lý" ? "bg-blue-100 text-blue-700" :
+                            p.status === "Chờ duyệt" ? "bg-amber-100 text-amber-700" :
+                            "bg-slate-100 text-slate-600"
+                          }`}>{p.status}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </details>
         </main>
 
         {/* BaoCao side panel — chỉ hiện khi chọn đơn vị */}
         {selectedUnit && (
-        <aside className="w-[320px] shrink-0 border-l border-slate-200 bg-white hidden xl:block p-5">
-          <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">CHI TIẾT ĐƠN VỊ</div>
+        <aside className="w-[320px] shrink-0 border-l border-slate-200 bg-white hidden xl:block p-5 overflow-y-auto">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[10px] font-bold text-slate-400 tracking-wide">CHI TIẾT ĐƠN VỊ</div>
+            <button onClick={() => setSelectedUnit("")} className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600" title="Đóng">
+              <i className="fa-solid fa-xmark text-xs" />
+            </button>
+          </div>
           <div className="rounded-2xl border border-slate-200 p-4">
             <div className="text-sm font-bold text-slate-900 mb-1">{panelUnit || "Chưa chọn"}</div>
             <div className="text-xs text-slate-500 leading-relaxed mb-4">
@@ -421,6 +764,56 @@ export default function BaoCao() {
             </div>
             <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
               <div className="h-full rounded-full bg-emerald-500" style={{ width: `${completionRate}%` }} />
+            </div>
+          </div>
+          {/* So sánh: xếp hạng giữa các khoa */}
+          <div className="rounded-2xl border border-slate-200 p-4 mt-3">
+            <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">SO SÁNH KHOA</div>
+            <div className="space-y-2 text-xs">
+              {unitRows.filter((r) => r.unit !== panelUnit).slice(0, 5).map((r) => {
+                const rate = r.count > 0 ? Math.round((r.done / r.count) * 100) : 0;
+                const diff = rate - completionRate;
+                return (
+                  <div key={r.unit} className="flex justify-between items-center py-1 border-b border-slate-50 last:border-0">
+                    <span className="text-slate-700 truncate max-w-[140px]">{r.unit}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-semibold text-slate-700">{rate}%</span>
+                      <span className={`text-[10px] font-bold ${diff >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                        {diff >= 0 ? "+" : ""}{diff}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              {unitRows.filter((r) => r.unit !== panelUnit).length === 0 && (
+                <p className="text-slate-400 italic">Chỉ có 1 đơn vị</p>
+              )}
+            </div>
+          </div>
+          {/* Danh sách gói thầu trong đơn vị */}
+          <div className="rounded-2xl border border-slate-200 p-4 mt-3">
+            <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">DANH SÁCH GÓI THẦU</div>
+            <div className="space-y-1 max-h-[300px] overflow-y-auto">
+              {panelRows.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">Không có gói thầu.</p>
+              ) : (
+                panelRows.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-50 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-slate-800 truncate">{p.name}</div>
+                      <div className="text-[10px] text-slate-400">{p.id}</div>
+                    </div>
+                    <span className={`shrink-0 ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      p.status === "Hoàn thành" ? "bg-emerald-100 text-emerald-700" :
+                      p.status === "Trễ hạn" ? "bg-red-100 text-red-600" :
+                      p.status === "Đang xử lý" ? "bg-blue-100 text-blue-700" :
+                      "bg-slate-100 text-slate-600"
+                    }`}>
+                      {p.status}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </aside>

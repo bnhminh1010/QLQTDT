@@ -17,6 +17,7 @@ public class WorkflowCreateRequest
 {
     public string TenWorkflow { get; set; } = null!;
     public int HinhThucId { get; set; }
+    public string? LoaiHinhDauThau { get; set; }
 }
 
 public class WorkflowCreateResponse
