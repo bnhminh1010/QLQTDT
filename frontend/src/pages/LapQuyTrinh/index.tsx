@@ -182,6 +182,92 @@ export default function LapQuyTrinh() {
 
   const markDirty = useCallback(() => setIsDirty(true), []);
 
+  async function saveDraftWorkflow(hinhThucId?: number) {
+    try {
+      // 1. Create workflow
+      const workflow = await createWorkflow({
+        tenWorkflow: tenQuyTrinh.trim(),
+        hinhThucId: hinhThucId ?? 1,
+      });
+      const newWorkflowId = workflow.id;
+
+      // 2. Create steps in order, map draftId -> backendId
+      const stepIdMap = new Map<string, number>(); // draftId -> backendId
+      let thuTu = 1;
+      for (const step of buocList.filter((s) => !s.nhanhId)) {
+        const created = await createWorkflowStep(newWorkflowId, {
+          maBuoc: step.maBuoc || `BUOC_${Date.now()}_${thuTu}`,
+          tenBuoc: step.tenBuoc,
+          loaiBuoc: mapLoaiBuocToBackend(step.loaiBuoc),
+          thuTu: thuTu++,
+          soNgayLapHoSo: step.slaNgay,
+          soNgayXuLy: step.soNgayKyDuyet ?? 0,
+          loaiHan: mapLoaiHanToBackend(step.loaiThoiHan),
+          batBuocGhiChu: step.batBuocGhiChu,
+          batBuocTaiLieu: step.batBuocTaiLieu,
+          batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
+          batBuocDungSLA: step.batBuocDungSLA,
+          choPhepTuChoi: true,
+          choPhepBoQua: false,
+        });
+        stepIdMap.set(step.id, created.id);
+      }
+
+      // 3. Create transitions (linear by default: step i -> step i+1)
+      const mainSteps = buocList.filter((s) => !s.nhanhId);
+      for (let i = 0; i < mainSteps.length - 1; i++) {
+        const fromId = stepIdMap.get(mainSteps[i].id);
+        const toId = stepIdMap.get(mainSteps[i + 1].id);
+        if (fromId && toId) {
+          await createWorkflowTransition(newWorkflowId, {
+            tuBuocId: fromId,
+            denBuocId: toId,
+            hanhDong: "DUYET",
+            dieuKienKichHoat: "LUON",
+            batBuocGhiChu: false,
+            batBuocTaiLieu: false,
+          });
+        }
+      }
+
+      // 4. Create parallel groups and branches
+      for (const group of parallelGroups) {
+        const splitStepBackendId = stepIdMap.get(group.buocTachNhanhId);
+        const mergeStepBackendId = group.buocSauHopNhatId ? stepIdMap.get(group.buocSauHopNhatId) : undefined;
+
+        if (!splitStepBackendId || !mergeStepBackendId) continue;
+
+        const createdGroup = await createParallelGroup(newWorkflowId, {
+          buocTachNhanhId: splitStepBackendId,
+          tenNhom: `Nhóm song song`,
+          dieuKienHopNhat: group.dieuKienHopNhat.toUpperCase() as any,
+          buocSauHopNhatId: mergeStepBackendId,
+        });
+
+        for (const branch of group.branches) {
+          await createParallelBranch(createdGroup.id, {
+            maNhanh: `BR_${Date.now()}`,
+            tenNhanh: branch.tenNhanh,
+            thuTu: 1,
+            thoiHanNgay: 1,
+            loaiHan: "CANH_BAO",
+            buocDauTienId: 0,
+          });
+        }
+      }
+
+      toast.success("Lưu quy trình thành công");
+      setIsDirty(false);
+      setSaving(false);
+      setIsTemplateDraft(false);
+      navigate("/danh-sach-quy-trinh");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Lưu quy trình thất bại");
+      setSaving(false);
+    }
+  }
+
   function navWithCheck(path: string) {
     if (isDirty) { setPendingNavPath(path); setLeaveOpen(true); }
     else { navigate(path); }
@@ -235,15 +321,15 @@ export default function LapQuyTrinh() {
       setTemplateList(templates);
       setSelectedTemplateIdx(selectedIdx >= 0 ? selectedIdx : 0);
 
-      const result = await generateWorkflowFromTemplate({
-        templateWorkflowId: selectedTemplate.id, tenWorkflow: tenQuyTrinh.trim(), loaiHinhDauThau: loaiHinh,
-      });
-      setGeneratedWorkflowId(result.id);
-      const draft = previewToWorkflowDraft(result, loaiHinh);
+      // Preview only — no DB write until user clicks "Lưu quy trình"
+      const result = await previewWorkflowTemplate(selectedTemplate.id);
+      const draft = previewToWorkflowDraft(result, loaiHinh, { preserveBackendIds: false });
+      setGeneratedWorkflowId(undefined);
+      setIsTemplateDraft(true);
       setBuocList(draft.steps);
       setParallelGroups(draft.parallelGroups);
-      setIsDirty(false);
-      toast.success("Tạo quy trình từ template thành công!");
+      setIsDirty(true);
+      toast.success("Đã tạo bản nháp từ template. Bấm Lưu quy trình để ghi vào DB.");
     } catch (err: any) {
       toast.error(err?.response?.data?.error || err?.response?.data?.message || "Tạo quy trình thất bại");
     } finally {
@@ -385,7 +471,7 @@ export default function LapQuyTrinh() {
   }
 
   function handleDeleteTarget(step: WorkflowStepDraft) {
-    if (step.loaiBuoc === "Bắt đầu" || step.loaiBuoc === "Kết thúc") {
+    if (!isTemplateDraft && (step.loaiBuoc === "Bắt đầu" || step.loaiBuoc === "Kết thúc")) {
       toast.error("Không thể xóa bước bắt đầu/kết thúc");
       return;
     }
@@ -641,8 +727,52 @@ export default function LapQuyTrinh() {
   }
 
   function handleRemoveBranch(groupId: string, branchId: string) {
+    const group = parallelGroups.find((g) => g.id === groupId);
+    const branch = group?.branches.find((b) => b.id === branchId);
+    if (!isTemplateDraft && branch?.backendId && generatedWorkflowId) {
+      deleteParallelBranch(branch.backendId).catch(() => {});
+    }
     setParallelGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, branches: g.branches.filter((b) => b.id !== branchId) } : g));
     markDirty();
+  }
+
+  async function handleAddBranch(groupId: string) {
+    const group = parallelGroups.find((g) => g.id === groupId);
+    if (!group) return;
+    const bi = group.branches.length;
+    const branchId = nextId();
+    const newBranch: ParallelBranchDraft = {
+      id: branchId,
+      tenNhanh: `Nhánh ${bi + 1}`,
+      stepIds: [],
+    };
+    setParallelGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, branches: [...g.branches, newBranch] } : g));
+    markDirty();
+
+    if (!isTemplateDraft && generatedWorkflowId && group.backendId) {
+      try {
+        const created = await createParallelBranch(group.backendId, {
+          maNhanh: `BR_${Date.now()}`,
+          tenNhanh: newBranch.tenNhanh,
+          thuTu: bi + 1,
+          thoiHanNgay: 1,
+          loaiHan: "CANH_BAO",
+          buocDauTienId: 0,
+        });
+        // Store backendId on branch
+        setParallelGroups((prev) => prev.map((g) =>
+          g.id === groupId
+            ? {
+                ...g,
+                branches: g.branches.map((b) =>
+                  b.id === branchId ? { ...b, backendId: created.id } : b
+                ),
+              }
+            : g
+        ));
+      } catch { /* keep local draft */ }
+    }
+    toast.success("Đã thêm nhánh");
   }
 
   function handleAddStepToBranch(branchId: string, afterStepId?: string) {
@@ -896,6 +1026,13 @@ export default function LapQuyTrinh() {
     setSaveErr(""); setSaving(true);
 
     const hi = loaiHinhToId(loaiHinh);
+
+    if (isTemplateDraft) {
+      // Draft mode: create new workflow + all steps + transitions + parallel groups
+      saveDraftWorkflow(hi);
+      return;
+    }
+
     const wid = isEdit && editId ? parseInt(editId) : generatedWorkflowId;
     if (!wid) { setSaveErr("Vui lòng tạo quy trình từ template trước."); setSaving(false); return; }
     const p: any = { tenWorkflow: tenQuyTrinh.trim() };

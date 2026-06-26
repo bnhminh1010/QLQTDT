@@ -146,7 +146,8 @@ public static class DbInitializer
         ["KHOA_PHONG"] =
         [
             "DEXUAT.CREATE", "DEXUAT.VIEW", "DEXUAT.EDIT", "DEXUAT.DELETE", "DEXUAT.SUBMIT",
-            "DEXUAT.ATTACH_FILE", "GOITHAU.VIEW", "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY",
+            "DEXUAT.ATTACH_FILE",
+            "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY",
             "WORKFLOW.VIEW", "WORKFLOW.CHOOSE",
             "REPORT.VIEW", "REPORT.VIEW_INTERNAL"
         ],
@@ -154,14 +155,14 @@ public static class DbInitializer
         ["BCN_KHOA_PHONG"] =
         [
             "DEXUAT.VIEW", "DEXUAT.APPROVE", "DEXUAT.REJECT",
-            "GOITHAU.VIEW_INTERNAL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.VIEW_INTERNAL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_INTERNAL",
             "AUDIT.VIEW", "AUDIT.VIEW_INTERNAL"
         ],
 
         ["KE_TOAN_TRUONG"] =
         [
-            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "HOPDONG.VIEW", "HOPDONG.QUYETTOAN",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
             "AUDIT.VIEW_ALL"
@@ -185,7 +186,7 @@ public static class DbInitializer
 
         ["VIEN_TRUONG"] =
         [
-            "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
@@ -193,7 +194,7 @@ public static class DbInitializer
         ["BCN_HCQT"] =
         [
             "WORKFLOW.CHOOSE",
-            "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
