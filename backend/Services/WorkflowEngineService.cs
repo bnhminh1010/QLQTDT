@@ -141,6 +141,9 @@ public class WorkflowEngineService : IWorkflowEngineService
                     "Bước đã được xử lý bởi người khác. Vui lòng tải lại trang.");
 
             // ─── 7. Route to action handler ───────────────────────────────
+            if (ShouldPersistApproverText(request.HanhDong))
+                ApplyApproverDisplayText(lockedStep, request);
+
             ProcessStepResponse response = request.HanhDong switch
             {
                 WorkflowHanhDong.APPROVE or WorkflowHanhDong.DUYET => await HandleApproveAsync(
@@ -1322,9 +1325,9 @@ public class WorkflowEngineService : IWorkflowEngineService
                 PhaHienTai = s.PhaHienTai,
                 NgayBatDau = s.NgayBatDau,
                 NgayHoanThanh = s.NgayHoanThanh,
-                TenNguoiXuLy = s.NguoiXuLyText ?? s.NguoiXuLy?.HoTen,
+                TenNguoiXuLy = !string.IsNullOrWhiteSpace(s.NguoiXuLyText) ? s.NguoiXuLyText : s.NguoiXuLy?.HoTen,
                 NgayXuLy = s.NgayXuLy,
-                TenNguoiKyDuyet = s.NguoiKyDuyetText ?? s.NguoiKyDuyet?.HoTen,
+                TenNguoiKyDuyet = !string.IsNullOrWhiteSpace(s.NguoiKyDuyetText) ? s.NguoiKyDuyetText : s.NguoiKyDuyet?.HoTen,
                 NgayKyDuyet = s.NgayKyDuyet,
                 KetQua = s.KetQua,
                 LyDoKhongDuyet = s.LyDoKhongDuyet,
@@ -1401,9 +1404,9 @@ public class WorkflowEngineService : IWorkflowEngineService
                 PhaHienTai = s.PhaHienTai,
                 NgayBatDau = s.NgayBatDau,
                 NgayHoanThanh = s.NgayHoanThanh,
-                TenNguoiXuLy = s.NguoiXuLyText ?? s.NguoiXuLy?.HoTen,
+                TenNguoiXuLy = !string.IsNullOrWhiteSpace(s.NguoiXuLyText) ? s.NguoiXuLyText : s.NguoiXuLy?.HoTen,
                 NgayXuLy = s.NgayXuLy,
-                TenNguoiKyDuyet = s.NguoiKyDuyetText ?? s.NguoiKyDuyet?.HoTen,
+                TenNguoiKyDuyet = !string.IsNullOrWhiteSpace(s.NguoiKyDuyetText) ? s.NguoiKyDuyetText : s.NguoiKyDuyet?.HoTen,
                 NgayKyDuyet = s.NgayKyDuyet,
                 KetQua = s.KetQua,
                 LyDoKhongDuyet = s.LyDoKhongDuyet,
@@ -1446,9 +1449,9 @@ public class WorkflowEngineService : IWorkflowEngineService
             PhaHienTai = step.PhaHienTai,
             NgayBatDau = step.NgayBatDau,
             NgayHoanThanh = step.NgayHoanThanh,
-            TenNguoiXuLy = step.NguoiXuLyText ?? step.NguoiXuLy?.HoTen,
+            TenNguoiXuLy = !string.IsNullOrWhiteSpace(step.NguoiXuLyText) ? step.NguoiXuLyText : step.NguoiXuLy?.HoTen,
             NgayXuLy = step.NgayXuLy,
-            TenNguoiKyDuyet = step.NguoiKyDuyetText ?? step.NguoiKyDuyet?.HoTen,
+            TenNguoiKyDuyet = !string.IsNullOrWhiteSpace(step.NguoiKyDuyetText) ? step.NguoiKyDuyetText : step.NguoiKyDuyet?.HoTen,
             NgayKyDuyet = step.NgayKyDuyet,
             KetQua = step.KetQua,
             LyDoKhongDuyet = step.LyDoKhongDuyet,
@@ -1536,12 +1539,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             tenNguoiXuLy = u?.HoTen;
         }
 
-        if (!string.IsNullOrWhiteSpace(request?.NguoiKyDuyet))
-        {
-            currentStep.NguoiKyDuyetText = request!.NguoiKyDuyet.Trim();
-            tenNguoiKyDuyet = currentStep.NguoiKyDuyetText;
-        }
-        else if (!string.IsNullOrWhiteSpace(currentStep.NguoiKyDuyetText))
+        if (!string.IsNullOrWhiteSpace(currentStep.NguoiKyDuyetText))
         {
             tenNguoiKyDuyet = currentStep.NguoiKyDuyetText;
         }
@@ -1584,6 +1582,21 @@ public class WorkflowEngineService : IWorkflowEngineService
             HanXuLy = currentStep.HanXuLy,
             QuaHan = currentStep.QuaHan
         };
+    }
+
+    private static bool ShouldPersistApproverText(string? hanhDong)
+        => hanhDong is WorkflowHanhDong.APPROVE
+            or WorkflowHanhDong.DUYET
+            or WorkflowHanhDong.REJECT
+            or WorkflowHanhDong.KHONG_DUYET
+            or WorkflowHanhDong.ROLLBACK
+            or WorkflowHanhDong.TRA_VE;
+
+    private static void ApplyApproverDisplayText(WorkflowStepInstance currentStep, ProcessStepRequest? request)
+    {
+        var approverText = request?.GetNguoiKyDuyetDisplayText();
+        if (!string.IsNullOrWhiteSpace(approverText))
+            currentStep.NguoiKyDuyetText = approverText;
     }
 
     private static string? ComputeTinhTrangTienDo(DateTime? hanXuLy, string trangThai)

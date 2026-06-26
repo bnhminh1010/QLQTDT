@@ -57,6 +57,15 @@ public class ProcessStepRequest
     public string? KetQua { get; set; }
     public string? NguoiXuLy { get; set; }
     public string? NguoiKyDuyet { get; set; }
+    public string? NguoiKyDuyetText { get; set; }
+
+    public string? GetNguoiKyDuyetDisplayText()
+    {
+        if (!string.IsNullOrWhiteSpace(NguoiKyDuyetText))
+            return NguoiKyDuyetText.Trim();
+
+        return string.IsNullOrWhiteSpace(NguoiKyDuyet) ? null : NguoiKyDuyet.Trim();
+    }
 }
 
 public class ProcessStepResponse
