@@ -56,6 +56,7 @@ export async function getWorkflows(search?: string): Promise<WorkflowItem[]> {
 export type WorkflowCreateRequest = {
   tenWorkflow: string;
   hinhThucId: number;
+  loaiHinhDauThau?: string;
 };
 
 export type WorkflowCreateResponse = {

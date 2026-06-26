@@ -87,6 +87,58 @@ public class BaoCaoController : ControllerBase
         return File(bytes, "text/csv; charset=utf-8", fileName);
     }
 
+    /// <summary>GET /api/bao-cao/workflow-steps — Thống kê tiến độ workflow step (ADMIN/CAP_CAO)</summary>
+    [HttpGet("workflow-steps")]
+    [HasPermission("REPORT.VIEW_ALL", "REPORT.VIEW")]
+    public async Task<ActionResult<ApiResponse<List<WorkflowStepReportDto>>>> GetWorkflowSteps(
+        [FromQuery] DateTime? tuNgay,
+        [FromQuery] DateTime? denNgay,
+        [FromQuery] int? hinhThucId)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _baoCaoService.GetStepReportAsync(userId, tuNgay, denNgay, hinhThucId);
+        return Ok(ApiResponse<List<WorkflowStepReportDto>>.Ok(result));
+    }
+
+    /// <summary>GET /api/bao-cao/tiet-kiem — Phân tích tiết kiệm ngân sách theo khoa (ADMIN/CAP_CAO)</summary>
+    [HttpGet("tiet-kiem")]
+    [HasPermission("REPORT.VIEW_ALL", "REPORT.VIEW")]
+    public async Task<ActionResult<ApiResponse<List<BaoCaoTietKiemDto>>>> GetTietKiem(
+        [FromQuery] DateTime? tuNgay,
+        [FromQuery] DateTime? denNgay,
+        [FromQuery] int? hinhThucId)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _baoCaoService.GetTietKiemAsync(userId, tuNgay, denNgay, hinhThucId);
+        return Ok(ApiResponse<List<BaoCaoTietKiemDto>>.Ok(result));
+    }
+
+    /// <summary>GET /api/bao-cao/hieu-suat-nguoi-dung — Hiệu suất xử lý người dùng (ADMIN/CAP_CAO)</summary>
+    [HttpGet("hieu-suat-nguoi-dung")]
+    [HasPermission("REPORT.VIEW_ALL", "REPORT.VIEW")]
+    public async Task<ActionResult<ApiResponse<List<BaoCaoHieuSuatNguoiDungDto>>>> GetHieuSuatNguoiDung(
+        [FromQuery] DateTime? tuNgay,
+        [FromQuery] DateTime? denNgay,
+        [FromQuery] int? hinhThucId)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _baoCaoService.GetHieuSuatNguoiDungAsync(userId, tuNgay, denNgay, hinhThucId);
+        return Ok(ApiResponse<List<BaoCaoHieuSuatNguoiDungDto>>.Ok(result));
+    }
+
+    /// <summary>GET /api/bao-cao/workflow-bottleneck — Phân tích điểm nghẽn workflow (ADMIN/CAP_CAO)</summary>
+    [HttpGet("workflow-bottleneck")]
+    [HasPermission("REPORT.VIEW_ALL", "REPORT.VIEW")]
+    public async Task<ActionResult<ApiResponse<List<WorkflowBottleneckDto>>>> GetWorkflowBottleneck(
+        [FromQuery] DateTime? tuNgay,
+        [FromQuery] DateTime? denNgay,
+        [FromQuery] int? hinhThucId)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _baoCaoService.GetWorkflowBottleneckAsync(userId, tuNgay, denNgay, hinhThucId);
+        return Ok(ApiResponse<List<WorkflowBottleneckDto>>.Ok(result));
+    }
+
     private int GetCurrentUserId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);

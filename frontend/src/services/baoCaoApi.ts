@@ -75,6 +75,78 @@ export async function getBaoCaoChiTieu(params?: {
   return res.data;
 }
 
+export type WorkflowStepReport = {
+  tenBuoc: string;
+  tongSo: number;
+  hoanThanh: number;
+  dangXuLy: number;
+  choDuyet: number;
+  quaHan: number;
+  tiLeHoanThanh: number;
+};
+
+export async function getWorkflowStepReport(params?: {
+  tuNgay?: string;
+  denNgay?: string;
+  hinhThucId?: number;
+}): Promise<WorkflowStepReport[]> {
+  const res = await http.get<ApiResponse<WorkflowStepReport[]>>("/bao-cao/workflow-steps", { params });
+  return res.data;
+}
+
+export type BaoCaoTietKiem = {
+  khoaPhongId?: number;
+  tenKhoaPhong: string;
+  tongGoiThau: number;
+  tongNganSach: number;
+  tongGiaTriHopDong?: number;
+  tienTietKiem?: number;
+  phanTramTietKiem: number;
+};
+
+export type BaoCaoHieuSuatNguoiDung = {
+  nguoiDungId: number;
+  hoTen: string;
+  tenDangNhap: string;
+  tongBuocXuLy: number;
+  soBuocHoanThanh: number;
+  soBuocQuaHan: number;
+  thoiGianXuLyTrungBinhGio: number;
+  tiLeQuaHan: number;
+};
+
+export type WorkflowBottleneck = {
+  tenBuoc: string;
+  tongSo: number;
+  dangXuLy: number;
+  choDuyet: number;
+  hoanThanh: number;
+  quaHan: number;
+  thoiGianTrungBinhGio: number;
+  mucDoCanhBao: string; // OK | WARN | CRITICAL
+};
+
+export async function getBaoCaoTietKiem(params?: {
+  tuNgay?: string; denNgay?: string; hinhThucId?: number;
+}): Promise<BaoCaoTietKiem[]> {
+  const res = await http.get<ApiResponse<BaoCaoTietKiem[]>>("/bao-cao/tiet-kiem", { params });
+  return res.data;
+}
+
+export async function getBaoCaoHieuSuatNguoiDung(params?: {
+  tuNgay?: string; denNgay?: string; hinhThucId?: number;
+}): Promise<BaoCaoHieuSuatNguoiDung[]> {
+  const res = await http.get<ApiResponse<BaoCaoHieuSuatNguoiDung[]>>("/bao-cao/hieu-suat-nguoi-dung", { params });
+  return res.data;
+}
+
+export async function getWorkflowBottleneck(params?: {
+  tuNgay?: string; denNgay?: string; hinhThucId?: number;
+}): Promise<WorkflowBottleneck[]> {
+  const res = await http.get<ApiResponse<WorkflowBottleneck[]>>("/bao-cao/workflow-bottleneck", { params });
+  return res.data;
+}
+
 export async function exportBaoCaoCsv(params?: {
   tuNgay?: string;
   denNgay?: string;

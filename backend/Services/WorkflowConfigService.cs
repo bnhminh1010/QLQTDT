@@ -99,6 +99,7 @@ public class WorkflowConfigService : IWorkflowConfigService
             MaWorkflow = await GenerateMaWorkflowAsync(),
             TenWorkflow = tenWorkflow,
             HinhThucId = request.HinhThucId,
+            LoaiHinhDauThau = request.LoaiHinhDauThau,
             TrangThaiHoatDong = true
         };
 

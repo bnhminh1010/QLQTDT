@@ -15,4 +15,16 @@ public interface IBaoCaoService
 
     /// <summary>Xuất CSV báo cáo tổng hợp (REPORT.EXPORT)</summary>
     Task<byte[]> ExportCsvAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId);
+
+    /// <summary>Thống kê tiến độ workflow step (REPORT.VIEW_ALL)</summary>
+    Task<List<WorkflowStepReportDto>> GetStepReportAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId);
+
+    /// <summary>Phân tích tiết kiệm ngân sách theo khoa (REPORT.VIEW_ALL)</summary>
+    Task<List<BaoCaoTietKiemDto>> GetTietKiemAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId);
+
+    /// <summary>Hiệu suất xử lý của người dùng (REPORT.VIEW_ALL)</summary>
+    Task<List<BaoCaoHieuSuatNguoiDungDto>> GetHieuSuatNguoiDungAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId);
+
+    /// <summary>Bottleneck workflow (REPORT.VIEW_ALL)</summary>
+    Task<List<WorkflowBottleneckDto>> GetWorkflowBottleneckAsync(int userId, DateTime? tuNgay, DateTime? denNgay, int? hinhThucId);
 }

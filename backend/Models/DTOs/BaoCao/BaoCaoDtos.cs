@@ -83,6 +83,56 @@ public class BaoCaoGoiThauResponse
     public int PageSize { get; set; }
 }
 
+/// <summary>Báo cáo tiến độ workflow step</summary>
+public class WorkflowStepReportDto
+{
+    public string TenBuoc { get; set; } = null!;
+    public int TongSo { get; set; }
+    public int HoanThanh { get; set; }
+    public int DangXuLy { get; set; }
+    public int ChoDuyet { get; set; }
+    public int QuaHan { get; set; }
+    public double TiLeHoanThanh { get; set; }
+}
+
+/// <summary>Phân tích tiết kiệm ngân sách theo khoa/phòng</summary>
+public class BaoCaoTietKiemDto
+{
+    public int? KhoaPhongId { get; set; }
+    public string TenKhoaPhong { get; set; } = null!;
+    public int TongGoiThau { get; set; }
+    public decimal TongNganSach { get; set; }
+    public decimal? TongGiaTriHopDong { get; set; }
+    public decimal? TienTietKiem { get; set; }
+    public double PhanTramTietKiem { get; set; }
+}
+
+/// <summary>Hiệu suất xử lý của từng người dùng</summary>
+public class BaoCaoHieuSuatNguoiDungDto
+{
+    public int NguoiDungId { get; set; }
+    public string HoTen { get; set; } = null!;
+    public string TenDangNhap { get; set; } = null!;
+    public int TongBuocXuLy { get; set; }
+    public int SoBuocHoanThanh { get; set; }
+    public int SoBuocQuaHan { get; set; }
+    public double ThoiGianXuLyTrungBinhGio { get; set; }
+    public double TiLeQuaHan { get; set; }
+}
+
+/// <summary>Bottleneck workflow: thời gian + backlog theo từng bước</summary>
+public class WorkflowBottleneckDto
+{
+    public string TenBuoc { get; set; } = null!;
+    public int TongSo { get; set; }
+    public int DangXuLy { get; set; }
+    public int ChoDuyet { get; set; }
+    public int HoanThanh { get; set; }
+    public int QuaHan { get; set; }
+    public double ThoiGianTrungBinhGio { get; set; }
+    public string MucDoCanhBao { get; set; } = "OK"; // OK / WARN / CRITICAL
+}
+
 /// <summary>Báo cáo chi tiêu theo khoa (dành cho ADMIN/CAP_CAO)</summary>
 public class BaoCaoChiTieuTheoKhoaDto
 {

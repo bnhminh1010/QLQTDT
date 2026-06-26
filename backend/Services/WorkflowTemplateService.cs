@@ -20,7 +20,8 @@ public class WorkflowTemplateService : IWorkflowTemplateService
     public async Task<List<WorkflowTemplateSummaryDto>> GetTemplatesAsync(string? loaiHinh)
     {
         var query = _db.Workflows
-            .Where(w => w.TrangThaiHoatDong && w.LaQuyTrinhChuan)
+            .Where(w => w.TrangThaiHoatDong
+                && (w.LaQuyTrinhChuan || w.BuocWorkflows.Any()))
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(loaiHinh))
