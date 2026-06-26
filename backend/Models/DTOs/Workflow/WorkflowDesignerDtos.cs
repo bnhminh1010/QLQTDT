@@ -30,6 +30,67 @@ public class GenerateWorkflowFromTemplateRequest
     public string? LoaiHinhDauThau { get; set; }
 }
 
+/// <summary>Save a full workflow design in one request</summary>
+public class WorkflowDesignSaveRequest
+{
+    public string TenWorkflow { get; set; } = null!;
+    public int HinhThucId { get; set; }
+    public string? LoaiHinhDauThau { get; set; }
+    public List<WorkflowDesignStepRequest> Steps { get; set; } = [];
+    public List<WorkflowDesignParallelGroupRequest> ParallelGroups { get; set; } = [];
+}
+
+public class WorkflowDesignStepRequest
+{
+    public string Id { get; set; } = null!;
+    public string MaBuoc { get; set; } = null!;
+    public string TenBuoc { get; set; } = null!;
+    public string LoaiBuoc { get; set; } = null!;
+    public int ThuTu { get; set; }
+    public int? VaiTroXuLyHoSoId { get; set; }
+    public int SoNgayLapHoSo { get; set; }
+    public int? VaiTroKyDuyetId { get; set; }
+    public int SoNgayXuLy { get; set; }
+    public string LoaiHan { get; set; } = "CANH_BAO";
+    public string? NhomSongSong { get; set; }
+    public bool LaBuocJoin { get; set; }
+    public string? NhomGiaiDoan { get; set; }
+    public string? MoTa { get; set; }
+    public int? DonViXuLyId { get; set; }
+    public int? DonViKyHoSoId { get; set; }
+    public bool BatBuocGhiChu { get; set; }
+    public bool BatBuocTaiLieu { get; set; }
+    public bool BatBuocKyTruocChuyenBuoc { get; set; }
+    public bool BatBuocDungSLA { get; set; }
+    public string? NhanhId { get; set; }
+    public bool ChoPhepTuChoi { get; set; } = true;
+    public bool ChoPhepBoQua { get; set; }
+}
+
+public class WorkflowDesignParallelGroupRequest
+{
+    public string Id { get; set; } = null!;
+    public string BuocTachNhanhId { get; set; } = null!;
+    public string TenNhom { get; set; } = null!;
+    public string DieuKienHopNhat { get; set; } = "ALL";
+    public int? SoNhanhHopNhatToiThieu { get; set; }
+    public string BuocSauHopNhatId { get; set; } = null!;
+    public List<WorkflowDesignParallelBranchRequest> Branches { get; set; } = [];
+}
+
+public class WorkflowDesignParallelBranchRequest
+{
+    public string Id { get; set; } = null!;
+    public string MaNhanh { get; set; } = null!;
+    public string TenNhanh { get; set; } = null!;
+    public int ThuTu { get; set; }
+    public int? DonViXuLyId { get; set; }
+    public int? VaiTroXuLyId { get; set; }
+    public decimal ThoiHanNgay { get; set; }
+    public string LoaiHan { get; set; } = "CANH_BAO";
+    public List<string> StepIds { get; set; } = [];
+}
+
 /// <summary>Insert step after another step</summary>
 public class InsertStepAfterRequest
 {

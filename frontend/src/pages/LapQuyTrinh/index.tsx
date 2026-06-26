@@ -29,6 +29,32 @@ import DeleteStepConfirmModal from "./components/DeleteStepConfirmModal";
 import LeaveConfirmModal from "./components/LeaveConfirmModal";
 import type { TemplateInfo } from "./workflowDesignerTypes";
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  const responseData = (error as any)?.response?.data;
+
+  if (typeof responseData?.error === "string" && responseData.error.trim()) {
+    return responseData.error;
+  }
+
+  if (typeof responseData?.message === "string" && responseData.message.trim()) {
+    return responseData.message;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function logWorkflowError(scope: string, error: unknown, context?: Record<string, unknown>) {
+  console.error(`[LapQuyTrinh] ${scope}`, {
+    context,
+    error,
+    responseData: (error as any)?.response?.data,
+  });
+}
+
 function loaiHinhToId(ten: string): number | undefined {
   const idx = LOAI_HINH_DAU_THAU.indexOf(ten as any);
   return idx >= 0 ? idx + 1 : undefined;
@@ -66,6 +92,7 @@ export default function LapQuyTrinh() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [generatedWorkflowId, setGeneratedWorkflowId] = useState<number | undefined>();
+  const [isTemplateDraft, setIsTemplateDraft] = useState(false);
 
   /* ── Dirty tracking ── */
   const [isDirty, setIsDirty] = useState(false);
@@ -213,10 +240,15 @@ export default function LapQuyTrinh() {
 
   async function saveDraftWorkflow(hinhThucId?: number) {
     try {
+      const resolvedHinhThucId = hinhThucId ?? loaiHinhToId(loaiHinh);
+      if (!resolvedHinhThucId) {
+        throw new Error(`Không xác định được hinhThucId cho loại hình "${loaiHinh}".`);
+      }
+
       // 1. Create workflow
       const workflow = await createWorkflow({
         tenWorkflow: tenQuyTrinh.trim(),
-        hinhThucId: hinhThucId ?? 1,
+        hinhThucId: resolvedHinhThucId,
         loaiHinhDauThau: loaiHinh || undefined,
       });
       const newWorkflowId = workflow.id;
@@ -322,8 +354,15 @@ export default function LapQuyTrinh() {
       setIsTemplateDraft(false);
       navigate("/danh-sach-quy-trinh");
     } catch (err: any) {
-      console.error(err);
-      toast.error(err?.response?.data?.message || "Lưu quy trình thất bại");
+      logWorkflowError("saveDraftWorkflow failed", err, {
+        loaiHinh,
+        hinhThucId,
+        buocCount: buocList.length,
+        parallelGroupCount: parallelGroups.length,
+      });
+      const message = getErrorMessage(err, "Lưu quy trình thất bại");
+      setSaveErr(message);
+      toast.error(message);
       setSaving(false);
     }
   }
@@ -348,15 +387,26 @@ export default function LapQuyTrinh() {
     try {
       const templates = await getWorkflowTemplates(value);
       setTemplateList(templates);
-    } catch { toast.error("Không thể tải quy trình chuẩn."); }
+    } catch (err) {
+      logWorkflowError("load workflow templates failed", err, { loaiHinh: value });
+      toast.error(getErrorMessage(err, "Không thể tải quy trình chuẩn."));
+    }
     finally { setLoadingTemplate(false); }
   }
 
   async function handlePreview() {
     if (!templateInfoRaw) return;
     setPreviewLoading(true); setPreviewOpen(true);
-    try { setPreviewData(await previewWorkflowTemplate(templateInfoRaw.id)); }
-    catch { toast.error("Không thể tải preview."); setPreviewOpen(false); }
+    try {
+      setPreviewData(await previewWorkflowTemplate(templateInfoRaw.id));
+    } catch (err) {
+      logWorkflowError("preview workflow template failed", err, {
+        templateId: templateInfoRaw.id,
+        selectedTemplateIdx,
+      });
+      toast.error(getErrorMessage(err, "Không thể tải preview."));
+      setPreviewOpen(false);
+    }
     finally { setPreviewLoading(false); }
   }
 
@@ -368,13 +418,26 @@ export default function LapQuyTrinh() {
 
     setSaving(true); setSaveErr("");
     try {
+      const selectedTemplateId = templateInfoRaw.id;
+      if (!Number.isFinite(selectedTemplateId)) {
+        throw new Error("Quy trình chuẩn đang chọn không hợp lệ.");
+      }
+
       const templates = await getWorkflowTemplates(loaiHinh);
-      const selectedTemplate = templates.find((t) => t.id === templateInfoRaw.id) ?? templates[0];
+      const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? templates[0];
       if (!selectedTemplate || selectedTemplate.soBuoc <= 0) {
         setTemplateList(templates);
         setSelectedTemplateIdx(0);
         toast.error("Không có quy trình chuẩn hợp lệ cho loại hình này.");
         return;
+      }
+
+      if (selectedTemplate.id !== selectedTemplateId) {
+        console.warn("[LapQuyTrinh] Selected template no longer exists in refreshed template list", {
+          selectedTemplateId,
+          fallbackTemplateId: selectedTemplate.id,
+          loaiHinh,
+        });
       }
 
       const selectedIdx = templates.findIndex((t) => t.id === selectedTemplate.id);
@@ -391,7 +454,13 @@ export default function LapQuyTrinh() {
       setIsDirty(true);
       toast.success("Đã tạo bản nháp từ template. Bấm Lưu quy trình để ghi vào DB.");
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || err?.response?.data?.message || "Tạo quy trình thất bại");
+      logWorkflowError("generate workflow draft failed", err, {
+        loaiHinh,
+        selectedTemplateIdx,
+        selectedTemplateId: templateInfoRaw.id,
+        templateCount: templateList.length,
+      });
+      toast.error(getErrorMessage(err, "Tạo quy trình thất bại"));
     } finally {
       setSaving(false);
     }
@@ -1304,4 +1373,3 @@ export default function LapQuyTrinh() {
     </>
   );
 }
-

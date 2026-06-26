@@ -129,6 +129,237 @@ public class WorkflowConfigService : IWorkflowConfigService
         };
     }
 
+    public async Task<WorkflowCreateResponse> CreateWorkflowFromDesignAsync(WorkflowDesignSaveRequest request, int? nguoiTaoId)
+    {
+        var hinhThucExists = await _context.HinhThucDauThaus
+            .AnyAsync(h => h.Id == request.HinhThucId);
+        if (!hinhThucExists)
+            throw new NotFoundException($"HinhThucDauThau not found: {request.HinhThucId}");
+
+        var tenWorkflow = request.TenWorkflow.Trim();
+
+        var duplicate = await _context.Workflows.AnyAsync(w =>
+            w.TenWorkflow == tenWorkflow
+            && w.HinhThucId == request.HinhThucId);
+        if (duplicate)
+            throw new ConflictException("Workflow name already exists for the same bidding method.");
+
+        var entity = new Workflow
+        {
+            MaWorkflow = await GenerateMaWorkflowAsync(),
+            TenWorkflow = tenWorkflow,
+            HinhThucId = request.HinhThucId,
+            LoaiHinhDauThau = request.LoaiHinhDauThau,
+            TrangThaiHoatDong = true
+        };
+
+        await using var tx = await _context.Database.BeginTransactionAsync();
+
+        _context.Workflows.Add(entity);
+        await _context.SaveChangesAsync();
+
+        var stepByDraftId = new Dictionary<string, BuocWorkflow>();
+        var normalizedSteps = request.Steps
+            .Select((step, index) => new { Step = step, Index = index })
+            .ToList();
+
+        var duplicateStepIds = normalizedSteps
+            .GroupBy(x => x.Step.Id)
+            .FirstOrDefault(g => g.Count() > 1);
+        if (duplicateStepIds != null)
+            throw new AppException(400, "DUPLICATE_STEP_ID", $"Duplicate step id in design payload: {duplicateStepIds.Key}");
+
+        foreach (var item in normalizedSteps)
+        {
+            var step = item.Step;
+            var stepEntity = new BuocWorkflow
+            {
+                WorkflowId = entity.Id,
+                MaBuoc = step.MaBuoc,
+                TenBuoc = step.TenBuoc,
+                LoaiBuoc = step.LoaiBuoc,
+                ThuTu = item.Index + 1,
+                VaiTroXuLyHoSoId = step.VaiTroXuLyHoSoId,
+                SoNgayLapHoSo = step.SoNgayLapHoSo,
+                VaiTroKyDuyetId = step.VaiTroKyDuyetId,
+                SoNgayXuLy = step.SoNgayXuLy,
+                LoaiHan = step.LoaiHan,
+                NhomSongSong = step.NhomSongSong,
+                LaBuocJoin = step.LaBuocJoin,
+                NhomGiaiDoan = step.NhomGiaiDoan,
+                MoTa = step.MoTa,
+                DonViXuLyId = step.DonViXuLyId,
+                DonViKyHoSoId = step.DonViKyHoSoId,
+                BatBuocGhiChu = step.BatBuocGhiChu,
+                BatBuocTaiLieu = step.BatBuocTaiLieu,
+                BatBuocKyTruocChuyenBuoc = step.BatBuocKyTruocChuyenBuoc,
+                BatBuocDungSLA = step.BatBuocDungSLA,
+                ChoPhepTuChoi = step.ChoPhepTuChoi,
+                ChoPhepBoQua = step.ChoPhepBoQua
+            };
+
+            _context.BuocWorkflows.Add(stepEntity);
+            await _context.SaveChangesAsync();
+            stepByDraftId[step.Id] = stepEntity;
+        }
+
+        foreach (var group in request.ParallelGroups.Select((group, groupIndex) => new { Group = group, GroupIndex = groupIndex }))
+        {
+            if (!stepByDraftId.TryGetValue(group.Group.BuocTachNhanhId, out var splitStep))
+                throw new AppException(400, "INVALID_DESIGN", $"Unknown split step id: {group.Group.BuocTachNhanhId}");
+
+            if (!stepByDraftId.TryGetValue(group.Group.BuocSauHopNhatId, out var mergeStep))
+                throw new AppException(400, "INVALID_DESIGN", $"Unknown merge step id: {group.Group.BuocSauHopNhatId}");
+
+            var groupEntity = new NhomNhanhWorkflow
+            {
+                WorkflowId = entity.Id,
+                BuocTachNhanhId = splitStep.Id,
+                TenNhom = group.Group.TenNhom,
+                DieuKienHopNhat = group.Group.DieuKienHopNhat,
+                SoNhanhHopNhatToiThieu = group.Group.DieuKienHopNhat == "COUNT"
+                    ? group.Group.SoNhanhHopNhatToiThieu
+                    : null,
+                BuocSauHopNhatId = mergeStep.Id,
+                NgayTao = DateTime.UtcNow
+            };
+
+            _context.NhomNhanhWorkflows.Add(groupEntity);
+            await _context.SaveChangesAsync();
+
+            var duplicateBranchIds = group.Group.Branches
+                .GroupBy(branch => branch.Id)
+                .FirstOrDefault(g => g.Count() > 1);
+            if (duplicateBranchIds != null)
+                throw new AppException(400, "DUPLICATE_BRANCH_ID", $"Duplicate branch id in design payload: {duplicateBranchIds.Key}");
+
+            foreach (var branch in group.Group.Branches.OrderBy(b => b.ThuTu))
+            {
+                if (branch.StepIds.Count == 0)
+                    throw new AppException(400, "INVALID_DESIGN", $"Branch '{branch.TenNhanh}' does not contain any steps.");
+
+                var orderedBranchSteps = branch.StepIds.Select(stepId =>
+                    stepByDraftId.TryGetValue(stepId, out var stepEntity)
+                        ? stepEntity
+                        : throw new AppException(400, "INVALID_DESIGN", $"Unknown branch step id: {stepId}")).ToList();
+
+                var firstBranchStep = orderedBranchSteps[0];
+                var branchEntity = new NhanhWorkflow
+                {
+                    NhomNhanhWorkflowId = groupEntity.Id,
+                    MaNhanh = branch.MaNhanh,
+                    TenNhanh = branch.TenNhanh,
+                    ThuTu = branch.ThuTu,
+                    DonViXuLyId = branch.DonViXuLyId,
+                    VaiTroXuLyId = branch.VaiTroXuLyId,
+                    ThoiHanNgay = branch.ThoiHanNgay,
+                    LoaiHan = branch.LoaiHan,
+                    BuocDauTienId = firstBranchStep.Id
+                };
+
+                _context.NhanhWorkflows.Add(branchEntity);
+                await _context.SaveChangesAsync();
+
+                foreach (var branchStep in orderedBranchSteps)
+                    branchStep.NhanhWorkflowId = branchEntity.Id;
+            }
+        }
+
+        var branchDraftById = request.ParallelGroups
+            .SelectMany(group => group.Branches)
+            .ToDictionary(branch => branch.Id, branch => branch);
+
+        var branchStepDraftIds = new HashSet<string>();
+        foreach (var branch in branchDraftById.Values)
+        {
+            foreach (var stepId in branch.StepIds)
+            {
+                if (!stepByDraftId.ContainsKey(stepId))
+                    throw new AppException(400, "INVALID_DESIGN", $"Unknown branch step id: {stepId}");
+
+                if (!branchStepDraftIds.Add(stepId))
+                    throw new AppException(400, "INVALID_DESIGN", $"Step '{stepId}' belongs to more than one branch.");
+
+                var stepDraft = normalizedSteps.First(x => x.Step.Id == stepId);
+                if (!string.Equals(stepDraft.Step.NhanhId, branch.Id, StringComparison.Ordinal))
+                    throw new AppException(400, "INVALID_DESIGN", $"Step '{stepId}' is not assigned to branch '{branch.Id}'.");
+            }
+        }
+
+        foreach (var stepDraft in normalizedSteps.Where(x => !string.IsNullOrWhiteSpace(x.Step.NhanhId)))
+        {
+            if (!branchDraftById.TryGetValue(stepDraft.Step.NhanhId!, out var branch))
+                throw new AppException(400, "INVALID_DESIGN", $"Unknown branch id: {stepDraft.Step.NhanhId}");
+
+            if (!branch.StepIds.Contains(stepDraft.Step.Id))
+                throw new AppException(400, "INVALID_DESIGN", $"Step '{stepDraft.Step.Id}' is not included in branch '{branch.Id}'.");
+        }
+
+        var mainSteps = normalizedSteps
+            .Where(x => string.IsNullOrWhiteSpace(x.Step.NhanhId))
+            .Select(x => stepByDraftId[x.Step.Id])
+            .OrderBy(step => step.ThuTu)
+            .ToList();
+
+        for (var i = 0; i < mainSteps.Count - 1; i++)
+        {
+            _context.ChuyenTiepWorkflows.Add(new ChuyenTiepWorkflow
+            {
+                TuBuocId = mainSteps[i].Id,
+                DenBuocId = mainSteps[i + 1].Id,
+                HanhDong = "DUYET",
+                DieuKienKichHoat = "LUON",
+                BatBuocGhiChu = false,
+                BatBuocTaiLieu = false
+            });
+        }
+
+        foreach (var group in request.ParallelGroups)
+        {
+            foreach (var branch in group.Branches.OrderBy(b => b.ThuTu))
+            {
+                var orderedBranchSteps = branch.StepIds
+                    .Select(stepId => stepByDraftId[stepId])
+                    .ToList();
+
+                for (var i = 0; i < orderedBranchSteps.Count - 1; i++)
+                {
+                    _context.ChuyenTiepWorkflows.Add(new ChuyenTiepWorkflow
+                    {
+                        TuBuocId = orderedBranchSteps[i].Id,
+                        DenBuocId = orderedBranchSteps[i + 1].Id,
+                        HanhDong = "DUYET",
+                        DieuKienKichHoat = "LUON",
+                        BatBuocGhiChu = false,
+                        BatBuocTaiLieu = false
+                    });
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        _context.WorkflowVersionHistories.Add(new WorkflowVersionHistory
+        {
+            WorkflowId = entity.Id,
+            VersionNumber = 1,
+            SnapshotData = await SerializeSnapshotAsync(entity),
+            NgayTao = DateTime.UtcNow,
+            NguoiTaoId = nguoiTaoId
+        });
+
+        await _context.SaveChangesAsync();
+        await tx.CommitAsync();
+
+        _logger.LogInformation("Created workflow from design: id={WorkflowId}, ma={MaWorkflow}", entity.Id, entity.MaWorkflow);
+
+        return new WorkflowCreateResponse
+        {
+            Id = entity.Id,
+            TenWorkflow = entity.TenWorkflow
+        };
+    }
+
     public async Task UpdateWorkflowAsync(int id, WorkflowUpdateRequest request, int? nguoiTaoId)
     {
         var entity = await _context.Workflows.FindAsync(id)
@@ -270,6 +501,11 @@ public class WorkflowConfigService : IWorkflowConfigService
                 .ToListAsync()
             : [];
 
+        var parallelGroups = await _context.NhomNhanhWorkflows
+            .Include(g => g.Nhanhs.OrderBy(n => n.ThuTu))
+            .Where(g => g.WorkflowId == workflow.Id)
+            .ToListAsync();
+
         var snapshot = new WorkflowSnapshotDto
         {
             WorkflowId = workflow.Id,
@@ -290,6 +526,16 @@ public class WorkflowConfigService : IWorkflowConfigService
                 LoaiHan = b.LoaiHan,
                 NhomSongSong = b.NhomSongSong,
                 LaBuocJoin = b.LaBuocJoin,
+                ThuTu = b.ThuTu,
+                NhomGiaiDoan = b.NhomGiaiDoan,
+                MoTa = b.MoTa,
+                DonViXuLyId = b.DonViXuLyId,
+                DonViKyHoSoId = b.DonViKyHoSoId,
+                BatBuocGhiChu = b.BatBuocGhiChu,
+                BatBuocTaiLieu = b.BatBuocTaiLieu,
+                BatBuocKyTruocChuyenBuoc = b.BatBuocKyTruocChuyenBuoc,
+                BatBuocDungSLA = b.BatBuocDungSLA,
+                NhanhWorkflowId = b.NhanhWorkflowId,
                 ChoPhepTuChoi = b.ChoPhepTuChoi,
                 ChoPhepBoQua = b.ChoPhepBoQua
             }).ToList(),
@@ -300,6 +546,34 @@ public class WorkflowConfigService : IWorkflowConfigService
                 DenBuocId = c.DenBuocId,
                 HanhDong = c.HanhDong,
                 DieuKien = c.DieuKien
+            }).ToList(),
+            ParallelGroups = parallelGroups.Select(pg => new ParallelGroupSnapshotDto
+            {
+                Id = pg.Id,
+                WorkflowId = pg.WorkflowId,
+                BuocTachNhanhId = pg.BuocTachNhanhId,
+                TenNhom = pg.TenNhom,
+                DieuKienHopNhat = pg.DieuKienHopNhat,
+                SoNhanhHopNhatToiThieu = pg.SoNhanhHopNhatToiThieu,
+                BuocSauHopNhatId = pg.BuocSauHopNhatId,
+                Branches = pg.Nhanhs.Select(n => new ParallelBranchSnapshotDto
+                {
+                    Id = n.Id,
+                    NhomNhanhWorkflowId = n.NhomNhanhWorkflowId,
+                    MaNhanh = n.MaNhanh,
+                    TenNhanh = n.TenNhanh,
+                    ThuTu = n.ThuTu,
+                    DonViXuLyId = n.DonViXuLyId,
+                    VaiTroXuLyId = n.VaiTroXuLyId,
+                    ThoiHanNgay = n.ThoiHanNgay,
+                    LoaiHan = n.LoaiHan,
+                    BuocDauTienId = n.BuocDauTienId,
+                    StepIds = buocs
+                        .Where(b => b.NhanhWorkflowId == n.Id)
+                        .OrderBy(b => b.ThuTu)
+                        .Select(b => b.Id)
+                        .ToList()
+                }).ToList()
             }).ToList()
         };
 
