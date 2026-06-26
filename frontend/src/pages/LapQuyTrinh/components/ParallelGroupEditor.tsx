@@ -8,9 +8,12 @@ interface Props {
   steps: WorkflowStepDraft[];
   inline?: boolean;
   onUpdateGroup: (g: ParallelGroupDraft) => void;
+  onDeleteGroup: () => void;
   onAddBranch: () => void;
   onRemoveBranch: (branchId: string) => void;
   onAddStepToBranch: (branchId: string, afterStepId?: string) => void;
+  onEditStep: (step: WorkflowStepDraft) => void;
+  onDeleteStep: (step: WorkflowStepDraft) => void;
 }
 
 const inputCls =
@@ -21,9 +24,12 @@ export default function ParallelGroupEditor({
   steps,
   inline = false,
   onUpdateGroup,
+  onDeleteGroup,
   onAddBranch,
   onRemoveBranch,
   onAddStepToBranch,
+  onEditStep,
+  onDeleteStep,
 }: Props) {
   // Only show main-flow steps that come AFTER the split step
   const splitStepIdx = steps.findIndex((s) => s.id === group.buocTachNhanhId);
@@ -45,6 +51,13 @@ export default function ParallelGroupEditor({
           Nhánh song song
         </p>
         <div className="flex items-center gap-2">
+          <button
+            onClick={onDeleteGroup}
+            className="h-6 w-6 flex items-center justify-center rounded-lg border border-red-200 bg-white text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors"
+            title="Xóa nhánh song song"
+          >
+            <i className="fa-solid fa-trash text-[10px]" />
+          </button>
           <button
             onClick={onAddBranch}
             className="h-6 px-2.5 bg-purple-50 hover:bg-purple-100 text-purple-600 text-[10px] font-semibold rounded-lg flex items-center gap-1"
@@ -90,6 +103,22 @@ export default function ParallelGroupEditor({
                           {si + 1}
                         </span>
                         <span className="flex-1 truncate">{s.tenBuoc}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => onEditStep(s)}
+                            className="w-6 h-6 flex items-center justify-center rounded text-emerald-500 hover:bg-emerald-50"
+                            title="Sửa bước"
+                          >
+                            <i className="fa-solid fa-pen text-[10px]" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteStep(s)}
+                            className="w-6 h-6 flex items-center justify-center rounded text-red-500 hover:bg-red-50"
+                            title="Xóa bước"
+                          >
+                            <i className="fa-solid fa-trash text-[10px]" />
+                          </button>
+                        </div>
                       </div>
                       <button
                         onClick={() => onAddStepToBranch(branch.id, s.id)}

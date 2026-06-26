@@ -216,6 +216,7 @@ export type StepUpdateRequest = {
   batBuocTaiLieu?: boolean;
   batBuocKyTruocChuyenBuoc?: boolean;
   batBuocDungSLA?: boolean;
+  nhanhWorkflowId?: number | null;
   choPhepTuChoi?: boolean;
   choPhepBoQua?: boolean;
 };

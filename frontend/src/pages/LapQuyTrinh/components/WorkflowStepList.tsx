@@ -19,9 +19,12 @@ interface Props {
   onAddFromLibrary: () => void;
   onAddNew: () => void;
   onUpdateGroup: (group: ParallelGroupDraft) => void;
+  onDeleteGroup: (groupId: string) => void;
   onAddBranch: (groupId: string) => void;
   onRemoveBranch: (groupId: string, branchId: string) => void;
   onAddStepToBranch: (branchId: string, afterStepId?: string) => void;
+  onEditBranchStep: (step: WorkflowStepDraft) => void;
+  onDeleteBranchStep: (step: WorkflowStepDraft) => void;
 }
 
 export default function WorkflowStepList({
@@ -40,9 +43,12 @@ export default function WorkflowStepList({
   onAddFromLibrary,
   onAddNew,
   onUpdateGroup,
+  onDeleteGroup,
   onAddBranch,
   onRemoveBranch,
   onAddStepToBranch,
+  onEditBranchStep,
+  onDeleteBranchStep,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -160,18 +166,32 @@ export default function WorkflowStepList({
               return (
                 <li key={s.id}>
                   {group ? (
-                    <div className="border border-purple-200 bg-white rounded-2xl p-3 shadow-sm">
-                      <div className="grid grid-cols-1 lg:grid-cols-[minmax(260px,1fr)_minmax(320px,1.2fr)] gap-3 items-stretch">
-                        {stepCard}
+                    <div className="rounded-3xl border border-purple-200/80 bg-[linear-gradient(135deg,rgba(250,245,255,0.95),rgba(255,255,255,0.98))] p-4 shadow-sm">
+                      <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,0.9fr)_minmax(360px,1.25fr)] gap-4 items-start">
+                        <div className="self-start space-y-2">
+                          <div className="flex items-center justify-between gap-2 px-1">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-purple-700">
+                              <i className="fa-solid fa-code-branch text-[9px]" />
+                              Bước Tách Nhánh
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-500">
+                              {group.branches.length} nhánh
+                            </span>
+                          </div>
+                          {stepCard}
+                        </div>
                         <ParallelGroupEditor
                           group={group}
                           idx={idx}
                           steps={steps}
                           inline
                           onUpdateGroup={(g) => onUpdateGroup(g)}
+                          onDeleteGroup={() => onDeleteGroup(group.id)}
                           onAddBranch={() => onAddBranch(group.id)}
                           onRemoveBranch={(branchId) => onRemoveBranch(group.id, branchId)}
                           onAddStepToBranch={onAddStepToBranch}
+                          onEditStep={onEditBranchStep}
+                          onDeleteStep={onDeleteBranchStep}
                         />
                       </div>
                     </div>

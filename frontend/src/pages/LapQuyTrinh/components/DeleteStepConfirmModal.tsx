@@ -3,12 +3,14 @@ import type { WorkflowStepDraft } from "../workflowDesignerTypes";
 
 export default function DeleteStepConfirmModal({
   target,
+  loading = false,
   onClose,
   onConfirm,
 }: {
   target: WorkflowStepDraft | null;
+  loading?: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }) {
   if (!target) return null;
   return (
@@ -26,12 +28,14 @@ export default function DeleteStepConfirmModal({
         <div className="flex justify-center gap-3">
           <button
             onClick={onClose}
+            disabled={loading}
             className="h-9 px-5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
           >
             Hủy
           </button>
           <button
             onClick={onConfirm}
+            disabled={loading}
             className="h-9 px-5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors"
           >
             Xóa bước

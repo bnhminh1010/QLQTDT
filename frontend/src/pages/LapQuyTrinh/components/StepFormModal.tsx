@@ -89,6 +89,7 @@ interface Props {
   form: StepFormData;
   errors: Partial<Record<keyof StepFormData, string>>;
   nextStepName?: string;
+  allowSpecialLoaiBuoc?: boolean;
   onChange: (data: StepFormData) => void;
   onSave: () => void;
   onClose: () => void;
@@ -101,6 +102,7 @@ export default function StepFormModal({
   form,
   errors,
   nextStepName,
+  allowSpecialLoaiBuoc = true,
   onChange,
   onSave,
   onClose,
@@ -110,6 +112,9 @@ export default function StepFormModal({
   if (!open) return null;
 
   const isBranch = context.type === "branch";
+  const availableLoaiBuoc = mode === "edit" || allowSpecialLoaiBuoc
+    ? LOAI_BUOC_UI_VALUES
+    : (["Thường"] as const);
   const saveLabel = mode === "add" ? (isBranch ? "Thêm vào nhánh" : "Thêm bước") : "Lưu thay đổi";
 
   function set<K extends keyof StepFormData>(key: K, value: StepFormData[K]) {
@@ -151,7 +156,7 @@ export default function StepFormModal({
           <div>
             <label className={labelCls}>Loại bước <span className="text-red-500">*</span></label>
             <div className="flex flex-wrap gap-2">
-              {LOAI_BUOC_UI_VALUES.map((l) => (
+              {availableLoaiBuoc.map((l) => (
                 <button key={l} type="button"
                   onClick={() => set("loaiBuoc", l)}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
@@ -166,6 +171,11 @@ export default function StepFormModal({
                 </button>
               ))}
             </div>
+            {!allowSpecialLoaiBuoc && mode === "add" && (
+              <p className="text-[11px] text-slate-400 mt-1">
+                Khi thêm bước sau hoặc trong nhánh, chỉ dùng loại Thường.
+              </p>
+            )}
             {effectiveErrors.loaiBuoc && <p className="text-xs text-red-500 mt-1">{effectiveErrors.loaiBuoc}</p>}
           </div>
           <div>

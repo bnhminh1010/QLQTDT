@@ -55,10 +55,10 @@ export default function WorkflowStepCard({
 }: Props) {
   return (
     <div
-      className={`flex items-start gap-3 border rounded-xl px-4 py-3 ${
+      className={`h-fit flex items-start gap-3 border rounded-2xl px-4 py-3.5 shadow-sm ${
         isOrphan
           ? "bg-amber-50 border-amber-200"
-          : "bg-slate-50 border-slate-200"
+          : "bg-white border-slate-200"
       }`}
     >
       <span
@@ -67,7 +67,7 @@ export default function WorkflowStepCard({
         {idx + 1}
       </span>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 space-y-1.5">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-semibold text-slate-800 truncate">
             {step.tenBuoc}
@@ -83,7 +83,7 @@ export default function WorkflowStepCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-1 flex-wrap">
+        <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap">
           <span className="text-[11px] text-slate-500 flex items-center gap-1">
             <i className="fa-solid fa-building text-slate-400" />
             {step.donViPhuTrach || "—"}
