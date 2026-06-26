@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import { searchBaoCaoGoiThau, getWorkflowStepReport, getBaoCaoTietKiem, getBaoCaoHieuSuatNguoiDung, getWorkflowBottleneck, type WorkflowStepReport, type BaoCaoTietKiem, type BaoCaoHieuSuatNguoiDung, type WorkflowBottleneck } from "@/services/baoCaoApi";
@@ -28,6 +28,12 @@ const ICON_BG: Record<IconColor, string> = {
 };
 
 const MONTHS = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"];
+
+function useMounted() {
+  const mounted = useRef(true);
+  useEffect(() => { return () => { mounted.current = false; }; }, []);
+  return mounted;
+}
 
 function formatMoney(value: number) {
   if (value >= 1_000_000_000) {
@@ -75,6 +81,7 @@ const TRANG_THAI_MAP: Record<string, string> = {
 
 export default function BaoCao() {
   const printRef = useRef<HTMLDivElement>(null);
+  const mounted = useMounted();
   const [packages, setPackages] = useState<PackageReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [unitFilter, setUnitFilter] = useState("Tất cả");
@@ -97,10 +104,12 @@ export default function BaoCao() {
   const [extraLoading, setExtraLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         setLoading(true);
         const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 100 });
+        if (cancelled) return;
         const mapped: PackageReport[] = result.items.map((item) => ({
           id: item.maGoiThau,
           name: item.tenGoiThau,
@@ -113,23 +122,25 @@ export default function BaoCao() {
           saving: 0,
           createdAt: item.ngayTao?.slice(0, 10) || "",
         }));
+        if (cancelled) return;
         setPackages(mapped);
       } catch {
         toast.error("Không thể tải dữ liệu báo cáo");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
     fetchStepReport();
     fetchExtraReports();
+    return () => { cancelled = true; };
   }, []);
 
   async function fetchExtraReports() {
     setExtraLoading(true);
-    try { setTietKiemData(await getBaoCaoTietKiem()); } catch { /* ignore */ }
-    try { setHieuSuatData(await getBaoCaoHieuSuatNguoiDung()); } catch { /* ignore */ }
-    try { setBottleneckData(await getWorkflowBottleneck()); } catch { /* ignore */ }
-    setExtraLoading(false);
+    try { const data = await getBaoCaoTietKiem(); if (mounted.current) setTietKiemData(data); } catch { /* ignore */ }
+    try { const data = await getBaoCaoHieuSuatNguoiDung(); if (mounted.current) setHieuSuatData(data); } catch { /* ignore */ }
+    try { const data = await getWorkflowBottleneck(); if (mounted.current) setBottleneckData(data); } catch { /* ignore */ }
+    if (mounted.current) setExtraLoading(false);
   }
 
   async function fetchStepReport() {

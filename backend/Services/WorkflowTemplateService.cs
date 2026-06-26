@@ -42,7 +42,7 @@ public class WorkflowTemplateService : IWorkflowTemplateService
 
     public async Task<WorkflowTemplatePreviewDto> PreviewAsync(int templateId)
     {
-        return await BuildPreviewAsync(templateId, requireTemplate: true);
+        return await BuildPreviewAsync(templateId, requireTemplate: false);
     }
 
     private async Task<WorkflowTemplatePreviewDto> BuildPreviewAsync(int workflowId, bool requireTemplate)

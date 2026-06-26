@@ -164,12 +164,9 @@ export const addGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
   await getHinhThucList();
   await ensureKhoaPhongCache();
 
-    console.log("item.hinhThuc =", item.hinhThuc);
-  console.log("_hinhThucCache =", _hinhThucCache);
 
   const hinhThucId = tenHinhThucToId(item.hinhThuc);
 
-  console.log("resolved hinhThucId =", hinhThucId);
   const payload: CreateGoiThauFullRequest = {
     tenGoiThau: item.tenGoiThau || item.ten || '',
     moTa: item.ghiChu || '',
