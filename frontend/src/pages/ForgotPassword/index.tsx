@@ -27,7 +27,7 @@ const LeftPanel = () => (
       <div className="flex items-center gap-3.5 mb-12">
         <div className="w-17 h-17 rounded-md bg-white border-3 border-blue-950 flex items-center justify-center shrink-0 overflow-hidden">
           <img
-            src="/bvungbuouLogo_no_text.png"
+            src={`${import.meta.env.BASE_URL}bvungbuouLogo_no_text.png`}
             alt="BV Ung Bướu TP.HCM"
             className="w-16 h-17 object-contain"
           />

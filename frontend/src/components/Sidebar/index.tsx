@@ -65,7 +65,7 @@ export default function Sidebar() {
       <div className="flex items-center justify-center lg:justify-start gap-2.5 px-3.5 h-14 border-b border-white/[0.08] shrink-0">
         <div className="w-[34px] h-[34px] bg-white rounded-md flex items-center justify-center text-white text-sm shrink-0">
           <img
-            src="/bvungbuouLogo_no_text.png"
+            src={`${import.meta.env.BASE_URL}bvungbuouLogo_no_text.png`}
             alt="BV Ung Bướu TP.HCM"
             className="w-8 h-10 object-contain"
           />
