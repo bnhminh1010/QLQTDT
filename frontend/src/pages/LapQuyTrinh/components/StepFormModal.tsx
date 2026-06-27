@@ -90,6 +90,8 @@ interface Props {
   errors: Partial<Record<keyof StepFormData, string>>;
   nextStepName?: string;
   allowSpecialLoaiBuoc?: boolean;
+  donViOptions?: string[];
+  vaiTroOptions?: string[];
   onChange: (data: StepFormData) => void;
   onSave: () => void;
   onClose: () => void;
@@ -103,6 +105,8 @@ export default function StepFormModal({
   errors,
   nextStepName,
   allowSpecialLoaiBuoc = true,
+  donViOptions,
+  vaiTroOptions,
   onChange,
   onSave,
   onClose,
@@ -112,6 +116,10 @@ export default function StepFormModal({
   if (!open) return null;
 
   const isBranch = context.type === "branch";
+  const effectiveDonViOptions = donViOptions?.length ? donViOptions : DON_VI_OPTIONS;
+  const effectiveVaiTroOptions = vaiTroOptions?.length ? vaiTroOptions : VAI_TRO_OPTIONS;
+  const effectiveDonViKyOptions = donViOptions?.length ? donViOptions : DON_VI_KY_OPTIONS;
+  const effectiveVaiTroKyOptions = vaiTroOptions?.length ? vaiTroOptions : VAI_TRO_KY_OPTIONS;
   const availableLoaiBuoc = mode === "edit" || allowSpecialLoaiBuoc
     ? LOAI_BUOC_UI_VALUES
     : (["Thường"] as const);
@@ -199,7 +207,7 @@ export default function StepFormModal({
               <SelectField
                 value={form.donViPhuTrach || "__empty"}
                 onValueChange={(v) => set("donViPhuTrach", v === "__empty" ? "" : v)}
-                options={[{ value: "__empty", label: "-- Chọn đơn vị --" }, ...DON_VI_OPTIONS.map((d) => ({ value: d, label: d }))]}
+                options={[{ value: "__empty", label: "-- Chọn đơn vị --" }, ...effectiveDonViOptions.map((d) => ({ value: d, label: d }))]}
                 triggerClassName={effectiveErrors.donViPhuTrach ? inputErrCls : inputCls}
               />
               {effectiveErrors.donViPhuTrach && <p className="text-xs text-red-500 mt-1">{effectiveErrors.donViPhuTrach}</p>}
@@ -209,7 +217,7 @@ export default function StepFormModal({
               <SelectField
                 value={form.vaiTroXuLy || "__empty"}
                 onValueChange={(v) => set("vaiTroXuLy", v === "__empty" ? "" : v)}
-                options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...VAI_TRO_OPTIONS.map((v) => ({ value: v, label: v }))]}
+                options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...effectiveVaiTroOptions.map((v) => ({ value: v, label: v }))]}
                 triggerClassName={effectiveErrors.vaiTroXuLy ? inputErrCls : inputCls}
               />
               {effectiveErrors.vaiTroXuLy && <p className="text-xs text-red-500 mt-1">{effectiveErrors.vaiTroXuLy}</p>}
@@ -274,7 +282,7 @@ export default function StepFormModal({
                   <SelectField
                     value={form.donViKyHoSo || "__empty"}
                     onValueChange={(v) => set("donViKyHoSo", v === "__empty" ? "" : v)}
-                    options={[{ value: "__empty", label: "-- Chọn đơn vị --" }, ...DON_VI_KY_OPTIONS.map((d) => ({ value: d, label: d }))]}
+                    options={[{ value: "__empty", label: "-- Chọn đơn vị --" }, ...effectiveDonViKyOptions.map((d) => ({ value: d, label: d }))]}
                     triggerClassName={inputCls}
                   />
                 </div>
@@ -283,7 +291,7 @@ export default function StepFormModal({
                   <SelectField
                     value={form.vaiTroKyDuyet || "__empty"}
                     onValueChange={(v) => set("vaiTroKyDuyet", v === "__empty" ? "" : v)}
-                    options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...VAI_TRO_KY_OPTIONS.map((v) => ({ value: v, label: v }))]}
+                    options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...effectiveVaiTroKyOptions.map((v) => ({ value: v, label: v }))]}
                     triggerClassName={inputCls}
                   />
                 </div>

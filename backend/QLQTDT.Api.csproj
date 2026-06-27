@@ -26,4 +26,13 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
   </ItemGroup>
 
+  <ItemGroup Condition="Exists('../.env')">
+    <None Include="../.env" Link=".env" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="publish/**" />
+    <None Remove="publish/**" />
+  </ItemGroup>
+
 </Project>

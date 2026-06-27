@@ -28,6 +28,7 @@ import StepLibraryModal from "./components/StepLibraryModal";
 import DeleteStepConfirmModal from "./components/DeleteStepConfirmModal";
 import LeaveConfirmModal from "./components/LeaveConfirmModal";
 import type { TemplateInfo } from "./workflowDesignerTypes";
+import { getAllRoles, getKhoaPhongs, type KhoaPhong, type RoleItem } from "@/services/adminApi";
 
 function getErrorMessage(error: unknown, fallback: string): string {
   const responseData = (error as any)?.response?.data;
@@ -45,6 +46,27 @@ function getErrorMessage(error: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function normalizeLookup(value?: string | null) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function findIdByName<T>(items: T[], name: string | undefined, getId: (item: T) => number, getName: (item: T) => string) {
+  if (!name) return undefined;
+
+  const numeric = Number(name);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+
+  const normalized = normalizeLookup(name);
+  const item = items.find((candidate) => normalizeLookup(getName(candidate)) === normalized);
+  return item ? getId(item) : undefined;
+}
+
+function findNameById<T>(items: T[], id: number | undefined | null, getId: (item: T) => number, getName: (item: T) => string) {
+  if (id == null) return "";
+  const item = items.find((candidate) => getId(candidate) === id);
+  return item ? getName(item) : String(id);
 }
 
 function logWorkflowError(scope: string, error: unknown, context?: Record<string, unknown>) {
@@ -79,6 +101,8 @@ export default function LapQuyTrinh() {
   const [buocList, setBuocList] = useState<WorkflowStepDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
+  const [khoaPhongOptions, setKhoaPhongOptions] = useState<KhoaPhong[]>([]);
+  const [roleOptions, setRoleOptions] = useState<RoleItem[]>([]);
 
   /* ── Template state ── */
   const [templateList, setTemplateList] = useState<WorkflowTemplateSummary[]>([]);
@@ -111,6 +135,53 @@ export default function LapQuyTrinh() {
   const [newStepErrs, setNewStepErrs] = useState<Partial<Record<keyof StepFormData, string>>>({});
   const [deleteTarget, setDeleteTarget] = useState<WorkflowStepDraft | null>(null);
   const [deletingStep, setDeletingStep] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    Promise.all([
+      getKhoaPhongs().catch(() => [] as KhoaPhong[]),
+      getAllRoles().catch(() => [] as RoleItem[]),
+    ]).then(([khoaPhongs, roles]) => {
+      if (ignore) return;
+      setKhoaPhongOptions(khoaPhongs.filter((item) => item.trangThaiHoatDong));
+      setRoleOptions(roles);
+    });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const resolveKhoaPhongId = useCallback(
+    (name?: string) => findIdByName(khoaPhongOptions, name, (item) => item.id, (item) => item.tenKhoaPhong),
+    [khoaPhongOptions],
+  );
+
+  const resolveRoleId = useCallback(
+    (name?: string) => findIdByName(roleOptions, name, (item) => item.id, (item) => item.tenVaiTro),
+    [roleOptions],
+  );
+
+  const resolveKhoaPhongName = useCallback(
+    (id?: number | null) => findNameById(khoaPhongOptions, id, (item) => item.id, (item) => item.tenKhoaPhong),
+    [khoaPhongOptions],
+  );
+
+  const resolveRoleName = useCallback(
+    (id?: number | null) => findNameById(roleOptions, id, (item) => item.id, (item) => item.tenVaiTro),
+    [roleOptions],
+  );
+
+  const buildStepAssignmentPayload = useCallback(
+    (step: Pick<WorkflowStepDraft | StepFormData, "donViPhuTrach" | "vaiTroXuLy" | "coKyDuyet" | "donViKyHoSo" | "vaiTroKyDuyet">) => ({
+      donViXuLyId: resolveKhoaPhongId(step.donViPhuTrach),
+      vaiTroXuLyHoSoId: resolveRoleId(step.vaiTroXuLy),
+      donViKyHoSoId: step.coKyDuyet ? resolveKhoaPhongId(step.donViKyHoSo) : undefined,
+      vaiTroKyDuyetId: step.coKyDuyet ? resolveRoleId(step.vaiTroKyDuyet) : undefined,
+    }),
+    [resolveKhoaPhongId, resolveRoleId],
+  );
 
   /* ── Load existing if editing ── */
   useEffect(() => {
@@ -156,13 +227,13 @@ export default function LapQuyTrinh() {
               thuTu: dto.thuTu,
               nhomGiaiDoan: dto.nhomGiaiDoan ?? undefined,
               moTa: dto.moTa ?? undefined,
-              donViPhuTrach: String(dto.donViXuLyId ?? ""),
-              vaiTroXuLy: "",
+              donViPhuTrach: resolveKhoaPhongName(dto.donViXuLyId),
+              vaiTroXuLy: resolveRoleName(dto.vaiTroXuLyHoSoId),
               slaNgay: dto.soNgayLapHoSo,
               loaiThoiHan: mapLoaiHanToUi(dto.loaiHan),
               coKyDuyet: dto.vaiTroKyDuyetId != null,
-              donViKyHoSo: dto.donViKyHoSoId != null ? String(dto.donViKyHoSoId) : undefined,
-              vaiTroKyDuyet: "",
+              donViKyHoSo: resolveKhoaPhongName(dto.donViKyHoSoId) || undefined,
+              vaiTroKyDuyet: resolveRoleName(dto.vaiTroKyDuyetId),
               soNgayKyDuyet: dto.soNgayXuLy > 0 ? dto.soNgayXuLy : undefined,
               buocTiepTheoId: nextByStep.get(dto.id) ?? "",
               huongXuLyKhongDuyet: mapHuongXuLyToUi(),
@@ -177,9 +248,10 @@ export default function LapQuyTrinh() {
             // Build parallel groups
             const groups: ParallelGroupDraft[] = pgDtos.map((pg: any) => {
               const groupId = `group_${pg.id}`;
-              const branches = (pg.branches || []).map((b: any) => ({
+              const branches = (pg.branches || []).map((b: any, bi: number) => ({
                 id: `branch_${b.id}`,
                 backendId: b.id,
+                maNhanh: b.maNhanh,
                 tenNhanh: b.tenNhanh,
                 thuTu: b.thuTu || bi + 1,
                 stepIds: buildBranchStepIds(steps, `branch_${b.id}`),
@@ -199,7 +271,7 @@ export default function LapQuyTrinh() {
           .catch(() => toast.error("Không thể tải danh sách bước"));
       }
     }
-  }, [editId, navigate]);
+  }, [editId, navigate, resolveKhoaPhongName, resolveRoleName]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -248,6 +320,7 @@ export default function LapQuyTrinh() {
 
       const steps = buocList.map((step) => {
         const thuTu = buocList.indexOf(step) + 1;
+        const assignment = buildStepAssignmentPayload(step);
         return {
           id: step.id,
           maBuoc: step.maBuoc || `BUOC_${Date.now()}_${thuTu}`,
@@ -260,8 +333,10 @@ export default function LapQuyTrinh() {
           laBuocJoin: false,
           nhomGiaiDoan: step.nhomGiaiDoan || undefined,
           moTa: step.moTa || undefined,
-          donViXuLyId: step.donViXuLyId || undefined,
-          donViKyHoSoId: step.donViKyHoSoId || undefined,
+          donViXuLyId: assignment.donViXuLyId,
+          vaiTroXuLyHoSoId: assignment.vaiTroXuLyHoSoId,
+          donViKyHoSoId: assignment.donViKyHoSoId,
+          vaiTroKyDuyetId: assignment.vaiTroKyDuyetId,
           batBuocGhiChu: step.batBuocGhiChu,
           batBuocTaiLieu: step.batBuocTaiLieu,
           batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
@@ -451,11 +526,11 @@ export default function LapQuyTrinh() {
         maBuoc: dto.maBuoc ?? "", tenBuoc: dto.tenBuoc,
         loaiBuoc: mapLoaiBuocToUi(dto.loaiBuoc), thuTu: dto.thuTu,
         nhomGiaiDoan: dto.nhomGiaiDoan ?? undefined, moTa: dto.moTa ?? undefined,
-        donViPhuTrach: String(dto.donViXuLyId ?? ""), vaiTroXuLy: "",
+        donViPhuTrach: resolveKhoaPhongName(dto.donViXuLyId), vaiTroXuLy: resolveRoleName(dto.vaiTroXuLyHoSoId),
         slaNgay: dto.soNgayLapHoSo, loaiThoiHan: mapLoaiHanToUi(dto.loaiHan),
         coKyDuyet: dto.vaiTroKyDuyetId != null,
-        donViKyHoSo: dto.donViKyHoSoId != null ? String(dto.donViKyHoSoId) : undefined,
-        vaiTroKyDuyet: "", soNgayKyDuyet: dto.soNgayXuLy > 0 ? dto.soNgayXuLy : undefined,
+        donViKyHoSo: resolveKhoaPhongName(dto.donViKyHoSoId) || undefined,
+        vaiTroKyDuyet: resolveRoleName(dto.vaiTroKyDuyetId), soNgayKyDuyet: dto.soNgayXuLy > 0 ? dto.soNgayXuLy : undefined,
         buocTiepTheoId: nextByStep.get(dto.id) ?? "",
         huongXuLyKhongDuyet: mapHuongXuLyToUi(),
         batBuocGhiChu: dto.batBuocGhiChu, batBuocTaiLieu: dto.batBuocTaiLieu,
@@ -482,6 +557,7 @@ export default function LapQuyTrinh() {
         branches: (pg.branches || []).map((b: any, bi: number) => ({
           id: `branch_${b.id}`,
           backendId: b.id,
+          maNhanh: b.maNhanh,
           tenNhanh: b.tenNhanh,
           thuTu: b.thuTu || bi + 1,
           stepIds: buildBranchStepIds(steps, `branch_${b.id}`),
@@ -692,6 +768,7 @@ export default function LapQuyTrinh() {
       choPhepTuChoi: true,
       choPhepBoQua: true,
       nhanhWorkflowId: options?.nhanhWorkflowId,
+      ...buildStepAssignmentPayload(form),
     };
   }
 
@@ -717,6 +794,7 @@ export default function LapQuyTrinh() {
       choPhepTuChoi: true,
       choPhepBoQua: true,
       nhanhWorkflowId: options?.nhanhWorkflowId,
+      ...buildStepAssignmentPayload(step),
     };
   }
 
@@ -733,6 +811,7 @@ export default function LapQuyTrinh() {
       batBuocTaiLieu: step.batBuocTaiLieu,
       batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
       batBuocDungSLA: step.batBuocDungSLA,
+      ...buildStepAssignmentPayload(step),
     };
   }
 
@@ -872,6 +951,7 @@ export default function LapQuyTrinh() {
     const branchId = nextId();
     const newBranch: ParallelBranchDraft = {
       id: branchId,
+      maNhanh: `BR_${groupId}_${bi + 1}`,
       tenNhanh: `Nhánh ${bi + 1}`,
       stepIds: [],
     };
@@ -896,6 +976,7 @@ export default function LapQuyTrinh() {
     const branchId = nextId();
     const newBranch: ParallelBranchDraft = {
       id: branchId,
+      maNhanh: `BR_${groupId}_${bi + 1}`,
       tenNhanh: `Nhánh ${bi + 1}`,
       stepIds: [],
     };
@@ -905,7 +986,7 @@ export default function LapQuyTrinh() {
     if (!isTemplateDraft && generatedWorkflowId && group.backendId) {
       try {
         const created = await createParallelBranch(group.backendId, {
-          maNhanh: `BR_${Date.now()}`,
+          maNhanh: newBranch.maNhanh ?? `BR_${groupId}_${bi + 1}`,
           tenNhanh: newBranch.tenNhanh,
           thuTu: bi + 1,
           thoiHanNgay: 1,
@@ -982,11 +1063,17 @@ export default function LapQuyTrinh() {
       };
       setBuocList((prev) => prev.map((s, i) => i === editTargetIdx ? updatedStep : s));
       if (oldStep.backendId) {
+        const assignment = buildStepAssignmentPayload(stepFormToPersist);
         updateWorkflowStep(oldStep.backendId, {
           tenBuoc: stepFormToPersist.tenBuoc,
           loaiBuoc: mapLoaiBuocToBackend(stepFormToPersist.loaiBuoc),
           soNgayLapHoSo: stepFormToPersist.slaNgay,
+          soNgayXuLy: stepFormToPersist.soNgayKyDuyet ?? 0,
           loaiHan: mapLoaiHanToBackend(stepFormToPersist.loaiThoiHan),
+          donViXuLyId: assignment.donViXuLyId ?? null,
+          vaiTroXuLyHoSoId: assignment.vaiTroXuLyHoSoId ?? null,
+          donViKyHoSoId: assignment.donViKyHoSoId ?? null,
+          vaiTroKyDuyetId: assignment.vaiTroKyDuyetId ?? null,
           batBuocGhiChu: stepFormToPersist.batBuocGhiChu,
           batBuocTaiLieu: stepFormToPersist.batBuocTaiLieu,
           batBuocKyTruocChuyenBuoc: stepFormToPersist.batBuocKyTruocChuyenBuoc,
@@ -1042,6 +1129,7 @@ export default function LapQuyTrinh() {
               batBuocTaiLieu: stepFormToPersist.batBuocTaiLieu,
               batBuocKyTruocChuyenBuoc: stepFormToPersist.batBuocKyTruocChuyenBuoc,
               batBuocDungSLA: stepFormToPersist.batBuocDungSLA,
+              ...buildStepAssignmentPayload(stepFormToPersist),
             });
             if (branch?.backendId) {
               await updateWorkflowStep(createdStep.id, {
@@ -1097,7 +1185,7 @@ export default function LapQuyTrinh() {
 
           const branchOrder = group.branches.findIndex((b) => b.id === modalContext.branchId);
           const createdBranch = await createParallelBranch(group.backendId, {
-            maNhanh: `BR_${Date.now()}`,
+            maNhanh: branch?.maNhanh || `BR_${group.id}_${branchOrder >= 0 ? branchOrder + 1 : group.branches.length}`,
             tenNhanh: branch?.tenNhanh || `Nhánh ${group.branches.length}`,
             thuTu: branchOrder >= 0 ? branchOrder + 1 : group.branches.length,
             thoiHanNgay: 1,
@@ -1110,7 +1198,7 @@ export default function LapQuyTrinh() {
           });
           setParallelGroups((prev) => prev.map((g) => ({
             ...g,
-            branches: g.branches.map((b) => b.id === modalContext.branchId ? { ...b, backendId: createdBranch.id } : b),
+            branches: g.branches.map((b) => b.id === modalContext.branchId ? { ...b, backendId: createdBranch.id, maNhanh: createdBranch.maNhanh } : b),
           })));
           setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
             ...s,
@@ -1149,6 +1237,7 @@ export default function LapQuyTrinh() {
           batBuocTaiLieu: stepFormToPersist.batBuocTaiLieu,
           batBuocKyTruocChuyenBuoc: stepFormToPersist.batBuocKyTruocChuyenBuoc,
           batBuocDungSLA: stepFormToPersist.batBuocDungSLA,
+          ...buildStepAssignmentPayload(stepFormToPersist),
         })
           .then((createdStep) => {
             setBuocList((prev) => prev.map((s) => s.id === newStep.id ? hydrateCreatedStep(s, createdStep) : s));
@@ -1209,6 +1298,7 @@ export default function LapQuyTrinh() {
     // Build steps payload
     const steps = buocList.map((step) => {
       const thuTu = buocList.indexOf(step) + 1;
+      const assignment = buildStepAssignmentPayload(step);
       return {
         id: step.id,
         maBuoc: step.maBuoc || `BUOC_${Date.now()}_${thuTu}`,
@@ -1221,8 +1311,10 @@ export default function LapQuyTrinh() {
         laBuocJoin: false,
         nhomGiaiDoan: step.nhomGiaiDoan || undefined,
         moTa: step.moTa || undefined,
-        donViXuLyId: step.donViXuLyId || undefined,
-        donViKyHoSoId: step.donViKyHoSoId || undefined,
+        donViXuLyId: assignment.donViXuLyId,
+        vaiTroXuLyHoSoId: assignment.vaiTroXuLyHoSoId,
+        donViKyHoSoId: assignment.donViKyHoSoId,
+        vaiTroKyDuyetId: assignment.vaiTroKyDuyetId,
         batBuocGhiChu: step.batBuocGhiChu,
         batBuocTaiLieu: step.batBuocTaiLieu,
         batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
@@ -1243,7 +1335,7 @@ export default function LapQuyTrinh() {
       buocSauHopNhatId: group.buocSauHopNhatId,
       branches: group.branches.map((branch, bi) => ({
         id: branch.id,
-        maNhanh: branch.maNhanh || `BR_${Date.now()}`,
+        maNhanh: branch.maNhanh || `BR_${group.id}_${bi + 1}`,
         tenNhanh: branch.tenNhanh,
         thuTu: bi + 1,
         thoiHanNgay: branch.thoiHanNgay || 1,
@@ -1289,6 +1381,8 @@ export default function LapQuyTrinh() {
   const allowSpecialLoaiBuoc = editTargetIdx !== undefined || (!generatedWorkflowId && modalContext.type === "main" && !modalContext.afterStepId);
   const nextStepId = editedStep?.buocTiepTheoId || null;
   const editNextStepName = nextStepId ? buocList.find((s) => s.id === nextStepId)?.tenBuoc : undefined;
+  const donViOptionLabels = khoaPhongOptions.map((item) => item.tenKhoaPhong);
+  const vaiTroOptionLabels = roleOptions.map((item) => item.tenVaiTro);
 
   /* ── Render ── */
   return (
@@ -1371,6 +1465,8 @@ export default function LapQuyTrinh() {
         open={stepModalOpen} mode={editTargetIdx !== undefined ? "edit" : "add"} context={modalContext}
         form={newStepForm} errors={newStepErrs} nextStepName={editNextStepName}
         allowSpecialLoaiBuoc={allowSpecialLoaiBuoc}
+        donViOptions={donViOptionLabels}
+        vaiTroOptions={vaiTroOptionLabels}
         onChange={(d) => setNewStepForm(d)} onSave={handleNewStepSave}
         onClose={() => { setStepModalOpen(false); setEditTargetIdx(undefined); }}
       />

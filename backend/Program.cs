@@ -18,13 +18,26 @@ using QLQTDT.Api.Config;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load .env
-var envPath = Path.Combine(Directory.GetCurrentDirectory(), "..", ".env");
-if (File.Exists(envPath))
+// Load .env from publish folder first, then fallback to parent folder for local dev
+var envCandidates = new[]
 {
+    Path.Combine(builder.Environment.ContentRootPath, ".env"),
+    Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+    Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"),
+};
+
+foreach (var envPath in envCandidates.Distinct())
+{
+    if (!File.Exists(envPath))
+        continue;
+
     foreach (var line in File.ReadAllLines(envPath))
     {
-        var parts = line.Split('=', 2);
+        var trimmed = line.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith('#'))
+            continue;
+
+        var parts = trimmed.Split('=', 2);
         if (parts.Length == 2)
         {
             Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
@@ -335,10 +348,19 @@ app.MapGet("/health", () => Results.Ok(new
     time = DateTimeOffset.UtcNow
 })).AllowAnonymous();
 
-// Seed dữ liệu mặc định (vai trò + tài khoản admin gốc)
-if (!app.Environment.IsEnvironment("Testing"))
+// Seed dữ liệu mặc định chỉ khi được bật rõ ràng.
+// IIS/FTP publish thường không nên tự seed lúc boot vì dễ làm app chết trước cả /health.
+var runStartupSeed = app.Environment.IsDevelopment()
+    || bool.TryParse(Environment.GetEnvironmentVariable("RUN_STARTUP_SEED"), out var parsedRunStartupSeed)
+    && parsedRunStartupSeed;
+
+if (runStartupSeed && !app.Environment.IsEnvironment("Testing"))
 {
     await QLQTDT.Api.Data.DbInitializer.SeedAsync(app.Services);
+}
+else
+{
+    app.Logger.LogInformation("Startup seed is skipped.");
 }
 
 app.Run();

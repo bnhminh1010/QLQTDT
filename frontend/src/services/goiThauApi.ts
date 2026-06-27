@@ -14,6 +14,7 @@ export type GoiThauItem = {
   tenGoiThau: string;
   hinhThucId?: number;
   tenHinhThuc?: string;
+  workflowId?: number;
   khoaPhongId?: number;
   tenKhoaPhong?: string;
   nganSach?: number;

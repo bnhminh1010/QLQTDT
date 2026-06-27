@@ -138,12 +138,42 @@ const EDITABLE_STATUSES: TrangThai[] = ["Nháp"];
 const STEP_UPDATE_STATUSES: TrangThai[] = ["Đang xử lý", "Chờ duyệt", "Trễ hạn"];
 const canEditGoiThau = (item?: GoiThau | null) =>
   item ? EDITABLE_STATUSES.includes(item.trangThai) : false;
+const canDeleteGoiThau = canEditGoiThau;
 const canUpdateCurrentStep = (item?: GoiThau | null) =>
   item ? STEP_UPDATE_STATUSES.includes(item.trangThai) : false;
 
 function parseGoiThauNumericId(id: string) {
   const parsed = Number(id.replace(/^GT/i, ""));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (typeof error !== "object" || error === null || !("response" in error)) {
+    return fallback;
+  }
+
+  const response = (error as { response?: { data?: unknown } }).response;
+  const data = response?.data;
+  if (typeof data !== "object" || data === null) return fallback;
+
+  if ("message" in data && typeof data.message === "string") {
+    return data.message;
+  }
+
+  if ("error" in data) {
+    const errorValue = data.error;
+    if (typeof errorValue === "string") return errorValue;
+    if (
+      typeof errorValue === "object" &&
+      errorValue !== null &&
+      "message" in errorValue &&
+      typeof errorValue.message === "string"
+    ) {
+      return errorValue.message;
+    }
+  }
+
+  return fallback;
 }
 
 const TIEN_DO_LABEL: Record<string, string> = {
@@ -607,6 +637,12 @@ export default function DanhSachGoiThau() {
 
   function handleDelete() {
     if (!deleteTarget) return;
+    if (!canDeleteGoiThau(deleteTarget)) {
+      toast.error("Chỉ có thể xóa gói thầu ở trạng thái Nháp");
+      setDeleteTarget(null);
+      return;
+    }
+
     const numId = parseInt(deleteTarget.id.replace(/^GT/, ''), 10);
     if (!numId) { toast.error("ID gói thầu không hợp lệ"); return; }
     deleteGoiThau(numId).then(() => {
@@ -616,7 +652,7 @@ export default function DanhSachGoiThau() {
         setSelected(remaining[0]);
       toast.success(`Đã xóa "${deleteTarget.ten}"`);
       setDeleteTarget(null);
-    }).catch(() => toast.error("Không thể xóa gói thầu"));
+    }).catch((error) => toast.error(getApiErrorMessage(error, "Không thể xóa gói thầu")));
   }
 
   function goToEdit(item: GoiThau) {
@@ -629,13 +665,24 @@ export default function DanhSachGoiThau() {
     });
   }
 
+  function getCurrentStepUrl(item: GoiThau) {
+    const params = new URLSearchParams();
+    const activeStep = workflowState?.currentSteps?.[0];
+    if (activeStep?.stepInstanceId) {
+      params.set("step", activeStep.tenBuoc);
+      params.set("stepId", String(activeStep.stepInstanceId));
+    }
+    const query = params.toString();
+    return `/xu-ly-buoc/${encodeURIComponent(item.id)}${query ? `?${query}` : ""}`;
+  }
+
   function handlePrimaryAction(item: GoiThau) {
     if (canEditGoiThau(item)) {
       goToEdit(item);
       return;
     }
     if (canUpdateCurrentStep(item)) {
-      navigate(`/xu-ly-buoc/${encodeURIComponent(item.id)}`);
+      navigate(getCurrentStepUrl(item));
       return;
     }
     toast.error("Gói thầu ở trạng thái này không còn thao tác xử lý bước");
@@ -646,7 +693,7 @@ export default function DanhSachGoiThau() {
       toast.error("Gói thầu ở trạng thái này không còn thao tác xử lý bước");
       return;
     }
-    navigate(`/xu-ly-buoc/${encodeURIComponent(item.id)}`);
+    navigate(getCurrentStepUrl(item));
   }
 
   function goToStepResult(item: GoiThau, stepName: string, stepId?: number) {
@@ -1081,7 +1128,9 @@ export default function DanhSachGoiThau() {
             )}
           <button
             onClick={() => setDeleteTarget(selected)}
-            className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors"
+            disabled={!canDeleteGoiThau(selected)}
+            title={canDeleteGoiThau(selected) ? "Xóa gói thầu" : "Chỉ có thể xóa gói thầu ở trạng thái Nháp"}
+            className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
           >
             <i className="fa-solid fa-trash text-xs" /> Xóa gói thầu
           </button>
@@ -1338,9 +1387,10 @@ export default function DanhSachGoiThau() {
                                   </button>
                                 )}
                               <button
-                                title="Xóa"
+                                title={canDeleteGoiThau(row) ? "Xóa" : "Chỉ có thể xóa gói thầu ở trạng thái Nháp"}
                                 onClick={() => setDeleteTarget(row)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                                disabled={!canDeleteGoiThau(row)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
                                 <i className="fa-solid fa-trash text-xs" />
                               </button>

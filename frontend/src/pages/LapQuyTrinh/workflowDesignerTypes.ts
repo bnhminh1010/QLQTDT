@@ -77,6 +77,7 @@ export type WorkflowStepDraft = {
 export type ParallelBranchDraft = {
   id: string;
   backendId?: number;
+  maNhanh?: string;
   tenNhanh: string;
   thuTu: number;
   stepIds: string[]; // step IDs trong nhánh

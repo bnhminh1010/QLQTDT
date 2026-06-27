@@ -99,18 +99,19 @@ public class WorkflowEngineService : IWorkflowEngineService
                 "Bước đã được xử lý bởi người khác. Vui lòng tải lại trang.");
 
         // ─── 5. Permission check based on current phase ──────────────────
+        var isTenderCreator = goiThau.NguoiTaoId == currentUserId;
         if (currentStep.PhaHienTai == "LAP_HO_SO")
         {
             var isAssignee = currentStep.WorkflowAssignments
                 .Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy);
-            if (!isAssignee)
+            if (!isAssignee && !isTenderCreator)
                 throw new ForbiddenException("Bạn không được phân công xử lý hồ sơ bước này.");
         }
         else // KY_DUYET
         {
             var isSigner = currentStep.WorkflowAssignments
                 .Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy);
-            if (!isSigner)
+            if (!isSigner && !isTenderCreator)
                 throw new ForbiddenException("Bạn không được phân công ký duyệt bước này.");
         }
 

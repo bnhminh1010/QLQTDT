@@ -142,12 +142,12 @@ export function previewToWorkflowDraft(
       nhomGiaiDoan: s.nhomGiaiDoan ?? undefined,
       moTa: s.moTa ?? undefined,
       donViPhuTrach: String(s.donViXuLyId ?? ""),
-      vaiTroXuLy: "",
+      vaiTroXuLy: s.vaiTroXuLyHoSoId != null ? String(s.vaiTroXuLyHoSoId) : "",
       slaNgay: s.soNgayLapHoSo,
       loaiThoiHan: mapLoaiHanToUi(s.loaiHan),
       coKyDuyet: s.vaiTroKyDuyetId != null,
       donViKyHoSo: s.donViKyHoSoId != null ? String(s.donViKyHoSoId) : undefined,
-      vaiTroKyDuyet: "",
+      vaiTroKyDuyet: s.vaiTroKyDuyetId != null ? String(s.vaiTroKyDuyetId) : "",
       soNgayKyDuyet: s.soNgayXuLy > 0 ? s.soNgayXuLy : undefined,
       buocTiepTheoId: "",
       huongXuLyKhongDuyet: "Trả về bước trước",
@@ -167,7 +167,9 @@ export function previewToWorkflowDraft(
       return {
         id: branchDraftId,
         backendId: preserveBackendIds ? b.id : undefined,
+        maNhanh: b.maNhanh,
         tenNhanh: b.tenNhanh,
+        thuTu: b.thuTu,
         stepIds: buildBranchStepIds(steps, branchDraftId),
       };
     });
