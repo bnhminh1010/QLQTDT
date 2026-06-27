@@ -4,6 +4,7 @@ using System.Text.Unicode;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -200,6 +201,9 @@ builder.Services.AddHttpContextAccessor();
 // MemoryCache (cho LoginAttemptGuard và rate limiting)
 builder.Services.AddMemoryCache();
 
+// Health Checks
+builder.Services.AddHealthChecks();
+
 // Rate Limiting
 builder.Services.AddRateLimiter(options =>
 {
@@ -282,6 +286,12 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Forwarded Headers — must be early for proxy/load-balancer
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 // Exception Handling Middleware
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
@@ -304,6 +314,14 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Health Checks
+app.MapHealthChecks("/health/live", new()
+{
+    Predicate = _ => false
+}).AllowAnonymous();
+app.MapHealthChecks("/health/ready").AllowAnonymous();
+
 app.MapGet("/", () => Results.Ok(new
 {
     message = "QLQTDT API is running",

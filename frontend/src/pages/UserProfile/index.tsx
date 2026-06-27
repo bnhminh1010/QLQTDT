@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getCurrentUserApi, sendProfileChangeRequest, updateProfileApi, logoutApi, clearStoredToken } from "@/services/api";
@@ -36,6 +36,7 @@ export default function UserProfile() {
   const [pwdErrors, setPwdErrors] = useState<Record<string, string>>({});
   const [showPwd, setShowPwd] = useState({ current: false, newPwd: false, confirm: false });
   const [savingPwd, setSavingPwd] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
     getCurrentUserApi()
@@ -48,6 +49,12 @@ export default function UserProfile() {
     getThongBaos({ page: 1, pageSize: 50 })
       .then((res) => { setNotifs(res.items); setNotifsCount(res.totalCount); })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
 
   const unreadCount = notifs.filter((n) => !n.daDoc).length;
@@ -73,9 +80,10 @@ export default function UserProfile() {
   }
 
   function handleChangePassword() {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (!validatePassword()) return;
     setSavingPwd(true);
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       setSavingPwd(false);
       setPwdForm({ current: "", newPwd: "", confirm: "" });
       setPwdErrors({});

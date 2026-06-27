@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { useMemo, useState, useEffect, useRef } from \"react\";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import { searchBaoCaoGoiThau, getWorkflowStepReport, getBaoCaoTietKiem, getBaoCaoHieuSuatNguoiDung, getWorkflowBottleneck, type WorkflowStepReport, type BaoCaoTietKiem, type BaoCaoHieuSuatNguoiDung, type WorkflowBottleneck } from "@/services/baoCaoApi";
@@ -147,9 +147,9 @@ export default function BaoCao() {
     setStepReportLoading(true);
     try {
       const data = await getWorkflowStepReport();
-      setStepReport(data);
+      if (mounted.current) setStepReport(data);
     } catch { /* ignore */ }
-    finally { setStepReportLoading(false); }
+    finally { if (mounted.current) setStepReportLoading(false); }
   }
 
   const allUnits = useMemo(() => Array.from(new Set(packages.map((p) => p.unit))).sort(), [packages]);

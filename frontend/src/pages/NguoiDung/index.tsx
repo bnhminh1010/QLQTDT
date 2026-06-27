@@ -183,8 +183,16 @@ export default function NguoiDung() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { getAllRoles().then(setAllRoles).catch(() => {}); }, []);
-  useEffect(() => { getKhoaPhongs().then(setKhoaPhongList).catch(() => {}); }, []);
+  useEffect(() => {
+    let ignore = false;
+    getAllRoles().then(data => { if (!ignore) setAllRoles(data); }).catch(() => {});
+    return () => { ignore = true; };
+  }, []);
+  useEffect(() => {
+    let ignore = false;
+    getKhoaPhongs().then(data => { if (!ignore) setKhoaPhongList(data); }).catch(() => {});
+    return () => { ignore = true; };
+  }, []);
   useEffect(() => { setPage(1); }, [search, filterVaiTro, filterTT, sortCol, sortDir]);
   useEffect(() => {
     const numId = parseInt(selected.id);

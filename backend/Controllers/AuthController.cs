@@ -52,6 +52,8 @@ public class AuthController : ControllerBase
 
         // Set JWT vào HttpOnly Cookie
         Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateCookieOptions());
+        // CSRF double-submit token (non-HttpOnly, JS đọc được)
+        SetXsrfCookie();
         return Ok(result);
     }
 
@@ -233,6 +235,19 @@ public class AuthController : ControllerBase
         Path = "/",
         MaxAge = TimeSpan.FromMinutes(_jwtConfig.ExpiryMinutes)
     };
+
+    private void SetXsrfCookie()
+    {
+        var token = Guid.NewGuid().ToString("N");
+        Response.Cookies.Append("XSRF-TOKEN", token, new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = !_env.IsDevelopment(),
+            SameSite = SameSiteMode.Lax,
+            Path = "/",
+            MaxAge = TimeSpan.FromMinutes(_jwtConfig.ExpiryMinutes)
+        });
+    }
 
     private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()
     {

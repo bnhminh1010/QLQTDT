@@ -35,6 +35,17 @@ httpClient.interceptors.request.use(
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+
+    // CSRF double-submit token cho unsafe methods
+    const method = config.method?.toLowerCase();
+    if (method && !["get", "head", "options"].includes(method)) {
+      const xsrf = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("XSRF-TOKEN="))
+        ?.split("=")[1];
+      if (xsrf) config.headers["X-CSRF-Token"] = xsrf;
+    }
+
     return config;
   },
   (error) => Promise.reject(error),

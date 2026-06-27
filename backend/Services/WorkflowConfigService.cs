@@ -23,7 +23,7 @@ public class WorkflowConfigService : IWorkflowConfigService
 
     public async Task<PagedResult<WorkflowListItemDto>> GetWorkflowsAsync(string? search, int page, int pageSize)
     {
-        var query = _context.Workflows.AsQueryable();
+        var query = _context.Workflows.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -63,6 +63,7 @@ public class WorkflowConfigService : IWorkflowConfigService
     public async Task<WorkflowListItemDto> GetWorkflowByIdAsync(int id)
     {
         return await _context.Workflows
+            .AsNoTracking()
             .Where(w => w.Id == id)
             .Select(w => new WorkflowListItemDto
             {

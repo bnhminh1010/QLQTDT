@@ -32,6 +32,7 @@ public class BaoCaoService : IBaoCaoService
 
         var query = _db.GoiThaus
             .Where(g => g.TrangThaiHoatDong)
+            .AsNoTracking()
             .AsQueryable();
 
         // Scope filter
@@ -49,6 +50,7 @@ public class BaoCaoService : IBaoCaoService
             query = query.Where(g => g.TrangThai == filter.TrangThai);
         if (filter.HinhThucId.HasValue)
             query = query.Where(g => g.HinhThucId == filter.HinhThucId.Value);
+        if (filter.PageSize > 100) filter.PageSize = 100;
 
         var total = await query.CountAsync();
 

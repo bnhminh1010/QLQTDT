@@ -526,6 +526,7 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         // All step instances for this workflow — filter by branch membership
         var allBranchStepInstances = await _db.WorkflowStepInstances
+            .AsNoTracking()
             .Where(s => s.WorkflowInstanceId == instance.Id)
             .Include(s => s.BuocWorkflow)
             .ToListAsync();
@@ -1142,6 +1143,7 @@ public class WorkflowEngineService : IWorkflowEngineService
         }
 
         var steps = await _db.BuocWorkflows
+            .AsNoTracking()
             .Where(b => b.WorkflowId == request.WorkflowId!.Value)
             .OrderBy(b => b.ThuTu)
             .ThenBy(b => b.Id)

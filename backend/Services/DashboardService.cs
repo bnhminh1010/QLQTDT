@@ -18,6 +18,7 @@ public class DashboardService : IDashboardService
     {
         var query = _db.GoiThaus
             .Where(g => g.TrangThaiHoatDong)
+            .AsNoTracking()
             .AsQueryable();
 
         // KPI cards
