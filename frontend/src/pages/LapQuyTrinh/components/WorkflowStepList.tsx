@@ -23,8 +23,10 @@ interface Props {
   onAddBranch: (groupId: string) => void;
   onRemoveBranch: (groupId: string, branchId: string) => void;
   onAddStepToBranch: (branchId: string, afterStepId?: string) => void;
-  onEditBranchStep: (step: WorkflowStepDraft) => void;
-  onDeleteBranchStep: (step: WorkflowStepDraft) => void;
+  onEditBranchStep?: (step: WorkflowStepDraft) => void;
+  onDeleteBranchStep?: (step: WorkflowStepDraft) => void;
+  onSetStart?: (step: WorkflowStepDraft) => void;
+  onSetEnd?: (step: WorkflowStepDraft) => void;
 }
 
 export default function WorkflowStepList({
@@ -49,6 +51,8 @@ export default function WorkflowStepList({
   onAddStepToBranch,
   onEditBranchStep,
   onDeleteBranchStep,
+  onSetStart,
+  onSetEnd,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -160,6 +164,8 @@ export default function WorkflowStepList({
                   onCreateParallel={() => onCreateParallel(s)}
                   onClone={() => onClone(s)}
                   onDelete={() => onDelete(s)}
+                  onSetStart={onSetStart ? () => onSetStart(s) : undefined}
+                  onSetEnd={onSetEnd ? () => onSetEnd(s) : undefined}
                 />
               );
 

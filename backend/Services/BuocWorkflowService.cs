@@ -219,11 +219,8 @@ public class BuocWorkflowService : IBuocWorkflowService
             var currentIsSpecial = IsSpecialStepType(entity.LoaiBuoc);
             var requestedIsSpecial = IsSpecialStepType(request.LoaiBuoc);
 
-            if (!currentIsSpecial && requestedIsSpecial)
-                throw new AppException(400, "INVALID_STEP_TYPE",
-                    "Chi duoc tao buoc Bat dau/Ket thuc khi khoi tao workflow.");
-
-            if (currentIsSpecial && request.LoaiBuoc != entity.LoaiBuoc)
+            // Không cho đổi loại giữa các step đặc biệt
+            if (currentIsSpecial && requestedIsSpecial && request.LoaiBuoc != entity.LoaiBuoc)
                 throw new AppException(400, "IMMUTABLE_STEP_TYPE",
                     "Khong the doi loai cua buoc Bat dau/Ket thuc.");
 

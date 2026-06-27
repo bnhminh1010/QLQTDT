@@ -5,6 +5,9 @@ interface Props {
   onCreateParallel: () => void;
   onClone: () => void;
   onDelete: () => void;
+  onSetStart?: () => void;
+  onSetEnd?: () => void;
+  loaiBuoc?: string;
 }
 
 export default function StepActionMenu({
@@ -12,6 +15,9 @@ export default function StepActionMenu({
   onCreateParallel,
   onClone,
   onDelete,
+  onSetStart,
+  onSetEnd,
+  loaiBuoc,
 }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -58,6 +64,24 @@ export default function StepActionMenu({
             <i className="fa-solid fa-copy text-[10px] text-cyan-500" />
             Nhân bản bước
           </button>
+          {onSetStart && loaiBuoc !== "Bắt đầu" && (
+            <button
+              onClick={() => { setOpen(false); onSetStart(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+            >
+              <i className="fa-solid fa-play text-[10px] text-emerald-500" />
+              Gán bước bắt đầu
+            </button>
+          )}
+          {onSetEnd && loaiBuoc !== "Kết thúc" && (
+            <button
+              onClick={() => { setOpen(false); onSetEnd(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50"
+            >
+              <i className="fa-solid fa-stop text-[10px] text-red-500" />
+              Gán bước kết thúc
+            </button>
+          )}
           <div className="border-t border-slate-100 my-1" />
           <button
             onClick={() => { setOpen(false); onDelete(); }}

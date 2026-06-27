@@ -37,6 +37,8 @@ interface Props {
   onCreateParallel: () => void;
   onClone: () => void;
   onDelete: () => void;
+  onSetStart?: () => void;
+  onSetEnd?: () => void;
 }
 
 export default function WorkflowStepCard({
@@ -52,6 +54,8 @@ export default function WorkflowStepCard({
   onCreateParallel,
   onClone,
   onDelete,
+  onSetStart,
+  onSetEnd,
 }: Props) {
   return (
     <div
@@ -145,6 +149,9 @@ export default function WorkflowStepCard({
           onCreateParallel={onCreateParallel}
           onClone={onClone}
           onDelete={onDelete}
+          onSetStart={onSetStart}
+          onSetEnd={onSetEnd}
+          loaiBuoc={step.loaiBuoc}
         />
       </div>
     </div>

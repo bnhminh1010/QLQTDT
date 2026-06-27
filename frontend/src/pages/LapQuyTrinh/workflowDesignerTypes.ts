@@ -78,6 +78,7 @@ export type ParallelBranchDraft = {
   id: string;
   backendId?: number;
   tenNhanh: string;
+  thuTu: number;
   stepIds: string[]; // step IDs trong nhánh
 };
 

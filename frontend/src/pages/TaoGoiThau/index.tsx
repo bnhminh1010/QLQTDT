@@ -27,8 +27,8 @@ import {
   updateGoiThau,
 } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau, HinhThuc, LoaiGoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
-import { getWorkflowTemplates } from "@/services/workflowApi";
-import type { WorkflowTemplateSummary } from "@/services/workflowApi";
+import { getWorkflowTemplates, getWorkflows } from "@/services/workflowApi";
+import type { WorkflowTemplateSummary, WorkflowItem } from "@/services/workflowApi";
 import { getCurrentUserApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
 import { getKhoaPhongs } from "@/services/adminApi";
@@ -225,11 +225,20 @@ export default function TaoGoiThau() {
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
 
-  // Load current user + workflow templates on mount
+  // Load current user + workflow templates + admin workflows on mount
   useEffect(() => {
     getCurrentUserApi().then(setCurrentUser).catch(() => {});
-    getWorkflowTemplates().then(setQuyTrinhList).catch(() => {});
     getKhoaPhongs().then(setKhoaPhongList).catch(() => {});
+    Promise.all([
+      getWorkflowTemplates().catch(() => [] as WorkflowTemplateSummary[]),
+      getWorkflows().catch(() => [] as WorkflowItem[]),
+    ]).then(([templates, workflows]) => {
+      const seen = new Set<number>();
+      const merged: WorkflowTemplateSummary[] = [];
+      for (const t of templates) { if (!seen.has(t.id)) { seen.add(t.id); merged.push(t); } }
+      for (const w of workflows) { if (!seen.has(w.id)) { seen.add(w.id); merged.push({ id: w.id, maWorkflow: w.maWorkflow, tenWorkflow: w.tenWorkflow, loaiHinhDauThau: w.loaiHinhDauThau, soBuoc: w.soBuoc }); } }
+      setQuyTrinhList(merged);
+    });
   }, []);
 
   const userKhoaPhong =

@@ -181,6 +181,7 @@ export default function LapQuyTrinh() {
                 id: `branch_${b.id}`,
                 backendId: b.id,
                 tenNhanh: b.tenNhanh,
+                thuTu: b.thuTu || bi + 1,
                 stepIds: buildBranchStepIds(steps, `branch_${b.id}`),
               }));
               return {
@@ -475,10 +476,11 @@ export default function LapQuyTrinh() {
         dieuKienHopNhat: mapDieuKienHopNhatToUi(pg.dieuKienHopNhat),
         soNhanhHopNhatToiThieu: pg.soNhanhHopNhatToiThieu ?? 2,
         buocSauHopNhatId: pg.buocSauHopNhatId ? `be_${pg.buocSauHopNhatId}` : "",
-        branches: (pg.branches || []).map((b: any) => ({
+        branches: (pg.branches || []).map((b: any, bi: number) => ({
           id: `branch_${b.id}`,
           backendId: b.id,
           tenNhanh: b.tenNhanh,
+          thuTu: b.thuTu || bi + 1,
           stepIds: buildBranchStepIds(steps, `branch_${b.id}`),
         })),
       })));
@@ -809,6 +811,37 @@ export default function LapQuyTrinh() {
         }).catch(() => {});
       }
     }
+  }
+
+  function handleSetStart(step: WorkflowStepDraft) {
+    setBuocList((prev) =>
+      prev.map((s) => ({
+        ...s,
+        loaiBuoc: (s.id === step.id ? "Bắt đầu" : s.loaiBuoc === "Bắt đầu" ? "Thường" : s.loaiBuoc) as LoaiBuocUI,
+      }))
+    );
+    if (step.backendId && generatedWorkflowId) {
+      updateWorkflowStep(step.backendId, { loaiBuoc: "BAT_DAU" }).catch(() => {});
+      // Demote old start step
+      const oldStart = buocList.find((s) => s.loaiBuoc === "Bắt đầu" && s.id !== step.id);
+      if (oldStart?.backendId) updateWorkflowStep(oldStart.backendId, { loaiBuoc: "THUC_HIEN" }).catch(() => {});
+    }
+    markDirty();
+  }
+
+  function handleSetEnd(step: WorkflowStepDraft) {
+    setBuocList((prev) =>
+      prev.map((s) => ({
+        ...s,
+        loaiBuoc: (s.id === step.id ? "Kết thúc" : s.loaiBuoc === "Kết thúc" ? "Thường" : s.loaiBuoc) as LoaiBuocUI,
+      }))
+    );
+    if (step.backendId && generatedWorkflowId) {
+      updateWorkflowStep(step.backendId, { loaiBuoc: "KET_THUC" }).catch(() => {});
+      const oldEnd = buocList.find((s) => s.loaiBuoc === "Kết thúc" && s.id !== step.id);
+      if (oldEnd?.backendId) updateWorkflowStep(oldEnd.backendId, { loaiBuoc: "THUC_HIEN" }).catch(() => {});
+    }
+    markDirty();
   }
 
   function handleDeleteGroup(groupId: string) {
@@ -1308,6 +1341,8 @@ export default function LapQuyTrinh() {
           onAddStepToBranch={handleAddStepToBranch}
           onEditBranchStep={(s) => { const idx = buocList.findIndex((x) => x.id === s.id); if (idx >= 0) handleOpenEdit(idx); }}
           onDeleteBranchStep={handleDeleteTarget}
+          onSetStart={handleSetStart}
+          onSetEnd={handleSetEnd}
         />
 
         {buocList.length > 0 && (
