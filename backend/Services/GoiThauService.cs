@@ -72,6 +72,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 NgayTao = g.NgayTao,
                 KhoaPhongId = g.KhoaPhongId,
                 HinhThucId = g.HinhThucId,
+                WorkflowId = g.WorkflowId,
                 TenHinhThuc = g.HinhThuc != null ? g.HinhThuc.TenHinhThuc : null,
                 TenKhoaPhong = g.KhoaPhongId != null && g.KhoaPhong != null ? g.KhoaPhong.TenKhoaPhong : null,
             })
