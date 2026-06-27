@@ -6,10 +6,9 @@ import { getUserGoiThauList } from "./goiThauService";
 import { deleteGoiThau } from "@/services/goiThauApi";
 import {
   getWorkflowState,
-
   getWorkflowSteps,
   formatWorkflowKetQua,
-
+  processStep,
   getWorkflowDesignSteps,
 
   type WorkflowStateDto,
@@ -906,7 +905,30 @@ export default function DanhSachGoiThau() {
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const stepInstance = workflowState?.steps.find(s => s.tenBuoc === branch.currentStep);
+                              if (!stepInstance?.id || !stepInstance.rowVersion) {
+                                toast.error("Không tìm thấy thông tin bước để bỏ qua.");
+                                return;
+                              }
+                              const goiThauId = parseGoiThauNumericId(selected.id);
+                              if (!goiThauId) {
+                                toast.error("ID gói thầu không hợp lệ.");
+                                return;
+                              }
+                              try {
+                                const result = await processStep(goiThauId, {
+                                  hanhDong: "SKIP",
+                                  workflowStepInstanceId: stepInstance.id,
+                                  rowVersion: stepInstance.rowVersion,
+                                });
+                                toast.success(result.message || "Đã bỏ qua bước.");
+                                setWorkflowRefreshKey(k => k + 1);
+                              } catch (error: any) {
+                                toast.error(error?.message || "Không thể bỏ qua bước.");
+                              }
+                            }}
                             className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
                           >
                             Bỏ qua
