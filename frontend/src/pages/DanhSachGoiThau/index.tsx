@@ -10,10 +10,12 @@ import {
   formatWorkflowKetQua,
   processStep,
   getWorkflowDesignSteps,
+  getParallelGroups,
 
   type WorkflowStateDto,
   type WorkflowStepStateDto,
   type BuocWorkflowDto,
+  type ParallelGroupDto,
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 
@@ -33,6 +35,7 @@ type QuyTrinhStepDetail = {
   ten: string;
   donVi: string;
   backendId?: number;
+  buocWorkflowId?: number;
   current?: boolean;
   nguoiXuLy?: string;
   ngayXuLy?: string;
@@ -165,6 +168,7 @@ function mapWorkflowStepState(
     ten: step.tenBuoc,
     donVi: step.tenVaiTroXuLy || step.tenVaiTroKyDuyet || "-",
     backendId: step.id,
+    buocWorkflowId: step.buocWorkflowId,
     current,
     nguoiXuLy: step.tenNguoiXuLy,
     ngayXuLy: step.ngayXuLy?.slice(0, 10),
@@ -174,6 +178,75 @@ function mapWorkflowStepState(
     lyDoKhongDuyet: step.lyDoKhongDuyet,
     slaText: overdue ? "Quá hạn" : TIEN_DO_LABEL[step.tinhTrangTienDo ?? ""] || undefined,
   };
+}
+
+function getStepProgressLabel(step: WorkflowStepStateDto) {
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn tất";
+  if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
+  if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "Đang xử lý";
+  return "Chưa thực hiện";
+}
+
+function getBranchStepState(
+  step: WorkflowStepStateDto,
+  activeStepIds: Set<number>,
+): "done" | "current" | "idle" | "skipped" {
+  if (step.trangThai === "SKIPPED") return "skipped";
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "done";
+  if (activeStepIds.has(step.id)) return "current";
+  return "idle";
+}
+
+function buildParallelInfoBySplitStep(
+  groups: ParallelGroupDto[],
+  runtimeSteps: WorkflowStepStateDto[],
+  designSteps: BuocWorkflowDto[],
+  currentSteps: { stepInstanceId: number }[] = [],
+) {
+  const activeStepIds = new Set(currentSteps.map((step) => step.stepInstanceId));
+  return groups.reduce<Record<number, ParallelInfo>>((acc, group) => {
+    acc[group.buocTachNhanhId] = {
+      title: group.tenNhom,
+      condition: group.dieuKienHopNhat === "ALL"
+        ? "Tất cả nhánh phải hoàn tất trước khi hợp nhất."
+        : `Cần tối thiểu ${group.soNhanhHopNhatToiThieu ?? 1} nhánh hoàn tất trước khi hợp nhất.`,
+      branches: group.branches.map((branch) => {
+        const branchRuntimeSteps = runtimeSteps.filter((step) => step.nhanhWorkflowId === branch.id);
+        const branchDesignSteps = designSteps.filter((step) => step.nhanhWorkflowId === branch.id);
+        const steps = branchRuntimeSteps.length > 0
+          ? branchRuntimeSteps.map((step) => ({
+              name: step.tenBuoc,
+              backendId: step.id,
+              state: getBranchStepState(step, activeStepIds),
+            }))
+          : branchDesignSteps.map((step) => ({
+              name: step.tenBuoc,
+              backendId: step.id,
+              state: "idle" as const,
+            }));
+        const currentBranchStep = branchRuntimeSteps.find((step) => activeStepIds.has(step.id));
+        const completedCount = branchRuntimeSteps.filter((step) =>
+          step.trangThai === "HOAN_TAT" ||
+          step.trangThai === "COMPLETED" ||
+          step.trangThai === "SKIPPED" ||
+          step.ngayHoanThanh,
+        ).length;
+
+        return {
+          name: branch.tenNhanh,
+          backendId: currentBranchStep?.id,
+          progress: `${completedCount}/${steps.length}`,
+          status: currentBranchStep ? getStepProgressLabel(currentBranchStep) : "Chưa đến lượt xử lý",
+          currentStep: currentBranchStep?.tenBuoc || steps[0]?.name || "—",
+          processor: currentBranchStep?.tenNguoiXuLy || currentBranchStep?.tenVaiTroXuLy || "—",
+          steps,
+        };
+      }),
+      mergeStatus: `Hợp nhất tại bước #${group.buocSauHopNhatId}`,
+      lockedStage: "Các bước sau hợp nhất chỉ mở khi điều kiện nhánh được thỏa mãn.",
+    };
+    return acc;
+  }, {});
 }
 
 function mapWorkflowStateToDetailInfo(
@@ -368,6 +441,7 @@ export default function DanhSachGoiThau() {
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStepStateDto[] | null>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
+  const [parallelGroups, setParallelGroups] = useState<ParallelGroupDto[]>([]);
 
   // Design-time step preview (fallback when workflow not started)
   const [designSteps, setDesignSteps] = useState<BuocWorkflowDto[]>([]);
@@ -428,6 +502,7 @@ export default function DanhSachGoiThau() {
       setWorkflowState(null);
       setWorkflowSteps(null);
       setDesignSteps([]);
+      setParallelGroups([]);
       return;
     }
 
@@ -436,15 +511,18 @@ export default function DanhSachGoiThau() {
       setWorkflowLoading(true);
 
       try {
-        const [state, steps] = await Promise.all([
+        const [state, steps, design, groups] = await Promise.all([
           getWorkflowState(numericId),
           getWorkflowSteps(numericId),
+          selected.workflowId ? getWorkflowDesignSteps(selected.workflowId).catch(() => [] as BuocWorkflowDto[]) : Promise.resolve([]),
+          selected.workflowId ? getParallelGroups(selected.workflowId).catch(() => [] as ParallelGroupDto[]) : Promise.resolve([]),
         ]);
 
         if (cancelled) return;
         setWorkflowState(state);
         setWorkflowSteps(steps);
-        setDesignSteps([]);
+        setDesignSteps(design);
+        setParallelGroups(groups);
       } catch {
         if (cancelled) return;
         setWorkflowState(null);
@@ -452,14 +530,24 @@ export default function DanhSachGoiThau() {
 
         if (!selected.workflowId) {
           setDesignSteps([]);
+          setParallelGroups([]);
           return;
         }
 
         try {
-          const steps = await getWorkflowDesignSteps(selected.workflowId);
-          if (!cancelled) setDesignSteps(steps);
+          const [steps, groups] = await Promise.all([
+            getWorkflowDesignSteps(selected.workflowId),
+            getParallelGroups(selected.workflowId).catch(() => [] as ParallelGroupDto[]),
+          ]);
+          if (!cancelled) {
+            setDesignSteps(steps);
+            setParallelGroups(groups);
+          }
         } catch {
-          if (!cancelled) setDesignSteps([]);
+          if (!cancelled) {
+            setDesignSteps([]);
+            setParallelGroups([]);
+          }
         }
       } finally {
         if (!cancelled) setWorkflowLoading(false);
@@ -603,6 +691,13 @@ export default function DanhSachGoiThau() {
           )}%`
         : selected.detail.pct;
 
+    const parallelInfoBySplitStep = buildParallelInfoBySplitStep(
+      parallelGroups,
+      workflowState?.steps ?? workflowSteps ?? [],
+      designSteps,
+      workflowState?.currentSteps ?? [],
+    );
+
     const displaySteps =
       detailInfo.steps.length > 0
         ? detailInfo.steps.map((step) => {
@@ -616,6 +711,7 @@ export default function DanhSachGoiThau() {
                   : step.state,
               nguoiXuLy: step.nguoiXuLy || detailInfo.nguoiXuLy,
               slaText: isCurrent ? progressStatus : step.slaText,
+              parallelInfo: step.buocWorkflowId ? parallelInfoBySplitStep[step.buocWorkflowId] : undefined,
         };
       })
     : designSteps.map((s) => ({
@@ -623,6 +719,7 @@ export default function DanhSachGoiThau() {
         ten: s.tenBuoc,
         donVi: String(s.donViXuLyId ?? ""),
         backendId: s.id,
+        buocWorkflowId: s.id,
         current: false,
         nguoiXuLy: undefined,
         ngayXuLy: undefined,
@@ -631,6 +728,7 @@ export default function DanhSachGoiThau() {
         ketQua: undefined,
         lyDoKhongDuyet: undefined,
         slaText: undefined,
+        parallelInfo: parallelInfoBySplitStep[s.id],
       }));
 
     return (
@@ -832,17 +930,17 @@ export default function DanhSachGoiThau() {
                 </div>
               </div>
             </details>
-              {detailInfo.parallelInfo && step.ten.includes("Tổ chuyên gia") && (
+              {step.parallelInfo && (
                 <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
                   <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
                     <i className="fa-solid fa-code-branch text-[11px]" />
                     NHÁNH SONG SONG
                   </div>
                   <p className="mb-3 leading-relaxed text-slate-600">
-                    {detailInfo.parallelInfo.condition}
+                    {step.parallelInfo.condition}
                   </p>
                   <div className="space-y-2">
-                    {detailInfo.parallelInfo.branches.map((branch) => (
+                    {step.parallelInfo.branches.map((branch) => (
                       <div key={branch.name} className="rounded-lg border border-white bg-white/80 p-2">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold text-slate-800">{branch.name}</span>
@@ -939,10 +1037,10 @@ export default function DanhSachGoiThau() {
                     ))}
                   </div>
                   <div className="mt-3 rounded-lg bg-amber-50 px-2 py-2 text-[11px] font-semibold text-amber-700">
-                    {detailInfo.parallelInfo.mergeStatus}
+                    {step.parallelInfo.mergeStatus}
                   </div>
                   <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
-                    {detailInfo.parallelInfo.lockedStage}
+                    {step.parallelInfo.lockedStage}
                   </div>
                 </div>
               )}

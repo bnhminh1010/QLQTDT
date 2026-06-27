@@ -146,6 +146,9 @@ public class CurrentStepDto
 public class WorkflowStepStateDto
 {
     public long Id { get; set; }
+    public int BuocWorkflowId { get; set; }
+    public int? NhanhWorkflowId { get; set; }
+    public string? TenNhanh { get; set; }
     public string TenBuoc { get; set; } = null!;
     public string TrangThai { get; set; } = null!;
     public string? PhaHienTai { get; set; }

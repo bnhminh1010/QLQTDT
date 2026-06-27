@@ -223,8 +223,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 .FirstOrDefaultAsync(w => w.Id == workflowId.Value && w.TrangThaiHoatDong)
                 ?? throw new BadRequestException("Quy trình đấu thầu không hợp lệ hoặc đã bị vô hiệu hóa.");
 
-            if (!HinhThucDauThauCompatibility.AreCompatible(selectedHinhThuc, workflow.HinhThuc))
-                throw new BadRequestException("Quy trình đấu thầu không phù hợp với hình thức đấu thầu đã chọn.");
+            // Dùng HinhThuc từ Workflow (FK đảm bảo đúng), bỏ qua dto.HinhThucId
             resolvedHinhThuc = workflow.HinhThuc;
         }
         else

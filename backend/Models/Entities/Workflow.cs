@@ -14,6 +14,8 @@ public class Workflow : IBaseEntity
     public string? PhamViApDung { get; set; }
     public string? MoTaNgan { get; set; }
     public bool LaQuyTrinhChuan { get; set; }
+    public int? BuocBatDauId { get; set; }
+    public int? BuocKetThucId { get; set; }
 
     public ICollection<BuocWorkflow> BuocWorkflows { get; set; } = [];
     public ICollection<NhomNhanhWorkflow> NhomNhanhWorkflows { get; set; } = [];

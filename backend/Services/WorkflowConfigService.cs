@@ -204,6 +204,10 @@ public class WorkflowConfigService : IWorkflowConfigService
             stepByDraftId[step.Id] = stepEntity;
         }
 
+        entity.BuocBatDauId = ResolveDesignBoundaryStepId(request.BuocBatDauDraftId, request.Steps, stepByDraftId, "BAT_DAU");
+        entity.BuocKetThucId = ResolveDesignBoundaryStepId(request.BuocKetThucDraftId, request.Steps, stepByDraftId, "KET_THUC");
+        await _context.SaveChangesAsync();
+
         foreach (var group in request.ParallelGroups.Select((group, groupIndex) => new { Group = group, GroupIndex = groupIndex }))
         {
             if (!stepByDraftId.TryGetValue(group.Group.BuocTachNhanhId, out var splitStep))
@@ -454,6 +458,10 @@ public class WorkflowConfigService : IWorkflowConfigService
             await _context.SaveChangesAsync();
             stepByDraftId[step.Id] = stepEntity;
         }
+
+        entity.BuocBatDauId = ResolveDesignBoundaryStepId(request.BuocBatDauDraftId, request.Steps, stepByDraftId, "BAT_DAU");
+        entity.BuocKetThucId = ResolveDesignBoundaryStepId(request.BuocKetThucDraftId, request.Steps, stepByDraftId, "KET_THUC");
+        await _context.SaveChangesAsync();
 
         // Build reverse lookup: entity PK → step request (for HuongXuLyKhongDuyet etc.)
         var stepRequestByEntityId = request.Steps
@@ -812,6 +820,23 @@ public class WorkflowConfigService : IWorkflowConfigService
         };
 
         return JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+    }
+
+    private static int? ResolveDesignBoundaryStepId(
+        string? draftId,
+        List<WorkflowDesignStepRequest> steps,
+        Dictionary<string, BuocWorkflow> stepByDraftId,
+        string loaiBuoc)
+    {
+        var selectedDraftId = !string.IsNullOrWhiteSpace(draftId)
+            ? draftId
+            : steps
+                .FirstOrDefault(step => string.Equals(step.LoaiBuoc, loaiBuoc, StringComparison.OrdinalIgnoreCase))
+                ?.Id;
+
+        return selectedDraftId != null && stepByDraftId.TryGetValue(selectedDraftId, out var step)
+            ? step.Id
+            : null;
     }
 
     private async Task<string> GenerateMaWorkflowAsync()

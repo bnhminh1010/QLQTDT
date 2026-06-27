@@ -36,6 +36,8 @@ public class WorkflowDesignSaveRequest
     public string TenWorkflow { get; set; } = null!;
     public int HinhThucId { get; set; }
     public string? LoaiHinhDauThau { get; set; }
+    public string? BuocBatDauDraftId { get; set; }
+    public string? BuocKetThucDraftId { get; set; }
     public List<WorkflowDesignStepRequest> Steps { get; set; } = [];
     public List<WorkflowDesignParallelGroupRequest> ParallelGroups { get; set; } = [];
 }

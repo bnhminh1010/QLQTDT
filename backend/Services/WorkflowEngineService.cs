@@ -355,7 +355,12 @@ public class WorkflowEngineService : IWorkflowEngineService
         long? newStepId = null;
         string? newStepName = null;
 
-        if (transition?.DenBuoc is null)
+        var isConfiguredEndStep = await IsConfiguredEndStepAsync(instance.WorkflowId, currentStep.BuocWorkflowId);
+        var nextBuoc = isConfiguredEndStep
+            ? null
+            : transition?.DenBuoc ?? await ResolveSequentialNextBuocAsync(instance.WorkflowId, buoc);
+
+        if (nextBuoc is null)
         {
             // ── No next step → complete workflow ──
             instance.TrangThai = WorkflowTrangThai.COMPLETED;
@@ -370,16 +375,15 @@ public class WorkflowEngineService : IWorkflowEngineService
             var nextStep = await _db.WorkflowStepInstances
                 .FirstOrDefaultAsync(s =>
                     s.WorkflowInstanceId == instance.Id &&
-                    s.BuocWorkflowId == transition.DenBuocId &&
+                    s.BuocWorkflowId == nextBuoc.Id &&
                     (s.TrangThai == "PENDING" || s.TrangThai == "CHUA_BAT_DAU"));
 
-            var nextBuoc = transition.DenBuoc;
             if (nextStep is null)
             {
                 nextStep = new WorkflowStepInstance
                 {
                     WorkflowInstanceId = instance.Id,
-                    BuocWorkflowId = transition.DenBuocId,
+                    BuocWorkflowId = nextBuoc.Id,
                     PhaHienTai = "LAP_HO_SO",
                 };
                 _db.WorkflowStepInstances.Add(nextStep);
@@ -417,7 +421,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 });
             }
 
-            instance.BuocHienTaiId = transition.DenBuocId;
+            instance.BuocHienTaiId = nextBuoc.Id;
             newStepId = nextStep.Id;
             newStepName = nextBuoc.TenBuoc;
             isCompleted = false;
@@ -955,11 +959,16 @@ public class WorkflowEngineService : IWorkflowEngineService
                     t.TuBuocId == currentStep.BuocWorkflowId &&
                     (t.HanhDong == WorkflowHanhDong.APPROVE || t.HanhDong == WorkflowHanhDong.DUYET));
 
+        var isConfiguredEndStep = await IsConfiguredEndStepAsync(instance.WorkflowId, currentStep.BuocWorkflowId);
+        var nextBuoc = isConfiguredEndStep
+            ? null
+            : transition?.DenBuoc ?? await ResolveSequentialNextBuocAsync(instance.WorkflowId, buoc!);
+
         bool isCompleted;
         long? newStepId = null;
         string? newStepName = null;
 
-        if (transition?.DenBuoc is null)
+        if (nextBuoc is null)
         {
             instance.TrangThai = WorkflowTrangThai.COMPLETED;
             instance.NgayHoanThanh = DateTime.UtcNow;
@@ -972,16 +981,15 @@ public class WorkflowEngineService : IWorkflowEngineService
             var nextStep = await _db.WorkflowStepInstances
                 .FirstOrDefaultAsync(s =>
                     s.WorkflowInstanceId == instance.Id &&
-                    s.BuocWorkflowId == transition.DenBuocId &&
+                    s.BuocWorkflowId == nextBuoc.Id &&
                     (s.TrangThai == "PENDING" || s.TrangThai == "CHUA_BAT_DAU"));
 
-            var nextBuoc = transition.DenBuoc;
             if (nextStep is null)
             {
                 nextStep = new WorkflowStepInstance
                 {
                     WorkflowInstanceId = instance.Id,
-                    BuocWorkflowId = transition.DenBuocId,
+                    BuocWorkflowId = nextBuoc.Id,
                     PhaHienTai = "LAP_HO_SO",
                 };
                 _db.WorkflowStepInstances.Add(nextStep);
@@ -1184,7 +1192,9 @@ public class WorkflowEngineService : IWorkflowEngineService
             if (lockedGoiThau.TrangThai != GoiThauTrangThai.DU_THAO)
                 throw new ConflictException("Goi thau da duoc xu ly boi tien trinh khac.");
 
-            var firstStep = steps[0];
+            var firstStep = workflow.BuocBatDauId.HasValue
+                ? steps.FirstOrDefault(step => step.Id == workflow.BuocBatDauId.Value) ?? steps[0]
+                : steps[0];
 
             var instance = new WorkflowInstance
             {
@@ -1197,21 +1207,21 @@ public class WorkflowEngineService : IWorkflowEngineService
             _db.WorkflowInstances.Add(instance);
             await _db.SaveChangesAsync();
 
-            var stepInstances = steps.Select((step, index) => new WorkflowStepInstance
+            var stepInstances = steps.Select(step => new WorkflowStepInstance
             {
                 WorkflowInstanceId = instance.Id,
                 BuocWorkflowId = step.Id,
-                TrangThai = index == 0 ? WorkflowStepTrangThai.DANG_XU_LY : "PENDING",
+                TrangThai = step.Id == firstStep.Id ? WorkflowStepTrangThai.DANG_XU_LY : "PENDING",
                 PhaHienTai = "LAP_HO_SO",
-                NgayBatDau = index == 0 ? DateTime.UtcNow : default,
-                HanXuLy = index == 0 && step.SoNgayLapHoSo > 0
+                NgayBatDau = step.Id == firstStep.Id ? DateTime.UtcNow : default,
+                HanXuLy = step.Id == firstStep.Id && step.SoNgayLapHoSo > 0
                     ? DateTime.UtcNow.AddDays(step.SoNgayLapHoSo)
                     : null,
             }).ToList();
             _db.WorkflowStepInstances.AddRange(stepInstances);
             await _db.SaveChangesAsync();
 
-            var stepInstance = stepInstances[0];
+            var stepInstance = stepInstances.First(step => step.BuocWorkflowId == firstStep.Id);
 
             // Resolve assignees cho LAP_HO_SO phase của bước hiện tại
             if (firstStep.VaiTroXuLyHoSoId.HasValue)
@@ -1333,6 +1343,9 @@ public class WorkflowEngineService : IWorkflowEngineService
             .Select(s => new WorkflowStepStateDto
             {
                 Id = s.Id,
+                BuocWorkflowId = s.BuocWorkflowId,
+                NhanhWorkflowId = s.BuocWorkflow != null ? s.BuocWorkflow.NhanhWorkflowId : null,
+                TenNhanh = s.BuocWorkflow?.NhanhWorkflow?.TenNhanh,
                 TenBuoc = s.BuocWorkflow?.TenBuoc ?? "",
                 TrangThai = s.TrangThai,
                 PhaHienTai = s.PhaHienTai,
@@ -1402,6 +1415,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiKyDuyet)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.NhanhWorkflow)
             .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
 
         if (instance is null) return [];
@@ -1412,6 +1426,9 @@ public class WorkflowEngineService : IWorkflowEngineService
             .Select(s => new WorkflowStepStateDto
             {
                 Id = s.Id,
+                BuocWorkflowId = s.BuocWorkflowId,
+                NhanhWorkflowId = s.BuocWorkflow != null ? s.BuocWorkflow.NhanhWorkflowId : null,
+                TenNhanh = s.BuocWorkflow?.NhanhWorkflow?.TenNhanh,
                 TenBuoc = s.BuocWorkflow?.TenBuoc ?? "",
                 TrangThai = s.TrangThai,
                 PhaHienTai = s.PhaHienTai,
@@ -1633,6 +1650,27 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         return "DUNG_TIEN_DO";
     }
+
+    private async Task<BuocWorkflow?> ResolveSequentialNextBuocAsync(int workflowId, BuocWorkflow currentBuoc)
+    {
+        var workflowSteps = await _db.BuocWorkflows
+            .AsNoTracking()
+            .Where(b => b.WorkflowId == workflowId)
+            .OrderBy(b => b.ThuTu)
+            .ThenBy(b => b.Id)
+            .ToListAsync();
+
+        var currentIndex = workflowSteps.FindIndex(b => b.Id == currentBuoc.Id);
+        if (currentIndex >= 0 && currentIndex + 1 < workflowSteps.Count)
+            return workflowSteps[currentIndex + 1];
+
+        return null;
+    }
+
+    private async Task<bool> IsConfiguredEndStepAsync(int workflowId, int buocWorkflowId)
+        => await _db.Workflows
+            .AsNoTracking()
+            .AnyAsync(w => w.Id == workflowId && w.BuocKetThucId == buocWorkflowId);
 
     private int GetCurrentUserId()
     {

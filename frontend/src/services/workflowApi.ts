@@ -122,6 +122,8 @@ export type WorkflowDesignSaveRequest = {
   tenWorkflow: string;
   hinhThucId: number;
   loaiHinhDauThau?: string;
+  buocBatDauDraftId?: string;
+  buocKetThucDraftId?: string;
   steps: WorkflowDesignStepRequest[];
   parallelGroups: WorkflowDesignParallelGroupRequest[];
 };
@@ -533,6 +535,9 @@ export type CurrentStepDto = {
 
 export type WorkflowStepStateDto = {
   id: number;
+  buocWorkflowId: number;
+  nhanhWorkflowId?: number;
+  tenNhanh?: string;
   tenBuoc: string;
   trangThai: string;
   phaHienTai?: string;

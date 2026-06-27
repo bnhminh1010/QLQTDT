@@ -295,6 +295,8 @@ export default function LapQuyTrinh() {
         tenWorkflow: tenQuyTrinh.trim(),
         hinhThucId: resolvedHinhThucId,
         loaiHinhDauThau: loaiHinh || undefined,
+        buocBatDauDraftId: buocList.find((step) => step.loaiBuoc === "Bắt đầu")?.id,
+        buocKetThucDraftId: buocList.find((step) => step.loaiBuoc === "Kết thúc")?.id,
         steps,
         parallelGroups: parallelGroupsPayload,
       });
@@ -1254,6 +1256,8 @@ export default function LapQuyTrinh() {
       tenWorkflow: tenQuyTrinh.trim(),
       hinhThucId: hi ?? 1,
       loaiHinhDauThau: loaiHinh || undefined,
+      buocBatDauDraftId: buocList.find((step) => step.loaiBuoc === "Bắt đầu")?.id,
+      buocKetThucDraftId: buocList.find((step) => step.loaiBuoc === "Kết thúc")?.id,
       steps,
       parallelGroups: parallelGroupsPayload,
     })
