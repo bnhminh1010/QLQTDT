@@ -314,7 +314,9 @@ public class WorkflowEngineService : IWorkflowEngineService
         // ── Check SPLIT: completed step is BuocTachNhanhId of a parallel group ──
         var splitGroup = await _db.NhomNhanhWorkflows
             .Include(g => g.Nhanhs.OrderBy(n => n.ThuTu))
-            .ThenInclude(n => n.BuocDauTien)
+                .ThenInclude(n => n.BuocDauTien)
+            .Include(g => g.Nhanhs.OrderBy(n => n.ThuTu))
+                .ThenInclude(n => n.BuocWorkflows)
             .FirstOrDefaultAsync(g =>
                 g.WorkflowId == instance.WorkflowId &&
                 g.BuocTachNhanhId == currentStep.BuocWorkflowId);
@@ -446,52 +448,59 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         foreach (var branch in splitGroup.Nhanhs)
         {
-            var branchStep = new WorkflowStepInstance
-            {
-                WorkflowInstanceId = instance.Id,
-                BuocWorkflowId = branch.BuocDauTienId,
-                TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
-                PhaHienTai = "LAP_HO_SO",
-                NgayBatDau = DateTime.UtcNow,
-                HanXuLy = branch.ThoiHanNgay > 0
-                    ? DateTime.UtcNow.AddDays((double)branch.ThoiHanNgay)
-                    : null,
-            };
-            _db.WorkflowStepInstances.Add(branchStep);
-            await _db.SaveChangesAsync();
+            // Get all steps in this branch (ordered by ThuTu)
+            var branchSteps = (branch.BuocWorkflows ?? []).OrderBy(b => b.ThuTu).ToList();
+            if (branchSteps.Count == 0 && branch.BuocDauTien != null)
+                branchSteps = [branch.BuocDauTien];
 
-            // Resolve assignee for branch first step
-            var buocDauTien = branch.BuocDauTien;
-            var roleId = branch.VaiTroXuLyId ?? buocDauTien?.VaiTroXuLyHoSoId;
-            if (roleId.HasValue)
+            foreach (var bStep in branchSteps)
             {
-                var assigneeIds = await ResolveAssigneesAsync(roleId.Value, currentUserId, goiThau.KhoaPhongId);
-                foreach (var assigneeId in assigneeIds)
+                var branchStep = new WorkflowStepInstance
+                {
+                    WorkflowInstanceId = instance.Id,
+                    BuocWorkflowId = bStep.Id,
+                    TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
+                    PhaHienTai = "LAP_HO_SO",
+                    NgayBatDau = DateTime.UtcNow,
+                    HanXuLy = branch.ThoiHanNgay > 0
+                        ? DateTime.UtcNow.AddDays((double)branch.ThoiHanNgay)
+                        : null,
+                };
+                _db.WorkflowStepInstances.Add(branchStep);
+                await _db.SaveChangesAsync();
+
+                // Resolve assignee for each step
+                var roleId = branch.VaiTroXuLyId ?? bStep.VaiTroXuLyHoSoId;
+                if (roleId.HasValue)
+                {
+                    var assigneeIds = await ResolveAssigneesAsync(roleId.Value, currentUserId, goiThau.KhoaPhongId);
+                    foreach (var assigneeId in assigneeIds)
+                    {
+                        _db.WorkflowAssignments.Add(new WorkflowAssignment
+                        {
+                            WorkflowStepInstanceId = branchStep.Id,
+                            NguoiDuocGiaoId = assigneeId,
+                            NgayGiao = DateTime.UtcNow
+                        });
+                    }
+                }
+                else
                 {
                     _db.WorkflowAssignments.Add(new WorkflowAssignment
                     {
                         WorkflowStepInstanceId = branchStep.Id,
-                        NguoiDuocGiaoId = assigneeId,
+                        NguoiDuocGiaoId = currentUserId,
                         NgayGiao = DateTime.UtcNow
                     });
                 }
-            }
-            else
-            {
-                _db.WorkflowAssignments.Add(new WorkflowAssignment
-                {
-                    WorkflowStepInstanceId = branchStep.Id,
-                    NguoiDuocGiaoId = currentUserId,
-                    NgayGiao = DateTime.UtcNow
-                });
+
+                createdSteps.Add(branchStep);
             }
 
-            createdSteps.Add(branchStep);
-
-            AddAuditEntries(instance.Id, branchStep.Id, hanhDong,
-                $"Tạo nhánh '{branch.TenNhanh}' sau bước '{buoc.TenBuoc}'",
+            AddAuditEntries(instance.Id, createdSteps.Last().Id, hanhDong,
+                $"Tạo nhánh '{branch.TenNhanh}' sau bước '{buoc.TenBuoc}' ({branchSteps.Count} bước)",
                 currentUserId, goiThau.Id,
-                $"SPLIT: '{buoc.TenBuoc}' → '{branch.TenNhanh}' (bước id={branch.BuocDauTienId})");
+                $"SPLIT: '{buoc.TenBuoc}' → '{branch.TenNhanh}' ({branchSteps.Count} bước)");
         }
 
         await _db.SaveChangesAsync();
