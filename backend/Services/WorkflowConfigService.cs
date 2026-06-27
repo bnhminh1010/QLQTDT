@@ -376,7 +376,28 @@ public class WorkflowConfigService : IWorkflowConfigService
         if (request.LoaiHinhDauThau != null)
             entity.LoaiHinhDauThau = request.LoaiHinhDauThau;
 
-        // Remove old steps, transitions, parallel groups
+        // Remove old transitions, branches, groups, then steps (FK-safe order)
+        var oldStepIds = await _context.BuocWorkflows
+            .Where(b => b.WorkflowId == id)
+            .Select(b => b.Id)
+            .ToListAsync();
+
+        if (oldStepIds.Count > 0)
+        {
+            await _context.ChuyenTiepWorkflows
+                .Where(t => oldStepIds.Contains(t.TuBuocId) || oldStepIds.Contains(t.DenBuocId))
+                .ExecuteDeleteAsync();
+        }
+
+        var oldGroups = await _context.NhomNhanhWorkflows
+            .Where(g => g.WorkflowId == id)
+            .Include(g => g.Nhanhs)
+            .ToListAsync();
+
+        _context.NhanhWorkflows.RemoveRange(oldGroups.SelectMany(g => g.Nhanhs));
+        _context.NhomNhanhWorkflows.RemoveRange(oldGroups);
+        await _context.SaveChangesAsync();
+
         var oldSteps = await _context.BuocWorkflows.Where(b => b.WorkflowId == id).ToListAsync();
         _context.BuocWorkflows.RemoveRange(oldSteps);
         await _context.SaveChangesAsync();
@@ -443,38 +464,67 @@ public class WorkflowConfigService : IWorkflowConfigService
         // Create parallel groups
         foreach (var group in request.ParallelGroups)
         {
+            if (!stepByDraftId.TryGetValue(group.BuocTachNhanhId, out var splitStep))
+                throw new AppException(400, "INVALID_DESIGN", $"Unknown split step id: {group.BuocTachNhanhId}");
+
+            if (!stepByDraftId.TryGetValue(group.BuocSauHopNhatId, out var mergeStep))
+                throw new AppException(400, "INVALID_DESIGN", $"Unknown merge step id: {group.BuocSauHopNhatId}");
+
+            var duplicateBranchIds = group.Branches
+                .GroupBy(branch => branch.Id)
+                .FirstOrDefault(g => g.Count() > 1);
+            if (duplicateBranchIds != null)
+                throw new AppException(400, "DUPLICATE_BRANCH_ID", $"Duplicate branch id in design payload: {duplicateBranchIds.Key}");
+
+            var duplicateBranchCodes = group.Branches
+                .GroupBy(branch => branch.MaNhanh, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(g => g.Count() > 1);
+            if (duplicateBranchCodes != null)
+                throw new AppException(400, "DUPLICATE_BRANCH_CODE", $"Duplicate branch code in design payload: {duplicateBranchCodes.Key}");
+
             var entityGroup = new NhomNhanhWorkflow
             {
                 WorkflowId = entity.Id,
-                BuocTachNhanhId = stepByDraftId[group.BuocTachNhanhId].Id,
+                BuocTachNhanhId = splitStep.Id,
                 TenNhom = group.TenNhom,
                 DieuKienHopNhat = group.DieuKienHopNhat,
-                SoNhanhHopNhatToiThieu = group.SoNhanhHopNhatToiThieu,
-                BuocSauHopNhatId = stepByDraftId[group.BuocSauHopNhatId].Id
+                SoNhanhHopNhatToiThieu = group.DieuKienHopNhat == "COUNT"
+                    ? group.SoNhanhHopNhatToiThieu
+                    : null,
+                BuocSauHopNhatId = mergeStep.Id,
+                NgayTao = DateTime.UtcNow
             };
             _context.NhomNhanhWorkflows.Add(entityGroup);
             await _context.SaveChangesAsync();
 
             foreach (var branch in group.Branches.OrderBy(b => b.ThuTu))
             {
+                if (branch.StepIds.Count == 0)
+                    throw new AppException(400, "INVALID_DESIGN", $"Branch '{branch.TenNhanh}' does not contain any steps.");
+
+                var orderedBranchSteps = branch.StepIds.Select(stepId =>
+                    stepByDraftId.TryGetValue(stepId, out var stepEntity)
+                        ? stepEntity
+                        : throw new AppException(400, "INVALID_DESIGN", $"Unknown branch step id: {stepId}")).ToList();
+
+                var firstBranchStep = orderedBranchSteps[0];
                 var branchEntity = new NhanhWorkflow
                 {
                     NhomNhanhWorkflowId = entityGroup.Id,
                     MaNhanh = branch.MaNhanh,
                     TenNhanh = branch.TenNhanh,
                     ThuTu = branch.ThuTu,
+                    DonViXuLyId = branch.DonViXuLyId,
+                    VaiTroXuLyId = branch.VaiTroXuLyId,
                     ThoiHanNgay = branch.ThoiHanNgay,
-                    LoaiHan = branch.LoaiHan
+                    LoaiHan = branch.LoaiHan,
+                    BuocDauTienId = firstBranchStep.Id
                 };
                 _context.NhanhWorkflows.Add(branchEntity);
                 await _context.SaveChangesAsync();
 
-                // Assign branch to steps
-                foreach (var stepId in branch.StepIds)
-                {
-                    if (stepByDraftId.TryGetValue(stepId, out var bs))
-                        bs.NhanhWorkflowId = branchEntity.Id;
-                }
+                foreach (var branchStep in orderedBranchSteps)
+                    branchStep.NhanhWorkflowId = branchEntity.Id;
             }
         }
 
