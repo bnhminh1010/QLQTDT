@@ -761,11 +761,25 @@ export default function TaoGoiThau() {
                           if (_isSplit && _grp && _grp.branches.length > 0) {
                             const _mergeStepName = selectedQTSteps.find(s => s.id === _grp.buocSauHopNhatId)?.tenBuoc ?? _grp.dieuKienHopNhat;
                             _els.push(
-                              <div key={`branch-${_grp.id}`} className="ml-5 border-l-2 border-amber-300 pl-3 space-y-0.5">
-                                <p className="text-[10px] font-bold text-amber-600 flex items-center gap-1"><i className="fa-solid fa-code-branch text-[10px]" />Nhánh song song</p>
-                                {_grp.branches.map((_b) => (
-                                  <p key={_b.id} className="text-[10px] text-slate-600 font-mono">├─ <span className="font-semibold">{_b.tenNhanh}</span></p>
-                                ))}
+                              <div key={`branch-${_grp.id}`} className="ml-5 border-l-2 border-amber-300 pl-3">
+                                <p className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mb-1"><i className="fa-solid fa-code-branch text-[10px]" />Nhánh song song</p>
+                                {_grp.branches.map((_b) => {
+                                  const _branchSteps = selectedQTSteps
+                                    .filter(s => s.nhanhWorkflowId === _b.id)
+                                    .sort((a, b) => a.thuTu - b.thuTu);
+                                  return (
+                                    <div key={_b.id} className="mb-1.5">
+                                      <p className="text-[10px] font-semibold text-slate-700">{_b.tenNhanh}</p>
+                                      <div className="ml-3 space-y-0.5">
+                                        {_branchSteps.length > 0 ? _branchSteps.map((_bs, _bsi) => (
+                                          <p key={_bs.id} className="text-[10px] text-slate-500">
+                                                            {_bsi === _branchSteps.length - 1 ? '└─' : '├─'} {_bs.tenBuoc}
+                                          </p>
+                                        )) : <p className="text-[10px] text-slate-400 italic">(không có bước)</p>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                                 <p className="text-[10px] text-purple-600 font-medium mt-1">⟶ Hợp nhất: {_mergeStepName}</p>
                               </div>
                             );
@@ -1320,11 +1334,25 @@ export default function TaoGoiThau() {
                         if (_isSplit && _grp && _grp.branches.length > 0) {
                           const _mergeName = selectedQTSteps.find(s => s.id === _grp.buocSauHopNhatId)?.tenBuoc ?? _grp.dieuKienHopNhat;
                           _tags.push(
-                            <div key={`branch-${_grp.id}`} className="ml-3 border-l-2 border-amber-200 pl-2 my-1 space-y-0.5">
-                              <p className="text-[10px] font-bold text-amber-600"><i className="fa-solid fa-code-branch text-[10px] mr-0.5" />Nhánh song song</p>
-                              {_grp.branches.map((_b) => (
-                                <p key={_b.id} className="text-[9px] text-slate-500 font-mono">├─ {_b.tenNhanh}</p>
-                              ))}
+                            <div key={`branch-${_grp.id}`} className="ml-3 border-l-2 border-amber-200 pl-2 my-1">
+                              <p className="text-[10px] font-bold text-amber-600 mb-0.5"><i className="fa-solid fa-code-branch text-[10px] mr-0.5" />Nhánh song song</p>
+                              {_grp.branches.map((_b) => {
+                                const _branchSteps = selectedQTSteps
+                                  .filter(s => s.nhanhWorkflowId === _b.id)
+                                  .sort((a, b) => a.thuTu - b.thuTu);
+                                return (
+                                  <div key={_b.id} className="mb-1">
+                                    <p className="text-[9px] font-semibold text-slate-600">{_b.tenNhanh}</p>
+                                    <div className="ml-2 space-y-0">
+                                      {_branchSteps.length > 0 ? _branchSteps.map((_bs, _bsi) => (
+                                        <p key={_bs.id} className="text-[8px] text-slate-400">
+                                          {_bsi === _branchSteps.length - 1 ? '└─' : '├─'} {_bs.tenBuoc.length > 14 ? _bs.tenBuoc.slice(0, 14) + '…' : _bs.tenBuoc}
+                                        </p>
+                                      )) : <p className="text-[8px] text-slate-400 italic">(trống)</p>}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                               <p className="text-[9px] text-purple-600">⟶ Hợp nhất: {_mergeName}</p>
                             </div>
                           );
