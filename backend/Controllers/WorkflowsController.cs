@@ -65,6 +65,16 @@ public class WorkflowsController : ControllerBase
             ApiResponse<WorkflowCreateResponse>.Ok(created, "Workflow created from design successfully"));
     }
 
+    [HttpPut("{id}/from-design")]
+    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse>> UpdateFromDesign(
+        int id, [FromBody] WorkflowDesignSaveRequest request)
+    {
+        await _workflowService.UpdateWorkflowFromDesignAsync(id, request, GetCurrentUserId());
+        return Ok(ApiResponse.Ok("Cập nhật quy trình thành công"));
+    }
+
     [HttpGet("{id}")]
     [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<WorkflowListItemDto>>> GetById(int id)

@@ -269,10 +269,14 @@ export default function NguoiDung() {
       trangThai: "Hoạt động",
       ngayTao: new Date().toLocaleDateString("vi-VN"),
     };
+    const khoaPhongId = khoaPhongList.find((k) => k.tenKhoaPhong === v.phong)?.id;
+    const vaiTroId = allRoles.find((r) => r.tenVaiTro === v.vaiTro)?.id;
     createUser({
       hoTen: newUser.hoTen, email: newUser.email,
       tenDangNhap: newUser.username, matKhau: v.matKhau || "Default@123",
       soDienThoai: newUser.sdt || undefined,
+      khoaPhongId,
+      vaiTroId,
     }).then(() => {
       setData((prev) => [newUser, ...prev]);
       setSelected(newUser);

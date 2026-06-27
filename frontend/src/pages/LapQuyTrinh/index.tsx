@@ -7,7 +7,7 @@ import type { StepLibraryEntry } from "./stepLibrary";
 import WorkflowPreview from "./components/WorkflowPreview";
 import type { WorkflowTemplatePreview, WorkflowTemplateSummary } from "@/services/workflowApi";
 import {
-  createWorkflow, createWorkflowFromDesign,
+  createWorkflow, createWorkflowFromDesign, updateWorkflowFromDesign,
   createWorkflowTransition,
   getWorkflowTemplates, previewWorkflowTemplate, generateWorkflowFromTemplate,
   getWorkflowById,
@@ -253,7 +253,7 @@ export default function LapQuyTrinh() {
           tenBuoc: step.tenBuoc,
           loaiBuoc: mapLoaiBuocToBackend(step.loaiBuoc),
           thuTu,
-          soNgayLapHoSo: step.slaNgay,
+          soNgayLapHoSo: step.slaNgay || 0,
           soNgayXuLy: step.soNgayKyDuyet ?? 0,
           loaiHan: mapLoaiHanToBackend(step.loaiThoiHan),
           laBuocJoin: false,
@@ -278,11 +278,11 @@ export default function LapQuyTrinh() {
         dieuKienHopNhat: group.dieuKienHopNhat.toUpperCase(),
         soNhanhHopNhatToiThieu: group.soNhanhHopNhatToiThieu,
         buocSauHopNhatId: group.buocSauHopNhatId,
-        branches: group.branches.map((branch) => ({
+        branches: group.branches.map((branch, bi) => ({
           id: branch.id,
           maNhanh: branch.maNhanh || `BR_${Date.now()}`,
           tenNhanh: branch.tenNhanh,
-          thuTu: branch.thuTu,
+          thuTu: bi + 1,
           thoiHanNgay: branch.thoiHanNgay || 1,
           loaiHan: "CANH_BAO",
           stepIds: branch.stepIds.length > 0 ? branch.stepIds : getOrderedBranchSteps(branch.id).map((s) => s.id),
@@ -1169,11 +1169,61 @@ export default function LapQuyTrinh() {
 
     const wid = isEdit && editId ? parseInt(editId) : generatedWorkflowId;
     if (!wid) { setSaveErr("Vui lòng tạo quy trình từ template trước."); setSaving(false); return; }
-    const p: any = { tenWorkflow: tenQuyTrinh.trim() };
-    if (hi) p.hinhThucId = hi;
-    const req = http.put(`/workflows/${wid}`, p);
-    req.then(() => { toast.success("Lưu thành công"); setIsDirty(false); setSaving(false); navigate("/danh-sach-quy-trinh"); })
-       .catch(() => { toast.error("Lưu thất bại"); setSaving(false); });
+
+    // Build steps payload
+    const steps = buocList.map((step) => {
+      const thuTu = buocList.indexOf(step) + 1;
+      return {
+        id: step.id,
+        maBuoc: step.maBuoc || `BUOC_${Date.now()}_${thuTu}`,
+        tenBuoc: step.tenBuoc,
+        loaiBuoc: mapLoaiBuocToBackend(step.loaiBuoc),
+        thuTu,
+        soNgayLapHoSo: step.slaNgay || 0,
+        soNgayXuLy: step.soNgayKyDuyet ?? 0,
+        loaiHan: mapLoaiHanToBackend(step.loaiThoiHan),
+        laBuocJoin: false,
+        nhomGiaiDoan: step.nhomGiaiDoan || undefined,
+        moTa: step.moTa || undefined,
+        donViXuLyId: step.donViXuLyId || undefined,
+        donViKyHoSoId: step.donViKyHoSoId || undefined,
+        batBuocGhiChu: step.batBuocGhiChu,
+        batBuocTaiLieu: step.batBuocTaiLieu,
+        batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
+        batBuocDungSLA: step.batBuocDungSLA,
+        nhanhId: step.nhanhId || undefined,
+        choPhepTuChoi: true,
+        choPhepBoQua: false,
+      };
+    });
+
+    const parallelGroupsPayload = parallelGroups.map((group) => ({
+      id: group.id,
+      buocTachNhanhId: group.buocTachNhanhId,
+      tenNhom: group.tenNhom || `NhÃ³m song song`,
+      dieuKienHopNhat: group.dieuKienHopNhat.toUpperCase(),
+      soNhanhHopNhatToiThieu: group.soNhanhHopNhatToiThieu,
+      buocSauHopNhatId: group.buocSauHopNhatId,
+      branches: group.branches.map((branch, bi) => ({
+        id: branch.id,
+        maNhanh: branch.maNhanh || `BR_${Date.now()}`,
+        tenNhanh: branch.tenNhanh,
+        thuTu: bi + 1,
+        thoiHanNgay: branch.thoiHanNgay || 1,
+        loaiHan: "CANH_BAO",
+        stepIds: branch.stepIds.length > 0 ? branch.stepIds : getOrderedBranchSteps(branch.id).map((s) => s.id),
+      })),
+    }));
+
+    updateWorkflowFromDesign(wid, {
+      tenWorkflow: tenQuyTrinh.trim(),
+      hinhThucId: hi ?? 1,
+      loaiHinhDauThau: loaiHinh || undefined,
+      steps,
+      parallelGroups: parallelGroupsPayload,
+    })
+      .then(() => { toast.success("Lưu thành công"); setIsDirty(false); setSaving(false); setIsTemplateDraft(false); navigate("/danh-sach-quy-trinh"); })
+      .catch((err: any) => { toast.error(err?.response?.data?.message || "Lưu thất bại"); setSaving(false); });
   }
 
   function handleLibrarySelect(entry: StepLibraryEntry) {

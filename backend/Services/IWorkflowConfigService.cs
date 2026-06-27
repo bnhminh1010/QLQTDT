@@ -9,6 +9,7 @@ public interface IWorkflowConfigService
     Task<WorkflowListItemDto> GetWorkflowByIdAsync(int id);
     Task<WorkflowCreateResponse> CreateWorkflowAsync(WorkflowCreateRequest request, int? nguoiTaoId);
     Task<WorkflowCreateResponse> CreateWorkflowFromDesignAsync(WorkflowDesignSaveRequest request, int? nguoiTaoId);
+    Task UpdateWorkflowFromDesignAsync(int id, WorkflowDesignSaveRequest request, int? nguoiTaoId);
     Task UpdateWorkflowAsync(int id, WorkflowUpdateRequest request, int? nguoiTaoId);
     Task DeleteWorkflowAsync(int id);
     Task<List<WorkflowVersionListItemDto>> GetVersionsAsync(int workflowId);

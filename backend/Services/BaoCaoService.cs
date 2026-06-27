@@ -501,9 +501,8 @@ public class BaoCaoService : IBaoCaoService
 
         var allowedGoiThauIds = await goiThauQuery.Select(g => g.Id).ToListAsync();
 
-        var query = _db.WorkflowInstances
-            .Where(wi => allowedGoiThauIds.Contains(wi.GoiThauId))
-            .SelectMany(wi => wi.WorkflowStepInstances)
+        var query = _db.WorkflowStepInstances
+            .Where(wsi => allowedGoiThauIds.Contains(wsi.WorkflowInstance!.GoiThauId))
             .AsQueryable();
 
         if (tuNgay.HasValue) query = query.Where(wsi => wsi.NgayBatDau >= tuNgay.Value);

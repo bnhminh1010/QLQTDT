@@ -84,6 +84,21 @@ public class AdminController : ControllerBase
         };
         _db.NguoiDungs.Add(entity);
         await _db.SaveChangesAsync();
+
+        // Gán KhoaPhong + VaiTro nếu có
+        if (request.KhoaPhongId.HasValue && request.VaiTroId.HasValue)
+        {
+            var nkv = new NguoiDungKhoaPhongVaiTro
+            {
+                NguoiDungId = entity.Id,
+                KhoaPhongId = request.KhoaPhongId.Value,
+                VaiTroId = request.VaiTroId.Value,
+                LaChinh = true
+            };
+            _db.NguoiDungKhoaPhongVaiTros.Add(nkv);
+            await _db.SaveChangesAsync();
+        }
+
         await WriteUserAuditAsync(entity.Id, "CREATE_USER", "Tạo người dùng");
         return Ok(new MessageResponse { Message = "Tạo người dùng thành công." });
     }
@@ -209,6 +224,8 @@ public class CreateAdminUserRequest
     public string TenDangNhap { get; set; } = null!;
     public string MatKhau { get; set; } = null!;
     public string? SoDienThoai { get; set; }
+    public int? KhoaPhongId { get; set; }
+    public int? VaiTroId { get; set; }
 }
 
 public class UpdateAdminUserRequest

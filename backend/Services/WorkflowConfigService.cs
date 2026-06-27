@@ -361,6 +361,161 @@ public class WorkflowConfigService : IWorkflowConfigService
         };
     }
 
+    public async Task UpdateWorkflowFromDesignAsync(int id, WorkflowDesignSaveRequest request, int? nguoiTaoId)
+    {
+        var entity = await _context.Workflows.FindAsync(id)
+            ?? throw new NotFoundException($"Workflow not found: {id}");
+
+        entity.TenWorkflow = request.TenWorkflow.Trim();
+        if (request.LoaiHinhDauThau != null)
+            entity.LoaiHinhDauThau = request.LoaiHinhDauThau;
+
+        // Remove old steps, transitions, parallel groups
+        var oldSteps = await _context.BuocWorkflows.Where(b => b.WorkflowId == id).ToListAsync();
+        _context.BuocWorkflows.RemoveRange(oldSteps);
+        await _context.SaveChangesAsync();
+
+        // Re-create everything using the design request
+        var stepByDraftId = new Dictionary<string, BuocWorkflow>();
+        var normalizedSteps = request.Steps
+            .Select((step, index) => new { Step = step, Index = index })
+            .ToList();
+
+        foreach (var item in normalizedSteps)
+        {
+            var step = item.Step;
+            var stepEntity = new BuocWorkflow
+            {
+                WorkflowId = entity.Id,
+                MaBuoc = step.MaBuoc,
+                TenBuoc = step.TenBuoc,
+                LoaiBuoc = step.LoaiBuoc,
+                ThuTu = item.Index + 1,
+                VaiTroXuLyHoSoId = step.VaiTroXuLyHoSoId,
+                SoNgayLapHoSo = step.SoNgayLapHoSo,
+                VaiTroKyDuyetId = step.VaiTroKyDuyetId,
+                SoNgayXuLy = step.SoNgayXuLy,
+                LoaiHan = step.LoaiHan,
+                NhomSongSong = step.NhomSongSong,
+                LaBuocJoin = step.LaBuocJoin,
+                NhomGiaiDoan = step.NhomGiaiDoan,
+                MoTa = step.MoTa,
+                DonViXuLyId = step.DonViXuLyId,
+                DonViKyHoSoId = step.DonViKyHoSoId,
+                BatBuocGhiChu = step.BatBuocGhiChu,
+                BatBuocTaiLieu = step.BatBuocTaiLieu,
+                BatBuocKyTruocChuyenBuoc = step.BatBuocKyTruocChuyenBuoc,
+                BatBuocDungSLA = step.BatBuocDungSLA,
+                ChoPhepTuChoi = step.ChoPhepTuChoi,
+                ChoPhepBoQua = step.ChoPhepBoQua
+            };
+            _context.BuocWorkflows.Add(stepEntity);
+            await _context.SaveChangesAsync();
+            stepByDraftId[step.Id] = stepEntity;
+        }
+
+        // Create transitions between main steps
+        var mainSteps = normalizedSteps
+            .Where(x => string.IsNullOrWhiteSpace(x.Step.NhanhId))
+            .Select(x => stepByDraftId[x.Step.Id])
+            .OrderBy(s => s.ThuTu)
+            .ToList();
+
+        for (var i = 0; i < mainSteps.Count - 1; i++)
+        {
+            _context.ChuyenTiepWorkflows.Add(new ChuyenTiepWorkflow
+            {
+                TuBuocId = mainSteps[i].Id,
+                DenBuocId = mainSteps[i + 1].Id,
+                HanhDong = "DUYET",
+                DieuKienKichHoat = "LUON",
+                BatBuocGhiChu = false,
+                BatBuocTaiLieu = false
+            });
+        }
+
+        // Create parallel groups
+        foreach (var group in request.ParallelGroups)
+        {
+            var entityGroup = new NhomNhanhWorkflow
+            {
+                WorkflowId = entity.Id,
+                BuocTachNhanhId = stepByDraftId[group.BuocTachNhanhId].Id,
+                TenNhom = group.TenNhom,
+                DieuKienHopNhat = group.DieuKienHopNhat,
+                SoNhanhHopNhatToiThieu = group.SoNhanhHopNhatToiThieu,
+                BuocSauHopNhatId = stepByDraftId[group.BuocSauHopNhatId].Id
+            };
+            _context.NhomNhanhWorkflows.Add(entityGroup);
+            await _context.SaveChangesAsync();
+
+            foreach (var branch in group.Branches.OrderBy(b => b.ThuTu))
+            {
+                var branchEntity = new NhanhWorkflow
+                {
+                    NhomNhanhWorkflowId = entityGroup.Id,
+                    MaNhanh = branch.MaNhanh,
+                    TenNhanh = branch.TenNhanh,
+                    ThuTu = branch.ThuTu,
+                    ThoiHanNgay = branch.ThoiHanNgay,
+                    LoaiHan = branch.LoaiHan
+                };
+                _context.NhanhWorkflows.Add(branchEntity);
+                await _context.SaveChangesAsync();
+
+                // Assign branch to steps
+                foreach (var stepId in branch.StepIds)
+                {
+                    if (stepByDraftId.TryGetValue(stepId, out var bs))
+                        bs.NhanhWorkflowId = branchEntity.Id;
+                }
+            }
+        }
+
+        // Create transitions within branches
+        foreach (var group in request.ParallelGroups)
+        {
+            foreach (var branch in group.Branches.OrderBy(b => b.ThuTu))
+            {
+                var orderedBranchSteps = branch.StepIds
+                    .Select(stepId => stepByDraftId.GetValueOrDefault(stepId))
+                    .Where(s => s != null)
+                    .ToList();
+
+                for (var i = 0; i < orderedBranchSteps.Count - 1; i++)
+                {
+                    _context.ChuyenTiepWorkflows.Add(new ChuyenTiepWorkflow
+                    {
+                        TuBuocId = orderedBranchSteps[i].Id,
+                        DenBuocId = orderedBranchSteps[i + 1].Id,
+                        HanhDong = "DUYET",
+                        DieuKienKichHoat = "LUON",
+                        BatBuocGhiChu = false,
+                        BatBuocTaiLieu = false
+                    });
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        var nextVersion = await _context.WorkflowVersionHistories
+            .Where(v => v.WorkflowId == id)
+            .MaxAsync(v => (int?)v.VersionNumber) ?? 0;
+
+        _context.WorkflowVersionHistories.Add(new WorkflowVersionHistory
+        {
+            WorkflowId = id,
+            VersionNumber = nextVersion + 1,
+            SnapshotData = await SerializeSnapshotAsync(entity),
+            NgayTao = DateTime.UtcNow,
+            NguoiTaoId = nguoiTaoId
+        });
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Updated workflow from design: id={WorkflowId}", id);
+    }
+
     public async Task UpdateWorkflowAsync(int id, WorkflowUpdateRequest request, int? nguoiTaoId)
     {
         var entity = await _context.Workflows.FindAsync(id)

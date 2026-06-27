@@ -130,6 +130,10 @@ export async function createWorkflowFromDesign(request: WorkflowDesignSaveReques
   return res.data;
 }
 
+export async function updateWorkflowFromDesign(id: number, request: WorkflowDesignSaveRequest): Promise<void> {
+  await http.put(`/workflows/${id}/from-design`, request);
+}
+
 export async function getWorkflowById(id: number): Promise<WorkflowItem> {
   const res = await http.get<ApiResponse<WorkflowItem>>(`/workflows/${id}`);
   return res.data;

@@ -22,7 +22,8 @@ export type CreateNguoiDungRequest = {
   tenDangNhap: string;
   matKhau: string;
   soDienThoai?: string;
-  vaiTroIds?: number[];
+  khoaPhongId?: number;
+  vaiTroId?: number;
 };
 
 export async function getUsers(params?: {

@@ -162,7 +162,7 @@ public static class DbInitializer
 
         ["KE_TOAN_TRUONG"] =
         [
-            "GOITHAU.CREATE", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.EDIT", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "HOPDONG.VIEW", "HOPDONG.QUYETTOAN",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
             "AUDIT.VIEW_ALL"
@@ -186,7 +186,7 @@ public static class DbInitializer
 
         ["VIEN_TRUONG"] =
         [
-            "GOITHAU.CREATE", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.EDIT", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
@@ -194,7 +194,7 @@ public static class DbInitializer
         ["BCN_HCQT"] =
         [
             "WORKFLOW.CHOOSE",
-            "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.EDIT", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
