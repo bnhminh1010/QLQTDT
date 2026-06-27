@@ -698,8 +698,6 @@ public class WorkflowEngineService : IWorkflowEngineService
         ProcessStepRequest? request = null, string? taiLieuDinhKem = null)
     {
         var buoc = currentStep.BuocWorkflow;
-        if (buoc is not null && !buoc.ChoPhepTuChoi)
-            throw new BadRequestException($"Bước '{buoc.TenBuoc}' không cho phép từ chối.");
 
         // Mark current step
         currentStep.TrangThai = WorkflowStepTrangThai.TRA_VE;

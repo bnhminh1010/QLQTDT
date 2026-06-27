@@ -27,8 +27,8 @@ import {
   updateGoiThau,
 } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau, HinhThuc, LoaiGoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
-import { getWorkflowTemplates, getWorkflows } from "@/services/workflowApi";
-import type { WorkflowTemplateSummary, WorkflowItem } from "@/services/workflowApi";
+import { getWorkflowTemplates, getWorkflows, getParallelGroups } from "@/services/workflowApi";
+import type { WorkflowTemplateSummary, WorkflowItem, ParallelGroupDto, BuocWorkflowDto } from "@/services/workflowApi";
 import { getCurrentUserApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
 import { getKhoaPhongs } from "@/services/adminApi";
@@ -217,7 +217,9 @@ export default function TaoGoiThau() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
   const [quyTrinhList, setQuyTrinhList] = useState<WorkflowTemplateSummary[]>([]);
-  const [selectedQTSteps, setSelectedQTSteps] = useState<{ tenBuoc: string; donVi: string; slaNgay: number }[]>([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
+  const [selectedQTSteps, setSelectedQTSteps] = useState<BuocWorkflowDto[]>([]);
+  const [selectedParallelGroups, setSelectedParallelGroups] = useState<ParallelGroupDto[]>([]);
   const [theoDoiOpen, setTheoDoiOpen] = useState(false);
   const [theoDoiList, setTheoDoiList] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
@@ -286,17 +288,24 @@ export default function TaoGoiThau() {
 
   const selectedLoaiGoiThau = watched.loaiGoiThau as LoaiGoiThau | "";
   const filteredQuyTrinhOptions = selectedLoaiGoiThau
-    ? QUY_TRINH_BY_LOAI[selectedLoaiGoiThau]
+    ? quyTrinhList.filter((qt) => {
+        const loaiHinh = normalizeLoaiHinh(qt.loaiHinhDauThau);
+        return QUY_TRINH_BY_LOAI[selectedLoaiGoiThau].some(
+          (option) => normalizeLoaiHinh(option) === loaiHinh,
+        );
+      })
     : [];
   const hasPreview = !!(watched.ten?.trim() || watched.loaiGoiThau || watched.hinhThuc);
   const ghiChuLen = watched.ghiChu?.length ?? 0;
   const normalizedDonViDeXuat = normalizeTheoDoi(watched.donVi || "");
 
-  const selectedQT = watched.hinhThuc
-    ? quyTrinhList.find(
-        (qt) => normalizeLoaiHinh(qt.loaiHinhDauThau) === normalizeLoaiHinh(watched.hinhThuc),
-      ) ?? null
-    : null;
+  const selectedQT = selectedWorkflowId
+    ? quyTrinhList.find((qt) => qt.id === selectedWorkflowId) ?? null
+    : watched.hinhThuc
+      ? quyTrinhList.find(
+          (qt) => normalizeLoaiHinh(qt.loaiHinhDauThau) === normalizeLoaiHinh(watched.hinhThuc),
+        ) ?? null
+      : null;
 
   useEffect(() => {
     if (!selectedLoaiGoiThau || !watched.hinhThuc) return;
@@ -312,7 +321,7 @@ export default function TaoGoiThau() {
   const quyTrinhStats = useMemo(() => {
     if (!selectedQT) return null;
     const tongSoBuoc = selectedQT.soBuoc;
-    const slaDuKien = selectedQTSteps.reduce((sum, s) => sum + (Number(s.slaNgay) || 0), 0);
+    const slaDuKien = selectedQTSteps.reduce((sum, s) => sum + (Number(s.soNgayLapHoSo) || 0), 0);
     const soBuocCanDuyet = 0;
     return {
       tenQuyTrinh: selectedQT.tenWorkflow,
@@ -322,17 +331,21 @@ export default function TaoGoiThau() {
     };
   }, [selectedQT, selectedQTSteps]);
 
-  // Load steps when selectedQT changes
+  // Load steps + parallel groups when selectedQT changes
   const loadQTS = useCallback(async (wfId: number) => {
     try {
       const { getWorkflowDesignSteps } = await import('@/services/workflowApi');
-      const steps = await getWorkflowDesignSteps(wfId);
-      setSelectedQTSteps(steps.map((s) => ({ tenBuoc: s.tenBuoc, donVi: String(s.donViXuLyId ?? ""), slaNgay: s.soNgayLapHoSo })));
-    } catch { setSelectedQTSteps([]); }
+      const [steps, groups] = await Promise.all([
+        getWorkflowDesignSteps(wfId),
+        getParallelGroups(wfId).catch(() => [] as ParallelGroupDto[]),
+      ]);
+      setSelectedQTSteps(steps);
+      setSelectedParallelGroups(groups);
+    } catch { setSelectedQTSteps([]); setSelectedParallelGroups([]); }
   }, []);
   useEffect(() => {
     if (selectedQT?.id) loadQTS(selectedQT.id);
-    else setSelectedQTSteps([]);
+    else { setSelectedQTSteps([]); setSelectedParallelGroups([]); }
   }, [selectedQT?.id, loadQTS]);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -608,14 +621,17 @@ export default function TaoGoiThau() {
                     Quy trình đấu thầu <span className="text-red-500">*</span>
                   </label>
                   <Select
-                    value={watched.hinhThuc || ""}
+                    value={selectedWorkflowId ? String(selectedWorkflowId) : ""}
                     disabled={!selectedLoaiGoiThau}
-                    onValueChange={(value) =>
-                      setValue("hinhThuc", value, {
+                    onValueChange={(value) => {
+                      const workflowId = Number(value);
+                      const workflow = quyTrinhList.find((qt) => qt.id === workflowId);
+                      setSelectedWorkflowId(Number.isFinite(workflowId) ? workflowId : null);
+                      setValue("hinhThuc", (workflow?.loaiHinhDauThau || "") as HinhThuc, {
                         shouldDirty: true,
                         shouldValidate: true,
-                      })
-                    }
+                      });
+                    }}
                   >
                     <SelectTrigger
                       className={`${
@@ -634,8 +650,11 @@ export default function TaoGoiThau() {
                     </SelectTrigger>
                     <SelectContent>
                       {filteredQuyTrinhOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
+                        <SelectItem key={option.id} value={String(option.id)}>
+                          <span className="font-medium">{option.tenWorkflow}</span>
+                          {option.loaiHinhDauThau && (
+                            <span className="ml-2 text-xs text-slate-400">{option.loaiHinhDauThau}</span>
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -717,25 +736,43 @@ export default function TaoGoiThau() {
                         ))}
                       </div>
                     )}
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {selectedQTSteps.map((b, i) => (
-                        <div
-                          key={i}
-                          className="flex items-start gap-2 rounded-lg bg-white border border-blue-100 px-3 py-2"
-                        >
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-700">
-                            {i + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-slate-800">
-                              {b.tenBuoc}
-                            </p>
-                            <p className="text-[11px] text-slate-400">
-                              {b.donVi} · Thời hạn {b.slaNgay} ngày
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="mt-3 space-y-2">
+                      {(() => {
+                        const _splitIds = new Set(selectedParallelGroups.map(g => g.buocTachNhanhId));
+                        const _mergeIds = new Set(selectedParallelGroups.map(g => g.buocSauHopNhatId));
+                        const _els: React.ReactNode[] = [];
+                        let _cnt = 0;
+                        for (const _step of selectedQTSteps) {
+                          const _isSplit = _splitIds.has(_step.id);
+                          const _isMerge = _mergeIds.has(_step.id);
+                          const _grp = _isSplit ? selectedParallelGroups.find(g => g.buocTachNhanhId === _step.id) : null;
+                          const _border = _isMerge ? "border-purple-200" : "border-blue-100";
+                          const _bg = _isMerge ? "bg-purple-50" : "bg-white";
+                          const _numBg = _isMerge ? "bg-purple-200 text-purple-800" : "bg-blue-100 text-blue-700";
+                          _els.push(
+                            <div key={_step.id} className={`flex items-start gap-2 rounded-lg ${_bg} border ${_border} px-3 py-2`}>
+                              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${_numBg}`}>{++_cnt}</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-slate-800">{_step.tenBuoc}</p>
+                                <p className="text-[11px] text-slate-400">Thời hạn {_step.soNgayLapHoSo} ngày</p>
+                              </div>
+                            </div>
+                          );
+                          if (_isSplit && _grp && _grp.branches.length > 0) {
+                            const _mergeStepName = selectedQTSteps.find(s => s.id === _grp.buocSauHopNhatId)?.tenBuoc ?? _grp.dieuKienHopNhat;
+                            _els.push(
+                              <div key={`branch-${_grp.id}`} className="ml-5 border-l-2 border-amber-300 pl-3 space-y-0.5">
+                                <p className="text-[10px] font-bold text-amber-600 flex items-center gap-1"><i className="fa-solid fa-code-branch text-[10px]" />Nhánh song song</p>
+                                {_grp.branches.map((_b) => (
+                                  <p key={_b.id} className="text-[10px] text-slate-600 font-mono">├─ <span className="font-semibold">{_b.tenNhanh}</span></p>
+                                ))}
+                                <p className="text-[10px] text-purple-600 font-medium mt-1">⟶ Hợp nhất: {_mergeStepName}</p>
+                              </div>
+                            );
+                          }
+                        }
+                        return _els;
+                      })()}
                     </div>
                     </>
                   ) : (
@@ -1267,15 +1304,34 @@ export default function TaoGoiThau() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedQTSteps.map((b, i) => (
-                      <span
-                        key={i}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-white text-blue-600 border border-blue-200"
-                      >
-                        {i + 1}. {b.tenBuoc.length > 12 ? b.tenBuoc.slice(0, 12) + "…" : b.tenBuoc}
-                      </span>
-                    ))}
+                  <div className="space-y-2">
+                    {(() => {
+                      const _splitIds = new Set(selectedParallelGroups.map(g => g.buocTachNhanhId));
+                      const _tags: React.ReactNode[] = [];
+                      let _cnt = 0;
+                      for (const _step of selectedQTSteps) {
+                        const _isSplit = _splitIds.has(_step.id);
+                        const _grp = _isSplit ? selectedParallelGroups.find(g => g.buocTachNhanhId === _step.id) : null;
+                        _tags.push(
+                          <span key={_step.id} className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-white text-blue-600 border border-blue-200 mr-1">
+                            {++_cnt}. {_step.tenBuoc.length > 12 ? _step.tenBuoc.slice(0, 12) + "…" : _step.tenBuoc}
+                          </span>
+                        );
+                        if (_isSplit && _grp && _grp.branches.length > 0) {
+                          const _mergeName = selectedQTSteps.find(s => s.id === _grp.buocSauHopNhatId)?.tenBuoc ?? _grp.dieuKienHopNhat;
+                          _tags.push(
+                            <div key={`branch-${_grp.id}`} className="ml-3 border-l-2 border-amber-200 pl-2 my-1 space-y-0.5">
+                              <p className="text-[10px] font-bold text-amber-600"><i className="fa-solid fa-code-branch text-[10px] mr-0.5" />Nhánh song song</p>
+                              {_grp.branches.map((_b) => (
+                                <p key={_b.id} className="text-[9px] text-slate-500 font-mono">├─ {_b.tenNhanh}</p>
+                              ))}
+                              <p className="text-[9px] text-purple-600">⟶ Hợp nhất: {_mergeName}</p>
+                            </div>
+                          );
+                        }
+                      }
+                      return _tags;
+                    })()}
                   </div>
                 </div>
               )}

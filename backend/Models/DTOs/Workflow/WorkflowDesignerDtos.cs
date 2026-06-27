@@ -63,6 +63,7 @@ public class WorkflowDesignStepRequest
     public bool BatBuocKyTruocChuyenBuoc { get; set; }
     public bool BatBuocDungSLA { get; set; }
     public string? NhanhId { get; set; }
+    public string? HuongXuLyKhongDuyet { get; set; }
     public bool ChoPhepTuChoi { get; set; } = true;
     public bool ChoPhepBoQua { get; set; }
 }

@@ -16,7 +16,7 @@ import {
   insertStepAfter, createWorkflowStep, reorderWorkflowSteps,
   createParallelGroup, createParallelBranch, updateParallelGroup, updateParallelBranch, deleteParallelGroup, deleteParallelBranch,
 } from "@/services/workflowApi";
-import { previewToWorkflowDraft, templateSummaryToInfo, mapLoaiBuocToUi, mapLoaiBuocToBackend, mapLoaiHanToUi, mapLoaiHanToBackend, mapHuongXuLyToUi, mapDieuKienHopNhatToUi } from "./workflowDesignerMappers";
+import { previewToWorkflowDraft, templateSummaryToInfo, mapLoaiBuocToUi, mapLoaiBuocToBackend, mapLoaiHanToUi, mapLoaiHanToBackend, mapHuongXuLyToUi, mapHuongXuLyToBackend, mapDieuKienHopNhatToUi } from "./workflowDesignerMappers";
 import http from "@/util/http";
 import TemplateSelectorCard from "./components/TemplateSelectorCard";
 import TemplatePreviewModal from "./components/TemplatePreviewModal";
@@ -267,6 +267,7 @@ export default function LapQuyTrinh() {
           batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
           batBuocDungSLA: step.batBuocDungSLA,
           nhanhId: step.nhanhId || undefined,
+          huongXuLyKhongDuyet: mapHuongXuLyToBackend(step.huongXuLyKhongDuyet),
           choPhepTuChoi: true,
           choPhepBoQua: true,
         };
@@ -1225,6 +1226,7 @@ export default function LapQuyTrinh() {
         batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
         batBuocDungSLA: step.batBuocDungSLA,
         nhanhId: step.nhanhId || undefined,
+        huongXuLyKhongDuyet: mapHuongXuLyToBackend(step.huongXuLyKhongDuyet),
         choPhepTuChoi: true,
         choPhepBoQua: true,
       };

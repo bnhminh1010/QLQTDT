@@ -302,6 +302,9 @@ public class WorkflowConfigService : IWorkflowConfigService
                 throw new AppException(400, "INVALID_DESIGN", $"Step '{stepDraft.Step.Id}' is not included in branch '{branch.Id}'.");
         }
 
+        var stepRequestByEntityId = normalizedSteps
+            .ToDictionary(x => stepByDraftId[x.Step.Id].Id, x => x.Step);
+
         var mainSteps = normalizedSteps
             .Where(x => string.IsNullOrWhiteSpace(x.Step.NhanhId))
             .Select(x => stepByDraftId[x.Step.Id])
@@ -317,7 +320,8 @@ public class WorkflowConfigService : IWorkflowConfigService
                 HanhDong = "DUYET",
                 DieuKienKichHoat = "LUON",
                 BatBuocGhiChu = false,
-                BatBuocTaiLieu = false
+                BatBuocTaiLieu = false,
+                HuongXuLyKhongDuyet = stepRequestByEntityId.GetValueOrDefault(mainSteps[i + 1].Id)?.HuongXuLyKhongDuyet
             });
         }
 
@@ -338,7 +342,8 @@ public class WorkflowConfigService : IWorkflowConfigService
                         HanhDong = "DUYET",
                         DieuKienKichHoat = "LUON",
                         BatBuocGhiChu = false,
-                        BatBuocTaiLieu = false
+                        BatBuocTaiLieu = false,
+                        HuongXuLyKhongDuyet = stepRequestByEntityId.GetValueOrDefault(orderedBranchSteps[i + 1].Id)?.HuongXuLyKhongDuyet
                     });
                 }
             }
@@ -389,12 +394,21 @@ public class WorkflowConfigService : IWorkflowConfigService
                 .ExecuteDeleteAsync();
         }
 
+        if (oldStepIds.Count > 0)
+        {
+            await _context.BuocWorkflows
+                .Where(b => oldStepIds.Contains(b.Id) && b.NhanhWorkflowId != null)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(b => b.NhanhWorkflowId, (int?)null));
+        }
+
         var oldGroups = await _context.NhomNhanhWorkflows
             .Where(g => g.WorkflowId == id)
             .Include(g => g.Nhanhs)
             .ToListAsync();
 
         _context.NhanhWorkflows.RemoveRange(oldGroups.SelectMany(g => g.Nhanhs));
+        await _context.SaveChangesAsync();
+
         _context.NhomNhanhWorkflows.RemoveRange(oldGroups);
         await _context.SaveChangesAsync();
 
@@ -457,7 +471,8 @@ public class WorkflowConfigService : IWorkflowConfigService
                 HanhDong = "DUYET",
                 DieuKienKichHoat = "LUON",
                 BatBuocGhiChu = false,
-                BatBuocTaiLieu = false
+                BatBuocTaiLieu = false,
+                HuongXuLyKhongDuyet = stepRequestByEntityId.GetValueOrDefault(mainSteps[i + 1].Id)?.HuongXuLyKhongDuyet
             });
         }
 
@@ -547,7 +562,8 @@ public class WorkflowConfigService : IWorkflowConfigService
                         HanhDong = "DUYET",
                         DieuKienKichHoat = "LUON",
                         BatBuocGhiChu = false,
-                        BatBuocTaiLieu = false
+                        BatBuocTaiLieu = false,
+                        HuongXuLyKhongDuyet = stepRequestByEntityId.GetValueOrDefault(orderedBranchSteps[i + 1].Id)?.HuongXuLyKhongDuyet
                     });
                 }
             }

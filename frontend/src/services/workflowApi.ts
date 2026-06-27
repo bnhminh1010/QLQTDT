@@ -91,6 +91,7 @@ export type WorkflowDesignStepRequest = {
   batBuocKyTruocChuyenBuoc: boolean;
   batBuocDungSLA: boolean;
   nhanhId?: string;
+  huongXuLyKhongDuyet?: HuongXuLyValue;
   choPhepTuChoi: boolean;
   choPhepBoQua: boolean;
 };
