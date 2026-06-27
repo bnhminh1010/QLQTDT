@@ -455,6 +455,12 @@ public class WorkflowConfigService : IWorkflowConfigService
             stepByDraftId[step.Id] = stepEntity;
         }
 
+        // Build reverse lookup: entity PK → step request (for HuongXuLyKhongDuyet etc.)
+        var stepRequestByEntityId = request.Steps
+            .Select(s => stepByDraftId.TryGetValue(s.Id, out var entity) ? (entity.Id, Step: s) : ((long Id, WorkflowDesignStepRequest Step)?)null)
+            .Where(x => x.HasValue)
+            .ToDictionary(x => x!.Value.Id, x => x!.Value.Step);
+
         // Create transitions between main steps
         var mainSteps = normalizedSteps
             .Where(x => string.IsNullOrWhiteSpace(x.Step.NhanhId))
