@@ -88,6 +88,10 @@ public class AdminController : ControllerBase
         // Gán KhoaPhong + VaiTro nếu có
         if (request.KhoaPhongId.HasValue && request.VaiTroId.HasValue)
         {
+            var vaiTro = await _db.VaiTros.FindAsync(request.VaiTroId.Value);
+            if (vaiTro?.MaVaiTro == "NHA_THAU")
+                return BadRequest(new ApiErrorResponse { Status = 400, Error = "Không thể gán vai trò Nhà thầu cho người dùng. Vai trò này chỉ dùng để tham chiếu." });
+
             var nkv = new NguoiDungKhoaPhongVaiTro
             {
                 NguoiDungId = entity.Id,

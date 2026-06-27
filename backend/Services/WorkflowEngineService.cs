@@ -572,6 +572,10 @@ public class WorkflowEngineService : IWorkflowEngineService
                 mergeConditionMet = group.SoNhanhHopNhatToiThieu.HasValue &&
                                     completedBranchIds >= group.SoNhanhHopNhatToiThieu.Value;
                 break;
+            case "SKIP_ALL":
+                // Nếu tất cả nhánh đều đã kết thúc (dù là SKIPPED), merge vẫn chạy
+                mergeConditionMet = completedBranchIds >= group.Nhanhs.Count;
+                break;
             default:
                 mergeConditionMet = completedBranchIds >= group.Nhanhs.Count;
                 break;

@@ -10,6 +10,22 @@ import type { LoginUserDto } from "@/services/api";
 export type AccessLevel = 1 | 3 | 5 | null;
 export type RoleCode = "ADMIN" | "CAP_CAO" | "TRUNG_BINH" | "THAP";
 
+/* Route → permissions mapping (OR logic — 1 trong số đó là đủ) */
+const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
+  "/dashboard": [],
+  "/danh-sach-goi-thau": ["GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW_INTERNAL"],
+  "/tao-goi-thau": ["GOITHAU.CREATE"],
+  "/danh-sach-quy-trinh": ["WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"],
+  "/lap-quy-trinh": ["WORKFLOW.CREATE", "WORKFLOW.CONFIG", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"],
+  "/danh-muc-thuc-hien": ["HINHTHUCDAUTHAU.VIEW", "DANHMUC.VIEW", "DANHMUC.VIEW_ALL"],
+  "/bao-cao": ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"],
+  "/xu-ly-buoc": ["WORKFLOW.PROCESS"],
+  "/khoa-phong": ["USER.VIEW", "USER.VIEW_ALL"],
+  "/nguoi-dung": ["USER.VIEW", "USER.VIEW_ALL"],
+  "/profile": [],
+};
+
+/* Legacy level-based fallback */
 const PAGE_POLICY: Record<RoleCode, "*" | string[]> = {
   ADMIN: "*",
   CAP_CAO: [
@@ -33,6 +49,15 @@ const PAGE_POLICY: Record<RoleCode, "*" | string[]> = {
   ],
   THAP: ["/dashboard", "/tao-goi-thau", "/danh-sach-goi-thau", "/profile"],
 };
+
+/* ─── Permission helpers ─────────────────────────────────── */
+
+/** Check if user has at least 1 permission in the list (OR) */
+export function hasAnyPermission(user: LoginUserDto | null | undefined, permissions: string[]): boolean {
+  if (!user?.quyen?.length) return false;
+  if (permissions.length === 0) return true; // no permission required → allow
+  return permissions.some((p) => user.quyen.includes(p));
+}
 
 function getPrimaryPath(path: string) {
   const cleanPath = path.split("?")[0].replace(/\/+$/, "");
@@ -63,11 +88,25 @@ export function getDefaultPath(user?: LoginUserDto | null) {
   return getRoleCode(user) === "THAP" ? "/danh-sach-goi-thau" : "/dashboard";
 }
 
+/** Permission-based route guard. Fall back to legacy level if user has no `quyen`. */
 export function canAccessPath(path: string, user?: LoginUserDto | null): boolean {
+  // Try permission-based first
+  const primaryPath = getPrimaryPath(path);
+  const neededPerms = ROUTE_PERMISSION_MAP[primaryPath];
+  if (neededPerms && user?.quyen?.length) {
+    if (neededPerms.length === 0) return true; // no permission needed
+    return hasAnyPermission(user, neededPerms);
+  }
+
+  // Fallback to legacy level
   const roleCode = getRoleCode(user);
   const allowedPaths = PAGE_POLICY[roleCode];
   if (allowedPaths === "*") return true;
-  return allowedPaths.includes(getPrimaryPath(path));
+  return allowedPaths.includes(primaryPath);
+}
+
+export function canAccessReport(user: LoginUserDto | null | undefined, ...permissions: string[]): boolean {
+  return hasAnyPermission(user, permissions.length > 0 ? permissions : ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"]);
 }
 
 export function useAccessLevel(user?: LoginUserDto | null): AccessLevel {

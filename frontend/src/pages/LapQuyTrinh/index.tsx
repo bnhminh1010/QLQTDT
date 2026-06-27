@@ -268,7 +268,7 @@ export default function LapQuyTrinh() {
           batBuocDungSLA: step.batBuocDungSLA,
           nhanhId: step.nhanhId || undefined,
           choPhepTuChoi: true,
-          choPhepBoQua: false,
+          choPhepBoQua: true,
         };
       });
 
@@ -687,7 +687,7 @@ export default function LapQuyTrinh() {
       batBuocKyTruocChuyenBuoc: form.batBuocKyTruocChuyenBuoc,
       batBuocDungSLA: form.batBuocDungSLA,
       choPhepTuChoi: true,
-      choPhepBoQua: false,
+      choPhepBoQua: true,
       nhanhWorkflowId: options?.nhanhWorkflowId,
     };
   }
@@ -712,7 +712,7 @@ export default function LapQuyTrinh() {
       batBuocKyTruocChuyenBuoc: step.batBuocKyTruocChuyenBuoc,
       batBuocDungSLA: step.batBuocDungSLA,
       choPhepTuChoi: true,
-      choPhepBoQua: false,
+      choPhepBoQua: true,
       nhanhWorkflowId: options?.nhanhWorkflowId,
     };
   }
@@ -1226,7 +1226,7 @@ export default function LapQuyTrinh() {
         batBuocDungSLA: step.batBuocDungSLA,
         nhanhId: step.nhanhId || undefined,
         choPhepTuChoi: true,
-        choPhepBoQua: false,
+        choPhepBoQua: true,
       };
     });
 

@@ -32,6 +32,10 @@ public class UserService : IUserService
         if (!vaiTroExists)
             throw new NotFoundException($"Không tìm thấy vai trò với Id = {request.VaiTroId}");
 
+        var vaiTro = await _context.VaiTros.FindAsync(request.VaiTroId);
+        if (vaiTro?.MaVaiTro == "NHA_THAU")
+            throw new BadRequestException("Không thể gán vai trò Nhà thầu cho người dùng. Vai trò này chỉ dùng để tham chiếu.");
+
         var isDuplicate = await _context.NguoiDungKhoaPhongVaiTros.AnyAsync(
             nkv => nkv.NguoiDungId == userId
                 && nkv.KhoaPhongId == request.KhoaPhongId

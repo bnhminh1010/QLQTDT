@@ -19,7 +19,7 @@ export type LoaiThoiHanUI = "Chỉ cảnh báo quá hạn" | "Bắt buộc hoàn
 export type HanhDongUI = "Khi duyệt" | "Khi không duyệt";
 
 /* ─── Điều kiện hợp nhất ────────────────────────────────── */
-export type DieuKienHopNhatUI = "all" | "any" | "count";
+export type DieuKienHopNhatUI = "all" | "any" | "count" | "skip_all";
 
 /* ─── Hướng xử lý khi không duyệt ────────────────────────── */
 export type HuongXuLyUI = "Trả về bước trước" | "Dừng quy trình";

@@ -119,6 +119,8 @@ public static class DbInitializer
         ("TAILIEU.VIEW",     "Xem tài liệu"),
         ("TAILIEU.UPDATE",   "Cập nhật tài liệu"),
         ("TAILIEU.DELETE",   "Xóa tài liệu"),
+        // Hình thức đấu thầu
+        ("HINHTHUCDAUTHAU.VIEW", "Xem hình thức đấu thầu"),
         // Danh mục
         ("DANHMUC.CREATE",   "Tạo danh mục"),
         ("DANHMUC.UPDATE",   "Sửa danh mục"),
@@ -147,24 +149,29 @@ public static class DbInitializer
         [
             "DEXUAT.CREATE", "DEXUAT.VIEW", "DEXUAT.EDIT", "DEXUAT.DELETE", "DEXUAT.SUBMIT",
             "DEXUAT.ATTACH_FILE",
-            "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.EDIT", "GOITHAU.VIEW", "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY",
             "WORKFLOW.VIEW", "WORKFLOW.CHOOSE",
+            "HINHTHUCDAUTHAU.VIEW",
             "REPORT.VIEW", "REPORT.VIEW_INTERNAL"
         ],
 
         ["BCN_KHOA_PHONG"] =
         [
             "DEXUAT.VIEW", "DEXUAT.APPROVE", "DEXUAT.REJECT",
-            "GOITHAU.CREATE", "GOITHAU.VIEW_INTERNAL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "GOITHAU.CREATE", "GOITHAU.EDIT", "GOITHAU.VIEW_INTERNAL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL",
             "REPORT.VIEW", "REPORT.VIEW_INTERNAL",
+            "HINHTHUCDAUTHAU.VIEW",
             "AUDIT.VIEW", "AUDIT.VIEW_INTERNAL"
         ],
 
         ["KE_TOAN_TRUONG"] =
         [
             "GOITHAU.CREATE", "GOITHAU.EDIT", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
+            "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL",
             "HOPDONG.VIEW", "HOPDONG.QUYETTOAN",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
+            "HINHTHUCDAUTHAU.VIEW",
             "AUDIT.VIEW_ALL"
         ],
 
@@ -181,6 +188,7 @@ public static class DbInitializer
             "HOPDONG.CREATE", "HOPDONG.VIEW", "HOPDONG.EDIT", "HOPDONG.DELETE", "HOPDONG.QUYETTOAN",
             "TAILIEU.UPLOAD", "TAILIEU.DOWNLOAD", "TAILIEU.VIEW", "TAILIEU.DELETE",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL",
+            "HINHTHUCDAUTHAU.VIEW",
             "REPORT.VIEW", "REPORT.VIEW_ALL"
         ],
 
@@ -188,6 +196,7 @@ public static class DbInitializer
         [
             "GOITHAU.CREATE", "GOITHAU.EDIT", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
+            "HINHTHUCDAUTHAU.VIEW",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
 
@@ -196,6 +205,7 @@ public static class DbInitializer
             "WORKFLOW.CHOOSE",
             "GOITHAU.CREATE", "GOITHAU.EDIT", "GOITHAU.VIEW", "GOITHAU.VIEW_STATUS_HISTORY",
             "REPORT.VIEW", "REPORT.VIEW_ALL",
+            "HINHTHUCDAUTHAU.VIEW",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL"
         ],
 
@@ -204,12 +214,14 @@ public static class DbInitializer
             "DEXUAT.VIEW",
             "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.EDIT", "GOITHAU.DELETE",
             "GOITHAU.UPDATE_STATUS", "GOITHAU.VIEW_STATUS_HISTORY", "GOITHAU.DISABLE",
+            "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL",
             "HOPDONG.CREATE", "HOPDONG.VIEW", "HOPDONG.EDIT", "HOPDONG.DELETE", "HOPDONG.QUYETTOAN",
             "WORKFLOW.CHOOSE",
             "REPORT.VIEW", "REPORT.VIEW_ALL", "REPORT.EXPORT",
             "AUDIT.VIEW", "AUDIT.VIEW_ALL",
             "TAILIEU.UPLOAD", "TAILIEU.DOWNLOAD", "TAILIEU.VIEW",
             "NHATHAU.VIEW",
+            "HINHTHUCDAUTHAU.VIEW",
             "HOSODUTHAU.VIEW", "HOSODUTHAU.AWARD",
         ],
     };

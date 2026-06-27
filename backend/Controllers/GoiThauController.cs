@@ -222,7 +222,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     /// GET /api/goi-thau/{id}/workflow — Workflow state + progress
     /// </summary>
     [HttpGet("{id}/workflow")]
-    [HasPermission("WORKFLOW.VIEW")]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<WorkflowStateDto>>> GetWorkflowState(int id)
     {
         var result = await _workflowEngine.GetWorkflowStateAsync(id);
@@ -236,7 +236,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     /// GET /api/goi-thau/{id}/steps — Step list + results
     /// </summary>
     [HttpGet("{id}/steps")]
-    [HasPermission("WORKFLOW.VIEW")]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<List<WorkflowStepStateDto>>>> GetWorkflowSteps(int id)
     {
         var result = await _workflowEngine.GetWorkflowStepsAsync(id);
@@ -248,7 +248,7 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
     /// GET /api/goi-thau/{id}/steps/{stepId} — Step detail
     /// </summary>
     [HttpGet("{id}/steps/{stepId:long}")]
-    [HasPermission("WORKFLOW.VIEW")]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<WorkflowStepStateDto>>> GetWorkflowStepDetail(
         int id, long stepId)
     {

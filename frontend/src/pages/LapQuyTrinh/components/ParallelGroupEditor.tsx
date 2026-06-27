@@ -181,7 +181,9 @@ export default function ParallelGroupEditor({
                       ? "Đợi tất cả nhánh hoàn thành"
                       : v === "any"
                         ? "Chỉ cần một nhánh hoàn thành"
-                        : "Theo số lượng hoàn thành"}
+                        : v === "count"
+                          ? "Theo số lượng hoàn thành"
+                          : "Bỏ qua tất cả nhánh"}
                   </span>
                 </label>
               ))}

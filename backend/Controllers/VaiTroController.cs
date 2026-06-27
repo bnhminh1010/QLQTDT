@@ -19,13 +19,13 @@ public class VaiTroController : ControllerBase
         _vaiTroService = vaiTroService;
     }
 
-    /// <summary>Lấy danh sách tất cả vai trò</summary>
+    /// <summary>Lấy danh sách tất cả vai trò (trừ NHA_THAU — chỉ dùng tham chiếu, không gán cho user)</summary>
     [HttpGet]
     [ProducesResponseType(typeof(List<VaiTro>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
         var items = await _vaiTroService.GetAllAsync();
-        return Ok(items);
+        return Ok(items.Where(v => v.MaVaiTro != "NHA_THAU").ToList());
     }
 
     /// <summary>

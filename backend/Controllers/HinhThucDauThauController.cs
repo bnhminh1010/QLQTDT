@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.HinhThucDauThau;
 using QLQTDT.Api.Models.Entities;
@@ -10,7 +11,7 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Route("api/hinh-thuc-dau-thau")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhThucDauThauService>
 {
     private readonly ILogger<HinhThucDauThauController> _logger;
@@ -23,6 +24,7 @@ public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhTh
     }
 
     [HttpGet]
+    [HasPermission("HINHTHUCDAUTHAU.VIEW")]
     public override async Task<ActionResult<ApiResponse<PagedResult<HinhThucDauThau>>>> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)

@@ -61,6 +61,7 @@ const dieuKienHopNhatBackendMap: Record<string, DieuKienHopNhatUI> = {
   ALL: "all",
   ANY: "any",
   COUNT: "count",
+  SKIP_ALL: "skip_all",
 };
 
 export function mapDieuKienHopNhatToUi(value: string): DieuKienHopNhatUI {
@@ -72,6 +73,7 @@ export function mapDieuKienHopNhatToBackend(value: DieuKienHopNhatUI): string {
     all: "ALL",
     any: "ANY",
     count: "COUNT",
+    skip_all: "SKIP_ALL",
   };
   return map[value];
 }
