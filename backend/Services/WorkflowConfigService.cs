@@ -234,6 +234,12 @@ public class WorkflowConfigService : IWorkflowConfigService
             if (duplicateBranchIds != null)
                 throw new AppException(400, "DUPLICATE_BRANCH_ID", $"Duplicate branch id in design payload: {duplicateBranchIds.Key}");
 
+            var duplicateBranchCodes = group.Group.Branches
+                .GroupBy(branch => branch.MaNhanh, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(g => g.Count() > 1);
+            if (duplicateBranchCodes != null)
+                throw new AppException(400, "DUPLICATE_BRANCH_CODE", $"Duplicate branch code in design payload: {duplicateBranchCodes.Key}");
+
             foreach (var branch in group.Group.Branches.OrderBy(b => b.ThuTu))
             {
                 if (branch.StepIds.Count == 0)

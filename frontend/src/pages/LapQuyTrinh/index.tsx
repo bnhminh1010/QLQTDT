@@ -281,7 +281,7 @@ export default function LapQuyTrinh() {
         buocSauHopNhatId: group.buocSauHopNhatId,
         branches: group.branches.map((branch, bi) => ({
           id: branch.id,
-          maNhanh: branch.maNhanh || `BR_${Date.now()}`,
+          maNhanh: branch.maNhanh || `BR_${group.id}_${bi + 1}`,
           tenNhanh: branch.tenNhanh,
           thuTu: bi + 1,
           thoiHanNgay: branch.thoiHanNgay || 1,
