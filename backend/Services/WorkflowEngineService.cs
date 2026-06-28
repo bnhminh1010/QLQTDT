@@ -1221,8 +1221,10 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         var instance = await _db.WorkflowInstances
             .Include(i => i.Workflow)
+            .Include(i => i.GoiThau!).ThenInclude(g => g.KhoaPhong)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.DonViXuLy)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiXuLy)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiKyDuyet)
@@ -1260,6 +1262,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 LyDoKhongDuyet = s.LyDoKhongDuyet,
                 TenVaiTroXuLy = s.BuocWorkflow?.VaiTroXuLyHoSo?.TenVaiTro,
                 TenVaiTroKyDuyet = s.BuocWorkflow?.VaiTroKyDuyet?.TenVaiTro,
+                TenDonViXuLy = s.BuocWorkflow?.DonViXuLy != null ? s.BuocWorkflow.DonViXuLy.TenKhoaPhong : null,
                 HanXuLy = s.HanXuLy,
                 QuaHan = s.QuaHan,
                 TinhTrangTienDo = ComputeTinhTrangTienDo(s.HanXuLy, s.TrangThai),
@@ -1300,6 +1303,11 @@ public class WorkflowEngineService : IWorkflowEngineService
             TinhTrangTienDo = buocHienTai != null
                 ? ComputeTinhTrangTienDo(buocHienTai.HanXuLy, buocHienTai.TrangThai)
                 : null,
+            TenNguoiTao = await _db.NguoiDungs
+                .Where(n => n.Id == instance.GoiThau!.NguoiTaoId)
+                .Select(n => n.HoTen)
+                .FirstOrDefaultAsync(),
+            TenKhoaPhong = instance.GoiThau?.KhoaPhong?.TenKhoaPhong,
             CurrentSteps = currentSteps,
             Steps = steps
         };
@@ -1316,6 +1324,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiKyDuyet)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.DonViXuLy)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.NhanhWorkflow)
             .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
 
@@ -1343,6 +1352,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 LyDoKhongDuyet = s.LyDoKhongDuyet,
                 TenVaiTroXuLy = s.BuocWorkflow?.VaiTroXuLyHoSo?.TenVaiTro,
                 TenVaiTroKyDuyet = s.BuocWorkflow?.VaiTroKyDuyet?.TenVaiTro,
+                TenDonViXuLy = s.BuocWorkflow?.DonViXuLy != null ? s.BuocWorkflow.DonViXuLy.TenKhoaPhong : null,
                 HanXuLy = s.HanXuLy,
                 QuaHan = s.QuaHan,
                 TinhTrangTienDo = ComputeTinhTrangTienDo(s.HanXuLy, s.TrangThai),
@@ -1366,6 +1376,7 @@ public class WorkflowEngineService : IWorkflowEngineService
         var step = await _db.WorkflowStepInstances
             .Include(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
             .Include(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
+            .Include(s => s.BuocWorkflow!).ThenInclude(b => b.DonViXuLy)
             .Include(s => s.NguoiXuLy)
             .Include(s => s.NguoiKyDuyet)
             .Include(s => s.WorkflowAssignments).ThenInclude(a => a.NguoiDuocGiao)
@@ -1388,6 +1399,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             LyDoKhongDuyet = step.LyDoKhongDuyet,
             TenVaiTroXuLy = step.BuocWorkflow?.VaiTroXuLyHoSo?.TenVaiTro,
             TenVaiTroKyDuyet = step.BuocWorkflow?.VaiTroKyDuyet?.TenVaiTro,
+            TenDonViXuLy = step.BuocWorkflow?.DonViXuLy != null ? step.BuocWorkflow.DonViXuLy.TenKhoaPhong : null,
             HanXuLy = step.HanXuLy,
             QuaHan = step.QuaHan,
             TinhTrangTienDo = ComputeTinhTrangTienDo(step.HanXuLy, step.TrangThai),

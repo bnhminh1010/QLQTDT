@@ -122,6 +122,12 @@ public class WorkflowStateDto
     public int TongSoBuoc { get; set; }
     public string? TinhTrangTienDo { get; set; }  // "DUNG_TIEN_DO" | "SAP_QUA_HAN" | "QUA_HAN"
 
+    /// <summary>Tên người tạo gói thầu (NguoiTao.HoTen)</summary>
+    public string? TenNguoiTao { get; set; }
+
+    /// <summary>Tên khoa/phòng của gói thầu (KhoaPhong.TenKhoaPhong)</summary>
+    public string? TenKhoaPhong { get; set; }
+
     /// <summary>Collection of currently active step instances. Multiple when in parallel branches.</summary>
     public List<CurrentStepDto> CurrentSteps { get; set; } = [];
 
@@ -162,6 +168,7 @@ public class WorkflowStepStateDto
     public string? LyDoKhongDuyet { get; set; }
     public string? TenVaiTroXuLy { get; set; }
     public string? TenVaiTroKyDuyet { get; set; }
+    public string? TenDonViXuLy { get; set; }
     public DateTime? HanXuLy { get; set; }
     public bool? QuaHan { get; set; }
     public string? TinhTrangTienDo { get; set; }

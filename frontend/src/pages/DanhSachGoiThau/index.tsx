@@ -196,7 +196,7 @@ function mapWorkflowStepState(
   return {
     state: completed ? "done" : current || overdue ? "warn" : "idle",
     ten: step.tenBuoc,
-    donVi: step.tenVaiTroXuLy || step.tenVaiTroKyDuyet || "-",
+    donVi: step.tenDonViXuLy || step.tenVaiTroXuLy || step.tenVaiTroKyDuyet || "-",
     backendId: step.id,
     buocWorkflowId: step.buocWorkflowId,
     current,
@@ -339,11 +339,9 @@ function mapWorkflowStateToDetailInfo(
   return {
     buocHienTai: state?.tenBuocHienTai || currentStep?.tenBuoc || "",
     nguoiXuLy:
-      steps.find((step) => step.id === currentStep?.stepInstanceId)?.tenNguoiXuLy || "",
+      state?.tenNguoiTao || steps.find((step) => step.id === currentStep?.stepInstanceId)?.tenNguoiXuLy || "",
     donViXuLy:
-      currentStepDetail?.tenVaiTroXuLy ||
-      currentStepDetail?.tenVaiTroKyDuyet ||
-      "",
+      state?.tenKhoaPhong || currentStepDetail?.tenVaiTroXuLy || currentStepDetail?.tenVaiTroKyDuyet || "",
     sla:
       state?.tinhTrangTienDo
         ? (TIEN_DO_LABEL[state.tinhTrangTienDo] ?? state.tinhTrangTienDo)

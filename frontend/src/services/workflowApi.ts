@@ -518,6 +518,8 @@ export type WorkflowStateDto = {
   soBuocHoanThanh: number;
   tongSoBuoc: number;
   tinhTrangTienDo?: string;
+  tenNguoiTao?: string;
+  tenKhoaPhong?: string;
   currentSteps: CurrentStepDto[];
   steps: WorkflowStepStateDto[];
 };
@@ -551,6 +553,7 @@ export type WorkflowStepStateDto = {
   lyDoKhongDuyet?: string;
   tenVaiTroXuLy?: string;
   tenVaiTroKyDuyet?: string;
+  tenDonViXuLy?: string;
   hanXuLy?: string;
   quaHan?: boolean;
   tinhTrangTienDo?: string;
