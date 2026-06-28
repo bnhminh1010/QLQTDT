@@ -332,11 +332,18 @@ public class WorkflowEngineService : IWorkflowEngineService
         if (buoc.NhanhWorkflowId.HasValue)
         {
             var branch = await _db.NhanhWorkflows
+                .Include(n => n.BuocWorkflows)
                 .Include(n => n.NhomNhanhWorkflow)
                 .FirstOrDefaultAsync(n => n.Id == buoc.NhanhWorkflowId.Value);
 
             if (branch?.NhomNhanhWorkflow != null)
             {
+                var branchAdvanceResult = await TryAdvanceBranchStepAsync(goiThau, instance, currentStep, buoc,
+                    currentUserId, ghiChu, hanhDong, branch, request);
+
+                if (branchAdvanceResult != null)
+                    return branchAdvanceResult;
+
                 var mergeResult = await TryCompleteMergeAsync(instance, currentStep, buoc,
                     currentUserId, ghiChu, hanhDong, branch.NhomNhanhWorkflow, request);
 
@@ -458,54 +465,69 @@ public class WorkflowEngineService : IWorkflowEngineService
             if (branchSteps.Count == 0 && branch.BuocDauTien != null)
                 branchSteps = [branch.BuocDauTien];
 
-            foreach (var bStep in branchSteps)
+            var firstBranchStep = branch.BuocDauTienId > 0
+                ? branchSteps.FirstOrDefault(step => step.Id == branch.BuocDauTienId) ?? branchSteps.FirstOrDefault()
+                : branchSteps.FirstOrDefault();
+
+            if (firstBranchStep is null)
+                continue;
+
+            var branchStep = await _db.WorkflowStepInstances
+                .FirstOrDefaultAsync(s =>
+                    s.WorkflowInstanceId == instance.Id &&
+                    s.BuocWorkflowId == firstBranchStep.Id &&
+                    (s.TrangThai == "PENDING" || s.TrangThai == "CHUA_BAT_DAU"));
+
+            if (branchStep is null)
             {
-                var branchStep = new WorkflowStepInstance
+                branchStep = new WorkflowStepInstance
                 {
                     WorkflowInstanceId = instance.Id,
-                    BuocWorkflowId = bStep.Id,
-                    TrangThai = WorkflowStepTrangThai.DANG_XU_LY,
-                    PhaHienTai = "LAP_HO_SO",
-                    NgayBatDau = DateTime.UtcNow,
-                    HanXuLy = branch.ThoiHanNgay > 0
-                        ? DateTime.UtcNow.AddDays((double)branch.ThoiHanNgay)
-                        : null,
+                    BuocWorkflowId = firstBranchStep.Id,
                 };
                 _db.WorkflowStepInstances.Add(branchStep);
-                await _db.SaveChangesAsync();
+            }
 
-                // Resolve assignee for each step
-                var roleId = branch.VaiTroXuLyId ?? bStep.VaiTroXuLyHoSoId;
-                if (roleId.HasValue)
-                {
-                    var assigneeIds = await ResolveAssigneesAsync(roleId.Value, currentUserId, goiThau.KhoaPhongId);
-                    foreach (var assigneeId in assigneeIds)
-                    {
-                        _db.WorkflowAssignments.Add(new WorkflowAssignment
-                        {
-                            WorkflowStepInstanceId = branchStep.Id,
-                            NguoiDuocGiaoId = assigneeId,
-                            NgayGiao = DateTime.UtcNow
-                        });
-                    }
-                }
-                else
+            branchStep.TrangThai = WorkflowStepTrangThai.DANG_XU_LY;
+            branchStep.PhaHienTai = "LAP_HO_SO";
+            branchStep.NgayBatDau = DateTime.UtcNow;
+            branchStep.HanXuLy = branch.ThoiHanNgay > 0
+                ? DateTime.UtcNow.AddDays((double)branch.ThoiHanNgay)
+                : firstBranchStep.SoNgayLapHoSo > 0
+                    ? DateTime.UtcNow.AddDays(firstBranchStep.SoNgayLapHoSo)
+                    : null;
+            await _db.SaveChangesAsync();
+
+            var roleId = branch.VaiTroXuLyId ?? firstBranchStep.VaiTroXuLyHoSoId;
+            if (roleId.HasValue)
+            {
+                var assigneeIds = await ResolveAssigneesAsync(roleId.Value, currentUserId, goiThau.KhoaPhongId);
+                foreach (var assigneeId in assigneeIds)
                 {
                     _db.WorkflowAssignments.Add(new WorkflowAssignment
                     {
                         WorkflowStepInstanceId = branchStep.Id,
-                        NguoiDuocGiaoId = currentUserId,
+                        NguoiDuocGiaoId = assigneeId,
                         NgayGiao = DateTime.UtcNow
                     });
                 }
-
-                createdSteps.Add(branchStep);
+            }
+            else
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = branchStep.Id,
+                    NguoiDuocGiaoId = currentUserId,
+                    NgayGiao = DateTime.UtcNow
+                });
             }
 
-            AddAuditEntries(instance.Id, createdSteps.Last().Id, hanhDong,
-                $"Tạo nhánh '{branch.TenNhanh}' sau bước '{buoc.TenBuoc}' ({branchSteps.Count} bước)",
+            createdSteps.Add(branchStep);
+
+            AddAuditEntries(instance.Id, branchStep.Id, hanhDong,
+                $"Tạo nhánh '{branch.TenNhanh}' sau bước '{buoc.TenBuoc}', mở bước '{firstBranchStep.TenBuoc}'",
                 currentUserId, goiThau.Id,
-                $"SPLIT: '{buoc.TenBuoc}' → '{branch.TenNhanh}' ({branchSteps.Count} bước)");
+                $"SPLIT: '{buoc.TenBuoc}' → '{branch.TenNhanh}' / '{firstBranchStep.TenBuoc}'");
         }
 
         await _db.SaveChangesAsync();
@@ -524,6 +546,84 @@ public class WorkflowEngineService : IWorkflowEngineService
             createdSteps.Count > 0 ? createdSteps[0].Id : null,
             $"{splitGroup.Nhanhs.Count} nhánh: {branchNames}",
             null, splitGroup: splitGroup, createdStepIds: createdSteps.Select(s => s.Id).ToList(), request: request);
+    }
+
+    private async Task<ProcessStepResponse?> TryAdvanceBranchStepAsync(
+        GoiThau goiThau, WorkflowInstance instance, WorkflowStepInstance currentStep,
+        BuocWorkflow buoc, int currentUserId, string? ghiChu, string hanhDong,
+        NhanhWorkflow branch, ProcessStepRequest? request = null)
+    {
+        var branchSteps = (branch.BuocWorkflows ?? [])
+            .OrderBy(step => step.ThuTu)
+            .ThenBy(step => step.Id)
+            .ToList();
+
+        var currentIndex = branchSteps.FindIndex(step => step.Id == buoc.Id);
+        if (currentIndex < 0 || currentIndex + 1 >= branchSteps.Count)
+            return null;
+
+        var nextBuoc = branchSteps[currentIndex + 1];
+        var nextStep = await _db.WorkflowStepInstances
+            .FirstOrDefaultAsync(s =>
+                s.WorkflowInstanceId == instance.Id &&
+                s.BuocWorkflowId == nextBuoc.Id &&
+                (s.TrangThai == "PENDING" || s.TrangThai == "CHUA_BAT_DAU"));
+
+        if (nextStep is null)
+        {
+            nextStep = new WorkflowStepInstance
+            {
+                WorkflowInstanceId = instance.Id,
+                BuocWorkflowId = nextBuoc.Id,
+            };
+            _db.WorkflowStepInstances.Add(nextStep);
+        }
+
+        nextStep.TrangThai = WorkflowStepTrangThai.DANG_XU_LY;
+        nextStep.PhaHienTai = "LAP_HO_SO";
+        nextStep.NgayBatDau = DateTime.UtcNow;
+        nextStep.HanXuLy = branch.ThoiHanNgay > 0
+            ? DateTime.UtcNow.AddDays((double)branch.ThoiHanNgay)
+            : nextBuoc.SoNgayLapHoSo > 0
+                ? DateTime.UtcNow.AddDays(nextBuoc.SoNgayLapHoSo)
+                : null;
+        await _db.SaveChangesAsync();
+
+        var roleId = branch.VaiTroXuLyId ?? nextBuoc.VaiTroXuLyHoSoId;
+        if (roleId.HasValue)
+        {
+            var assigneeIds = await ResolveAssigneesAsync(roleId.Value, currentUserId, goiThau.KhoaPhongId);
+            foreach (var assigneeId in assigneeIds)
+            {
+                _db.WorkflowAssignments.Add(new WorkflowAssignment
+                {
+                    WorkflowStepInstanceId = nextStep.Id,
+                    NguoiDuocGiaoId = assigneeId,
+                    NgayGiao = DateTime.UtcNow
+                });
+            }
+        }
+        else
+        {
+            _db.WorkflowAssignments.Add(new WorkflowAssignment
+            {
+                WorkflowStepInstanceId = nextStep.Id,
+                NguoiDuocGiaoId = currentUserId,
+                NgayGiao = DateTime.UtcNow
+            });
+        }
+
+        instance.BuocHienTaiId = null;
+
+        AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
+            ghiChu ?? $"Hoàn tất bước '{buoc.TenBuoc}', chuyển sang bước '{nextBuoc.TenBuoc}' trong nhánh '{branch.TenNhanh}'",
+            currentUserId, goiThau.Id,
+            $"{hanhDong}_BRANCH_ADVANCE: '{buoc.TenBuoc}' → '{nextBuoc.TenBuoc}'");
+
+        await _db.SaveChangesAsync();
+
+        return await BuildResponse2Phase(currentStep, instance, goiThau, hanhDong,
+            false, nextStep.Id, nextBuoc.TenBuoc, nextStep.RowVersion, request: request);
     }
 
     /// <summary>
@@ -547,22 +647,25 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         var relevantSteps = allBranchStepInstances
             .Where(s => s.BuocWorkflow != null && branchIds.Contains(s.BuocWorkflow.NhanhWorkflowId ?? 0))
+            .GroupBy(s => s.BuocWorkflowId)
+            .Select(group => group
+                .OrderByDescending(s => s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY || s.TrangThai == WorkflowStepTrangThai.CHO_DUYET)
+                .ThenByDescending(s => s.TrangThai == WorkflowStepTrangThai.HOAN_TAT || s.TrangThai == WorkflowStepTrangThai.SKIPPED)
+                .ThenByDescending(s => s.Id)
+                .First())
             .ToList();
 
         // Mark current as complete (already done by caller)
         // Check merge condition
         bool mergeConditionMet;
-        var terminalCount = relevantSteps.Count(s =>
-            s.TrangThai == WorkflowStepTrangThai.HOAN_TAT ||
-            s.TrangThai == WorkflowStepTrangThai.SKIPPED);
 
-        // Count branches with at least 1 terminal step (correct for multi-step branches)
+        // Count branches only when every step in that branch is terminal.
         var completedBranchIds = relevantSteps
-            .Where(s => s.TrangThai == WorkflowStepTrangThai.HOAN_TAT ||
-                        s.TrangThai == WorkflowStepTrangThai.SKIPPED)
-            .Select(s => s.BuocWorkflow!.NhanhWorkflowId)
-            .Where(id => id.HasValue)
-            .Distinct()
+            .Where(s => s.BuocWorkflow?.NhanhWorkflowId.HasValue == true)
+            .GroupBy(s => s.BuocWorkflow!.NhanhWorkflowId!.Value)
+            .Where(group => group.All(s =>
+                s.TrangThai == WorkflowStepTrangThai.HOAN_TAT ||
+                s.TrangThai == WorkflowStepTrangThai.SKIPPED))
             .Count();
 
         switch (group.DieuKienHopNhat)

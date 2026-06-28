@@ -381,9 +381,14 @@ public class WorkflowConfigService : IWorkflowConfigService
         var entity = await _context.Workflows.FindAsync(id)
             ?? throw new NotFoundException($"Workflow not found: {id}");
 
-        entity.TenWorkflow = request.TenWorkflow.Trim();
-        if (request.LoaiHinhDauThau != null)
-            entity.LoaiHinhDauThau = request.LoaiHinhDauThau;
+        ValidateWorkflowDesignRequest(request);
+
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            entity.TenWorkflow = request.TenWorkflow.Trim();
+            if (request.LoaiHinhDauThau != null)
+                entity.LoaiHinhDauThau = request.LoaiHinhDauThau;
 
         // Remove old transitions, branches, groups, then steps (FK-safe order)
         var oldStepIds = await _context.BuocWorkflows
@@ -598,8 +603,15 @@ public class WorkflowConfigService : IWorkflowConfigService
             NguoiTaoId = nguoiTaoId
         });
         await _context.SaveChangesAsync();
+        await tx.CommitAsync();
 
         _logger.LogInformation("Updated workflow from design: id={WorkflowId}", id);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task UpdateWorkflowAsync(int id, WorkflowUpdateRequest request, int? nguoiTaoId)
@@ -727,6 +739,51 @@ public class WorkflowConfigService : IWorkflowConfigService
             NguoiTaoHoTen = version.NguoiTao?.HoTen,
             SnapshotData = version.SnapshotData
         };
+    }
+
+    private static void ValidateWorkflowDesignRequest(WorkflowDesignSaveRequest request)
+    {
+        if (request.Steps.Count == 0)
+            throw new AppException(400, "INVALID_DESIGN", "Workflow design must contain at least one step.");
+
+        var duplicateStepId = request.Steps.GroupBy(step => step.Id).FirstOrDefault(group => group.Count() > 1);
+        if (duplicateStepId != null)
+            throw new AppException(400, "DUPLICATE_STEP_ID", $"Duplicate step id in design payload: {duplicateStepId.Key}");
+
+        var stepIds = request.Steps.Select(step => step.Id).ToHashSet(StringComparer.Ordinal);
+        if (!string.IsNullOrWhiteSpace(request.BuocBatDauDraftId) && !stepIds.Contains(request.BuocBatDauDraftId))
+            throw new AppException(400, "INVALID_DESIGN", $"Unknown start step id: {request.BuocBatDauDraftId}");
+        if (!string.IsNullOrWhiteSpace(request.BuocKetThucDraftId) && !stepIds.Contains(request.BuocKetThucDraftId))
+            throw new AppException(400, "INVALID_DESIGN", $"Unknown end step id: {request.BuocKetThucDraftId}");
+
+        var branchStepIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var group in request.ParallelGroups)
+        {
+            if (!stepIds.Contains(group.BuocTachNhanhId))
+                throw new AppException(400, "INVALID_DESIGN", $"Unknown split step id: {group.BuocTachNhanhId}");
+            if (!stepIds.Contains(group.BuocSauHopNhatId))
+                throw new AppException(400, "INVALID_DESIGN", $"Unknown merge step id: {group.BuocSauHopNhatId}");
+            if (group.Branches.Count < 2)
+                throw new AppException(400, "INVALID_DESIGN", $"Parallel group '{group.TenNhom}' must contain at least two branches.");
+
+            var duplicateBranchId = group.Branches.GroupBy(branch => branch.Id).FirstOrDefault(branches => branches.Count() > 1);
+            if (duplicateBranchId != null)
+                throw new AppException(400, "DUPLICATE_BRANCH_ID", $"Duplicate branch id in design payload: {duplicateBranchId.Key}");
+
+            foreach (var branch in group.Branches)
+            {
+                if (branch.StepIds.Count == 0)
+                    throw new AppException(400, "INVALID_DESIGN", $"Branch '{branch.TenNhanh}' does not contain any steps.");
+
+                foreach (var stepId in branch.StepIds)
+                {
+                    if (!stepIds.Contains(stepId))
+                        throw new AppException(400, "INVALID_DESIGN", $"Unknown branch step id: {stepId}");
+                    if (!branchStepIds.Add(stepId))
+                        throw new AppException(400, "INVALID_DESIGN", $"Step '{stepId}' belongs to more than one branch.");
+                }
+            }
+        }
     }
 
     private async Task<string> SerializeSnapshotAsync(Workflow workflow)

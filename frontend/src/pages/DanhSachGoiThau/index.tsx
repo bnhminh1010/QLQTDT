@@ -222,9 +222,37 @@ function getBranchStepState(
   activeStepIds: Set<number>,
 ): "done" | "current" | "idle" | "skipped" {
   if (step.trangThai === "SKIPPED") return "skipped";
-  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "done";
   if (activeStepIds.has(step.id)) return "current";
+  if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "current";
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "done";
   return "idle";
+}
+
+function rankWorkflowStepInstance(step: WorkflowStepStateDto, activeStepIds: Set<number>) {
+  if (activeStepIds.has(step.id)) return 5;
+  if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return 4;
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return 3;
+  if (step.trangThai === "SKIPPED") return 2;
+  return 1;
+}
+
+function dedupeWorkflowStepsByDesignStep(
+  steps: WorkflowStepStateDto[],
+  activeStepIds: Set<number>,
+) {
+  const byDesignStep = new Map<number, WorkflowStepStateDto>();
+
+  steps.forEach((step) => {
+    const previous = byDesignStep.get(step.buocWorkflowId);
+    const stepRank = rankWorkflowStepInstance(step, activeStepIds);
+    const previousRank = previous ? rankWorkflowStepInstance(previous, activeStepIds) : 0;
+
+    if (!previous || stepRank > previousRank || (stepRank === previousRank && step.id > previous.id)) {
+      byDesignStep.set(step.buocWorkflowId, step);
+    }
+  });
+
+  return Array.from(byDesignStep.values()).sort((a, b) => a.buocWorkflowId - b.buocWorkflowId);
 }
 
 function buildParallelInfoBySplitStep(
@@ -241,7 +269,10 @@ function buildParallelInfoBySplitStep(
         ? "Tất cả nhánh phải hoàn tất trước khi hợp nhất."
         : `Cần tối thiểu ${group.soNhanhHopNhatToiThieu ?? 1} nhánh hoàn tất trước khi hợp nhất.`,
       branches: group.branches.map((branch) => {
-        const branchRuntimeSteps = runtimeSteps.filter((step) => step.nhanhWorkflowId === branch.id);
+        const branchRuntimeSteps = dedupeWorkflowStepsByDesignStep(
+          runtimeSteps.filter((step) => step.nhanhWorkflowId === branch.id),
+          activeStepIds,
+        );
         const branchDesignSteps = designSteps.filter((step) => step.nhanhWorkflowId === branch.id);
         const steps = branchRuntimeSteps.length > 0
           ? branchRuntimeSteps.map((step) => ({
@@ -254,7 +285,11 @@ function buildParallelInfoBySplitStep(
               backendId: step.id,
               state: "idle" as const,
             }));
-        const currentBranchStep = branchRuntimeSteps.find((step) => activeStepIds.has(step.id));
+        const currentBranchStep = branchRuntimeSteps.find((step) =>
+          activeStepIds.has(step.id) ||
+          step.trangThai === "DANG_XU_LY" ||
+          step.trangThai === "CHO_DUYET",
+        );
         const completedCount = branchRuntimeSteps.filter((step) =>
           step.trangThai === "HOAN_TAT" ||
           step.trangThai === "COMPLETED" ||
@@ -744,10 +779,24 @@ export default function DanhSachGoiThau() {
       designSteps,
       workflowState?.currentSteps ?? [],
     );
+    const branchWorkflowStepIds = new Set([
+      ...(workflowState?.steps ?? workflowSteps ?? [])
+        .filter((step) => step.nhanhWorkflowId != null)
+        .map((step) => step.buocWorkflowId),
+      ...designSteps
+        .filter((step) => step.nhanhWorkflowId != null)
+        .map((step) => step.id),
+    ]);
+    const mainDetailSteps = detailInfo.steps.filter(
+      (step) => !step.buocWorkflowId || !branchWorkflowStepIds.has(step.buocWorkflowId),
+    );
+    const mainDesignSteps = designSteps.filter(
+      (step) => step.nhanhWorkflowId == null,
+    );
 
     const displaySteps =
-      detailInfo.steps.length > 0
-        ? detailInfo.steps.map((step) => {
+      mainDetailSteps.length > 0
+        ? mainDetailSteps.map((step) => {
             const isCurrent = step.ten === currentStepName;
             return {
               ...step,
@@ -761,7 +810,7 @@ export default function DanhSachGoiThau() {
               parallelInfo: step.buocWorkflowId ? parallelInfoBySplitStep[step.buocWorkflowId] : undefined,
         };
       })
-    : designSteps.map((s) => ({
+    : mainDesignSteps.map((s) => ({
         state: "idle" as DotState,
         ten: s.tenBuoc,
         donVi: String(s.donViXuLyId ?? ""),
@@ -1006,7 +1055,7 @@ export default function DanhSachGoiThau() {
                           <div className="mt-2 space-y-2.5">
                             {branch.steps.map((branchStep) => (
                               <button
-                                key={branchStep.name}
+                                key={branchStep.backendId ?? branchStep.name}
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1052,7 +1101,7 @@ export default function DanhSachGoiThau() {
                             type="button"
                             onClick={async (e) => {
                               e.stopPropagation();
-                              const stepInstance = workflowState?.steps.find(s => s.tenBuoc === branch.currentStep);
+                              const stepInstance = workflowState?.steps.find(s => s.id === branch.backendId);
                               if (!stepInstance?.id || !stepInstance.rowVersion) {
                                 toast.error("Không tìm thấy thông tin bước để bỏ qua.");
                                 return;

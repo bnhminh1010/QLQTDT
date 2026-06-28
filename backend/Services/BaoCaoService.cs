@@ -502,6 +502,7 @@ public class BaoCaoService : IBaoCaoService
         var allowedGoiThauIds = await goiThauQuery.Select(g => g.Id).ToListAsync();
 
         var query = _db.WorkflowStepInstances
+            .Include(wsi => wsi.BuocWorkflow)
             .Where(wsi => allowedGoiThauIds.Contains(wsi.WorkflowInstance!.GoiThauId))
             .AsQueryable();
 

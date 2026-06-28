@@ -6,8 +6,6 @@ interface BadgeMap {
 
 const HT_BADGE: BadgeMap = {
   "Chỉ định thầu rút gọn": "bg-blue-100 text-blue-700",
-  "Chỉ định thầu tự quyết định": "bg-emerald-100 text-emerald-700",
-  "Chỉ định thầu tự quyết định LCNT": "bg-emerald-100 text-emerald-700",
   "Chỉ định thầu thông thường": "bg-slate-100 text-slate-600",
   "Chào hàng cạnh tranh": "bg-amber-100 text-amber-700",
   "Đấu thầu rộng rãi": "bg-purple-100 text-purple-700",
@@ -19,9 +17,7 @@ const HT_BADGE: BadgeMap = {
 };
 
 export const LOAI_HINH_DAU_THAU = [
-  "Chỉ định thầu tự quyết định LCNT",
   "Chỉ định thầu rút gọn",
-  "Chỉ định thầu tự quyết định",
   "Chỉ định thầu thông thường",
   "Chào hàng cạnh tranh",
   "Đấu thầu rộng rãi",

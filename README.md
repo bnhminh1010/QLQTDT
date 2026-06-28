@@ -29,11 +29,10 @@ Vòng đời gói thầu chia 5 chặng:
 
 ## Các hình thức mua sắm
 
-Hệ thống hỗ trợ 10 hình thức, mỗi hình thức có workflow riêng:
+Hệ thống hỗ trợ 9 hình thức, mỗi hình thức có workflow riêng:
 
 | Hình thức | Đặc điểm |
 |-----------|----------|
-| Chỉ định thầu tự quyết định | Gói <= 50 triệu, siêu ngắn |
 | Chỉ định thầu rút gọn | Có dự toán + KH LCNT |
 | Chỉ định thầu thông thường | Có tổ chuyên gia, hồ sơ yêu cầu |
 | Chào hàng cạnh tranh | Gói <= 10 tỷ, thực hiện qua mạng |

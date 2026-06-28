@@ -12,9 +12,7 @@ import {
   getWorkflowTemplates, previewWorkflowTemplate, generateWorkflowFromTemplate,
   getWorkflowById,
   getWorkflowDesignSteps, getWorkflowTransitions, getParallelGroups,
-  deleteWorkflowStep, cloneWorkflowStep, updateWorkflowStep,
-  insertStepAfter, createWorkflowStep, reorderWorkflowSteps,
-  createParallelGroup, createParallelBranch, updateParallelGroup, updateParallelBranch, deleteParallelGroup, deleteParallelBranch,
+  reorderWorkflowSteps,
 } from "@/services/workflowApi";
 import { previewToWorkflowDraft, templateSummaryToInfo, mapLoaiBuocToUi, mapLoaiBuocToBackend, mapLoaiHanToUi, mapLoaiHanToBackend, mapHuongXuLyToUi, mapHuongXuLyToBackend, mapDieuKienHopNhatToUi } from "./workflowDesignerMappers";
 import http from "@/util/http";
@@ -641,73 +639,17 @@ export default function LapQuyTrinh() {
     })));
   }
 
-  async function confirmDelete() {
+  function confirmDelete() {
     if (!deleteTarget) return;
-    const step = deleteTarget;
-    const beId = step.backendId;
-    const branch = step.nhanhId ? findBranchDraft(step.nhanhId) : undefined;
-    const branchStepIds = branch?.stepIds ?? [];
-    const deletedBranchStepIdx = branchStepIds.indexOf(step.id);
-    const nextFirstBranchStepId = deletedBranchStepIdx === 0 ? branchStepIds[1] : undefined;
-    const nextFirstBranchStep = nextFirstBranchStepId
-      ? buocList.find((candidate) => candidate.id === nextFirstBranchStepId)
-      : undefined;
-    setDeletingStep(true);
-    try {
-      if (beId) {
-        await deleteWorkflowStep(beId);
-      }
-      if (branch?.backendId && deletedBranchStepIdx === 0 && nextFirstBranchStep?.backendId) {
-        await updateParallelBranch(branch.backendId, {
-          buocDauTienId: nextFirstBranchStep.backendId,
-        });
-      }
-      removeStepFromState(step.id);
-      setDeleteTarget(null);
-      markDirty();
-    } catch {
-      toast.error("Xoa tren server that bai");
-      await reloadSteps();
-      setDeletingStep(false);
-      return;
-    }
+    removeStepFromState(deleteTarget.id);
+    setDeleteTarget(null);
     setDeletingStep(false);
-    toast.success("Da xoa buoc");
-    return;
+    markDirty();
+    toast.success("Đã xóa bước");
   }
 
   function handleClone(step: WorkflowStepDraft) {
     const newMaBuoc = `BUOC_${Date.now()}_${nextId()}`;
-    const beId = step.backendId;
-    if (beId && generatedWorkflowId) {
-      cloneWorkflowStep(generatedWorkflowId, beId, { maBuocMoi: newMaBuoc, tenBuocMoi: step.tenBuoc + " (sao chép)" })
-        .then((createdStep) => {
-          const sourceIdx = buocList.findIndex((s) => s.id === step.id);
-          const clonedDraft = hydrateClonedStep(step, createdStep);
-          setBuocList((prev) => {
-            const next = [...prev];
-            const insertAt = sourceIdx >= 0 ? sourceIdx + 1 : next.length;
-            next.splice(insertAt, 0, clonedDraft);
-            return next;
-          });
-          if (step.nhanhId) {
-            setParallelGroups((prev) => prev.map((g) => ({
-              ...g,
-              branches: g.branches.map((b) => {
-                if (b.id !== step.nhanhId) return b;
-                const idx = b.stepIds.indexOf(step.id);
-                if (idx === -1) return { ...b, stepIds: [...b.stepIds, clonedDraft.id] };
-                const nextIds = [...b.stepIds];
-                nextIds.splice(idx + 1, 0, clonedDraft.id);
-                return { ...b, stepIds: nextIds };
-              }),
-            })));
-          }
-          return reloadSteps();
-        })
-        .catch(() => toast.error("Nhân bản thất bại"));
-      return;
-    }
     const clonedLocal = {
       ...step,
       id: nextId(),
@@ -858,24 +800,7 @@ export default function LapQuyTrinh() {
     setParallelGroups((prev) => [...prev, newGroup]);
     markDirty();
 
-    // Find default merge step — next step after split in the list
-    const splitIdx = buocList.findIndex((s) => s.id === step.id);
-    const defaultMergeStep = splitIdx >= 0 && splitIdx < buocList.length - 1 ? buocList[splitIdx + 1] : undefined;
-
-    if (generatedWorkflowId && step.backendId && defaultMergeStep?.backendId) {
-      try {
-        const created = await createParallelGroup(generatedWorkflowId, {
-          buocTachNhanhId: step.backendId,
-          tenNhom: `Nhóm song song`,
-          dieuKienHopNhat: "ALL",
-          buocSauHopNhatId: defaultMergeStep.backendId,
-        });
-        // Store backendId on group
-        setParallelGroups((prev) => prev.map((g) =>
-          g.id === groupId ? { ...g, backendId: created.id, buocSauHopNhatId: defaultMergeStep.id } : g
-        ));
-      } catch { /* keep local draft */ }
-    }
+    // DB chỉ được cập nhật khi bấm Lưu quy trình.
     toast.success("Đã tạo nhánh song song");
   }
 
@@ -883,16 +808,7 @@ export default function LapQuyTrinh() {
     setParallelGroups((prev) => prev.map((g) => g.id === group.id ? group : g));
     markDirty();
 
-    // API sync: if group has backendId and merge step changed, update
-    if (generatedWorkflowId && group.backendId && group.buocSauHopNhatId) {
-      const mergeStep = buocList.find((s) => s.id === group.buocSauHopNhatId);
-      if (mergeStep?.backendId) {
-        updateParallelGroup(generatedWorkflowId, group.backendId, {
-          dieuKienHopNhat: group.dieuKienHopNhat.toUpperCase() as any,
-          buocSauHopNhatId: mergeStep.backendId,
-        }).catch(() => {});
-      }
-    }
+    // DB chỉ được cập nhật khi bấm Lưu quy trình.
   }
 
   function handleSetStart(step: WorkflowStepDraft) {
@@ -902,12 +818,6 @@ export default function LapQuyTrinh() {
         loaiBuoc: (s.id === step.id ? "Bắt đầu" : s.loaiBuoc === "Bắt đầu" ? "Thường" : s.loaiBuoc) as LoaiBuocUI,
       }))
     );
-    if (step.backendId && generatedWorkflowId) {
-      updateWorkflowStep(step.backendId, { loaiBuoc: "BAT_DAU" }).catch(() => {});
-      // Demote old start step
-      const oldStart = buocList.find((s) => s.loaiBuoc === "Bắt đầu" && s.id !== step.id);
-      if (oldStart?.backendId) updateWorkflowStep(oldStart.backendId, { loaiBuoc: "THUC_HIEN" }).catch(() => {});
-    }
     markDirty();
   }
 
@@ -918,11 +828,6 @@ export default function LapQuyTrinh() {
         loaiBuoc: (s.id === step.id ? "Kết thúc" : s.loaiBuoc === "Kết thúc" ? "Thường" : s.loaiBuoc) as LoaiBuocUI,
       }))
     );
-    if (step.backendId && generatedWorkflowId) {
-      updateWorkflowStep(step.backendId, { loaiBuoc: "KET_THUC" }).catch(() => {});
-      const oldEnd = buocList.find((s) => s.loaiBuoc === "Kết thúc" && s.id !== step.id);
-      if (oldEnd?.backendId) updateWorkflowStep(oldEnd.backendId, { loaiBuoc: "THUC_HIEN" }).catch(() => {});
-    }
     markDirty();
   }
 
@@ -935,36 +840,9 @@ export default function LapQuyTrinh() {
     setBuocList((prev) => prev.filter((s) => !s.nhanhId || !branchIds.has(s.nhanhId)));
     markDirty();
 
-    if (generatedWorkflowId && targetGroup.backendId) {
-      deleteParallelGroup(generatedWorkflowId, targetGroup.backendId)
-        .catch(() => {
-          toast.error("Xóa nhánh song song trên server thất bại");
-          reloadSteps();
-        });
-    }
-  }
-
-  async function handleAddBranch(groupId: string) {
-    const group = parallelGroups.find((g) => g.id === groupId);
-    if (!group) return;
-    const bi = group.branches.length;
-    const branchId = nextId();
-    const newBranch: ParallelBranchDraft = {
-      id: branchId,
-      maNhanh: `BR_${groupId}_${bi + 1}`,
-      tenNhanh: `Nhánh ${bi + 1}`,
-      stepIds: [],
-    };
-    setParallelGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, branches: [...g.branches, newBranch] } : g));
-    markDirty();
   }
 
   function handleRemoveBranch(groupId: string, branchId: string) {
-    const group = parallelGroups.find((g) => g.id === groupId);
-    const branch = group?.branches.find((b) => b.id === branchId);
-    if (!isTemplateDraft && branch?.backendId && generatedWorkflowId) {
-      deleteParallelBranch(branch.backendId).catch(() => {});
-    }
     setParallelGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, branches: g.branches.filter((b) => b.id !== branchId) } : g));
     markDirty();
   }
@@ -983,29 +861,6 @@ export default function LapQuyTrinh() {
     setParallelGroups((prev) => prev.map((g) => g.id === groupId ? { ...g, branches: [...g.branches, newBranch] } : g));
     markDirty();
 
-    if (!isTemplateDraft && generatedWorkflowId && group.backendId) {
-      try {
-        const created = await createParallelBranch(group.backendId, {
-          maNhanh: newBranch.maNhanh ?? `BR_${groupId}_${bi + 1}`,
-          tenNhanh: newBranch.tenNhanh,
-          thuTu: bi + 1,
-          thoiHanNgay: 1,
-          loaiHan: "CANH_BAO",
-          buocDauTienId: 0,
-        });
-        // Store backendId on branch
-        setParallelGroups((prev) => prev.map((g) =>
-          g.id === groupId
-            ? {
-                ...g,
-                branches: g.branches.map((b) =>
-                  b.id === branchId ? { ...b, backendId: created.id } : b
-                ),
-              }
-            : g
-        ));
-      } catch { /* keep local draft */ }
-    }
     toast.success("Đã thêm nhánh");
   }
 
@@ -1049,9 +904,6 @@ export default function LapQuyTrinh() {
 
     if (editTargetIdx !== undefined) {
       const oldStep = buocList[editTargetIdx];
-      const branchBackendId = oldStep.nhanhId
-        ? parallelGroups.flatMap((g) => g.branches).find((b) => b.id === oldStep.nhanhId)?.backendId
-        : undefined;
       const updatedStep: WorkflowStepDraft = {
         ...newStep,
         id: oldStep.id,
@@ -1062,25 +914,6 @@ export default function LapQuyTrinh() {
         buocTiepTheoId: oldStep.buocTiepTheoId,
       };
       setBuocList((prev) => prev.map((s, i) => i === editTargetIdx ? updatedStep : s));
-      if (oldStep.backendId) {
-        const assignment = buildStepAssignmentPayload(stepFormToPersist);
-        updateWorkflowStep(oldStep.backendId, {
-          tenBuoc: stepFormToPersist.tenBuoc,
-          loaiBuoc: mapLoaiBuocToBackend(stepFormToPersist.loaiBuoc),
-          soNgayLapHoSo: stepFormToPersist.slaNgay,
-          soNgayXuLy: stepFormToPersist.soNgayKyDuyet ?? 0,
-          loaiHan: mapLoaiHanToBackend(stepFormToPersist.loaiThoiHan),
-          donViXuLyId: assignment.donViXuLyId ?? null,
-          vaiTroXuLyHoSoId: assignment.vaiTroXuLyHoSoId ?? null,
-          donViKyHoSoId: assignment.donViKyHoSoId ?? null,
-          vaiTroKyDuyetId: assignment.vaiTroKyDuyetId ?? null,
-          batBuocGhiChu: stepFormToPersist.batBuocGhiChu,
-          batBuocTaiLieu: stepFormToPersist.batBuocTaiLieu,
-          batBuocKyTruocChuyenBuoc: stepFormToPersist.batBuocKyTruocChuyenBuoc,
-          batBuocDungSLA: stepFormToPersist.batBuocDungSLA,
-          nhanhWorkflowId: branchBackendId,
-        }).catch(() => toast.error("Cập nhật server thất bại"));
-      }
       toast.success("Đã cập nhật bước");
     } else if (isBranch) {
       const branchAfterStepId = modalContext.afterStepId;
@@ -1114,109 +947,8 @@ export default function LapQuyTrinh() {
           return { ...b, stepIds: newStepIds };
         }),
       })));
-      if (generatedWorkflowId) {
-        const persistBranchStep = async () => {
-          if (anchorStep?.backendId) {
-            const createdStep = await insertStepAfter(generatedWorkflowId, anchorStep.backendId, {
-              maBuoc: `BUOC_${Date.now()}`,
-              tenBuoc: stepFormToPersist.tenBuoc,
-              loaiBuoc: mapLoaiBuocToBackend(stepFormToPersist.loaiBuoc),
-              soNgayLapHoSo: stepFormToPersist.slaNgay,
-              soNgayXuLy: stepFormToPersist.soNgayKyDuyet ?? 0,
-              loaiHan: mapLoaiHanToBackend(stepFormToPersist.loaiThoiHan),
-              createDefaultTransition: true,
-              batBuocGhiChu: stepFormToPersist.batBuocGhiChu,
-              batBuocTaiLieu: stepFormToPersist.batBuocTaiLieu,
-              batBuocKyTruocChuyenBuoc: stepFormToPersist.batBuocKyTruocChuyenBuoc,
-              batBuocDungSLA: stepFormToPersist.batBuocDungSLA,
-              ...buildStepAssignmentPayload(stepFormToPersist),
-            });
-            if (branch?.backendId) {
-              await updateWorkflowStep(createdStep.id, {
-                nhanhWorkflowId: branch.backendId,
-              });
-            }
-            setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
-              ...s,
-              backendId: createdStep.id,
-              maBuoc: createdStep.maBuoc || s.maBuoc,
-              thuTu: createdStep.thuTu,
-              tenBuoc: createdStep.tenBuoc,
-              loaiBuoc: mapLoaiBuocToUi(createdStep.loaiBuoc),
-            } : s));
-            return;
-          }
-
-          const createdStep = await createWorkflowStep(
-            generatedWorkflowId,
-            buildStepCreatePayload(stepFormToPersist, buocList.length + 1, {
-              nhanhWorkflowId: branch?.backendId,
-            })
-          );
-
-          const branchBackendId = branch?.backendId;
-          if (branchBackendId && isEmptyBranch) {
-            await updateParallelBranch(branchBackendId, { buocDauTienId: createdStep.id });
-            setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
-              ...s,
-              backendId: createdStep.id,
-              maBuoc: createdStep.maBuoc || s.maBuoc,
-              thuTu: createdStep.thuTu,
-              tenBuoc: createdStep.tenBuoc,
-              loaiBuoc: mapLoaiBuocToUi(createdStep.loaiBuoc),
-            } : s));
-            return;
-          }
-          if (branchBackendId) {
-            setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
-              ...s,
-              backendId: createdStep.id,
-              maBuoc: createdStep.maBuoc || s.maBuoc,
-              thuTu: createdStep.thuTu,
-              tenBuoc: createdStep.tenBuoc,
-              loaiBuoc: mapLoaiBuocToUi(createdStep.loaiBuoc),
-            } : s));
-            return;
-          }
-
-          if (!group?.backendId) {
-            throw new Error("Parallel group is not synchronized");
-          }
-
-          const branchOrder = group.branches.findIndex((b) => b.id === modalContext.branchId);
-          const createdBranch = await createParallelBranch(group.backendId, {
-            maNhanh: branch?.maNhanh || `BR_${group.id}_${branchOrder >= 0 ? branchOrder + 1 : group.branches.length}`,
-            tenNhanh: branch?.tenNhanh || `Nhánh ${group.branches.length}`,
-            thuTu: branchOrder >= 0 ? branchOrder + 1 : group.branches.length,
-            thoiHanNgay: 1,
-            loaiHan: "CANH_BAO",
-            buocDauTienId: createdStep.id,
-          });
-
-          await updateWorkflowStep(createdStep.id, {
-            nhanhWorkflowId: createdBranch.id,
-          });
-          setParallelGroups((prev) => prev.map((g) => ({
-            ...g,
-            branches: g.branches.map((b) => b.id === modalContext.branchId ? { ...b, backendId: createdBranch.id, maNhanh: createdBranch.maNhanh } : b),
-          })));
-          setBuocList((prev) => prev.map((s) => s.id === newStep.id ? {
-            ...s,
-            backendId: createdStep.id,
-            maBuoc: createdStep.maBuoc || s.maBuoc,
-            thuTu: createdStep.thuTu,
-            tenBuoc: createdStep.tenBuoc,
-            loaiBuoc: mapLoaiBuocToUi(createdStep.loaiBuoc),
-          } : s));
-        };
-
-        persistBranchStep()
-          .then(() => {})
-          .catch(() => toast.error("Thêm bước trên server thất bại"));
-      }
       toast.success("Đã thêm bước vào nhánh");
     } else if (modalContext.type === "main" && modalContext.afterStepId) {
-      const afterStep = buocList.find((s) => s.id === modalContext.afterStepId);
       setBuocList((prev) => {
         const idx = prev.findIndex((s) => s.id === modalContext.afterStepId);
         if (idx === -1) return [...prev, newStep];
@@ -1224,38 +956,9 @@ export default function LapQuyTrinh() {
         copy.splice(idx + 1, 0, newStep);
         return copy;
       });
-      if (generatedWorkflowId && afterStep?.backendId) {
-        insertStepAfter(generatedWorkflowId, afterStep.backendId, {
-          maBuoc: `BUOC_${Date.now()}`,
-          tenBuoc: stepFormToPersist.tenBuoc,
-          loaiBuoc: mapLoaiBuocToBackend(stepFormToPersist.loaiBuoc),
-          soNgayLapHoSo: stepFormToPersist.slaNgay,
-          soNgayXuLy: stepFormToPersist.soNgayKyDuyet ?? 0,
-          loaiHan: mapLoaiHanToBackend(stepFormToPersist.loaiThoiHan),
-          createDefaultTransition: true,
-          batBuocGhiChu: stepFormToPersist.batBuocGhiChu,
-          batBuocTaiLieu: stepFormToPersist.batBuocTaiLieu,
-          batBuocKyTruocChuyenBuoc: stepFormToPersist.batBuocKyTruocChuyenBuoc,
-          batBuocDungSLA: stepFormToPersist.batBuocDungSLA,
-          ...buildStepAssignmentPayload(stepFormToPersist),
-        })
-          .then((createdStep) => {
-            setBuocList((prev) => prev.map((s) => s.id === newStep.id ? hydrateCreatedStep(s, createdStep) : s));
-            return reloadSteps();
-          })
-          .catch(() => toast.error("Thêm bước trên server thất bại"));
-      }
       toast.success("Đã thêm bước");
     } else {
       setBuocList((prev) => [...prev, newStep]);
-      if (generatedWorkflowId) {
-        createWorkflowStep(generatedWorkflowId, buildStepCreatePayload(stepFormToPersist, buocList.length + 1))
-          .then((createdStep) => {
-            setBuocList((prev) => prev.map((s) => s.id === newStep.id ? hydrateCreatedStep(s, createdStep) : s));
-            return reloadSteps();
-          })
-          .catch(() => toast.error("Thêm bước trên server thất bại"));
-      }
       toast.success("Đã thêm bước");
     }
 
