@@ -3,6 +3,12 @@ using QLQTDT.Api.Models.DTOs.Workflow;
 
 namespace QLQTDT.Api.Validators;
 
+internal static class WorkflowDesignerValidationRules
+{
+    public static bool IsValidMergeCondition(string? value)
+        => value is "ALL" or "ANY" or "COUNT" or "SKIP_ALL";
+}
+
 public class GenerateWorkflowFromTemplateRequestValidator : AbstractValidator<GenerateWorkflowFromTemplateRequest>
 {
     public GenerateWorkflowFromTemplateRequestValidator()
@@ -103,8 +109,8 @@ public class WorkflowDesignParallelGroupRequestValidator : AbstractValidator<Wor
             .MaximumLength(255).WithMessage("TenNhom toi da 255 ky tu");
 
         RuleFor(x => x.DieuKienHopNhat)
-            .Must(v => v == "ALL" || v == "ANY" || v == "COUNT")
-            .WithMessage("DieuKienHopNhat phai la 'ALL', 'ANY' hoac 'COUNT'");
+            .Must(WorkflowDesignerValidationRules.IsValidMergeCondition)
+            .WithMessage("DieuKienHopNhat phai la 'ALL', 'ANY', 'COUNT' hoac 'SKIP_ALL'");
 
         RuleFor(x => x.BuocSauHopNhatId)
             .NotEmpty().WithMessage("BuocSauHopNhatId khong duoc de trong")
@@ -213,8 +219,8 @@ public class ParallelGroupCreateRequestValidator : AbstractValidator<ParallelGro
             .GreaterThan(0).WithMessage("BuocSauHopNhatId phai lon hon 0");
 
         RuleFor(x => x.DieuKienHopNhat)
-            .Must(v => v == "ALL" || v == "ANY" || v == "COUNT")
-            .WithMessage("DieuKienHopNhat phai la 'ALL', 'ANY' hoac 'COUNT'");
+            .Must(WorkflowDesignerValidationRules.IsValidMergeCondition)
+            .WithMessage("DieuKienHopNhat phai la 'ALL', 'ANY', 'COUNT' hoac 'SKIP_ALL'");
 
         When(x => x.DieuKienHopNhat == "COUNT", () =>
         {
@@ -238,8 +244,8 @@ public class ParallelGroupUpdateRequestValidator : AbstractValidator<ParallelGro
         When(x => x.DieuKienHopNhat != null, () =>
         {
             RuleFor(x => x.DieuKienHopNhat)
-                .Must(v => v == "ALL" || v == "ANY" || v == "COUNT")
-                .WithMessage("DieuKienHopNhat phai la 'ALL', 'ANY' hoac 'COUNT'");
+                .Must(WorkflowDesignerValidationRules.IsValidMergeCondition)
+                .WithMessage("DieuKienHopNhat phai la 'ALL', 'ANY', 'COUNT' hoac 'SKIP_ALL'");
         });
 
         When(x => x.BuocSauHopNhatId.HasValue, () =>

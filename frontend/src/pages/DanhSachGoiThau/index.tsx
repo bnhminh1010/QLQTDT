@@ -1118,6 +1118,12 @@ export default function DanhSachGoiThau() {
                                   rowVersion: stepInstance.rowVersion,
                                 });
                                 toast.success(result.message || "Đã bỏ qua bước.");
+                                const [state, steps] = await Promise.all([
+                                  getWorkflowState(goiThauId),
+                                  getWorkflowSteps(goiThauId),
+                                ]);
+                                setWorkflowState(state);
+                                setWorkflowSteps(steps);
                                 setWorkflowRefreshKey(k => k + 1);
                               } catch (error: any) {
                                 toast.error(error?.message || "Không thể bỏ qua bước.");

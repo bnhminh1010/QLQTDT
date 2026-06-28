@@ -162,7 +162,7 @@ export default function ParallelGroupEditor({
               Điều kiện hợp nhất
             </label>
             <div className="flex flex-col gap-1">
-              {(["all", "any", "count"] as DieuKienHopNhatUI[]).map((v) => (
+              {(["all", "any", "count", "skip_all"] as DieuKienHopNhatUI[]).map((v) => (
                 <label key={v} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -183,7 +183,7 @@ export default function ParallelGroupEditor({
                         ? "Chỉ cần một nhánh hoàn thành"
                         : v === "count"
                           ? "Theo số lượng hoàn thành"
-                          : "Bỏ qua tất cả nhánh"}
+                          : "Cho phép bỏ qua tất cả các nhánh"}
                   </span>
                 </label>
               ))}

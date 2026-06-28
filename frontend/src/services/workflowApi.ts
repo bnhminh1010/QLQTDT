@@ -22,7 +22,7 @@ export type LoaiBuocValue = "BAT_DAU" | "THUC_HIEN" | "KET_THUC" | "KY_DUYET" | 
 export type LoaiHanValue = "CANH_BAO" | "BAT_BUOC";
 export type DieuKienKichHoatValue = "LUON" | "THEO_KET_QUA" | "THEO_VAI_TRO";
 export type HanhDongValue = "DUYET" | "KHONG_DUYET" | "TRA_VE" | "YEU_CAU_BO_SUNG" | "BO_QUA" | string;
-export type DieuKienHopNhatValue = "ALL" | "ANY" | "COUNT";
+export type DieuKienHopNhatValue = "ALL" | "ANY" | "COUNT" | "SKIP_ALL";
 export type HuongXuLyValue = "TRA_VE_BUOC_TRUOC" | "DUNG_QUY_TRINH";
 
 /* ─── Workflow Design-time ──────────────────────────────── */
