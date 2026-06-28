@@ -442,6 +442,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
     public async Task CancelAsync(int id)
     {
         var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        _logger.LogInformation("Cancel tender requested. GoiThauId={GoiThauId}, UserId={UserId}", id, userId);
         await _tenderAccess.EnsureCanEditAsync(userId, id);
 
         var entity = await _set.FindAsync(id)
@@ -453,5 +454,10 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         entity.TrangThai = GoiThauTrangThai.HUY_BO;
         entity.NgayCapNhat = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        _logger.LogInformation(
+            "Cancel tender succeeded. GoiThauId={GoiThauId}, MaGoiThau={MaGoiThau}, UserId={UserId}",
+            entity.Id,
+            entity.MaGoiThau,
+            userId);
     }
 }

@@ -92,12 +92,12 @@ export default function XuLyBuocGoiThau() {
     const loadStep = async () => {
       const targetStepId = readonlyMode
         ? stepId
-        : (await getWorkflowState(goiThauId)).currentSteps?.[0]?.stepInstanceId;
+        : (await getWorkflowState(goiThauId)).currentSteps?.[0]?.stepInstanceId ?? stepId;
 
       if (!targetStepId) {
         if (!readonlyMode) {
           setLocked(true);
-          setBackendError("Không còn bước đang xử lý cho gói thầu này.");
+          setBackendError("Bước đã được xử lý trước đó.");
         }
         return;
       }

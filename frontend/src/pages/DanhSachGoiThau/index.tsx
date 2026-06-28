@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import { getUserGoiThauList } from "./goiThauService";
-import { deleteGoiThau } from "@/services/goiThauApi";
+import { cancelGoiThau, deleteGoiThau } from "@/services/goiThauApi";
 import {
   getWorkflowState,
   getWorkflowSteps,
@@ -296,14 +296,27 @@ function buildParallelInfoBySplitStep(
           step.trangThai === "SKIPPED" ||
           step.ngayHoanThanh,
         ).length;
+        const terminalStep = branchRuntimeSteps.find((step) =>
+          step.trangThai === "HOAN_TAT" ||
+          step.trangThai === "COMPLETED" ||
+          step.trangThai === "SKIPPED",
+        );
+        const anyCompleted = branchRuntimeSteps.some((step) =>
+          step.trangThai === "HOAN_TAT" ||
+          step.trangThai === "COMPLETED" ||
+          step.ngayHoanThanh,
+        );
+        const allSkipped =
+          branchRuntimeSteps.length > 0 &&
+          branchRuntimeSteps.every((step) => step.trangThai === "SKIPPED");
 
         return {
           name: branch.tenNhanh,
-          backendId: currentBranchStep?.id,
+          backendId: terminalStep?.id ?? currentBranchStep?.id ?? branchRuntimeSteps[branchRuntimeSteps.length - 1]?.id,
           progress: `${completedCount}/${steps.length}`,
-          status: currentBranchStep ? getStepProgressLabel(currentBranchStep) : "Chưa đến lượt xử lý",
-          currentStep: currentBranchStep?.tenBuoc || steps[0]?.name || "—",
-          processor: currentBranchStep?.tenNguoiXuLy || currentBranchStep?.tenVaiTroXuLy || "—",
+          status: anyCompleted ? "Đã hoàn tất" : allSkipped ? "Đã bỏ qua" : currentBranchStep ? getStepProgressLabel(currentBranchStep) : "Chưa đến lượt xử lý",
+          currentStep: currentBranchStep?.tenBuoc || terminalStep?.tenBuoc || steps[0]?.name || "—",
+          processor: currentBranchStep?.tenNguoiXuLy || currentBranchStep?.tenVaiTroXuLy || terminalStep?.tenNguoiXuLy || "—",
           steps,
         };
       }),
@@ -659,15 +672,29 @@ export default function DanhSachGoiThau() {
 
   function handleCancel() {
     if (!cancelTarget) return;
-    setData((prev) =>
-      prev.map((r) =>
-        r.id === cancelTarget.id ? { ...r, trangThai: "Đã hủy" } : r,
-      ),
-    );
-    if (selected.id === cancelTarget.id)
-      setSelected({ ...selected, trangThai: "Đã hủy" });
-    toast.success(`Đã hủy gói thầu "${cancelTarget.ten}"`);
-    setCancelTarget(null);
+
+    const numId = parseInt(cancelTarget.id.replace(/^GT/, ""), 10);
+    if (!numId) {
+      toast.error("ID gói thầu không hợp lệ");
+      return;
+    }
+
+    console.info("[DanhSachGoiThau] cancel tender", { id: numId, maGoiThau: cancelTarget.id });
+
+    cancelGoiThau(numId).then(() => {
+      setData((prev) =>
+        prev.map((r) =>
+          r.id === cancelTarget.id ? { ...r, trangThai: "Đã hủy" } : r,
+        ),
+      );
+      if (selected.id === cancelTarget.id)
+        setSelected({ ...selected, trangThai: "Đã hủy" });
+      toast.success(`Đã hủy gói thầu "${cancelTarget.ten}"`);
+      setCancelTarget(null);
+    }).catch((error) => {
+      console.error("[DanhSachGoiThau] cancel tender failed", error);
+      toast.error(getApiErrorMessage(error, "Không thể hủy gói thầu"));
+    });
   }
 
   function handleDelete() {
@@ -1084,57 +1111,72 @@ export default function DanhSachGoiThau() {
                             ))}
                           </div>
                         </details>
-                        <div className="mt-2 flex gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(
-                                `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}${branch.backendId ? `&stepId=${branch.backendId}` : ""}`,
-                              );
-                            }}
-                            className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700"
-                          >
-                            Cập nhật
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const stepInstance = workflowState?.steps.find(s => s.id === branch.backendId);
-                              if (!stepInstance?.id || !stepInstance.rowVersion) {
-                                toast.error("Không tìm thấy thông tin bước để bỏ qua.");
-                                return;
-                              }
-                              const goiThauId = parseGoiThauNumericId(selected.id);
-                              if (!goiThauId) {
-                                toast.error("ID gói thầu không hợp lệ.");
-                                return;
-                              }
-                              try {
-                                const result = await processStep(goiThauId, {
-                                  hanhDong: "SKIP",
-                                  workflowStepInstanceId: stepInstance.id,
-                                  rowVersion: stepInstance.rowVersion,
-                                });
-                                toast.success(result.message || "Đã bỏ qua bước.");
-                                const [state, steps] = await Promise.all([
-                                  getWorkflowState(goiThauId),
-                                  getWorkflowSteps(goiThauId),
-                                ]);
-                                setWorkflowState(state);
-                                setWorkflowSteps(steps);
-                                setWorkflowRefreshKey(k => k + 1);
-                              } catch (error: any) {
-                                toast.error(error?.message || "Không thể bỏ qua bước.");
-                              }
-                            }}
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
-                          >
-                            Bỏ qua
-                          </button>
-                        </div>
-                        <div className="mt-1 text-[11px] font-semibold text-amber-700">{branch.status}</div>
+                        {branch.steps.some((s) => s.state === "current") ? (
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(
+                                  `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}${branch.backendId ? `&stepId=${branch.backendId}` : ""}`,
+                                );
+                              }}
+                              className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700"
+                            >
+                              Cập nhật
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const stepInstance = workflowState?.steps.find(s => s.id === branch.backendId);
+                                if (!stepInstance?.id || !stepInstance.rowVersion) {
+                                  toast.error("Không tìm thấy thông tin bước để bỏ qua.");
+                                  return;
+                                }
+                                const goiThauId = parseGoiThauNumericId(selected.id);
+                                if (!goiThauId) {
+                                  toast.error("ID gói thầu không hợp lệ.");
+                                  return;
+                                }
+                                try {
+                                  const result = await processStep(goiThauId, {
+                                    hanhDong: "SKIP",
+                                    workflowStepInstanceId: stepInstance.id,
+                                    rowVersion: stepInstance.rowVersion,
+                                  });
+                                  toast.success(result.message || "Đã bỏ qua bước.");
+                                  const [state, steps] = await Promise.all([
+                                    getWorkflowState(goiThauId),
+                                    getWorkflowSteps(goiThauId),
+                                  ]);
+                                  setWorkflowState(state);
+                                  setWorkflowSteps(steps);
+                                  setWorkflowRefreshKey(k => k + 1);
+                                } catch (error: any) {
+                                  toast.error(error?.message || "Không thể bỏ qua bước.");
+                                }
+                              }}
+                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
+                            >
+                              Bỏ qua
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mt-2">
+                            <span
+                              className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                branch.status === "Đã hoàn tất"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : branch.status === "Đã bỏ qua"
+                                    ? "bg-slate-200 text-slate-500"
+                                    : "bg-blue-100 text-blue-700"
+                              }`}
+                            >
+                              {branch.status}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

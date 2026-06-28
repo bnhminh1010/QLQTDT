@@ -622,6 +622,20 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         AssignStepToTenderCreator(mergeStep.Id, goiThau, currentUserId);
 
+        // Cancel remaining active steps in other branches
+        var remainingActiveSteps = await _db.WorkflowStepInstances
+            .Where(s => s.WorkflowInstanceId == instance.Id)
+            .Where(s => s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY || s.TrangThai == WorkflowStepTrangThai.CHO_DUYET)
+            .Where(s => s.BuocWorkflow != null && branchIds.Contains(s.BuocWorkflow.NhanhWorkflowId ?? 0))
+            .ToListAsync();
+
+        foreach (var activeStep in remainingActiveSteps)
+        {
+            activeStep.TrangThai = WorkflowStepTrangThai.SKIPPED;
+            activeStep.NgayHoanThanh = DateTime.UtcNow;
+            activeStep.GhiChu = "Bước này không cần xử lý do nhánh khác đã hoàn tất điều kiện hợp nhất.";
+        }
+
         instance.BuocHienTaiId = group.BuocSauHopNhatId;
 
         AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
@@ -683,7 +697,8 @@ public class WorkflowEngineService : IWorkflowEngineService
             .Include(t => t.TuBuoc)
             .FirstOrDefaultAsync(t =>
                 t.DenBuocId == currentStep.BuocWorkflowId &&
-                (t.HanhDong == hanhDong || t.HanhDong == WorkflowHanhDong.TRA_VE ||
+                (t.HanhDong == hanhDong || t.HanhDong == WorkflowHanhDong.DUYET ||
+                 t.HanhDong == WorkflowHanhDong.APPROVE || t.HanhDong == WorkflowHanhDong.TRA_VE ||
                  t.HanhDong == WorkflowHanhDong.REJECT || t.HanhDong == WorkflowHanhDong.KHONG_DUYET));
 
         if (rejectTransition?.HuongXuLyKhongDuyet == "TRA_VE_BUOC_TRUOC" && rejectTransition.TuBuoc != null)
@@ -705,7 +720,13 @@ public class WorkflowEngineService : IWorkflowEngineService
 
             AssignStepToTenderCreator(previousStep.Id, goiThau, currentUserId);
 
-            instance.BuocHienTaiId = rejectTransition.TuBuoc.Id;
+            var hasOtherActiveSteps = await _db.WorkflowStepInstances.AnyAsync(s =>
+                s.WorkflowInstanceId == instance.Id &&
+                s.Id != currentStep.Id &&
+                s.Id != previousStep.Id &&
+                (s.TrangThai == WorkflowStepTrangThai.DANG_XU_LY ||
+                 s.TrangThai == WorkflowStepTrangThai.CHO_DUYET));
+            instance.BuocHienTaiId = hasOtherActiveSteps ? null : rejectTransition.TuBuoc.Id;
 
             AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
                 ghiChu ?? $"Từ chối tại bước '{buoc?.TenBuoc}' — trả về '{rejectTransition.TuBuoc.TenBuoc}'",

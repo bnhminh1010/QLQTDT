@@ -170,6 +170,7 @@ export default function NguoiDung() {
         sdt: u.soDienThoai || "",
         phong: u.roles?.find((r: any) => r.laChinh)?.tenKhoaPhong ?? u.roles?.[0]?.tenKhoaPhong ?? "",
         vaiTro: u.roles?.map((r: any) => r.tenVaiTro).filter(Boolean).join(", ") || "Không có vai trò",
+        quyen: u.quyen ?? [],
         trangThai: u.trangThaiHoatDong ? "Hoạt động" as TrangThai : "Ngưng hoạt động" as TrangThai,
         ngayTao: formatDate(u.ngayTao),
       }));
@@ -526,6 +527,7 @@ export default function NguoiDung() {
                             </div>
                             <button onClick={() => removeUserRole(r.id).then(() => {
                               setUserRoles((prev) => prev.filter((x) => x.id !== r.id));
+                              loadData();
                               loadAuditLogs(selected.id);
                               toast.success("Đã gỡ vai trò");
                             }).catch(() => toast.error("Gỡ vai trò thất bại"))}
@@ -557,6 +559,7 @@ export default function NguoiDung() {
                           })
                           .then((roles) => {
                             setUserRoles(roles);
+                            loadData();
                             loadAuditLogs(selected.id);
                           })
                           .catch(() => toast.error("Gán vai trò thất bại"));
@@ -568,7 +571,7 @@ export default function NguoiDung() {
                     <p className="text-[10px] text-slate-400 mt-1">Thay đổi vai trò yêu cầu user đăng nhập lại để cập nhật quyền.</p>
                   </div>
                 ) : detailTab === "access" ? (
-                  <AccessTabView userRoles={userRoles} />
+                  <AccessTabView userRoles={userRoles} permissions={selected.quyen ?? []} />
                 ) : (
                   <div className="p-5">
                     <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-3">Lịch sử thao tác</p>
@@ -674,30 +677,32 @@ export default function NguoiDung() {
 }
 
 /* ─── Access Tab ─────────────────────────────────────── */
-const PAGE_ACCESS: { key: string; label: string; level: number; desc: string }[] = [
-  { key: "dashboard", label: "Dashboard", level: 5, desc: "Xem tổng quan" },
-  { key: "tao-goi-thau", label: "Tạo gói thầu", level: 5, desc: "Tạo mới gói thầu" },
-  { key: "danh-sach-goi-thau", label: "DS gói thầu", level: 3, desc: "Danh sách gói thầu" },
-  { key: "danh-sach-quy-trinh", label: "DS quy trình", level: 3, desc: "Danh sách quy trình" },
-  { key: "lap-quy-trinh", label: "Lập quy trình", level: 3, desc: "Thiết lập quy trình" },
-  { key: "bao-cao", label: "Báo cáo", level: 3, desc: "Báo cáo & thống kê" },
-  { key: "xu-ly-buoc", label: "Xử lý bước", level: 3, desc: "Xử lý bước workflow" },
-  { key: "danh-muc-thuc-hien", label: "Danh mục thực hiện", level: 1, desc: "QL hình thức đấu thầu" },
-  { key: "khoa-phong", label: "Khoa/phòng", level: 1, desc: "QL khoa phòng" },
-  { key: "nguoi-dung", label: "Người dùng", level: 1, desc: "QL người dùng & phân quyền" },
+const PAGE_ACCESS: { key: string; label: string; desc: string; permissions: string[] }[] = [
+  { key: "dashboard", label: "Dashboard", desc: "Xem tổng quan", permissions: [] },
+  { key: "tao-goi-thau", label: "Tạo gói thầu", desc: "Tạo mới gói thầu", permissions: ["GOITHAU.CREATE"] },
+  { key: "danh-sach-goi-thau", label: "DS gói thầu", desc: "Danh sách gói thầu", permissions: ["GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW_INTERNAL"] },
+  { key: "danh-sach-quy-trinh", label: "DS quy trình", desc: "Danh sách quy trình", permissions: ["WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"] },
+  { key: "lap-quy-trinh", label: "Lập quy trình", desc: "Thiết lập quy trình", permissions: ["WORKFLOW.CREATE", "WORKFLOW.CONFIG", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"] },
+  { key: "bao-cao", label: "Báo cáo", desc: "Báo cáo & thống kê", permissions: ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"] },
+  { key: "xu-ly-buoc", label: "Xử lý bước", desc: "Xử lý bước workflow", permissions: ["WORKFLOW.PROCESS"] },
+  { key: "danh-muc-thuc-hien", label: "Danh mục thực hiện", desc: "QL hình thức đấu thầu", permissions: ["HINHTHUCDAUTHAU.VIEW", "DANHMUC.VIEW", "DANHMUC.VIEW_ALL"] },
+  { key: "khoa-phong", label: "Khoa/phòng", desc: "QL khoa phòng", permissions: ["USER.VIEW", "USER.VIEW_ALL"] },
+  { key: "nguoi-dung", label: "Người dùng", desc: "QL người dùng & phân quyền", permissions: ["USER.VIEW", "USER.VIEW_ALL"] },
 ];
-const LEVEL_NAME: Record<number, string> = { 1: "CAP_CAO", 3: "TRUNG_BINH", 5: "THAP" };
-function AccessTabView({ userRoles }: { userRoles: UserRoleInfo[] }) {
+function AccessTabView({ userRoles, permissions }: { userRoles: UserRoleInfo[]; permissions: string[] }) {
   const isAdmin = userRoles.some((r) => r.maVaiTro === "ADMIN");
-  const level = isAdmin ? 1 : (userRoles.length > 0 ? 3 : 5);
+  const permissionSet = new Set(permissions);
+  const roleLabel = userRoles.length > 0
+    ? userRoles.map((r) => r.maVaiTro || r.tenVaiTro).join(", ")
+    : "Chưa có vai trò";
   return (
     <div className="p-5 space-y-3">
       <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-2">
-        Cấp hiện tại: <span className="text-blue-600">{LEVEL_NAME[level] ?? "CHƯA CÓ"}</span>
+        Vai trò hiện tại: <span className="text-blue-600">{roleLabel}</span>
       </p>
       <div className="space-y-0.5">
         {PAGE_ACCESS.map((p) => {
-          const ok = level <= p.level;
+          const ok = isAdmin || p.permissions.length === 0 || p.permissions.some((permission) => permissionSet.has(permission));
           return (
             <div key={p.key} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs ${ok ? "bg-emerald-50" : "bg-slate-50"}`}>
               <i className={`fa-solid ${ok ? "fa-circle-check text-emerald-500" : "fa-circle-xmark text-slate-300"}`} />
@@ -708,7 +713,7 @@ function AccessTabView({ userRoles }: { userRoles: UserRoleInfo[] }) {
         })}
       </div>
       <p className="text-[10px] text-slate-400 mt-2">
-        Để thay đổi quyền truy cập, vào tab <strong>Phân quyền</strong> để gán vai trò cao hơn.
+        Quyền truy cập được tính từ quyền thật gắn với các vai trò của user.
       </p>
     </div>
   );

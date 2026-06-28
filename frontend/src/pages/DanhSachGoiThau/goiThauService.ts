@@ -104,13 +104,17 @@ function mapItem(item: GoiThauItem): GoiThau {
   const pct = item.tongSoBuoc > 0
     ? Math.round((item.soBuocHoanThanh / item.tongSoBuoc) * 100)
     : 0;
-  // Override trangThai based on step completion, not DB value directly
-  // DB TrangThai may be stale (seed data), step counts are real-time
-  const computedTrangThai: TrangThai = item.tongSoBuoc > 0
-    ? item.soBuocHoanThanh >= item.tongSoBuoc
-      ? "Hoàn thành"
-      : "Đang xử lý"
-    : toGoiThauTrangThaiLabel(item.trangThai);
+  const dbTrangThai = toGoiThauTrangThaiLabel(item.trangThai);
+  const isDbTerminalStatus = item.trangThai === "HUY_BO"
+    || item.trangThai === "HOAN_THANH"
+    || item.trangThai === "DA_CHON_NHA_THAU";
+  const computedTrangThai: TrangThai = isDbTerminalStatus
+    ? dbTrangThai
+    : item.tongSoBuoc > 0
+      ? item.soBuocHoanThanh >= item.tongSoBuoc
+        ? "Hoàn thành"
+        : "Đang xử lý"
+      : dbTrangThai;
   return {
     id: `GT${item.id}`,
     maGoiThau: item.maGoiThau,

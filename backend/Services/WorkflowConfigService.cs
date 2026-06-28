@@ -310,7 +310,7 @@ public class WorkflowConfigService : IWorkflowConfigService
             .ToDictionary(x => stepByDraftId[x.Step.Id].Id, x => x.Step);
 
         var mainSteps = normalizedSteps
-            .Where(x => string.IsNullOrWhiteSpace(x.Step.NhanhId))
+            .Where(x => !branchStepDraftIds.Contains(x.Step.Id))
             .Select(x => stepByDraftId[x.Step.Id])
             .OrderBy(step => step.ThuTu)
             .ToList();
@@ -391,6 +391,10 @@ public class WorkflowConfigService : IWorkflowConfigService
                 entity.LoaiHinhDauThau = request.LoaiHinhDauThau;
 
         // Remove old transitions, branches, groups, then steps (FK-safe order)
+        entity.BuocBatDauId = null;
+        entity.BuocKetThucId = null;
+        await _context.SaveChangesAsync();
+
         var oldStepIds = await _context.BuocWorkflows
             .Where(b => b.WorkflowId == id)
             .Select(b => b.Id)
@@ -430,6 +434,10 @@ public class WorkflowConfigService : IWorkflowConfigService
         var normalizedSteps = request.Steps
             .Select((step, index) => new { Step = step, Index = index })
             .ToList();
+        var branchStepDraftIds = request.ParallelGroups
+            .SelectMany(group => group.Branches)
+            .SelectMany(branch => branch.StepIds)
+            .ToHashSet(StringComparer.Ordinal);
 
         foreach (var item in normalizedSteps)
         {
@@ -476,7 +484,7 @@ public class WorkflowConfigService : IWorkflowConfigService
 
         // Create transitions between main steps
         var mainSteps = normalizedSteps
-            .Where(x => string.IsNullOrWhiteSpace(x.Step.NhanhId))
+            .Where(x => !branchStepDraftIds.Contains(x.Step.Id))
             .Select(x => stepByDraftId[x.Step.Id])
             .OrderBy(s => s.ThuTu)
             .ToList();

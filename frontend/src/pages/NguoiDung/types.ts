@@ -11,6 +11,7 @@ export type User = {
   sdt: string;
   phong: string;
   vaiTro: VaiTro;
+  quyen?: string[];
   trangThai: TrangThai;
   ngayTao: string; // "DD/MM/YYYY"
 };

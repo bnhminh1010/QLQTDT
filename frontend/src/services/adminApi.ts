@@ -14,6 +14,7 @@ export type NguoiDung = {
   tenDangNhap: string;
   soDienThoai?: string;
   trangThaiHoatDong: boolean;
+  quyen?: string[];
 };
 
 export type CreateNguoiDungRequest = {

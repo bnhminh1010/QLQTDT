@@ -27,6 +27,7 @@ public class AdminUserItemDto
     public bool TrangThaiHoatDong { get; set; }
     public DateTime NgayTao { get; set; }
     public List<UserRoleDto> Roles { get; set; } = [];
+    public List<string> Quyen { get; set; } = [];
 
     // Thông tin nhà thầu (nếu có)
     public string? TenCongTy { get; set; }
@@ -47,6 +48,7 @@ public class AdminUserDetailDto
     public DateTime NgayTao { get; set; }
     public string? AvatarUrl { get; set; }
     public List<UserRoleDto> Roles { get; set; } = [];
+    public List<string> Quyen { get; set; } = [];
 
     // Thông tin nhà thầu đầy đủ (nếu user là nhà thầu)
     public AdminNhaThauDto? NhaThau { get; set; }

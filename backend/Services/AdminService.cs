@@ -69,6 +69,13 @@ public class AdminService : IAdminService
                         TenVaiTro = r.VaiTro.TenVaiTro,
                         LaChinh = r.LaChinh
                     }).ToList(),
+                Quyen = u.NguoiDungKhoaPhongVaiTros
+                    .SelectMany(r => r.VaiTro.VaiTroQuyens)
+                    .Where(vq => !vq.Quyen.DaXoa)
+                    .Select(vq => vq.Quyen.MaQuyen)
+                    .Distinct()
+                    .OrderBy(maQuyen => maQuyen)
+                    .ToList(),
             })
             .ToListAsync();
 
@@ -113,6 +120,13 @@ public class AdminService : IAdminService
                 TenVaiTro = r.VaiTro.TenVaiTro,
                 LaChinh = r.LaChinh
             }).ToList(),
+            Quyen = user.NguoiDungKhoaPhongVaiTros
+                .SelectMany(r => r.VaiTro.VaiTroQuyens)
+                .Where(vq => !vq.Quyen.DaXoa)
+                .Select(vq => vq.Quyen.MaQuyen)
+                .Distinct()
+                .OrderBy(maQuyen => maQuyen)
+                .ToList(),
             NhaThau = nhaThau != null ? new AdminNhaThauDto
             {
                 MaSoThue = nhaThau.MaSoThue,

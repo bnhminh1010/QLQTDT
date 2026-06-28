@@ -374,14 +374,14 @@ export default function LapQuyTrinh() {
         parallelGroups: parallelGroupsPayload,
       });
 
-      toast.success("LÆ°u quy trÃ¬nh thÃ nh cÃ´ng");
+      toast.success("Lưu quy trình thành công");
       setIsDirty(false);
       setSaving(false);
       setIsTemplateDraft(false);
       navigate("/danh-sach-quy-trinh");
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.response?.data?.message || "LÆ°u quy trÃ¬nh tháº¥t báº¡i");
+      toast.error(err?.response?.data?.message || "Lưu quy trình thất bại");
       setSaving(false);
     }
   }
