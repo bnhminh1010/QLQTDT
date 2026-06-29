@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using QLQTDT.Api.Data;
@@ -7,7 +9,6 @@ using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.Constants;
 using QLQTDT.Api.Models.DTOs.GoiThau;
 using QLQTDT.Api.Models.Entities;
-using System.Security.Claims;
 
 namespace QLQTDT.Api.Services;
 
@@ -52,9 +53,42 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         var scope = await _tenderAccess.ResolveTenderScopeDetailAsync(userId);
         if (!scope.IsFullScope)
         {
-            query = scope.OwnOnly
-                ? query.Where(g => g.NguoiTaoId == userId)
-                : query.Where(g => g.NguoiTaoId == userId || scope.KhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
+            // Step 1: Resolve strict-scope IDs (creator OR same department)
+            var strictIds = scope.OwnOnly
+                ? await _set
+                    .Where(g => g.TrangThaiHoatDong && g.NguoiTaoId == userId)
+                    .Select(g => g.Id)
+                    .ToListAsync()
+                : await _set
+                    .Where(g => g.TrangThaiHoatDong && (g.NguoiTaoId == userId || scope.KhoaPhongIds.Contains(g.KhoaPhongId ?? -1)))
+                    .Select(g => g.Id)
+                    .ToListAsync();
+
+            var combinedIds = new HashSet<int>(strictIds);
+
+            // Step 2: Add TheoDoi scope — user's unit/role names match tender's TheoDoi JSON
+            var userNames = await _tenderAccess.GetUserViewableNamesAsync(userId);
+            if (userNames.Count > 0)
+            {
+                // Load all active tenders with TheoDoi in one query
+                var theoDoiCandidates = await _set
+                    .Where(g => g.TrangThaiHoatDong && g.TheoDoi != null && g.TheoDoi != "")
+                    .Select(g => new { g.Id, g.TheoDoi })
+                    .ToListAsync();
+
+                foreach (var t in theoDoiCandidates)
+                {
+                    if (combinedIds.Contains(t.Id)) continue; // already covered by strict scope
+                    var vals = JsonSerializer.Deserialize<string[]>(t.TheoDoi!) ?? [];
+                    if (vals.Any(v => userNames.Contains(v, StringComparer.OrdinalIgnoreCase)))
+                        combinedIds.Add(t.Id);
+                }
+            }
+
+            if (combinedIds.Count == 0)
+                return new PagedResult<GoiThauDto> { Items = [], Total = 0, Page = page, PageSize = pageSize };
+
+            query = _set.Where(g => combinedIds.Contains(g.Id) && g.TrangThaiHoatDong);
         }
 
         var total = await query.CountAsync();
@@ -73,6 +107,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 KhoaPhongId = g.KhoaPhongId,
                 HinhThucId = g.HinhThucId,
                 WorkflowId = g.WorkflowId,
+                TheoDoi = g.TheoDoi,
                 TenHinhThuc = g.HinhThuc != null ? g.HinhThuc.TenHinhThuc : null,
                 TenKhoaPhong = g.KhoaPhongId != null && g.KhoaPhong != null ? g.KhoaPhong.TenKhoaPhong : null,
             })

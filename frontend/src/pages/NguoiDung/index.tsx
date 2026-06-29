@@ -684,7 +684,7 @@ const PAGE_ACCESS: { key: string; label: string; desc: string; permissions: stri
   { key: "danh-sach-quy-trinh", label: "DS quy trình", desc: "Danh sách quy trình", permissions: ["WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"] },
   { key: "lap-quy-trinh", label: "Lập quy trình", desc: "Thiết lập quy trình", permissions: ["WORKFLOW.CREATE", "WORKFLOW.CONFIG", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"] },
   { key: "bao-cao", label: "Báo cáo", desc: "Báo cáo & thống kê", permissions: ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"] },
-  { key: "xu-ly-buoc", label: "Xử lý bước", desc: "Xử lý bước workflow", permissions: ["WORKFLOW.PROCESS"] },
+  { key: "xu-ly-buoc", label: "Xử lý bước", desc: "Xử lý bước workflow", permissions: ["WORKFLOW.PROCESS", "GOITHAU.EDIT", "GOITHAU.CREATE"] },
   { key: "danh-muc-thuc-hien", label: "Danh mục thực hiện", desc: "QL hình thức đấu thầu", permissions: ["HINHTHUCDAUTHAU.VIEW", "DANHMUC.VIEW", "DANHMUC.VIEW_ALL"] },
   { key: "khoa-phong", label: "Khoa/phòng", desc: "QL khoa phòng", permissions: ["USER.VIEW", "USER.VIEW_ALL"] },
   { key: "nguoi-dung", label: "Người dùng", desc: "QL người dùng & phân quyền", permissions: ["USER.VIEW", "USER.VIEW_ALL"] },

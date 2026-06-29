@@ -122,6 +122,7 @@ function mapItem(item: GoiThauItem): GoiThau {
     tenGoiThau: item.tenGoiThau,
     hinhThuc: item.tenHinhThuc ?? "",
     workflowId: item.workflowId,
+    theoDoi: item.theoDoi ? JSON.parse(item.theoDoi) : undefined,
     giaTriStr: (item.nganSach ?? 0).toLocaleString("vi-VN"),
     giaTriNum: item.nganSach ?? 0,
     donVi: item.tenKhoaPhong ?? "",

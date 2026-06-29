@@ -21,4 +21,12 @@ public interface ITenderAccessService
     Task EnsureCanEditAsync(int userId, int goiThauId);
     Task EnsureCanProcessAsync(int userId, int goiThauId);
     Task<GoiThau> GetAccessibleTenderAsync(int userId, int goiThauId, bool requireFullScope = false);
+
+    /// <summary>
+    /// Lấy danh sách tên định danh có thể dùng để match với TheoDoi:
+    /// - TenKhoaPhong (vd: "Phòng HCQT")
+    /// - MaVaiTro (vd: "BCN_KHOA_PHONG", "BAN_GIAM_DOC")
+    /// - Prefix của MaVaiTro trước dấu _ (vd: "BCN_KHOA_PHONG" → "BCN")
+    /// </summary>
+    Task<HashSet<string>> GetUserViewableNamesAsync(int userId);
 }

@@ -1,0 +1,9 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": ".github/workflows/ci-backend.yml", "language": "yaml", "sizeLines": 103, "fileCategory": "infra"}
+  ],
+  "batchImportData": {
+    ".github/workflows/ci-backend.yml": []
+  }
+}

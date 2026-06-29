@@ -19,7 +19,7 @@ const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
   "/lap-quy-trinh": ["WORKFLOW.CREATE", "WORKFLOW.CONFIG", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"],
   "/danh-muc-thuc-hien": ["HINHTHUCDAUTHAU.VIEW", "DANHMUC.VIEW", "DANHMUC.VIEW_ALL"],
   "/bao-cao": ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"],
-  "/xu-ly-buoc": ["WORKFLOW.PROCESS"],
+  "/xu-ly-buoc": ["WORKFLOW.PROCESS", "GOITHAU.EDIT", "GOITHAU.CREATE"],
   "/khoa-phong": ["USER.VIEW", "USER.VIEW_ALL"],
   "/nguoi-dung": ["USER.VIEW", "USER.VIEW_ALL"],
   "/profile": [],

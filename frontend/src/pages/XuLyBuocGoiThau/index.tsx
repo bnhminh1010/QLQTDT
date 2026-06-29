@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { getCurrentUserApi } from "@/services/api";
 import { formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { KetQuaXuLy } from "@/pages/DanhSachGoiThau/xuLyBuocService";
@@ -102,7 +103,10 @@ export default function XuLyBuocGoiThau() {
         return;
       }
 
-      const backendStep = await getWorkflowStepDetail(goiThauId, targetStepId);
+      const [backendStep, currentUser] = await Promise.all([
+        getWorkflowStepDetail(goiThauId, targetStepId),
+        getCurrentUserApi().catch(() => null),
+      ]);
       if (cancelled) return;
 
       setStep(backendStep);
@@ -112,7 +116,7 @@ export default function XuLyBuocGoiThau() {
       setForm({
         goiThauId: id,
         buocWorkflow: backendStep.tenBuoc || viewingStep,
-        nguoiXuLy: backendStep.tenNguoiXuLy || "",
+        nguoiXuLy: backendStep.tenNguoiXuLy || currentUser?.hoTen || "",
         ngayXuLy: backendStep.ngayXuLy?.slice(0, 10) || todayInputValue(),
         nguoiKyDuyet: backendStep.tenNguoiKyDuyet || "",
         ngayKyDuyet: backendStep.ngayKyDuyet?.slice(0, 10) || "",

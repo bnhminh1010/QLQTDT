@@ -79,6 +79,7 @@ public class GoiThauDto
     public int? HinhThucId { get; set; }
     public string? TenHinhThuc { get; set; }
     public int? WorkflowId { get; set; }
+    public string? TheoDoi { get; set; }
 
     // Workflow progress (filled after query)
     public int TongSoBuoc { get; set; }

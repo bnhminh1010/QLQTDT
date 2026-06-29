@@ -913,6 +913,22 @@ export default function DanhSachGoiThau() {
               </span>
             </div>
           ))}
+          {/* TheoDoi tags */}
+          {selected.theoDoi && selected.theoDoi.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] text-slate-400 font-bold tracking-wide">ĐƠN VỊ THEO DÕI</span>
+              <div className="flex flex-wrap gap-1">
+                {selected.theoDoi.map((item: string) => (
+                  <span
+                    key={item}
+                    className="bg-sky-50 text-sky-700 text-[10px] px-1.5 py-0.5 rounded-full border border-sky-200"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           {detailInfo.lyDoTreHan && (
             <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs">
               <p className="font-semibold text-red-600">Lý do trễ hạn</p>

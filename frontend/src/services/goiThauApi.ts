@@ -24,6 +24,7 @@ export type GoiThauItem = {
   tongSoBuoc: number;
   soBuocHoanThanh: number;
   phanTramHoanThanh: number;
+  theoDoi?: string; // JSON string array from DB
 };
 
 export type GoiThauDetail = {
