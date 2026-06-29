@@ -80,6 +80,8 @@ export type ParallelBranchDraft = {
   maNhanh?: string;
   tenNhanh: string;
   thuTu: number;
+  thoiHanNgay: number;
+  loaiHan: "CANH_BAO" | "BAT_BUOC";
   stepIds: string[]; // step IDs trong nhánh
 };
 
@@ -89,6 +91,7 @@ export type ParallelGroupDraft = {
   id: string;
   backendId?: number;
   buocTachNhanhId: string;
+  tenNhom: string;
   dieuKienHopNhat: DieuKienHopNhatUI;
   soNhanhHopNhatToiThieu: number;
   buocSauHopNhatId: string;
