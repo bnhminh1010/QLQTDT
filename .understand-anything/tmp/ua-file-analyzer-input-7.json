@@ -1,0 +1,11 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "backend/.dockerignore", "language": "unknown", "sizeLines": 15, "fileCategory": "infra"},
+    {"path": "backend/Dockerfile", "language": "dockerfile", "sizeLines": 24, "fileCategory": "infra"}
+  ],
+  "batchImportData": {
+    "backend/.dockerignore": [],
+    "backend/Dockerfile": []
+  }
+}

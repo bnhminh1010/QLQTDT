@@ -390,15 +390,23 @@ public class WorkflowConfigService : IWorkflowConfigService
             if (request.LoaiHinhDauThau != null)
                 entity.LoaiHinhDauThau = request.LoaiHinhDauThau;
 
-        // Remove old transitions, branches, groups, then steps (FK-safe order)
+        // Remove old transitions, branches, groups, then upsert steps.
+        // Runtime workflow instances may still reference existing BuocWorkflow rows, so do not
+        // recreate every step on edit; update existing backend steps in place when possible.
         entity.BuocBatDauId = null;
         entity.BuocKetThucId = null;
         await _context.SaveChangesAsync();
 
-        var oldStepIds = await _context.BuocWorkflows
+        var oldSteps = await _context.BuocWorkflows
             .Where(b => b.WorkflowId == id)
-            .Select(b => b.Id)
             .ToListAsync();
+        var oldStepIds = oldSteps.Select(b => b.Id).ToList();
+        var oldStepById = oldSteps.ToDictionary(s => s.Id);
+        var requestExistingStepIds = request.Steps
+            .Select(step => TryResolveExistingStepId(step.Id))
+            .Where(stepId => stepId.HasValue && oldStepById.ContainsKey(stepId.Value))
+            .Select(stepId => stepId!.Value)
+            .ToHashSet();
 
         if (oldStepIds.Count > 0)
         {
@@ -425,9 +433,37 @@ public class WorkflowConfigService : IWorkflowConfigService
         _context.NhomNhanhWorkflows.RemoveRange(oldGroups);
         await _context.SaveChangesAsync();
 
-        var oldSteps = await _context.BuocWorkflows.Where(b => b.WorkflowId == id).ToListAsync();
-        _context.BuocWorkflows.RemoveRange(oldSteps);
-        await _context.SaveChangesAsync();
+        var removedStepIds = oldStepIds.Where(stepId => !requestExistingStepIds.Contains(stepId)).ToList();
+        if (removedStepIds.Count > 0)
+        {
+            var referencedStepIds = await _context.WorkflowStepInstances
+                .Where(s => removedStepIds.Contains(s.BuocWorkflowId))
+                .Select(s => s.BuocWorkflowId)
+                .Distinct()
+                .ToListAsync();
+
+            var currentStepRefs = await _context.WorkflowInstances
+                .Where(i => i.WorkflowId == id && i.BuocHienTaiId.HasValue && removedStepIds.Contains(i.BuocHienTaiId.Value))
+                .Select(i => i.BuocHienTaiId!.Value)
+                .Distinct()
+                .ToListAsync();
+
+            referencedStepIds.AddRange(currentStepRefs);
+            referencedStepIds = referencedStepIds.Distinct().ToList();
+
+            if (referencedStepIds.Count > 0)
+            {
+                var referencedNames = oldSteps
+                    .Where(step => referencedStepIds.Contains(step.Id))
+                    .Select(step => step.TenBuoc)
+                    .ToList();
+                throw new ConflictException(
+                    $"Không thể xóa bước đã được gói thầu sử dụng: {string.Join(", ", referencedNames)}. Vui lòng tạo quy trình mới nếu cần thay đổi cấu trúc đang chạy.");
+            }
+
+            _context.BuocWorkflows.RemoveRange(oldSteps.Where(step => removedStepIds.Contains(step.Id)));
+            await _context.SaveChangesAsync();
+        }
 
         // Re-create everything using the design request
         var stepByDraftId = new Dictionary<string, BuocWorkflow>();
@@ -442,32 +478,38 @@ public class WorkflowConfigService : IWorkflowConfigService
         foreach (var item in normalizedSteps)
         {
             var step = item.Step;
-            var stepEntity = new BuocWorkflow
+            var existingStepId = TryResolveExistingStepId(step.Id);
+            var stepEntity = existingStepId.HasValue && oldStepById.TryGetValue(existingStepId.Value, out var oldStep)
+                ? oldStep
+                : new BuocWorkflow { WorkflowId = entity.Id };
+
+            stepEntity.WorkflowId = entity.Id;
+            stepEntity.MaBuoc = step.MaBuoc;
+            stepEntity.TenBuoc = step.TenBuoc;
+            stepEntity.LoaiBuoc = step.LoaiBuoc;
+            stepEntity.ThuTu = item.Index + 1;
+            stepEntity.VaiTroXuLyHoSoId = step.VaiTroXuLyHoSoId;
+            stepEntity.SoNgayLapHoSo = step.SoNgayLapHoSo;
+            stepEntity.VaiTroKyDuyetId = step.VaiTroKyDuyetId;
+            stepEntity.SoNgayXuLy = step.SoNgayXuLy;
+            stepEntity.LoaiHan = step.LoaiHan;
+            stepEntity.NhomSongSong = step.NhomSongSong;
+            stepEntity.LaBuocJoin = step.LaBuocJoin;
+            stepEntity.NhomGiaiDoan = step.NhomGiaiDoan;
+            stepEntity.MoTa = step.MoTa;
+            stepEntity.DonViXuLyId = step.DonViXuLyId;
+            stepEntity.DonViKyHoSoId = step.DonViKyHoSoId;
+            stepEntity.BatBuocGhiChu = step.BatBuocGhiChu;
+            stepEntity.BatBuocTaiLieu = step.BatBuocTaiLieu;
+            stepEntity.BatBuocKyTruocChuyenBuoc = step.BatBuocKyTruocChuyenBuoc;
+            stepEntity.BatBuocDungSLA = step.BatBuocDungSLA;
+            stepEntity.ChoPhepTuChoi = step.ChoPhepTuChoi;
+            stepEntity.ChoPhepBoQua = step.ChoPhepBoQua;
+
+            if (stepEntity.Id == 0)
             {
-                WorkflowId = entity.Id,
-                MaBuoc = step.MaBuoc,
-                TenBuoc = step.TenBuoc,
-                LoaiBuoc = step.LoaiBuoc,
-                ThuTu = item.Index + 1,
-                VaiTroXuLyHoSoId = step.VaiTroXuLyHoSoId,
-                SoNgayLapHoSo = step.SoNgayLapHoSo,
-                VaiTroKyDuyetId = step.VaiTroKyDuyetId,
-                SoNgayXuLy = step.SoNgayXuLy,
-                LoaiHan = step.LoaiHan,
-                NhomSongSong = step.NhomSongSong,
-                LaBuocJoin = step.LaBuocJoin,
-                NhomGiaiDoan = step.NhomGiaiDoan,
-                MoTa = step.MoTa,
-                DonViXuLyId = step.DonViXuLyId,
-                DonViKyHoSoId = step.DonViKyHoSoId,
-                BatBuocGhiChu = step.BatBuocGhiChu,
-                BatBuocTaiLieu = step.BatBuocTaiLieu,
-                BatBuocKyTruocChuyenBuoc = step.BatBuocKyTruocChuyenBuoc,
-                BatBuocDungSLA = step.BatBuocDungSLA,
-                ChoPhepTuChoi = step.ChoPhepTuChoi,
-                ChoPhepBoQua = step.ChoPhepBoQua
-            };
-            _context.BuocWorkflows.Add(stepEntity);
+                _context.BuocWorkflows.Add(stepEntity);
+            }
             await _context.SaveChangesAsync();
             stepByDraftId[step.Id] = stepEntity;
         }
@@ -902,6 +944,17 @@ public class WorkflowConfigService : IWorkflowConfigService
         return selectedDraftId != null && stepByDraftId.TryGetValue(selectedDraftId, out var step)
             ? step.Id
             : null;
+    }
+
+    private static int? TryResolveExistingStepId(string? draftId)
+    {
+        if (string.IsNullOrWhiteSpace(draftId)) return null;
+
+        var value = draftId.StartsWith("be_", StringComparison.OrdinalIgnoreCase)
+            ? draftId[3..]
+            : draftId;
+
+        return int.TryParse(value, out var id) && id > 0 ? id : null;
     }
 
     private async Task<string> GenerateMaWorkflowAsync()

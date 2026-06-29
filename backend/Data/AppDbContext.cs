@@ -677,10 +677,14 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NoiDung).HasMaxLength(1000).IsRequired(false);
             entity.Property(e => e.DaDoc).HasDefaultValue(false);
             entity.Property(e => e.UrlDieuHuong).HasMaxLength(500);
+            entity.Property(e => e.NotificationKey).HasMaxLength(200);
             entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayDoc).HasColumnType("datetime2(3)");
             entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => new { e.NguoiDungId, e.DaDoc });
+            entity.HasIndex(e => new { e.NguoiDungId, e.NotificationKey })
+                .IsUnique()
+                .HasFilter("[NotificationKey] IS NOT NULL");
             entity.HasOne(e => e.NguoiDung)
                 .WithMany()
                 .HasForeignKey(e => e.NguoiDungId)
@@ -688,6 +692,10 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.GoiThau)
                 .WithMany()
                 .HasForeignKey(e => e.GoiThauId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.WorkflowStepInstance)
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowStepInstanceId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

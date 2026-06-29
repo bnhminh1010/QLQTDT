@@ -118,5 +118,6 @@ public class LichSuTrangThaiGoiThauDto
     public string? TrangThaiCu { get; set; }
     public string TrangThaiMoi { get; set; } = null!;
     public int? NguoiThayDoiId { get; set; }
+    public string? TenNguoiThayDoi { get; set; }
     public DateTime ThoiGianThayDoi { get; set; }
 }

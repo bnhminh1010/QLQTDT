@@ -1247,6 +1247,10 @@ namespace QLQTDT.Api.Migrations
                     b.Property<int>("NguoiDungId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NotificationKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("NoiDung")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -1260,6 +1264,9 @@ namespace QLQTDT.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<long?>("WorkflowStepInstanceId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("GoiThauId");
@@ -1268,6 +1275,12 @@ namespace QLQTDT.Api.Migrations
                         .IsUnique();
 
                     b.HasIndex("NguoiDungId", "DaDoc");
+
+                    b.HasIndex("NguoiDungId", "NotificationKey")
+                        .IsUnique()
+                        .HasFilter("[NotificationKey] IS NOT NULL");
+
+                    b.HasIndex("WorkflowStepInstanceId");
 
                     b.ToTable("ThongBao", (string)null);
                 });
@@ -2017,9 +2030,16 @@ namespace QLQTDT.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("QLQTDT.Api.Models.Entities.WorkflowStepInstance", "WorkflowStepInstance")
+                        .WithMany()
+                        .HasForeignKey("WorkflowStepInstanceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("GoiThau");
 
                     b.Navigation("NguoiDung");
+
+                    b.Navigation("WorkflowStepInstance");
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.VaiTro", b =>

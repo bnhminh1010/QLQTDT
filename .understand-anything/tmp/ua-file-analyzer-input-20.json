@@ -1,0 +1,31 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "backend/Migrations/20260624131415_AddBangCapLuuTruEntities.Designer.cs", "language": "csharp", "sizeLines": 1923, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260625081303_AddAuditLogColumnsSrs.cs", "language": "csharp", "sizeLines": 46, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260625081303_AddAuditLogColumnsSrs.Designer.cs", "language": "csharp", "sizeLines": 1928, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260626093311_AddWorkflowStepInstanceUserTextFields.cs", "language": "csharp", "sizeLines": 46, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260626093311_AddWorkflowStepInstanceUserTextFields.Designer.cs", "language": "csharp", "sizeLines": 1933, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260627044022_AddTheoDoiField.cs", "language": "csharp", "sizeLines": 34, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260627044022_AddTheoDoiField.Designer.cs", "language": "csharp", "sizeLines": 1949, "fileCategory": "code"},
+    {"path": "backend/Migrations/AppDbContextModelSnapshot.cs", "language": "csharp", "sizeLines": 1955, "fileCategory": "code"},
+    {"path": "backend/Data/AppDbContext.cs", "language": "csharp", "sizeLines": 694, "fileCategory": "code"},
+    {"path": "backend/Data/AuditInterceptor.cs", "language": "csharp", "sizeLines": 158, "fileCategory": "code"},
+    {"path": "backend/Data/DbInitializer.cs", "language": "csharp", "sizeLines": 427, "fileCategory": "code"},
+    {"path": "backend/Data/SeedData/HinhThucDauThauSeeder.cs", "language": "csharp", "sizeLines": 40, "fileCategory": "code"},
+    {"path": "backend/Data/SeedData/NhomVaiTroSeeder.cs", "language": "csharp", "sizeLines": 69, "fileCategory": "code"},
+    {"path": "backend/Data/SeedData/WorkflowTemplateSeeder.cs", "language": "csharp", "sizeLines": 343, "fileCategory": "code"},
+    {"path": "backend/Middleware/ExceptionMiddleware.cs", "language": "csharp", "sizeLines": 98, "fileCategory": "code"},
+    {"path": "backend/Middleware/HasPermissionAttribute.cs", "language": "csharp", "sizeLines": 68, "fileCategory": "code"},
+    {"path": "backend/Middleware/SecurityHeadersMiddleware.cs", "language": "csharp", "sizeLines": 50, "fileCategory": "code"},
+    {"path": "backend/Middlewares/ExceptionHandlingMiddleware.cs", "language": "csharp", "sizeLines": 82, "fileCategory": "code"},
+    {"path": "backend/Models/ApiResponse.cs", "language": "csharp", "sizeLines": 65, "fileCategory": "code"},
+    {"path": "backend/Models/PagedResult.cs", "language": "csharp", "sizeLines": 33, "fileCategory": "code"},
+    {"path": "backend/Program.cs", "language": "csharp", "sizeLines": 278, "fileCategory": "code"},
+    {"path": "backend/Validators/ProcessStepValidator.cs", "language": "csharp", "sizeLines": 67, "fileCategory": "code"},
+    {"path": "backend/Validators/DuyetStepValidator.cs", "language": "csharp", "sizeLines": 52, "fileCategory": "code"},
+    {"path": "backend/Validators/KhongDuyetStepValidator.cs", "language": "csharp", "sizeLines": 44, "fileCategory": "code"},
+    {"path": "backend/Validators/TraVeStepValidator.cs", "language": "csharp", "sizeLines": 36, "fileCategory": "code"}
+  ],
+  "batchImportData": {}
+}

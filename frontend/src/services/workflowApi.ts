@@ -509,6 +509,7 @@ export async function deleteParallelBranch(branchId: number): Promise<void> {
 
 export type WorkflowStateDto = {
   workflowInstanceId?: number;
+  workflowId?: number;
   workflowTen?: string;
   workflowTrangThai: string;
   buocHienTaiId?: number;
@@ -550,6 +551,7 @@ export type WorkflowStepStateDto = {
   tenNguoiKyDuyet?: string;
   ngayKyDuyet?: string;
   ketQua?: string;
+  ghiChu?: string;
   lyDoKhongDuyet?: string;
   tenVaiTroXuLy?: string;
   tenVaiTroKyDuyet?: string;
@@ -595,6 +597,16 @@ export type ProcessStepResponse = {
   soNhanhHoanThanh?: number;
   phaHienTai?: string;
   choKyDuyet: boolean;
+};
+
+export type LichSuTrangThaiGoiThauDto = {
+  id: number;
+  goiThauId: number;
+  trangThaiCu?: string;
+  trangThaiMoi: string;
+  nguoiThayDoiId?: number;
+  tenNguoiThayDoi?: string;
+  thoiGianThayDoi: string;
 };
 
 const WORKFLOW_KET_QUA_LABEL: Record<string, string> = {
@@ -652,7 +664,7 @@ export async function startWorkflow(
   return res.data;
 }
 
-export async function getLichSuTrangThai(goiThauId: number): Promise<any[]> {
-  const res = await http.get<ApiResponse<any[]>>(`/goi-thau/${goiThauId}/lich-su-trang-thai`);
+export async function getLichSuTrangThai(goiThauId: number): Promise<LichSuTrangThaiGoiThauDto[]> {
+  const res = await http.get<ApiResponse<LichSuTrangThaiGoiThauDto[]>>(`/goi-thau/${goiThauId}/lich-su-trang-thai`);
   return res.data;
 }

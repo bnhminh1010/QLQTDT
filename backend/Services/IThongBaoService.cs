@@ -9,4 +9,9 @@ public interface IThongBaoService
     Task MarkReadAsync(Guid idCongKhai, int nguoiDungId);
     Task<int> MarkAllReadAsync(int nguoiDungId);
     Task CreateAsync(ThongBao thongBao);
+    Task NotifyGoiThauMoiAsync(GoiThau goiThau);
+    Task NotifyGoiThauHoanThanhAsync(GoiThau goiThau);
+    Task NotifyGoiThauHuyAsync(GoiThau goiThau);
+    Task NotifyStepDeadlineAsync(long workflowStepInstanceId, bool overdue);
+    Task<int> SendAdminAsync(CreateAdminThongBaoRequest request);
 }

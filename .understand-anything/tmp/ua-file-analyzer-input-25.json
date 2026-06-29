@@ -1,0 +1,13 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "backend/Services/VaiTroService.cs", "language": "csharp", "sizeLines": 139, "fileCategory": "code"},
+    {"path": "backend/Services/WorkflowConfigService.cs", "language": "csharp", "sizeLines": 704, "fileCategory": "code"},
+    {"path": "backend/Services/WorkflowEngineService.cs", "language": "csharp", "sizeLines": 1225, "fileCategory": "code"}
+  ],
+  "batchImportData": {
+    "backend/Services/VaiTroService.cs": [],
+    "backend/Services/WorkflowConfigService.cs": [],
+    "backend/Services/WorkflowEngineService.cs": []
+  }
+}

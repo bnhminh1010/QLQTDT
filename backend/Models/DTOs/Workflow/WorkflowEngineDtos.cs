@@ -98,6 +98,7 @@ public class ProcessStepResponse
     public string? TenNguoiKyDuyet { get; set; }
     public DateTime? NgayKyDuyet { get; set; }
     public string? KetQua { get; set; }
+    public string? GhiChu { get; set; }
     public string? LyDoKhongDuyet { get; set; }
     public int SoBuocHoanThanh { get; set; }
     public int TongSoBuoc { get; set; }
@@ -112,6 +113,7 @@ public class ProcessStepResponse
 public class WorkflowStateDto
 {
     public long? WorkflowInstanceId { get; set; }
+    public int WorkflowId { get; set; }
     public string? WorkflowTen { get; set; }
     public string WorkflowTrangThai { get; set; } = null!;
     public int? BuocHienTaiId { get; set; }
@@ -165,6 +167,7 @@ public class WorkflowStepStateDto
     public string? TenNguoiKyDuyet { get; set; }
     public DateTime? NgayKyDuyet { get; set; }
     public string? KetQua { get; set; }
+    public string? GhiChu { get; set; }
     public string? LyDoKhongDuyet { get; set; }
     public string? TenVaiTroXuLy { get; set; }
     public string? TenVaiTroKyDuyet { get; set; }

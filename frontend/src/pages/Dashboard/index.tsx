@@ -3,6 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { SelectField } from "@/components/ui/select";
 import { searchGoiThau } from "@/services/goiThauApi";
 import {
+  getThongBaos,
+  markAllReadThongBao,
+  markReadThongBao,
+  type ThongBaoItem,
+} from "@/services/thongBaoApi";
+import {
   getWorkflowState,
   formatWorkflowKetQua,
   type WorkflowStateDto,
@@ -108,7 +114,6 @@ type TableRow = {
 };
 
 const TABLE_ROWS: TableRow[] = []; void TABLE_ROWS;
-const NOTIFICATIONS: any[] = []; void NOTIFICATIONS;
 const APPROVAL_ITEMS: any[] = [];
 
 function Badge({ label }: { label: BadgeStatus }) {
@@ -211,7 +216,8 @@ export default function Dashboard() {
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifs, setNotifs] = useState<any[]>([]);
+  const [notifs, setNotifs] = useState<ThongBaoItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<BadgeStatus | "">("");
   const notifRef = useRef<HTMLDivElement>(null);
@@ -278,8 +284,26 @@ export default function Dashboard() {
     })();
   }, []);
 
+  async function loadNotifications() {
+    try {
+      const [list, unread] = await Promise.all([
+        getThongBaos({ page: 1, pageSize: 10 }),
+        getThongBaos({ page: 1, pageSize: 1, daDoc: false }),
+      ]);
+      setNotifs(list.items);
+      setUnreadCount(unread.totalCount);
+    } catch {
+      // Dropdown thông báo không được làm hỏng dashboard chính.
+    }
+  }
+
+  useEffect(() => {
+    void loadNotifications();
+    const timer = window.setInterval(() => void loadNotifications(), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const selected = tableRows.length > 0 ? (tableRows[selectedIdx] || tableRows[0]) : null;
-  const unreadCount = notifs.filter((n: any) => !n.read).length;
 
   const filteredRows = tableRows.filter((r) => {
     const matchSearch =
@@ -303,7 +327,22 @@ export default function Dashboard() {
   }, []);
 
   function markAllRead() {
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllReadThongBao()
+      .then(() => {
+        setNotifs((prev) => prev.map((n) => ({ ...n, daDoc: true })));
+        setUnreadCount(0);
+      })
+      .catch(() => {});
+  }
+
+  function openNotification(item: ThongBaoItem) {
+    markReadThongBao(item.idCongKhai).catch(() => {});
+    setNotifs((prev) =>
+      prev.map((x) => x.idCongKhai === item.idCongKhai ? { ...x, daDoc: true } : x),
+    );
+    setUnreadCount((count) => item.daDoc ? count : Math.max(0, count - 1));
+    setNotifOpen(false);
+    if (item.urlDieuHuong) navigate(item.urlDieuHuong);
   }
 
   return (
@@ -342,34 +381,36 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
+                  {notifs.length === 0 && (
+                    <div className="px-4 py-8 text-center text-xs text-slate-400">
+                      Chưa có thông báo nào
+                    </div>
+                  )}
                   {notifs.map((n) => (
                     <div
-                      key={n.id}
-                      onClick={() =>
-                        setNotifs((prev) =>
-                          prev.map((x) =>
-                            x.id === n.id ? { ...x, read: true } : x,
-                          ),
-                        )
-                      }
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? "bg-blue-50/40" : ""}`}
+                      key={n.idCongKhai}
+                      onClick={() => openNotification(n)}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors ${!n.daDoc ? "bg-blue-50/40" : ""}`}
                     >
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm ${n.color}`}
-                      >
-                        <i className={`fa-solid ${n.icon}`} />
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-sm">
+                        <i className="fa-solid fa-bell" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p
-                          className={`text-xs ${!n.read ? "font-semibold text-slate-800" : "text-slate-600"}`}
+                          className={`text-xs ${!n.daDoc ? "font-semibold text-slate-800" : "text-slate-600"}`}
                         >
-                          {n.title}
+                          {n.tieuDe}
                         </p>
+                        {n.noiDung && (
+                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
+                            {n.noiDung}
+                          </p>
+                        )}
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          {n.time}
+                          {n.ngayTao ? new Date(n.ngayTao).toLocaleString("vi-VN") : ""}
                         </p>
                       </div>
-                      {!n.read && (
+                      {!n.daDoc && (
                         <div className="w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0" />
                       )}
                     </div>

@@ -242,8 +242,10 @@ public class HoSoDuThauService : IHoSoDuThauService
         hoSo.GiaTrungThau = request.GiaTrungThau;
         hoSo.NgayCapNhat = DateTime.UtcNow;
 
+        var oldGoiThauStatus = goiThau.TrangThai;
         goiThau.TrangThai = GoiThauTrangThai.DA_CHON_NHA_THAU;
         goiThau.NgayCapNhat = DateTime.UtcNow;
+        AddStatusHistory(goiThau.Id, oldGoiThauStatus, goiThau.TrangThai, currentUserId);
 
         await _db.SaveChangesAsync();
         await transaction.CommitAsync();
@@ -291,6 +293,20 @@ public class HoSoDuThauService : IHoSoDuThauService
         if (claim is null || !int.TryParse(claim.Value, out var id))
             throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
         return id;
+    }
+
+    private void AddStatusHistory(int goiThauId, string? oldStatus, string newStatus, int? userId)
+    {
+        if (oldStatus == newStatus) return;
+
+        _db.LichSuTrangThaiGoiThaus.Add(new LichSuTrangThaiGoiThau
+        {
+            GoiThauId = goiThauId,
+            TrangThaiCu = oldStatus,
+            TrangThaiMoi = newStatus,
+            NguoiThayDoiId = userId,
+            ThoiGianThayDoi = DateTime.UtcNow
+        });
     }
 
     public async Task EvaluateAsync(int id, EvaluateHoSoRequest request)

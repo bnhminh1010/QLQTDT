@@ -1,0 +1,22 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "frontend/src/pages/KhoaPhong/SuaKhoaPhongModal.tsx", "language": "typescript", "sizeLines": 78, "fileCategory": "code"},
+    {"path": "frontend/src/pages/KhoaPhong/ThemKhoaPhongModal.tsx", "language": "typescript", "sizeLines": 86, "fileCategory": "code"},
+    {"path": "frontend/src/pages/KhoaPhong/index.tsx", "language": "typescript", "sizeLines": 235, "fileCategory": "code"}
+  ],
+  "batchImportData": {
+    "frontend/src/pages/KhoaPhong/index.tsx": [
+      "frontend/src/pages/KhoaPhong/ThemKhoaPhongModal.tsx",
+      "frontend/src/pages/KhoaPhong/SuaKhoaPhongModal.tsx",
+      "frontend/src/pages/KhoaPhong/types.ts",
+      "frontend/src/services/adminApi.ts"
+    ],
+    "frontend/src/pages/KhoaPhong/SuaKhoaPhongModal.tsx": [
+      "frontend/src/pages/KhoaPhong/types.ts"
+    ],
+    "frontend/src/pages/KhoaPhong/ThemKhoaPhongModal.tsx": [
+      "frontend/src/pages/KhoaPhong/types.ts"
+    ]
+  }
+}

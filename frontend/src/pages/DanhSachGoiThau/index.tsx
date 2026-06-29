@@ -11,11 +11,13 @@ import {
   processStep,
   getWorkflowDesignSteps,
   getParallelGroups,
+  getLichSuTrangThai,
 
   type WorkflowStateDto,
   type WorkflowStepStateDto,
   type BuocWorkflowDto,
   type ParallelGroupDto,
+  type LichSuTrangThaiGoiThauDto,
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 
@@ -42,6 +44,7 @@ type QuyTrinhStepDetail = {
   nguoiKy?: string;
   ngayKy?: string;
   ketQua?: string;
+  ghiChu?: string;
   lyDoKhongDuyet?: string;
   slaText?: string;
 };
@@ -56,10 +59,12 @@ type ParallelInfo = {
     status: string;
     currentStep: string;
     processor: string;
+    ghiChu?: string;
     steps: {
       name: string;
       backendId?: number;
       state: "done" | "current" | "idle" | "skipped";
+      ghiChu?: string;
     }[];
   }[];
   mergeStatus: string;
@@ -147,6 +152,29 @@ function parseGoiThauNumericId(id: string) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function formatHistoryDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function mapStatusHistoryToModalEntry(item: LichSuTrangThaiGoiThauDto): LichSuGoiThau {
+  const oldStatus = item.trangThaiCu || "Khởi tạo";
+  return {
+    id: String(item.id),
+    goiThauId: `GT${item.goiThauId}`,
+    thoiGian: formatHistoryDate(item.thoiGianThayDoi),
+    nguoiThucHien: item.tenNguoiThayDoi || (item.nguoiThayDoiId ? `Người dùng #${item.nguoiThayDoiId}` : "Hệ thống"),
+    noiDung: `${oldStatus} -> ${item.trangThaiMoi}`,
+  };
+}
+
 function getApiErrorMessage(error: unknown, fallback: string) {
   if (typeof error !== "object" || error === null || !("response" in error)) {
     return fallback;
@@ -205,6 +233,7 @@ function mapWorkflowStepState(
     nguoiKy: step.tenNguoiKyDuyet,
     ngayKy: step.ngayKyDuyet?.slice(0, 10),
     ketQua: formatWorkflowKetQua(step.ketQua),
+    ghiChu: step.ghiChu,
     lyDoKhongDuyet: step.lyDoKhongDuyet,
     slaText: overdue ? "Quá hạn" : TIEN_DO_LABEL[step.tinhTrangTienDo ?? ""] || undefined,
   };
@@ -255,6 +284,34 @@ function dedupeWorkflowStepsByDesignStep(
   return Array.from(byDesignStep.values()).sort((a, b) => a.buocWorkflowId - b.buocWorkflowId);
 }
 
+function rankDetailStep(step: QuyTrinhStepDetail, activeStepIds: Set<number>) {
+  if (step.backendId != null && activeStepIds.has(step.backendId)) return 3;
+  if (step.ngayXuLy || step.ketQua || step.state === "done") return 2;
+  return 1;
+}
+
+function dedupeDetailStepsByDesignStep(
+  steps: QuyTrinhStepDetail[],
+  activeStepIds: Set<number>,
+) {
+  const byDesignStep = new Map<number | string, QuyTrinhStepDetail>();
+
+  steps.forEach((step, index) => {
+    const key = step.buocWorkflowId ?? `runtime-${step.backendId ?? index}`;
+    const previous = byDesignStep.get(key);
+    const stepRank = rankDetailStep(step, activeStepIds);
+    const previousRank = previous ? rankDetailStep(previous, activeStepIds) : 0;
+    const stepId = step.backendId ?? 0;
+    const previousId = previous?.backendId ?? 0;
+
+    if (!previous || stepRank > previousRank || (stepRank === previousRank && stepId > previousId)) {
+      byDesignStep.set(key, step);
+    }
+  });
+
+  return Array.from(byDesignStep.values());
+}
+
 function buildParallelInfoBySplitStep(
   groups: ParallelGroupDto[],
   runtimeSteps: WorkflowStepStateDto[],
@@ -263,11 +320,44 @@ function buildParallelInfoBySplitStep(
 ) {
   const activeStepIds = new Set(currentSteps.map((step) => step.stepInstanceId));
   return groups.reduce<Record<number, ParallelInfo>>((acc, group) => {
+    const branchIds = new Set(group.branches.map((branch) => branch.id));
+    const groupRuntimeSteps = runtimeSteps.filter((step) =>
+      step.nhanhWorkflowId != null && branchIds.has(step.nhanhWorkflowId),
+    );
+    const completedBranchCount = group.branches.filter((branch) => {
+      const branchSteps = groupRuntimeSteps.filter((step) => step.nhanhWorkflowId === branch.id);
+      return branchSteps.length > 0 && branchSteps.every((step) =>
+        step.trangThai === "HOAN_TAT" ||
+        step.trangThai === "COMPLETED" ||
+        Boolean(step.ngayHoanThanh),
+      );
+    }).length;
+    const terminalBranchCount = group.branches.filter((branch) => {
+      const branchSteps = groupRuntimeSteps.filter((step) => step.nhanhWorkflowId === branch.id);
+      return branchSteps.length > 0 && branchSteps.every((step) =>
+        step.trangThai === "HOAN_TAT" ||
+        step.trangThai === "COMPLETED" ||
+        step.trangThai === "SKIPPED" ||
+        Boolean(step.ngayHoanThanh),
+      );
+    }).length;
+    const requiredBranchCount = group.dieuKienHopNhat === "ANY"
+      ? 1
+      : group.dieuKienHopNhat === "COUNT"
+        ? group.soNhanhHopNhatToiThieu ?? 1
+        : group.branches.length;
+    const progressBranchCount = group.dieuKienHopNhat === "SKIP_ALL" ? terminalBranchCount : completedBranchCount;
+    const lockedStage = progressBranchCount >= requiredBranchCount
+      ? "Điều kiện hợp nhất đã thỏa, hệ thống đang mở bước sau hợp nhất."
+      : `Chưa mở bước sau hợp nhất: mới có ${progressBranchCount}/${requiredBranchCount} nhánh thỏa điều kiện.`;
+
     acc[group.buocTachNhanhId] = {
       title: group.tenNhom,
       condition: group.dieuKienHopNhat === "ALL"
         ? "Tất cả nhánh phải hoàn tất trước khi hợp nhất."
-        : `Cần tối thiểu ${group.soNhanhHopNhatToiThieu ?? 1} nhánh hoàn tất trước khi hợp nhất.`,
+        : group.dieuKienHopNhat === "SKIP_ALL"
+          ? "Cho phép hợp nhất khi tất cả nhánh đã hoàn tất hoặc đã bỏ qua."
+          : `Cần tối thiểu ${group.soNhanhHopNhatToiThieu ?? 1} nhánh hoàn tất trước khi hợp nhất.`,
       branches: group.branches.map((branch) => {
         const branchRuntimeSteps = dedupeWorkflowStepsByDesignStep(
           runtimeSteps.filter((step) => step.nhanhWorkflowId === branch.id),
@@ -279,6 +369,7 @@ function buildParallelInfoBySplitStep(
               name: step.tenBuoc,
               backendId: step.id,
               state: getBranchStepState(step, activeStepIds),
+              ghiChu: step.ghiChu,
             }))
           : branchDesignSteps.map((step) => ({
               name: step.tenBuoc,
@@ -309,19 +400,24 @@ function buildParallelInfoBySplitStep(
         const allSkipped =
           branchRuntimeSteps.length > 0 &&
           branchRuntimeSteps.every((step) => step.trangThai === "SKIPPED");
+        const noteSource = currentBranchStep?.ghiChu?.trim()
+          ? currentBranchStep
+          : [...branchRuntimeSteps].reverse().find((step) => step.ghiChu?.trim())
+          ?? terminalStep;
 
         return {
           name: branch.tenNhanh,
-          backendId: terminalStep?.id ?? currentBranchStep?.id ?? branchRuntimeSteps[branchRuntimeSteps.length - 1]?.id,
+          backendId: currentBranchStep?.id ?? terminalStep?.id ?? branchRuntimeSteps[branchRuntimeSteps.length - 1]?.id,
           progress: `${completedCount}/${steps.length}`,
           status: anyCompleted ? "Đã hoàn tất" : allSkipped ? "Đã bỏ qua" : currentBranchStep ? getStepProgressLabel(currentBranchStep) : "Chưa đến lượt xử lý",
           currentStep: currentBranchStep?.tenBuoc || terminalStep?.tenBuoc || steps[0]?.name || "—",
           processor: currentBranchStep?.tenNguoiXuLy || currentBranchStep?.tenVaiTroXuLy || terminalStep?.tenNguoiXuLy || "—",
+          ghiChu: noteSource?.ghiChu,
           steps,
         };
       }),
       mergeStatus: `Hợp nhất tại bước #${group.buocSauHopNhatId}`,
-      lockedStage: "Các bước sau hợp nhất chỉ mở khi điều kiện nhánh được thỏa mãn.",
+      lockedStage,
     };
     return acc;
   }, {});
@@ -428,10 +524,11 @@ function ConfirmModal({
 type HistoryModalProps = {
   goiThau: GoiThau;
   entries: LichSuGoiThau[];
+  loading?: boolean;
   onClose: () => void;
 };
 
-function HistoryModal({ goiThau, entries, onClose }: HistoryModalProps) {
+function HistoryModal({ goiThau, entries, loading = false, onClose }: HistoryModalProps) {
   const hasEntries = entries.length > 0;
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
@@ -456,7 +553,14 @@ function HistoryModal({ goiThau, entries, onClose }: HistoryModalProps) {
         </div>
 
         <div className="max-h-[60vh] overflow-y-auto px-6 py-5">
-          {!hasEntries ? (
+          {loading ? (
+            <div className="py-10 text-center">
+              <i className="fa-solid fa-spinner fa-spin text-3xl text-blue-300" />
+              <p className="text-sm text-slate-400 mt-3">
+                Đang tải lịch sử gói thầu...
+              </p>
+            </div>
+          ) : !hasEntries ? (
             <div className="py-10 text-center">
               <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-200" />
               <p className="text-sm text-slate-400 mt-3">
@@ -524,6 +628,8 @@ export default function DanhSachGoiThau() {
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GoiThau | null>(null);
   const [historyTarget, setHistoryTarget] = useState<GoiThau | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<LichSuGoiThau[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Load data from API
   const loadData = useCallback(async () => {
@@ -551,6 +657,27 @@ export default function DanhSachGoiThau() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  async function openHistory(item: GoiThau) {
+    setHistoryTarget(item);
+    setHistoryEntries([]);
+
+    const numericId = parseGoiThauNumericId(item.id);
+    if (!numericId) {
+      toast.error("ID gói thầu không hợp lệ.");
+      return;
+    }
+
+    setHistoryLoading(true);
+    try {
+      const histories = await getLichSuTrangThai(numericId);
+      setHistoryEntries(histories.map(mapStatusHistoryToModalEntry));
+    } catch (error: any) {
+      toast.error(error?.message || "Không thể tải lịch sử gói thầu.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("goiThauId");
@@ -587,12 +714,17 @@ export default function DanhSachGoiThau() {
       setWorkflowLoading(true);
 
       try {
-        const [state, steps, design, groups] = await Promise.all([
+        const [state, steps] = await Promise.all([
           getWorkflowState(numericId),
           getWorkflowSteps(numericId),
-          selected.workflowId ? getWorkflowDesignSteps(selected.workflowId).catch(() => [] as BuocWorkflowDto[]) : Promise.resolve([]),
-          selected.workflowId ? getParallelGroups(selected.workflowId).catch(() => [] as ParallelGroupDto[]) : Promise.resolve([]),
         ]);
+        const workflowId = selected.workflowId ?? state.workflowId;
+        const [design, groups] = workflowId
+          ? await Promise.all([
+              getWorkflowDesignSteps(workflowId).catch(() => [] as BuocWorkflowDto[]),
+              getParallelGroups(workflowId).catch(() => [] as ParallelGroupDto[]),
+            ])
+          : [[] as BuocWorkflowDto[], [] as ParallelGroupDto[]];
 
         if (cancelled) return;
         setWorkflowState(state);
@@ -787,14 +919,23 @@ export default function DanhSachGoiThau() {
             : selected.trangThai === "Chờ duyệt"
               ? "Sắp quá hạn"
               : "Đúng hạn";
+    const uniqueWorkflowSteps = workflowState
+      ? dedupeWorkflowStepsByDesignStep(workflowState.steps, activeStepIds)
+      : [];
+    const uniqueCompletedSteps = uniqueWorkflowSteps.filter((step) =>
+      step.trangThai === "HOAN_TAT" ||
+      step.trangThai === "COMPLETED" ||
+      step.trangThai === "SKIPPED" ||
+      step.ngayHoanThanh,
+    ).length;
     const progressText = workflowState
-      ? `${workflowState.soBuocHoanThanh}/${workflowState.tongSoBuoc}`
+      ? `${uniqueCompletedSteps}/${uniqueWorkflowSteps.length}`
       : selected.detail.buoc;
 
     const progressPct =
-      workflowState && workflowState.tongSoBuoc > 0
+      workflowState && uniqueWorkflowSteps.length > 0
         ? `${Math.round(
-            (workflowState.soBuocHoanThanh / workflowState.tongSoBuoc) * 100,
+            (uniqueCompletedSteps / uniqueWorkflowSteps.length) * 100,
           )}%`
         : selected.detail.pct;
 
@@ -812,8 +953,11 @@ export default function DanhSachGoiThau() {
         .filter((step) => step.nhanhWorkflowId != null)
         .map((step) => step.id),
     ]);
-    const mainDetailSteps = detailInfo.steps.filter(
-      (step) => !step.buocWorkflowId || !branchWorkflowStepIds.has(step.buocWorkflowId),
+    const mainDetailSteps = dedupeDetailStepsByDesignStep(
+      detailInfo.steps.filter(
+        (step) => !step.buocWorkflowId || !branchWorkflowStepIds.has(step.buocWorkflowId),
+      ),
+      activeStepIds,
     );
     const mainDesignSteps = designSteps.filter(
       (step) => step.nhanhWorkflowId == null,
@@ -1052,6 +1196,11 @@ export default function DanhSachGoiThau() {
                       <span className="font-semibold">Lý do không duyệt:</span> {step.lyDoKhongDuyet}
                     </div>
                   )}
+                  {step.ghiChu && (
+                    <div className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700 text-[11px]">
+                      <span className="font-semibold">Ghi chú / lý do thực tế:</span> {step.ghiChu}
+                    </div>
+                  )}
                   <div className="flex justify-between gap-3">
                     <span className="text-slate-400">Tình trạng tiến độ</span>
                     <span className={`font-semibold text-right ${
@@ -1089,6 +1238,11 @@ export default function DanhSachGoiThau() {
                         <div className="text-[11px] text-slate-500">
                           Người xử lý: <span className="font-semibold text-slate-700">{branch.processor}</span>
                         </div>
+                        {branch.ghiChu && (
+                          <div className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700">
+                            <span className="font-semibold">Ghi chú / lý do thực tế:</span> {branch.ghiChu}
+                          </div>
+                        )}
                         <details className="mt-2 rounded-lg border border-slate-100 bg-slate-50/70 px-2 py-1">
                           <summary className="cursor-pointer select-none text-[11px] font-semibold text-blue-700">
                             Các bước trong nhánh
@@ -1119,6 +1273,11 @@ export default function DanhSachGoiThau() {
                                   {branchStep.name}
                                   {branchStep.state === "current" && (
                                     <span className="font-semibold text-amber-700"> (Bước hiện tại)</span>
+                                  )}
+                                  {branchStep.ghiChu && (
+                                    <span className="mt-0.5 block text-[10px] text-amber-700">
+                                      Ghi chú: {branchStep.ghiChu}
+                                    </span>
                                   )}
                                 </span>
                               </button>
@@ -1223,7 +1382,7 @@ export default function DanhSachGoiThau() {
             Xử lý bước hiện tại
           </button>
           <button
-            onClick={() => setHistoryTarget(selected)}
+            onClick={() => openHistory(selected)}
             className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
           >
             <i className="fa-solid fa-clock-rotate-left text-xs" /> Lịch sử xử lý
@@ -1623,10 +1782,12 @@ export default function DanhSachGoiThau() {
       {historyTarget && (
         <HistoryModal
           goiThau={historyTarget}
-          entries={HISTORY_LOGS.filter(
-            (entry) => entry.goiThauId === historyTarget.id,
-          )}
-          onClose={() => setHistoryTarget(null)}
+          entries={historyEntries}
+          loading={historyLoading}
+          onClose={() => {
+            setHistoryTarget(null);
+            setHistoryEntries([]);
+          }}
         />
       )}
     </>

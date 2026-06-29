@@ -17,6 +17,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ITenderAccessService _tenderAccess;
     private readonly IWorkflowEngineService _workflowEngine;
+    private readonly IThongBaoService _thongBaoService;
     private readonly ILogger<GoiThauService> _logger;
 
     public GoiThauService(
@@ -24,11 +25,13 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         IHttpContextAccessor httpContextAccessor,
         ITenderAccessService tenderAccess,
         IWorkflowEngineService workflowEngine,
+        IThongBaoService thongBaoService,
         ILogger<GoiThauService> logger) : base(db)
     {
         _httpContextAccessor = httpContextAccessor;
         _tenderAccess = tenderAccess;
         _workflowEngine = workflowEngine;
+        _thongBaoService = thongBaoService;
         _logger = logger;
     }
 
@@ -224,15 +227,21 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
         return await _db.LichSuTrangThaiGoiThaus
             .Where(l => l.GoiThauId == id)
-            .OrderByDescending(l => l.ThoiGianThayDoi)
+            .GroupJoin(
+                _db.NguoiDungs,
+                l => l.NguoiThayDoiId,
+                n => n.Id,
+                (l, users) => new { History = l, User = users.FirstOrDefault() })
+            .OrderByDescending(l => l.History.ThoiGianThayDoi)
             .Select(l => new LichSuTrangThaiGoiThauDto
             {
-                Id = l.Id,
-                GoiThauId = l.GoiThauId,
-                TrangThaiCu = l.TrangThaiCu,
-                TrangThaiMoi = l.TrangThaiMoi,
-                NguoiThayDoiId = l.NguoiThayDoiId,
-                ThoiGianThayDoi = l.ThoiGianThayDoi
+                Id = l.History.Id,
+                GoiThauId = l.History.GoiThauId,
+                TrangThaiCu = l.History.TrangThaiCu,
+                TrangThaiMoi = l.History.TrangThaiMoi,
+                NguoiThayDoiId = l.History.NguoiThayDoiId,
+                TenNguoiThayDoi = l.User != null ? l.User.HoTen : null,
+                ThoiGianThayDoi = l.History.ThoiGianThayDoi
             })
             .ToListAsync();
     }
@@ -324,6 +333,8 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 };
 
                 var created = await base.CreateAsync(entity);
+                AddStatusHistory(created.Id, null, created.TrangThai, currentUserId);
+                await _db.SaveChangesAsync();
 
                 // Auto-start workflow if workflow template matched
                 if (workflowId.HasValue)
@@ -343,6 +354,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                     }
                 }
 
+                await _thongBaoService.NotifyGoiThauMoiAsync(created);
                 return await GetChiTietAsync(created.Id);
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
@@ -419,6 +431,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
         entity.TrangThaiHoatDong = false;
         entity.NgayCapNhat = DateTime.UtcNow;
+        AddStatusHistory(entity.Id, entity.TrangThai, "DA_XOA", userId);
         await _db.SaveChangesAsync();
     }
 
@@ -486,13 +499,30 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
         if (!entity.TrangThaiHoatDong)
             throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
 
+        var oldStatus = entity.TrangThai;
         entity.TrangThai = GoiThauTrangThai.HUY_BO;
         entity.NgayCapNhat = DateTime.UtcNow;
+        AddStatusHistory(entity.Id, oldStatus, entity.TrangThai, userId);
         await _db.SaveChangesAsync();
+        await _thongBaoService.NotifyGoiThauHuyAsync(entity);
         _logger.LogInformation(
             "Cancel tender succeeded. GoiThauId={GoiThauId}, MaGoiThau={MaGoiThau}, UserId={UserId}",
             entity.Id,
             entity.MaGoiThau,
             userId);
+    }
+
+    private void AddStatusHistory(int goiThauId, string? oldStatus, string newStatus, int? userId)
+    {
+        if (oldStatus == newStatus) return;
+
+        _db.LichSuTrangThaiGoiThaus.Add(new LichSuTrangThaiGoiThau
+        {
+            GoiThauId = goiThauId,
+            TrangThaiCu = oldStatus,
+            TrangThaiMoi = newStatus,
+            NguoiThayDoiId = userId,
+            ThoiGianThayDoi = DateTime.UtcNow
+        });
     }
 }

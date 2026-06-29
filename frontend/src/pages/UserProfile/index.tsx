@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getCurrentUserApi, sendProfileChangeRequest, updateProfileApi, logoutApi, clearStoredToken } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
-import { getThongBaos, markAllReadThongBao } from "@/services/thongBaoApi";
+import { getThongBaos, markAllReadThongBao, markReadThongBao } from "@/services/thongBaoApi";
 import type { ThongBaoItem } from "@/services/thongBaoApi";
 
 const inputCls =
@@ -99,6 +99,7 @@ export default function UserProfile() {
   }
 
   function handleOpenNotification(item: ThongBaoItem) {
+    markReadThongBao(item.idCongKhai).catch(() => {});
     setNotifs((prev) => prev.map((x) => x.idCongKhai === item.idCongKhai ? { ...x, daDoc: true } : x));
     if (item.urlDieuHuong) navigate(item.urlDieuHuong);
   }

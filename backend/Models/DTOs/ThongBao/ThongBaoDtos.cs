@@ -16,3 +16,13 @@ public class ThongBaoListResponse
     public int TotalCount { get; set; }
     public List<ThongBaoListItemDto> Items { get; set; } = [];
 }
+
+public class CreateAdminThongBaoRequest
+{
+    public List<int> NguoiDungIds { get; set; } = [];
+    public bool GuiTatCa { get; set; }
+    public string TieuDe { get; set; } = null!;
+    public string? NoiDung { get; set; }
+    public string? UrlDieuHuong { get; set; }
+    public int? GoiThauId { get; set; }
+}

@@ -11,10 +11,13 @@ public class ThongBao
     public string? NoiDung { get; set; }
     public bool DaDoc { get; set; }
     public string? UrlDieuHuong { get; set; }
+    public long? WorkflowStepInstanceId { get; set; }
+    public string? NotificationKey { get; set; }
     public DateTime NgayTao { get; set; }
     public DateTime? NgayDoc { get; set; }
 
     // Navigation
     public NguoiDung? NguoiDung { get; set; }
     public GoiThau? GoiThau { get; set; }
+    public WorkflowStepInstance? WorkflowStepInstance { get; set; }
 }

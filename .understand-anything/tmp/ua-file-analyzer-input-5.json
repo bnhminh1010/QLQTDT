@@ -1,0 +1,33 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "frontend/src/components/ui/button.tsx", "language": "typescript", "sizeLines": 71, "fileCategory": "code"},
+    {"path": "frontend/src/components/ui/select.tsx", "language": "typescript", "sizeLines": 142, "fileCategory": "code"},
+    {"path": "frontend/src/lib/utils.ts", "language": "typescript", "sizeLines": 6, "fileCategory": "code"},
+    {"path": "frontend/src/pages/BaoCao/TaoBaoCaoModal.tsx", "language": "typescript", "sizeLines": 252, "fileCategory": "code"},
+    {"path": "frontend/src/pages/NguoiDung/SuaNguoiDungModal.tsx", "language": "typescript", "sizeLines": 234, "fileCategory": "code"},
+    {"path": "frontend/src/pages/NguoiDung/ThemNguoiDungModal.tsx", "language": "typescript", "sizeLines": 350, "fileCategory": "code"},
+    {"path": "frontend/src/pages/NguoiDung/index.tsx", "language": "typescript", "sizeLines": 720, "fileCategory": "code"},
+    {"path": "frontend/src/pages/NguoiDung/types.ts", "language": "typescript", "sizeLines": 50, "fileCategory": "code"}
+  ],
+  "batchImportData": {
+    "frontend/src/components/ui/button.tsx": ["frontend/src/lib/utils.ts"],
+    "frontend/src/components/ui/select.tsx": ["frontend/src/lib/utils.ts"],
+    "frontend/src/lib/utils.ts": [],
+    "frontend/src/pages/BaoCao/TaoBaoCaoModal.tsx": ["frontend/src/components/ui/select.tsx"],
+    "frontend/src/pages/NguoiDung/SuaNguoiDungModal.tsx": ["frontend/src/components/ui/select.tsx", "frontend/src/pages/NguoiDung/types.ts"],
+    "frontend/src/pages/NguoiDung/ThemNguoiDungModal.tsx": ["frontend/src/components/ui/select.tsx", "frontend/src/pages/NguoiDung/types.ts"],
+    "frontend/src/pages/NguoiDung/index.tsx": ["frontend/src/components/ui/select.tsx", "frontend/src/pages/NguoiDung/SuaNguoiDungModal.tsx", "frontend/src/pages/NguoiDung/ThemNguoiDungModal.tsx", "frontend/src/pages/NguoiDung/types.ts", "frontend/src/services/adminApi.ts"],
+    "frontend/src/pages/NguoiDung/types.ts": []
+  },
+  "batchImportData": {
+    "frontend/src/components/ui/button.tsx": ["frontend/src/lib/utils.ts"],
+    "frontend/src/components/ui/select.tsx": ["frontend/src/lib/utils.ts"],
+    "frontend/src/lib/utils.ts": [],
+    "frontend/src/pages/BaoCao/TaoBaoCaoModal.tsx": ["frontend/src/components/ui/select.tsx"],
+    "frontend/src/pages/NguoiDung/SuaNguoiDungModal.tsx": ["frontend/src/components/ui/select.tsx", "frontend/src/pages/NguoiDung/types.ts"],
+    "frontend/src/pages/NguoiDung/ThemNguoiDungModal.tsx": ["frontend/src/components/ui/select.tsx", "frontend/src/pages/NguoiDung/types.ts"],
+    "frontend/src/pages/NguoiDung/index.tsx": ["frontend/src/components/ui/select.tsx", "frontend/src/pages/NguoiDung/SuaNguoiDungModal.tsx", "frontend/src/pages/NguoiDung/ThemNguoiDungModal.tsx", "frontend/src/pages/NguoiDung/types.ts", "frontend/src/services/adminApi.ts"],
+    "frontend/src/pages/NguoiDung/types.ts": []
+  }
+}

@@ -1,0 +1,282 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 3,
+  "filesSkipped": [
+    "frontend/src/components/ui/utils.ts",
+    "frontend/src/util/toast.ts",
+    "frontend/src/util/token.ts",
+    "frontend/src/App.css",
+    "frontend/src/index.css"
+  ],
+  "results": [
+    {
+      "path": "frontend/src/components/ui/button.tsx",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 71,
+      "nonEmptyLines": 65,
+      "functions": [
+        {
+          "name": "Button",
+          "startLine": 51,
+          "endLine": 69,
+          "params": [
+            "{\n  className,\n  variant = \"default\",\n  size = \"default\",\n  asChild = false,\n  ...props\n}"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "Button",
+          "line": 71,
+          "isDefault": false
+        },
+        {
+          "name": "buttonVariants",
+          "line": 71,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "Button",
+          "callee": "cn",
+          "lineNumber": 65
+        },
+        {
+          "caller": "Button",
+          "callee": "buttonVariants",
+          "lineNumber": 65
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 2,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "frontend/src/components/ui/select.tsx",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 142,
+      "nonEmptyLines": 133,
+      "functions": [
+        {
+          "name": "SelectTrigger",
+          "startLine": 11,
+          "endLine": 32,
+          "params": [
+            "{\n  className,\n  children,\n  ...props\n}"
+          ]
+        },
+        {
+          "name": "SelectContent",
+          "startLine": 34,
+          "endLine": 63,
+          "params": [
+            "{\n  className,\n  children,\n  position = \"popper\",\n  ...props\n}"
+          ]
+        },
+        {
+          "name": "SelectItem",
+          "startLine": 65,
+          "endLine": 87,
+          "params": [
+            "{\n  className,\n  children,\n  ...props\n}"
+          ]
+        },
+        {
+          "name": "SelectField",
+          "startLine": 105,
+          "endLine": 132,
+          "params": [
+            "{\n  value,\n  onValueChange,\n  options,\n  placeholder = \"Chọn\",\n  className,\n  triggerClassName,\n  disabled,\n}"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "Select",
+          "line": 134,
+          "isDefault": false
+        },
+        {
+          "name": "SelectContent",
+          "line": 134,
+          "isDefault": false
+        },
+        {
+          "name": "SelectField",
+          "line": 134,
+          "isDefault": false
+        },
+        {
+          "name": "SelectGroup",
+          "line": 134,
+          "isDefault": false
+        },
+        {
+          "name": "SelectItem",
+          "line": 134,
+          "isDefault": false
+        },
+        {
+          "name": "SelectTrigger",
+          "line": 134,
+          "isDefault": false
+        },
+        {
+          "name": "SelectValue",
+          "line": 134,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "SelectTrigger",
+          "callee": "cn",
+          "lineNumber": 18
+        },
+        {
+          "caller": "SelectContent",
+          "callee": "cn",
+          "lineNumber": 44
+        },
+        {
+          "caller": "SelectContent",
+          "callee": "cn",
+          "lineNumber": 52
+        },
+        {
+          "caller": "SelectItem",
+          "callee": "cn",
+          "lineNumber": 72
+        },
+        {
+          "caller": "SelectField",
+          "callee": "cn",
+          "lineNumber": 116
+        },
+        {
+          "caller": "SelectField",
+          "callee": "options.map",
+          "lineNumber": 120
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 7,
+        "functionCount": 4,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "frontend/src/util/http.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 92,
+      "nonEmptyLines": 76,
+      "functions": [
+        {
+          "name": "_send",
+          "startLine": 16,
+          "endLine": 30,
+          "params": [
+            "method",
+            "path",
+            "data",
+            "config"
+          ]
+        },
+        {
+          "name": "get",
+          "startLine": 76,
+          "endLine": 77,
+          "params": [
+            "path",
+            "config"
+          ]
+        },
+        {
+          "name": "post",
+          "startLine": 79,
+          "endLine": 80,
+          "params": [
+            "path",
+            "data",
+            "config"
+          ]
+        },
+        {
+          "name": "put",
+          "startLine": 82,
+          "endLine": 83,
+          "params": [
+            "path",
+            "data",
+            "config"
+          ]
+        },
+        {
+          "name": "patch",
+          "startLine": 85,
+          "endLine": 86,
+          "params": [
+            "path",
+            "data",
+            "config"
+          ]
+        },
+        {
+          "name": "del",
+          "startLine": 88,
+          "endLine": 89,
+          "params": [
+            "path",
+            "config"
+          ]
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "_send",
+          "callee": "await httpClient.request",
+          "lineNumber": 22
+        },
+        {
+          "caller": "get",
+          "callee": "_send",
+          "lineNumber": 77
+        },
+        {
+          "caller": "post",
+          "callee": "_send",
+          "lineNumber": 80
+        },
+        {
+          "caller": "put",
+          "callee": "_send",
+          "lineNumber": 83
+        },
+        {
+          "caller": "patch",
+          "callee": "_send",
+          "lineNumber": 86
+        },
+        {
+          "caller": "del",
+          "callee": "_send",
+          "lineNumber": 89
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 6,
+        "classCount": 0
+      }
+    }
+  ]
+}

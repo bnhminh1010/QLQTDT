@@ -742,7 +742,8 @@ export default function TaoGoiThau() {
                         const _mergeIds = new Set(selectedParallelGroups.map(g => g.buocSauHopNhatId));
                         const _els: React.ReactNode[] = [];
                         let _cnt = 0;
-                        for (const _step of selectedQTSteps) {
+                        const _mainSteps = selectedQTSteps.filter((s) => !s.nhanhWorkflowId);
+                        for (const _step of _mainSteps) {
                           const _isSplit = _splitIds.has(_step.id);
                           const _isMerge = _mergeIds.has(_step.id);
                           const _grp = _isSplit ? selectedParallelGroups.find(g => g.buocTachNhanhId === _step.id) : null;
@@ -1319,7 +1320,8 @@ export default function TaoGoiThau() {
                       const _splitIds = new Set(selectedParallelGroups.map(g => g.buocTachNhanhId));
                       const _tags: React.ReactNode[] = [];
                       let _cnt = 0;
-                      for (const _step of selectedQTSteps) {
+                      const _mainSteps = selectedQTSteps.filter((s) => !s.nhanhWorkflowId);
+                      for (const _step of _mainSteps) {
                         const _isSplit = _splitIds.has(_step.id);
                         const _grp = _isSplit ? selectedParallelGroups.find(g => g.buocTachNhanhId === _step.id) : null;
                         _tags.push(

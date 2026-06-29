@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models.DTOs.ThongBao;
 using QLQTDT.Api.Services;
 using System.Security.Claims;
@@ -44,6 +45,14 @@ public class ThongBaoController : ControllerBase
         var userId = GetCurrentUserId();
         var count = await _thongBaoService.MarkAllReadAsync(userId);
         return Ok(new { message = $"Đã đánh dấu {count} thông báo đã đọc.", count });
+    }
+
+    [HttpPost("admin/send")]
+    [HasPermission("USER.VIEW_ALL")]
+    public async Task<IActionResult> SendAdmin([FromBody] CreateAdminThongBaoRequest request)
+    {
+        var count = await _thongBaoService.SendAdminAsync(request);
+        return Ok(new { message = $"Đã gửi {count} thông báo.", count });
     }
 
     private int GetCurrentUserId()

@@ -1,0 +1,43 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "backend/Services/IAuthService.cs", "language": "csharp", "sizeLines": 17, "fileCategory": "code"},
+    {"path": "backend/Services/IBaoCaoService.cs", "language": "csharp", "sizeLines": 43, "fileCategory": "code"},
+    {"path": "backend/Services/IBuocWorkflowService.cs", "language": "csharp", "sizeLines": 14, "fileCategory": "code"},
+    {"path": "backend/Services/IDeXuatService.cs", "language": "csharp", "sizeLines": 15, "fileCategory": "code"},
+    {"path": "backend/Services/IGoiThauService.cs", "language": "csharp", "sizeLines": 26, "fileCategory": "code"},
+    {"path": "backend/Services/IHinhThucDauThauService.cs", "language": "csharp", "sizeLines": 10, "fileCategory": "code"},
+    {"path": "backend/Services/IHopDongService.cs", "language": "csharp", "sizeLines": 17, "fileCategory": "code"},
+    {"path": "backend/Services/IHoSoDuThauService.cs", "language": "csharp", "sizeLines": 19, "fileCategory": "code"},
+    {"path": "backend/Services/INhaThauService.cs", "language": "csharp", "sizeLines": 13, "fileCategory": "code"},
+    {"path": "backend/Services/IParallelGroupService.cs", "language": "csharp", "sizeLines": 20, "fileCategory": "code"},
+    {"path": "backend/Services/IPermissionService.cs", "language": "csharp", "sizeLines": 13, "fileCategory": "code"},
+    {"path": "backend/Services/ITenderAccessService.cs", "language": "csharp", "sizeLines": 40, "fileCategory": "code"},
+    {"path": "backend/Services/IThongBaoService.cs", "language": "csharp", "sizeLines": 14, "fileCategory": "code"},
+    {"path": "backend/Services/IUserService.cs", "language": "csharp", "sizeLines": 21, "fileCategory": "code"},
+    {"path": "backend/Services/IVaiTroService.cs", "language": "csharp", "sizeLines": 14, "fileCategory": "code"},
+    {"path": "backend/Services/IWorkflowConfigService.cs", "language": "csharp", "sizeLines": 12, "fileCategory": "code"},
+    {"path": "backend/Services/IWorkflowEngineService.cs", "language": "csharp", "sizeLines": 24, "fileCategory": "code"},
+    {"path": "backend/Services/IIntegrationService.cs", "language": "csharp", "sizeLines": 11, "fileCategory": "code"}
+  ],
+  "batchImportData": {
+    "backend/Services/IAuthService.cs": [],
+    "backend/Services/IBaoCaoService.cs": [],
+    "backend/Services/IBuocWorkflowService.cs": [],
+    "backend/Services/IDeXuatService.cs": [],
+    "backend/Services/IGoiThauService.cs": [],
+    "backend/Services/IHinhThucDauThauService.cs": [],
+    "backend/Services/IHopDongService.cs": [],
+    "backend/Services/IHoSoDuThauService.cs": [],
+    "backend/Services/INhaThauService.cs": [],
+    "backend/Services/IParallelGroupService.cs": [],
+    "backend/Services/IPermissionService.cs": [],
+    "backend/Services/ITenderAccessService.cs": [],
+    "backend/Services/IThongBaoService.cs": [],
+    "backend/Services/IUserService.cs": [],
+    "backend/Services/IVaiTroService.cs": [],
+    "backend/Services/IWorkflowConfigService.cs": [],
+    "backend/Services/IWorkflowEngineService.cs": [],
+    "backend/Services/IIntegrationService.cs": []
+  }
+}

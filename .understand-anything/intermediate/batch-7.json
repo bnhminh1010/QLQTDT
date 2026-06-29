@@ -1,0 +1,80 @@
+{
+  "nodes": [
+    {
+      "id": "service:backend/.dockerignore",
+      "type": "service",
+      "name": ".dockerignore",
+      "filePath": "backend/.dockerignore",
+      "summary": "Tệp cấu hình loại trừ cho Docker build context, liệt kê các thư mục và tệp không cần sao chép vào image Docker (bin/, obj/, .git, .env, .vscode/).",
+      "tags": ["containerization", "infrastructure", "configuration"],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:backend/Dockerfile",
+      "type": "service",
+      "name": "Dockerfile",
+      "filePath": "backend/Dockerfile",
+      "summary": "Dockerfile đa giai đoạn cho ứng dụng ASP.NET Core, với giai đoạn build sử dụng SDK .NET 10.0 để restore và publish, và giai đoạn runtime sử dụng image ASP.NET 10.0 tối thiểu với user không phải root.",
+      "tags": ["containerization", "infrastructure", "deployment", "dotnet"],
+      "complexity": "moderate",
+      "languageNotes": "Dockerfile đa giai đoạn giúp giảm kích thước image production bằng cách tách biệt môi trường build (SDK) khỏi runtime (ASP.NET)."
+    },
+    {
+      "id": "service:backend/Dockerfile:build",
+      "type": "service",
+      "name": "build",
+      "filePath": "backend/Dockerfile",
+      "lineRange": [1, 9],
+      "summary": "Giai đoạn build sử dụng image SDK .NET 10.0, restore dependencies và publish ứng dụng ở chế độ Release.",
+      "tags": ["containerization", "build-stage"],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:backend/Dockerfile:runtime",
+      "type": "service",
+      "name": "runtime",
+      "filePath": "backend/Dockerfile",
+      "lineRange": [10, 24],
+      "summary": "Giai đoạn runtime sử dụng image ASP.NET 10.0 tối thiểu, copy artifact từ giai đoạn build, chạy với user app và expose cổng 5000.",
+      "tags": ["containerization", "runtime-stage"],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "service:backend/.dockerignore",
+      "target": "service:backend/Dockerfile",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:backend/Dockerfile",
+      "target": "file:backend/Program.cs",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:backend/Dockerfile",
+      "target": "service:backend/Dockerfile:build",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "service:backend/Dockerfile",
+      "target": "service:backend/Dockerfile:runtime",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "service:backend/Dockerfile:runtime",
+      "target": "service:backend/Dockerfile:build",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    }
+  ]
+}

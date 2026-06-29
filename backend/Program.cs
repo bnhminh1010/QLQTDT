@@ -275,6 +275,7 @@ builder.Services.AddScoped<IWorkflowTemplateService, WorkflowTemplateService>();
 builder.Services.AddScoped<IParallelGroupService, ParallelGroupService>();
 builder.Services.AddScoped<IBaoCaoService, BaoCaoService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddHostedService<DeadlineNotificationService>();
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

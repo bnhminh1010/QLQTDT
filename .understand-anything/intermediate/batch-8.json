@@ -1,0 +1,15 @@
+{
+  "nodes": [
+    {
+      "id": "pipeline:.github/workflows/ci-backend.yml",
+      "type": "pipeline",
+      "name": "ci-backend.yml",
+      "filePath": ".github/workflows/ci-backend.yml",
+      "summary": "Pipeline CI/CD cho backend .NET với hai job build-and-lint và security-scan, bao gồm kiểm tra định dạng mã nguồn, quét bảo mật CodeQL/Trivy/Gitleaks và phân tích chất lượng SonarQube. Kích hoạt trên push và pull request đến nhánh main và develop khi có thay đổi trong thư mục backend/ hoặc .github/workflows/.",
+      "tags": ["ci-cd", "xay-dung", "bao-mat", "dotnet", "trien-khai"],
+      "complexity": "moderate",
+      "languageNotes": "Pipeline GitHub Actions với hai job tuần tự: build-and-lint chạy restore/build/format, security-scan phụ thuộc (needs) vào job trước và thực thi CodeQL, Trivy, Gitleaks, SonarQube."
+    }
+  ],
+  "edges": []
+}

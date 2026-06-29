@@ -1,0 +1,19 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "frontend/src/pages/LapQuyTrinh/components/DeleteStepConfirmModal.tsx", "language": "typescript", "sizeLines": 47, "fileCategory": "code"},
+    {"path": "frontend/src/pages/LapQuyTrinh/components/LeaveConfirmModal.tsx", "language": "typescript", "sizeLines": 43, "fileCategory": "code"},
+    {"path": "frontend/src/pages/LapQuyTrinh/components/ParallelGroupEditor.tsx", "language": "typescript", "sizeLines": 216, "fileCategory": "code"},
+    {"path": "frontend/src/pages/LapQuyTrinh/components/WorkflowStepList.tsx", "language": "typescript", "sizeLines": 215, "fileCategory": "code"},
+    {"path": "frontend/src/pages/LapQuyTrinh/index.tsx", "language": "typescript", "sizeLines": 1200, "fileCategory": "code"},
+    {"path": "frontend/src/services/workflowApi.ts", "language": "typescript", "sizeLines": 658, "fileCategory": "code"}
+  ],
+  "batchImportData": {
+    "frontend/src/pages/LapQuyTrinh/components/DeleteStepConfirmModal.tsx": ["frontend/src/pages/LapQuyTrinh/workflowDesignerTypes.ts"],
+    "frontend/src/pages/LapQuyTrinh/components/LeaveConfirmModal.tsx": [],
+    "frontend/src/pages/LapQuyTrinh/components/ParallelGroupEditor.tsx": ["frontend/src/components/ui/select.tsx", "frontend/src/pages/LapQuyTrinh/workflowDesignerTypes.ts"],
+    "frontend/src/pages/LapQuyTrinh/components/WorkflowStepList.tsx": ["frontend/src/pages/LapQuyTrinh/components/ParallelGroupEditor.tsx", "frontend/src/pages/LapQuyTrinh/components/WorkflowStepCard.tsx", "frontend/src/pages/LapQuyTrinh/workflowDesignerTypes.ts"],
+    "frontend/src/pages/LapQuyTrinh/index.tsx": ["frontend/src/pages/LapQuyTrinh/components/constants.ts", "frontend/src/pages/LapQuyTrinh/components/DeleteStepConfirmModal.tsx", "frontend/src/pages/LapQuyTrinh/components/LeaveConfirmModal.tsx", "frontend/src/pages/LapQuyTrinh/components/StepFormModal.tsx", "frontend/src/pages/LapQuyTrinh/components/StepLibraryModal.tsx", "frontend/src/pages/LapQuyTrinh/components/TemplatePreviewModal.tsx", "frontend/src/pages/LapQuyTrinh/components/TemplateSelectorCard.tsx", "frontend/src/pages/LapQuyTrinh/components/WorkflowPreview.tsx", "frontend/src/pages/LapQuyTrinh/components/WorkflowStepList.tsx", "frontend/src/pages/LapQuyTrinh/stepLibrary.ts", "frontend/src/pages/LapQuyTrinh/workflowDesignerMappers.ts", "frontend/src/pages/LapQuyTrinh/workflowDesignerTypes.ts", "frontend/src/services/adminApi.ts", "frontend/src/services/workflowApi.ts", "frontend/src/util/http.ts"],
+    "frontend/src/services/workflowApi.ts": ["frontend/src/services/types.ts", "frontend/src/util/http.ts"]
+  }
+}

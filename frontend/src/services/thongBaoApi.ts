@@ -2,7 +2,6 @@
    Thông báo API
 ───────────────────────────────────────────────────────────── */
 import http from "@/util/http";
-import type { ApiResponse } from "./types";
 
 export type ThongBaoItem = {
   idCongKhai: string;
@@ -24,8 +23,7 @@ export async function getThongBaos(params: {
   pageSize?: number;
   daDoc?: boolean;
 }): Promise<ThongBaoListResponse> {
-  const res = await http.get<ApiResponse<ThongBaoListResponse>>("/thong-bao", { params });
-  return res.data;
+  return await http.get<ThongBaoListResponse>("/thong-bao", { params });
 }
 
 export async function markReadThongBao(idCongKhai: string): Promise<void> {

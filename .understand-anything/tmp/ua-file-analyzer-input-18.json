@@ -1,0 +1,31 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "backend/Migrations/20260521135057_InitialAuthSchema.cs", "language": "csharp", "sizeLines": 306, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260521135057_InitialAuthSchema.Designer.cs", "language": "csharp", "sizeLines": 417, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260524165811_AddLoginLockoutTable.cs", "language": "csharp", "sizeLines": 36, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260524165811_AddLoginLockoutTable.Designer.cs", "language": "csharp", "sizeLines": 437, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260531031621_AddWorkflowTemplates.cs", "language": "csharp", "sizeLines": 150, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260531031621_AddWorkflowTemplates.Designer.cs", "language": "csharp", "sizeLines": 752, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260531135005_AddHinhThucDauThauEntity.cs", "language": "csharp", "sizeLines": 72, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260531135005_AddHinhThucDauThauEntity.Designer.cs", "language": "csharp", "sizeLines": 504, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260531142444_AddIntegrationLogEntity.cs", "language": "csharp", "sizeLines": 39, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260531142444_AddIntegrationLogEntity.Designer.cs", "language": "csharp", "sizeLines": 509, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260601151202_AddGoiThauEntity.cs", "language": "csharp", "sizeLines": 117, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260601151202_AddGoiThauEntity.Designer.cs", "language": "csharp", "sizeLines": 699, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260601153606_AddBuocWorkflowEntity.cs", "language": "csharp", "sizeLines": 111, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260601153606_AddBuocWorkflowEntity.Designer.cs", "language": "csharp", "sizeLines": 780, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260601165851_AddTaiLieuHoSo.cs", "language": "csharp", "sizeLines": 43, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260601165851_AddTaiLieuHoSo.Designer.cs", "language": "csharp", "sizeLines": 695, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260605163209_AlignSrsVub20.cs", "language": "csharp", "sizeLines": 56, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260605163209_AlignSrsVub20.Designer.cs", "language": "csharp", "sizeLines": 840, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260607170413_AddWorkflowVersionHistory.cs", "language": "csharp", "sizeLines": 62, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260608174836_AddHoSoDuThau.cs", "language": "csharp", "sizeLines": 133, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260608174836_AddHoSoDuThau.Designer.cs", "language": "csharp", "sizeLines": 1037, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260609025735_AddHopDong.cs", "language": "csharp", "sizeLines": 130, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260609025735_AddHopDong.Designer.cs", "language": "csharp", "sizeLines": 1077, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260609064610_AddDeXuatMuaSam.cs", "language": "csharp", "sizeLines": 114, "fileCategory": "code"},
+    {"path": "backend/Migrations/20260609064610_AddDeXuatMuaSam.Designer.cs", "language": "csharp", "sizeLines": 618, "fileCategory": "code"}
+  ],
+  "batchImportData": {}
+}

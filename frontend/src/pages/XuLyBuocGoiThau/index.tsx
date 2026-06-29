@@ -121,7 +121,7 @@ export default function XuLyBuocGoiThau() {
         nguoiKyDuyet: backendStep.tenNguoiKyDuyet || "",
         ngayKyDuyet: backendStep.ngayKyDuyet?.slice(0, 10) || "",
         ketQua: formatWorkflowKetQua(backendStep.ketQua) || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý"),
-        ghiChu: backendStep.lyDoKhongDuyet || "",
+        ghiChu: backendStep.ghiChu || "",
         lyDoKhongDuyet: backendStep.lyDoKhongDuyet || "",
         taiLieuDinhKem: [],
       });
@@ -372,14 +372,14 @@ export default function XuLyBuocGoiThau() {
           </div>
 
           <div>
-            <label className={labelCls}>Ghi chú</label>
+            <label className={labelCls}>Ghi chú / lý do thực tế</label>
             <textarea
               rows={4}
               disabled={disabled}
               value={form.ghiChu}
               onChange={(e) => updateField("ghiChu", e.target.value)}
               className={`${disabled ? readonlyCls : inputCls} resize-none`}
-              placeholder="Nhập ghi chú xử lý..."
+              placeholder="Ví dụ: chờ báo giá, chờ họp hội đồng, nhà cung cấp xin gia hạn..."
             />
           </div>
 

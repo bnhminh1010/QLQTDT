@@ -1,0 +1,23 @@
+{
+  "projectRoot": "/home/binhminh/Developer/Interns/QLQTDT",
+  "batchFiles": [
+    {"path": "frontend/src/components/ui/button.tsx", "language": "typescript", "sizeLines": 45, "fileCategory": "code"},
+    {"path": "frontend/src/components/ui/select.tsx", "language": "typescript", "sizeLines": 80, "fileCategory": "code"},
+    {"path": "frontend/src/components/ui/utils.ts", "language": "typescript", "sizeLines": 6, "fileCategory": "code"},
+    {"path": "frontend/src/util/http.ts", "language": "typescript", "sizeLines": 41, "fileCategory": "code"},
+    {"path": "frontend/src/util/toast.ts", "language": "typescript", "sizeLines": 8, "fileCategory": "code"},
+    {"path": "frontend/src/util/token.ts", "language": "typescript", "sizeLines": 27, "fileCategory": "code"},
+    {"path": "frontend/src/App.css", "language": "css", "sizeLines": 6, "fileCategory": "code"},
+    {"path": "frontend/src/index.css", "language": "css", "sizeLines": 3, "fileCategory": "code"}
+  ],
+  "batchImportData": {
+    "frontend/src/components/ui/button.tsx": ["frontend/src/lib/utils.ts"],
+    "frontend/src/components/ui/select.tsx": ["frontend/src/lib/utils.ts"],
+    "frontend/src/components/ui/utils.ts": [],
+    "frontend/src/util/http.ts": ["frontend/src/services/api.ts"],
+    "frontend/src/util/toast.ts": [],
+    "frontend/src/util/token.ts": [],
+    "frontend/src/App.css": [],
+    "frontend/src/index.css": []
+  }
+}
