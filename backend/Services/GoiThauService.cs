@@ -246,6 +246,127 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<LichSuGoiThauTimelineDto>> GetLichSuDayDuAsync(int id)
+    {
+        var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        await _tenderAccess.EnsureCanViewAsync(userId, id);
+
+        var exists = await _set.AnyAsync(g => g.Id == id);
+        if (!exists)
+            throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");
+
+        var statusHistories = await _db.LichSuTrangThaiGoiThaus
+            .AsNoTracking()
+            .Where(l => l.GoiThauId == id)
+            .ToListAsync();
+
+        var workflowActions = await _db.WorkflowActionHistories
+            .AsNoTracking()
+            .Include(a => a.WorkflowInstance)
+            .Include(a => a.WorkflowStepInstance)
+                .ThenInclude(s => s!.BuocWorkflow)
+            .Where(a => a.WorkflowInstance != null && a.WorkflowInstance.GoiThauId == id)
+            .ToListAsync();
+
+        var auditLogs = await _db.NhatKyKiemToans
+            .AsNoTracking()
+            .Where(l => l.GoiThauId == id)
+            .OrderByDescending(l => l.ThoiGianThucHien)
+            .Take(300)
+            .ToListAsync();
+
+        var userIds = statusHistories.Select(h => h.NguoiThayDoiId)
+            .Concat(workflowActions.Select(h => (int?)h.NguoiThucHienId))
+            .Concat(auditLogs.Select(h => (int?)h.NguoiThucHienId))
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        var users = await _db.NguoiDungs
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.HoTen })
+            .ToDictionaryAsync(u => u.Id, u => u.HoTen);
+
+        var events = new List<LichSuGoiThauTimelineDto>();
+
+        events.AddRange(statusHistories.Select(h => new LichSuGoiThauTimelineDto
+        {
+            Id = $"status-{h.Id}",
+            GoiThauId = h.GoiThauId,
+            Loai = "TRANG_THAI",
+            TieuDe = BuildStatusTitle(h.TrangThaiMoi),
+            NoiDung = $"{FormatStatus(h.TrangThaiCu) ?? "Khởi tạo"} -> {FormatStatus(h.TrangThaiMoi)}",
+            NguoiThucHienId = h.NguoiThayDoiId,
+            TenNguoiThucHien = h.NguoiThayDoiId.HasValue && users.TryGetValue(h.NguoiThayDoiId.Value, out var name) ? name : null,
+            ThoiGian = h.ThoiGianThayDoi,
+            Metadata = new Dictionary<string, string?>
+            {
+                ["trangThaiCu"] = h.TrangThaiCu,
+                ["trangThaiMoi"] = h.TrangThaiMoi
+            }
+        }));
+
+        events.AddRange(workflowActions.Select(a =>
+        {
+            var step = a.WorkflowStepInstance;
+            var stepName = step?.BuocWorkflow?.TenBuoc;
+            var title = BuildWorkflowActionTitle(a.HanhDong, stepName);
+            var note = FirstNonEmpty(a.GhiChu, step?.LyDoKhongDuyet, step?.GhiChu);
+            var details = new List<string>();
+            if (!string.IsNullOrWhiteSpace(stepName)) details.Add($"Bước: {stepName}");
+            details.Add($"Hành động: {FormatWorkflowAction(a.HanhDong)}");
+            if (!string.IsNullOrWhiteSpace(step?.KetQua)) details.Add($"Kết quả: {FormatWorkflowKetQua(step.KetQua)}");
+            if (!string.IsNullOrWhiteSpace(note)) details.Add($"Ghi chú: {note}");
+
+            return new LichSuGoiThauTimelineDto
+            {
+                Id = $"workflow-{a.Id}",
+                GoiThauId = id,
+                Loai = "QUY_TRINH",
+                TieuDe = title,
+                NoiDung = string.Join(". ", details),
+                NguoiThucHienId = a.NguoiThucHienId,
+                TenNguoiThucHien = users.TryGetValue(a.NguoiThucHienId, out var name) ? name : null,
+                ThoiGian = a.ThoiGian,
+                Metadata = new Dictionary<string, string?>
+                {
+                    ["hanhDong"] = a.HanhDong,
+                    ["workflowStepInstanceId"] = a.WorkflowStepInstanceId?.ToString(),
+                    ["tenBuoc"] = stepName,
+                    ["ketQua"] = step?.KetQua,
+                    ["ghiChu"] = note
+                }
+            };
+        }));
+
+        events.AddRange(auditLogs
+            .Where(ShouldShowAuditLog)
+            .Select(a => new LichSuGoiThauTimelineDto
+            {
+                Id = $"audit-{a.Id}",
+                GoiThauId = id,
+                Loai = BuildAuditType(a),
+                TieuDe = BuildAuditTitle(a),
+                NoiDung = BuildAuditContent(a),
+                NguoiThucHienId = a.NguoiThucHienId,
+                TenNguoiThucHien = users.TryGetValue(a.NguoiThucHienId, out var name) ? name : null,
+                ThoiGian = a.ThoiGianThucHien,
+                Metadata = new Dictionary<string, string?>
+                {
+                    ["hanhDong"] = a.HanhDong,
+                    ["bang"] = a.Bang,
+                    ["banGhiId"] = a.BanGhiId?.ToString()
+                }
+            }));
+
+        return events
+            .OrderByDescending(e => e.ThoiGian)
+            .ThenByDescending(e => e.Id)
+            .ToList();
+    }
+
     public async Task<GoiThauDetailDto> CreateAsync(CreateGoiThauDto dto)
     {
         var currentUserId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
@@ -524,5 +645,140 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             NguoiThayDoiId = userId,
             ThoiGianThayDoi = DateTime.UtcNow
         });
+    }
+
+    private static string BuildStatusTitle(string status) => status switch
+    {
+        GoiThauTrangThai.DU_THAO => "Tạo gói thầu",
+        GoiThauTrangThai.DANG_XU_LY => "Bắt đầu xử lý gói thầu",
+        GoiThauTrangThai.DA_CHON_NHA_THAU => "Chọn nhà thầu",
+        GoiThauTrangThai.HOAN_THANH => "Hoàn thành gói thầu",
+        GoiThauTrangThai.HUY_BO => "Hủy gói thầu",
+        "DA_XOA" => "Xóa gói thầu",
+        _ => "Cập nhật trạng thái gói thầu"
+    };
+
+    private static string? FormatStatus(string? status) => status switch
+    {
+        null => null,
+        GoiThauTrangThai.DU_THAO => "Dự thảo",
+        GoiThauTrangThai.DANG_XU_LY => "Đang xử lý",
+        "CHO_DUYET" => "Chờ duyệt",
+        "TRE_HAN" => "Trễ hạn",
+        GoiThauTrangThai.DA_CHON_NHA_THAU => "Đã chọn nhà thầu",
+        GoiThauTrangThai.HOAN_THANH => "Hoàn thành",
+        GoiThauTrangThai.HUY_BO => "Đã hủy",
+        "DA_XOA" => "Đã xóa",
+        _ => status
+    };
+
+    private static string BuildWorkflowActionTitle(string action, string? stepName)
+    {
+        var prefix = action switch
+        {
+            "START" => "Khởi động quy trình",
+            WorkflowHanhDong.DUYET or WorkflowHanhDong.APPROVE => "Duyệt/cập nhật bước",
+            WorkflowHanhDong.KHONG_DUYET or WorkflowHanhDong.REJECT => "Không duyệt bước",
+            WorkflowHanhDong.TRA_VE or WorkflowHanhDong.ROLLBACK => "Trả về bước",
+            WorkflowHanhDong.SKIP => "Bỏ qua bước",
+            WorkflowHanhDong.REASSIGN => "Phân công lại bước",
+            _ => "Xử lý bước"
+        };
+
+        return string.IsNullOrWhiteSpace(stepName) ? prefix : $"{prefix}: {stepName}";
+    }
+
+    private static string FormatWorkflowAction(string action) => action switch
+    {
+        "START" => "Khởi động quy trình",
+        WorkflowHanhDong.DUYET or WorkflowHanhDong.APPROVE => "Duyệt",
+        WorkflowHanhDong.KHONG_DUYET or WorkflowHanhDong.REJECT => "Không duyệt",
+        WorkflowHanhDong.TRA_VE or WorkflowHanhDong.ROLLBACK => "Trả về",
+        WorkflowHanhDong.SKIP => "Bỏ qua",
+        WorkflowHanhDong.REASSIGN => "Phân công lại",
+        _ => action
+    };
+
+    private static string FormatWorkflowKetQua(string ketQua) => ketQua switch
+    {
+        "DUYET" => "Duyệt",
+        "KHONG_DUYET" => "Không duyệt",
+        _ => ketQua
+    };
+
+    private static string? FirstNonEmpty(params string?[] values)
+        => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+
+    private static bool ShouldShowAuditLog(NhatKyKiemToan log)
+    {
+        if (log.HanhDong is "START_WORKFLOW" or "LOGIN_LOCKOUT")
+            return false;
+
+        var table = log.Bang;
+        if (string.IsNullOrWhiteSpace(table))
+            return false;
+
+        if (table is "LichSuTrangThaiGoiThau" or "WorkflowActionHistory"
+            or "WorkflowInstance" or "WorkflowStepInstance" or "WorkflowAssignment")
+            return false;
+
+        if (table == "GoiThau")
+            return log.HanhDong != "ADDED" && !IsStatusOnlyGoiThauChange(log);
+
+        return table is "TaiLieuHoSo" or "HoSoDuThau" or "HopDong";
+    }
+
+    private static bool IsStatusOnlyGoiThauChange(NhatKyKiemToan log)
+    {
+        if (log.HanhDong != "MODIFIED" || string.IsNullOrWhiteSpace(log.DuLieuMoi))
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(log.DuLieuMoi);
+            var names = doc.RootElement.EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            names.Remove("trangThai");
+            names.Remove("ngayCapNhat");
+            return names.Count == 0;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string BuildAuditType(NhatKyKiemToan log) => log.Bang switch
+    {
+        "GoiThau" => "CAP_NHAT",
+        "TaiLieuHoSo" => "TAI_LIEU",
+        "HoSoDuThau" => "HO_SO",
+        "HopDong" => "HOP_DONG",
+        _ => "HE_THONG"
+    };
+
+    private static string BuildAuditTitle(NhatKyKiemToan log)
+    {
+        var action = log.HanhDong;
+        return log.Bang switch
+        {
+            "GoiThau" => "Cập nhật thông tin gói thầu",
+            "TaiLieuHoSo" when action == "ADDED" => "Tải tài liệu",
+            "TaiLieuHoSo" when action == "DELETED" => "Xóa tài liệu",
+            "TaiLieuHoSo" => "Cập nhật tài liệu",
+            "HoSoDuThau" when action == "ADDED" => "Thêm hồ sơ dự thầu",
+            "HoSoDuThau" => "Cập nhật hồ sơ dự thầu",
+            "HopDong" when action == "ADDED" => "Tạo hợp đồng",
+            "HopDong" => "Cập nhật hợp đồng",
+            _ => "Cập nhật dữ liệu gói thầu"
+        };
+    }
+
+    private static string BuildAuditContent(NhatKyKiemToan log)
+    {
+        if (!string.IsNullOrWhiteSpace(log.MoTaChiTiet))
+            return log.MoTaChiTiet;
+
+        var table = string.IsNullOrWhiteSpace(log.Bang) ? "dữ liệu" : log.Bang;
+        return $"{log.HanhDong} {table}";
     }
 }

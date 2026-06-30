@@ -121,3 +121,16 @@ public class LichSuTrangThaiGoiThauDto
     public string? TenNguoiThayDoi { get; set; }
     public DateTime ThoiGianThayDoi { get; set; }
 }
+
+public class LichSuGoiThauTimelineDto
+{
+    public string Id { get; set; } = null!;
+    public int GoiThauId { get; set; }
+    public string Loai { get; set; } = null!;
+    public string TieuDe { get; set; } = null!;
+    public string NoiDung { get; set; } = null!;
+    public int? NguoiThucHienId { get; set; }
+    public string? TenNguoiThucHien { get; set; }
+    public DateTime ThoiGian { get; set; }
+    public Dictionary<string, string?> Metadata { get; set; } = [];
+}

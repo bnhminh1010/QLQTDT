@@ -38,6 +38,8 @@ public class LoginResponseDto
     public string Token { get; set; } = null!;
 
     public string? RefreshToken { get; set; }
+
+    public string? CsrfToken { get; set; }
 }
 
 public class RefreshTokenRequestDto
@@ -54,6 +56,8 @@ public class RefreshTokenResponseDto
     public string Token { get; set; } = null!;
 
     public string? RefreshToken { get; set; }
+
+    public string? CsrfToken { get; set; }
 }
 
 public class UserSessionDto

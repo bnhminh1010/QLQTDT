@@ -357,10 +357,11 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 // Rate Limiting
 app.UseRateLimiter();
 
+app.UseAuthentication();
+
 // CSRF Protection (after auth, before controllers)
 app.UseMiddleware<CsrfProtectionMiddleware>();
 
-app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

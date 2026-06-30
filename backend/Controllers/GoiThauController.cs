@@ -201,6 +201,14 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<IReadOnlyList<LichSuTrangThaiGoiThauDto>>.Ok(result));
     }
 
+    [HttpGet("{id}/lich-su")]
+    [HasPermission("GOITHAU.VIEW_STATUS_HISTORY")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<LichSuGoiThauTimelineDto>>>> GetLichSuDayDu(int id)
+    {
+        var result = await _service.GetLichSuDayDuAsync(id);
+        return Ok(ApiResponse<IReadOnlyList<LichSuGoiThauTimelineDto>>.Ok(result));
+    }
+
     [HttpPost("{id}/award")]
     [HasPermission("HOSODUTHAU.AWARD")]
     public async Task<ActionResult<ApiResponse<object?>>> Award(

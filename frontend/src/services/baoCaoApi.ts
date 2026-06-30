@@ -15,6 +15,7 @@ export type BaoCaoGoiThauFilter = {
 };
 
 export type BaoCaoGoiThauItem = {
+  id: number;
   idCongKhai: string;
   maGoiThau: string;
   tenGoiThau: string;

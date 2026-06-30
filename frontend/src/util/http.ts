@@ -1,6 +1,5 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import { toast } from "sonner";
-import { clearStoredToken } from "@/services/api";
 
 /** Mở rộng AxiosRequestConfig thêm flag skip toast */
 declare module "axios" {
@@ -13,6 +12,22 @@ const httpClient = axios.create({
   baseURL: import.meta.env.VITE_BASE_API ?? "http://localhost:5208/api",
   withCredentials: true,
 });
+
+const CSRF_STORAGE_KEY = "qlqtdt.csrfToken";
+
+export function setCsrfToken(token?: string | null) {
+  if (token) {
+    sessionStorage.setItem(CSRF_STORAGE_KEY, token);
+  }
+}
+
+export function clearCsrfToken() {
+  sessionStorage.removeItem(CSRF_STORAGE_KEY);
+}
+
+function getCsrfToken(): string | null {
+  return sessionStorage.getItem(CSRF_STORAGE_KEY);
+}
 
 const _send = async <T>(
   method: string,
@@ -38,10 +53,7 @@ httpClient.interceptors.request.use(
     // CSRF double-submit token cho unsafe methods
     const method = config.method?.toLowerCase();
     if (method && !["get", "head", "options"].includes(method)) {
-      const xsrf = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("XSRF-TOKEN="))
-        ?.split("=")[1];
+      const xsrf = getCsrfToken();
       if (xsrf) config.headers["X-CSRF-Token"] = xsrf;
     }
 

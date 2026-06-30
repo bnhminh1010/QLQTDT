@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
    Core API service — login, logout, current user, refresh
 ───────────────────────────────────────────────────────────── */
-import http from "@/util/http";
+import http, { clearCsrfToken, setCsrfToken } from "@/util/http";
 
 /* ─── Auth ──────────────────────────────────────────────── */
 
@@ -30,10 +30,12 @@ export type LoginResponse = {
   user: LoginUserDto;
   token: string;
   refreshToken?: string;
+  csrfToken?: string;
 };
 
 export async function loginApi(data: LoginRequest): Promise<LoginResponse> {
   const res = await http.post<LoginResponse>("/auth/login", data);
+  setCsrfToken(res.csrfToken);
   return res;
 }
 
@@ -61,6 +63,7 @@ export async function updateProfileApi(data: {
 
 export async function logoutApi(): Promise<void> {
   await http.post("/auth/logout");
+  clearCsrfToken();
 }
 
 /* ─── Helpers ───────────────────────────────────────────── */
@@ -82,5 +85,5 @@ export function setStoredToken(_accessToken: string) {
 }
 
 export function clearStoredToken() {
-  // No-op: cookie het han khi server xoa hoac browser dong tab
+  clearCsrfToken();
 }

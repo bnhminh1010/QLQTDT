@@ -11,5 +11,6 @@ public interface IGoiThauService : IBaseService<GoiThau>
     Task<GoiThauDetailDto> UpdateAsync(int id, UpdateGoiThauDto dto);
     Task<GoiThauDetailDto> GetChiTietAsync(int id);
     Task<IReadOnlyList<LichSuTrangThaiGoiThauDto>> GetLichSuTrangThaiAsync(int id);
+    Task<IReadOnlyList<LichSuGoiThauTimelineDto>> GetLichSuDayDuAsync(int id);
     Task CancelAsync(int id);
 }

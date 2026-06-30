@@ -2,10 +2,12 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import { searchBaoCaoGoiThau, getWorkflowStepReport, getBaoCaoTietKiem, getBaoCaoHieuSuatNguoiDung, getWorkflowBottleneck, type WorkflowStepReport, type BaoCaoTietKiem, type BaoCaoHieuSuatNguoiDung, type WorkflowBottleneck } from "@/services/baoCaoApi";
+import { WorkflowGraphModal } from "./components/WorkflowGraphModal";
 
 type TimeMode = "day" | "month" | "year";
 
 type PackageReport = {
+  internalId: number;
   id: string;
   name: string;
   unit: string;
@@ -102,6 +104,7 @@ export default function BaoCao() {
   const [hieuSuatData, setHieuSuatData] = useState<BaoCaoHieuSuatNguoiDung[]>([]);
   const [bottleneckData, setBottleneckData] = useState<WorkflowBottleneck[]>([]);
   const [extraLoading, setExtraLoading] = useState(false);
+  const [graphTarget, setGraphTarget] = useState<PackageReport | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +114,7 @@ export default function BaoCao() {
         const result = await searchBaoCaoGoiThau({ page: 1, pageSize: 100 });
         if (cancelled) return;
         const mapped: PackageReport[] = result.items.map((item) => ({
+          internalId: item.id,
           id: item.maGoiThau,
           name: item.tenGoiThau,
           unit: item.tenKhoaPhong || "—",
@@ -713,11 +717,12 @@ export default function BaoCao() {
                     <th className="px-5 py-3 text-left">Hình thức</th>
                     <th className="px-5 py-3 text-right">Giá trị</th>
                     <th className="px-5 py-3 text-left">Trạng thái</th>
+                    <th className="px-5 py-3 text-right">Graph</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredPackages.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-10 text-slate-400">Không có gói thầu</td></tr>
+                    <tr><td colSpan={7} className="text-center py-10 text-slate-400">Không có gói thầu</td></tr>
                   ) : (
                     filteredPackages.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50">
@@ -734,6 +739,16 @@ export default function BaoCao() {
                             p.status === "Chờ duyệt" ? "bg-amber-100 text-amber-700" :
                             "bg-slate-100 text-slate-600"
                           }`}>{p.status}</span>
+                        </td>
+                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => setGraphTarget(p)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-blue-600 hover:border-blue-200 hover:bg-blue-100"
+                            title="Xem graph quy trình"
+                          >
+                            <i className="fa-solid fa-diagram-project text-xs" />
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -830,6 +845,14 @@ export default function BaoCao() {
         </aside>
         )}
       </div>
+      <WorkflowGraphModal
+        tender={graphTarget ? {
+          internalId: graphTarget.internalId,
+          maGoiThau: graphTarget.id,
+          tenGoiThau: graphTarget.name,
+        } : null}
+        onClose={() => setGraphTarget(null)}
+      />
     </>
   );
 }

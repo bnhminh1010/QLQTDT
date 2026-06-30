@@ -13,13 +13,13 @@ import {
   processStep,
   getWorkflowDesignSteps,
   getParallelGroups,
-  getLichSuTrangThai,
+  getLichSuGoiThau,
 
   type WorkflowStateDto,
   type WorkflowStepStateDto,
   type BuocWorkflowDto,
   type ParallelGroupDto,
-  type LichSuTrangThaiGoiThauDto,
+  type LichSuGoiThauTimelineDto,
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 import { normalizeParallelGroupTitle } from "@/constants/parallelGroup";
@@ -32,6 +32,8 @@ type LichSuGoiThau = {
   goiThauId: string;
   thoiGian: string;
   nguoiThucHien: string;
+  loai: string;
+  tieuDe: string;
   noiDung: string;
 };
 
@@ -162,15 +164,42 @@ function formatHistoryDate(value: string) {
   });
 }
 
-function mapStatusHistoryToModalEntry(item: LichSuTrangThaiGoiThauDto): LichSuGoiThau {
-  const oldStatus = item.trangThaiCu || "Khởi tạo";
+function mapTimelineHistoryToModalEntry(item: LichSuGoiThauTimelineDto): LichSuGoiThau {
   return {
-    id: String(item.id),
+    id: item.id,
     goiThauId: `GT${item.goiThauId}`,
-    thoiGian: formatHistoryDate(item.thoiGianThayDoi),
-    nguoiThucHien: item.tenNguoiThayDoi || (item.nguoiThayDoiId ? `Người dùng #${item.nguoiThayDoiId}` : "Hệ thống"),
-    noiDung: `${oldStatus} -> ${item.trangThaiMoi}`,
+    thoiGian: formatHistoryDate(item.thoiGian),
+    nguoiThucHien: item.tenNguoiThucHien || (item.nguoiThucHienId ? `Người dùng #${item.nguoiThucHienId}` : "Hệ thống"),
+    loai: item.loai,
+    tieuDe: item.tieuDe,
+    noiDung: item.noiDung,
   };
+}
+
+function getHistoryTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    TRANG_THAI: "Trạng thái",
+    QUY_TRINH: "Quy trình",
+    TAI_LIEU: "Tài liệu",
+    HO_SO: "Hồ sơ",
+    HOP_DONG: "Hợp đồng",
+    CAP_NHAT: "Cập nhật",
+    HE_THONG: "Hệ thống",
+  };
+  return labels[type] ?? type;
+}
+
+function getHistoryTypeClass(type: string) {
+  const classes: Record<string, string> = {
+    TRANG_THAI: "bg-blue-100 text-blue-700",
+    QUY_TRINH: "bg-purple-100 text-purple-700",
+    TAI_LIEU: "bg-cyan-100 text-cyan-700",
+    HO_SO: "bg-amber-100 text-amber-700",
+    HOP_DONG: "bg-emerald-100 text-emerald-700",
+    CAP_NHAT: "bg-slate-100 text-slate-700",
+    HE_THONG: "bg-slate-100 text-slate-600",
+  };
+  return classes[type] ?? "bg-slate-100 text-slate-600";
 }
 
 function getApiErrorMessage(error: unknown, fallback: string) {
@@ -543,13 +572,23 @@ function HistoryModal({ goiThau, entries, loading = false, onClose }: HistoryMod
                     <i className="fa-solid fa-clock text-[10px]" />
                   </div>
                   <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {entry.thoiGian}
-                    </p>
-                    <p className="text-sm text-slate-700 mt-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">
+                          {entry.tieuDe}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {entry.thoiGian}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getHistoryTypeClass(entry.loai)}`}>
+                        {getHistoryTypeLabel(entry.loai)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-700 mt-2">
                       {entry.nguoiThucHien}
                     </p>
-                    <p className="text-sm text-slate-600 mt-1">
+                    <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">
                       {entry.noiDung}
                     </p>
                   </div>
@@ -638,8 +677,8 @@ export default function DanhSachGoiThau() {
 
     setHistoryLoading(true);
     try {
-      const histories = await getLichSuTrangThai(numericId);
-      setHistoryEntries(histories.map(mapStatusHistoryToModalEntry));
+      const histories = await getLichSuGoiThau(numericId);
+      setHistoryEntries(histories.map(mapTimelineHistoryToModalEntry));
     } catch (error: any) {
       toast.error(error?.message || "Không thể tải lịch sử gói thầu.");
     } finally {

@@ -609,6 +609,18 @@ export type LichSuTrangThaiGoiThauDto = {
   thoiGianThayDoi: string;
 };
 
+export type LichSuGoiThauTimelineDto = {
+  id: string;
+  goiThauId: number;
+  loai: string;
+  tieuDe: string;
+  noiDung: string;
+  nguoiThucHienId?: number;
+  tenNguoiThucHien?: string;
+  thoiGian: string;
+  metadata: Record<string, string | null>;
+};
+
 const WORKFLOW_KET_QUA_LABEL: Record<string, string> = {
   DUYET: "Duyệt",
   KHONG_DUYET: "Không duyệt",
@@ -666,5 +678,10 @@ export async function startWorkflow(
 
 export async function getLichSuTrangThai(goiThauId: number): Promise<LichSuTrangThaiGoiThauDto[]> {
   const res = await http.get<ApiResponse<LichSuTrangThaiGoiThauDto[]>>(`/goi-thau/${goiThauId}/lich-su-trang-thai`);
+  return res.data;
+}
+
+export async function getLichSuGoiThau(goiThauId: number): Promise<LichSuGoiThauTimelineDto[]> {
+  const res = await http.get<ApiResponse<LichSuGoiThauTimelineDto[]>>(`/goi-thau/${goiThauId}/lich-su`);
   return res.data;
 }

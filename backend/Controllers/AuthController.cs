@@ -51,10 +51,8 @@ public class AuthController : ControllerBase
         var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
         var result = await _authService.LoginAsync(dto, clientIp, userAgent);
 
-        // Set JWT vào HttpOnly Cookie
         Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateCookieOptions());
-        // CSRF double-submit token (non-HttpOnly, JS đọc được)
-        SetXsrfCookie();
+        result.CsrfToken = SetXsrfCookie();
         return Ok(result);
     }
 
@@ -84,7 +82,14 @@ public class AuthController : ControllerBase
         {
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
-            SameSite = _env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
+            SameSite = GetCookieSameSite(),
+            Path = "/"
+        });
+        Response.Cookies.Delete("XSRF-TOKEN", new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = !_env.IsDevelopment(),
+            SameSite = GetCookieSameSite(),
             Path = "/"
         });
         return Ok(new MessageResponse { Message = "Đăng xuất thành công" });
@@ -207,6 +212,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.RefreshTokenAsync(dto.RefreshToken);
         Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateCookieOptions());
+        result.CsrfToken = SetXsrfCookie();
         return Ok(result);
     }
 
@@ -286,23 +292,28 @@ public class AuthController : ControllerBase
     {
         HttpOnly = true,
         Secure = !_env.IsDevelopment(),
-        SameSite = _env.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.Strict,
+        SameSite = GetCookieSameSite(),
         Path = "/",
         MaxAge = TimeSpan.FromMinutes(_jwtConfig.ExpiryMinutes)
     };
 
-    private void SetXsrfCookie()
+    private string SetXsrfCookie()
     {
         var token = Guid.NewGuid().ToString("N");
         Response.Cookies.Append("XSRF-TOKEN", token, new CookieOptions
         {
             HttpOnly = false,
             Secure = !_env.IsDevelopment(),
-            SameSite = SameSiteMode.Lax,
+            SameSite = GetCookieSameSite(),
             Path = "/",
             MaxAge = TimeSpan.FromMinutes(_jwtConfig.ExpiryMinutes)
         });
+        return token;
     }
+
+    private SameSiteMode GetCookieSameSite() => _env.IsDevelopment()
+        ? SameSiteMode.Lax
+        : SameSiteMode.None;
 
     private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()
     {
