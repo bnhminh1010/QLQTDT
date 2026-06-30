@@ -619,7 +619,7 @@ public class WorkflowConfigService : IWorkflowConfigService
             {
                 var orderedBranchSteps = branch.StepIds
                     .Select(stepId => stepByDraftId.GetValueOrDefault(stepId))
-                    .Where(s => s != null)
+                    .OfType<BuocWorkflow>()
                     .ToList();
 
                 for (var i = 0; i < orderedBranchSteps.Count - 1; i++)

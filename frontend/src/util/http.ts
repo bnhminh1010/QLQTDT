@@ -1,6 +1,6 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import { toast } from "sonner";
-import { clearStoredToken, getStoredToken } from "@/services/api";
+import { clearStoredToken } from "@/services/api";
 
 /** Mở rộng AxiosRequestConfig thêm flag skip toast */
 declare module "axios" {
@@ -11,6 +11,7 @@ declare module "axios" {
 
 const httpClient = axios.create({
   baseURL: import.meta.env.VITE_BASE_API ?? "http://localhost:5208/api",
+  withCredentials: true,
 });
 
 const _send = async <T>(
@@ -31,10 +32,8 @@ const _send = async <T>(
 
 httpClient.interceptors.request.use(
   (config) => {
-    const accessToken = getStoredToken();
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
+    // Auth: HttpOnly cookie tu dong duoc browser gui kem.
+    // Khong can set Authorization header — token an toan trong cookie.
 
     // CSRF double-submit token cho unsafe methods
     const method = config.method?.toLowerCase();
@@ -55,7 +54,6 @@ httpClient.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
-      clearStoredToken();
       toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
       window.location.hash = "#/login";
       return Promise.reject(error);

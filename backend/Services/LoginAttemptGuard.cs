@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
+using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.Entities;
 
 namespace QLQTDT.Api.Services;
@@ -114,6 +115,15 @@ public class LoginAttemptGuard
                 _logger.LogWarning(
                     "Brute-force lockout: {Identifier} bị khóa đến {LockoutEnd}",
                     safeIdentifier, lockoutEnd);
+
+                // Ghi audit trail
+                _context.NhatKyKiemToans.Add(new NhatKyKiemToan
+                {
+                    HanhDong = "LOGIN_LOCKOUT",
+                    MoTaChiTiet = $"[SECURITY] Brute-force lockout: {safeIdentifier} locked until {lockoutEnd:u}",
+                    DiaChiIP = identifier.Split(':')[0],
+                    ThoiGianThucHien = DateTime.UtcNow
+                });
             }
 
             // await DB UPSERT — không fire-and-forget

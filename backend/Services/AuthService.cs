@@ -42,7 +42,10 @@ public class AuthService : IAuthService
     }
 
 
-    public async Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp)
+    /// <summary>Max concurrent sessions per user (revoke oldest when exceeded).</summary>
+    private const int MaxConcurrentSessions = 5;
+
+    public async Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp, string? userAgent)
     {
         // Normalize: lowercase + trim tránh bypass bằng cách đổi casing username
         var lockoutKey = $"{clientIp}:{dto.TenDangNhap.Trim().ToLowerInvariant()}";
@@ -76,6 +79,38 @@ public class AuthService : IAuthService
         var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
         var refreshToken = await CreateRefreshTokenAsync(user.Id);
 
+        // ─── Session management ─────────────────────────────────
+        var jti = ExtractJti(token);
+        var refreshTokenHash = HashToken(refreshToken);
+
+        // Enforce concurrent session limit: revoke oldest if exceeded
+        var activeSessions = await _context.UserSessions
+            .Where(s => s.NguoiDungId == user.Id && s.RevokedAt == null)
+            .OrderBy(s => s.CreatedAt)
+            .ToListAsync();
+
+        if (activeSessions.Count >= MaxConcurrentSessions)
+        {
+            var toRemove = activeSessions.Count - MaxConcurrentSessions + 1;
+            foreach (var oldSession in activeSessions.Take(toRemove))
+            {
+                oldSession.RevokedAt = DateTime.UtcNow;
+                _logger.LogInformation("Session revoked (concurrent limit): SessionId={Id}, UserId={UserId}", oldSession.Id, user.Id);
+            }
+        }
+
+        _context.UserSessions.Add(new UserSession
+        {
+            NguoiDungId = user.Id,
+            Jti = jti,
+            DiaChiIP = clientIp,
+            UserAgent = userAgent,
+            RefreshTokenHash = refreshTokenHash,
+            CreatedAt = DateTime.UtcNow,
+            LastActivityAt = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+
         var permissionList = permissionSet.OrderBy(q => q).ToList();
 
         return new LoginResponseDto
@@ -108,7 +143,19 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(rt => rt.Token == tokenHash)
             ?? throw new UnauthorizedException("Refresh token không hợp lệ.");
 
-        if (!storedToken.IsActive)
+        // ─── Reuse detection: token da bi revoked → attacker dang dung token cu ───
+        if (storedToken.RevokedAt != null)
+        {
+            _logger.LogWarning(
+                "REFRESH TOKEN REUSE DETECTED — TokenId={Id}, UserId={UserId}, FamilyId={Family}, RevokedAt={RevokedAt}",
+                storedToken.Id, storedToken.NguoiDungId, storedToken.TokenFamilyId, storedToken.RevokedAt);
+
+            // Revoke ca family (chain): attacker co token, legit user co token moi → ca 2 bi vo hieu
+            await RevokeTokenFamilyAsync(storedToken.TokenFamilyId, storedToken.NguoiDungId);
+            throw new UnauthorizedException("Refresh token không hợp lệ.");
+        }
+
+        if (storedToken.IsExpired)
             throw new UnauthorizedException("Refresh token đã hết hạn hoặc đã bị thu hồi.");
 
         // Revoke old refresh token (rotation)
@@ -123,7 +170,8 @@ public class AuthService : IAuthService
         var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
         var newToken = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
-        var newRefreshToken = await CreateRefreshTokenAsync(user.Id);
+        // Tao refresh token moi, link vao family + predecessor
+        var newRefreshToken = await CreateRefreshTokenAsync(user.Id, storedToken.TokenFamilyId, storedToken.Id);
 
         await _context.SaveChangesAsync();
 
@@ -180,13 +228,32 @@ public class AuthService : IAuthService
             token.RevokedAt = DateTime.UtcNow;
     }
 
-    private async Task<string> CreateRefreshTokenAsync(int userId)
+    /// <summary>Revoke all tokens in a family chain (reuse detection).</summary>
+    private async Task RevokeTokenFamilyAsync(Guid familyId, int userId)
+    {
+        var familyTokens = await _context.RefreshTokens
+            .Where(rt => rt.TokenFamilyId == familyId && rt.NguoiDungId == userId && rt.RevokedAt == null)
+            .ToListAsync();
+
+        foreach (var token in familyTokens)
+            token.RevokedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogWarning(
+            "Revoked entire token family — FamilyId={FamilyId}, UserId={UserId}, Count={Count}",
+            familyId, userId, familyTokens.Count);
+    }
+
+    private async Task<string> CreateRefreshTokenAsync(int userId, Guid? familyId = null, int? replacedTokenId = null)
     {
         var tokenString = _jwtService.GenerateRefreshToken();
         _context.RefreshTokens.Add(new RefreshToken
         {
             Token = HashToken(tokenString),
             NguoiDungId = userId,
+            TokenFamilyId = familyId ?? Guid.NewGuid(),
+            ReplacedTokenId = replacedTokenId,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
         });
@@ -314,6 +381,71 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
         return await GetCurrentUserAsync(userId);
+    }
+
+    // ═══════════════════════════════════════════════
+    // Session management
+    // ═══════════════════════════════════════════════
+
+    public async Task<List<UserSessionDto>> GetSessionsAsync(int userId, string? currentJti = null)
+    {
+        return await _context.UserSessions
+            .Where(s => s.NguoiDungId == userId && s.RevokedAt == null)
+            .OrderByDescending(s => s.LastActivityAt ?? s.CreatedAt)
+            .Select(s => new UserSessionDto
+            {
+                Id = s.Id,
+                DiaChiIP = s.DiaChiIP ?? "",
+                UserAgent = s.UserAgent,
+                CreatedAt = s.CreatedAt,
+                LastActivityAt = s.LastActivityAt,
+                IsActive = s.RevokedAt == null,
+                IsCurrent = s.Jti == currentJti
+            })
+            .ToListAsync();
+    }
+
+    public async Task RevokeSessionAsync(int userId, int sessionId)
+    {
+        var session = await _context.UserSessions
+            .FirstOrDefaultAsync(s => s.Id == sessionId && s.NguoiDungId == userId);
+
+        if (session == null)
+            throw new NotFoundException("Session không tồn tại.");
+
+        session.RevokedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RevokeAllSessionsAsync(int userId, int? excludeSessionId = null)
+    {
+        var sessions = await _context.UserSessions
+            .Where(s => s.NguoiDungId == userId && s.RevokedAt == null)
+            .ToListAsync();
+
+        foreach (var s in sessions)
+        {
+            if (excludeSessionId.HasValue && s.Id == excludeSessionId.Value)
+                continue;
+            s.RevokedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>Extract JTI from a JWT token string.</summary>
+    private static string ExtractJti(string token)
+    {
+        try
+        {
+            var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+            return jwt.Id;
+        }
+        catch
+        {
+            return Guid.NewGuid().ToString(); // fallback
+        }
     }
 
     private async Task<List<UserRoleDto>> GetUserRoles(int userId)

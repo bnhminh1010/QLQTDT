@@ -15,8 +15,6 @@ public class NguoiDung
     public DateTime NgayTao { get; set; }
     public DateTime? NgayCapNhat { get; set; }
 
-    // Google OAuth
-    public string? GoogleId { get; set; }
     public string? AvatarUrl { get; set; }
 
     // Navigation properties

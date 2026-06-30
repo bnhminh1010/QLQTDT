@@ -48,7 +48,8 @@ public class AuthController : ControllerBase
         if (!validation.IsValid) return BadRequest(ToValidationError(validation));
 
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        var result = await _authService.LoginAsync(dto, clientIp);
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+        var result = await _authService.LoginAsync(dto, clientIp, userAgent);
 
         // Set JWT vào HttpOnly Cookie
         Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateCookieOptions());
@@ -64,6 +65,20 @@ public class AuthController : ControllerBase
     {
         if (dto?.RefreshToken != null)
             await _authService.RevokeRefreshTokenAsync(dto.RefreshToken);
+
+        // Revoke current session
+        var userId = GetCurrentUserId();
+        var jti = User.FindFirstValue(JwtRegisteredClaimNames.Jti);
+        if (jti != null)
+        {
+            var currentSession = await _db.UserSessions
+                .FirstOrDefaultAsync(s => s.NguoiDungId == userId && s.Jti == jti && s.RevokedAt == null);
+            if (currentSession != null)
+            {
+                currentSession.RevokedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+            }
+        }
 
         Response.Cookies.Delete(_jwtConfig.CookieName, new CookieOptions
         {
@@ -151,6 +166,7 @@ public class AuthController : ControllerBase
     /// <summary>Quên mật khẩu</summary>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
+    [EnableRateLimiting("ForgotPassword")]
     public async Task<IActionResult> ForgotPassword(
         [FromBody] ForgotPasswordDto dto,
         [FromServices] IValidator<ForgotPasswordDto> validator)
@@ -216,6 +232,45 @@ public class AuthController : ControllerBase
         var userId = GetCurrentUserId();
         await _authService.UpdatePasswordAsync(userId, dto);
         return Ok(new MessageResponse { Message = "Đổi mật khẩu thành công." });
+    }
+
+    // ═══════════════════════════════════════════════
+    // Session management
+    // ═══════════════════════════════════════════════
+
+    /// <summary>Danh sách session đang hoạt động</summary>
+    [HttpGet("sessions")]
+    [Authorize]
+    [ProducesResponseType(typeof(List<UserSessionDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSessions()
+    {
+        var userId = GetCurrentUserId();
+        var jti = User.FindFirstValue(JwtRegisteredClaimNames.Jti);
+        var sessions = await _authService.GetSessionsAsync(userId, jti);
+        return Ok(sessions);
+    }
+
+    /// <summary>Thu hồi session chỉ định (force logout device khác)</summary>
+    [HttpDelete("sessions/{sessionId}")]
+    [Authorize]
+    public async Task<IActionResult> RevokeSession(int sessionId)
+    {
+        var userId = GetCurrentUserId();
+        await _authService.RevokeSessionAsync(userId, sessionId);
+        return Ok(new MessageResponse { Message = "Đã thu hồi session thành công." });
+    }
+
+    /// <summary>Thu hồi tất cả session (trừ session hiện tại)</summary>
+    [HttpDelete("sessions")]
+    [Authorize]
+    public async Task<IActionResult> RevokeAllSessions()
+    {
+        var userId = GetCurrentUserId();
+        var jti = User.FindFirstValue(JwtRegisteredClaimNames.Jti);
+        var currentSession = await _db.UserSessions
+            .FirstOrDefaultAsync(s => s.NguoiDungId == userId && s.Jti == jti && s.RevokedAt == null);
+        await _authService.RevokeAllSessionsAsync(userId, currentSession?.Id);
+        return Ok(new MessageResponse { Message = "Đã thu hồi tất cả session khác." });
     }
 
     // === Helpers ===

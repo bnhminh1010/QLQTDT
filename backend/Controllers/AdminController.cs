@@ -74,11 +74,11 @@ public class AdminController : ControllerBase
         var entity = new NguoiDung
         {
             IdCongKhai = Guid.NewGuid(),
-            HoTen = request.HoTen,
-            Email = request.Email,
-            TenDangNhap = request.TenDangNhap,
+            HoTen = request.HoTen.Trim(),
+            Email = request.Email.Trim(),
+            TenDangNhap = request.TenDangNhap.Trim(),
             MatKhauHash = BCrypt.Net.BCrypt.HashPassword(request.MatKhau),
-            SoDienThoai = request.SoDienThoai,
+            SoDienThoai = request.SoDienThoai?.Trim(),
             TrangThaiHoatDong = true,
             NgayTao = DateTime.UtcNow
         };
@@ -114,9 +114,18 @@ public class AdminController : ControllerBase
         if (user is null)
             return NotFound(new ApiErrorResponse { Status = 404, Error = "Không tìm thấy người dùng." });
 
-        if (request.HoTen != null) user.HoTen = request.HoTen;
-        if (request.Email != null) user.Email = request.Email;
-        if (request.SoDienThoai != null) user.SoDienThoai = request.SoDienThoai;
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            var normalizedEmail = request.Email.Trim().ToLower();
+            var emailExists = await _db.NguoiDungs
+                .AnyAsync(u => u.Id != id && u.Email.ToLower() == normalizedEmail && !u.DaXoa);
+            if (emailExists)
+                return BadRequest(new ApiErrorResponse { Status = 400, Error = "Email đã được sử dụng trong hệ thống." });
+        }
+
+        if (request.HoTen != null) user.HoTen = request.HoTen.Trim();
+        if (request.Email != null) user.Email = request.Email.Trim();
+        if (request.SoDienThoai != null) user.SoDienThoai = request.SoDienThoai.Trim();
         user.NgayCapNhat = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

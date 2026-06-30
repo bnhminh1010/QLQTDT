@@ -278,8 +278,8 @@ export default function Dashboard() {
           };
         }));
         setTableRows(rows);
-      } catch (e) {
-        console.error(e);
+      } catch {
+        setTableRows([]);
       } finally {
         setLoading(false);
       }

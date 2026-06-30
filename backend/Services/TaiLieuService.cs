@@ -50,6 +50,10 @@ public partial class TaiLieuService : ITaiLieuService
                 throw new BadRequestException($"File '{displayName}' trống.");
             if (file.Length > MaxFileSizeBytes)
                 throw new BadRequestException($"File '{displayName}' vượt quá giới hạn 50MB.");
+
+            // Magic bytes + dangerous content check before FTP upload
+            using var validationStream = file.OpenReadStream();
+            FileSignatureValidator.Validate(file.FileName, validationStream);
         }
 
         var userId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");

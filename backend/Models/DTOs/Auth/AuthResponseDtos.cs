@@ -55,3 +55,17 @@ public class RefreshTokenResponseDto
 
     public string? RefreshToken { get; set; }
 }
+
+public class UserSessionDto
+{
+    public int Id { get; set; }
+    public string DiaChiIP { get; set; } = null!;
+    public string? UserAgent { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? LastActivityAt { get; set; }
+    public bool IsActive { get; set; }
+
+    /// <summary>true if this session matches current request (for UI highlight).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsCurrent { get; set; }
+}

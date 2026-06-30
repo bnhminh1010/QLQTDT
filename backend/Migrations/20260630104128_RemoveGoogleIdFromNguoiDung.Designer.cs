@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using QLQTDT.Api.Data;
 
@@ -11,9 +12,11 @@ using QLQTDT.Api.Data;
 namespace QLQTDT.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630104128_RemoveGoogleIdFromNguoiDung")]
+    partial class RemoveGoogleIdFromNguoiDung
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1116,17 +1119,12 @@ namespace QLQTDT.Api.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2(3)")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2(3)");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("NguoiDungId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ReplacedTokenId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("RevokedAt")
@@ -1134,26 +1132,13 @@ namespace QLQTDT.Api.Migrations
 
                     b.Property<string>("Token")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<Guid>("TokenFamilyId")
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("NguoiDungId");
 
-                    b.HasIndex("ReplacedTokenId")
-                        .IsUnique()
-                        .HasFilter("[ReplacedTokenId] IS NOT NULL");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.HasIndex("TokenFamilyId");
-
-                    b.ToTable("RefreshToken", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.TaiLieuHoSo", b =>
@@ -1293,55 +1278,6 @@ namespace QLQTDT.Api.Migrations
                         .HasFilter("[NotificationKey] IS NOT NULL");
 
                     b.ToTable("ThongBao", (string)null);
-                });
-
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.UserSession", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2(3)")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.Property<string>("DiaChiIP")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Jti")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("LastActivityAt")
-                        .HasColumnType("datetime2(3)");
-
-                    b.Property<int>("NguoiDungId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RefreshTokenHash")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("datetime2(3)");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Jti")
-                        .IsUnique();
-
-                    b.HasIndex("NguoiDungId", "RevokedAt");
-
-                    b.ToTable("UserSession", (string)null);
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.VaiTro", b =>
@@ -2052,17 +1988,10 @@ namespace QLQTDT.Api.Migrations
                     b.HasOne("QLQTDT.Api.Models.Entities.NguoiDung", "NguoiDung")
                         .WithMany()
                         .HasForeignKey("NguoiDungId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("QLQTDT.Api.Models.Entities.RefreshToken", "ReplacedBy")
-                        .WithOne("ReplacedToken")
-                        .HasForeignKey("QLQTDT.Api.Models.Entities.RefreshToken", "ReplacedTokenId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.Navigation("NguoiDung");
-
-                    b.Navigation("ReplacedBy");
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.TaiLieuHoSo", b =>
@@ -2106,17 +2035,6 @@ namespace QLQTDT.Api.Migrations
                     b.Navigation("NguoiDung");
 
                     b.Navigation("WorkflowStepInstance");
-                });
-
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.UserSession", b =>
-                {
-                    b.HasOne("QLQTDT.Api.Models.Entities.NguoiDung", "NguoiDung")
-                        .WithMany()
-                        .HasForeignKey("NguoiDungId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("NguoiDung");
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.VaiTro", b =>
@@ -2331,11 +2249,6 @@ namespace QLQTDT.Api.Migrations
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.Quyen", b =>
                 {
                     b.Navigation("VaiTroQuyens");
-                });
-
-            modelBuilder.Entity("QLQTDT.Api.Models.Entities.RefreshToken", b =>
-                {
-                    b.Navigation("ReplacedToken");
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.VaiTro", b =>

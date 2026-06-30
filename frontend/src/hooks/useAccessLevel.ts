@@ -16,7 +16,7 @@ const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
   "/danh-sach-goi-thau": ["GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW_INTERNAL"],
   "/tao-goi-thau": ["GOITHAU.CREATE"],
   "/danh-sach-quy-trinh": ["WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"],
-  "/lap-quy-trinh": ["WORKFLOW.CREATE", "WORKFLOW.CONFIG", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"],
+  "/lap-quy-trinh": ["WORKFLOW.CREATE", "WORKFLOW.CONFIG", "WORKFLOW.VIEW_ALL"],
   "/danh-muc-thuc-hien": ["HINHTHUCDAUTHAU.VIEW", "DANHMUC.VIEW", "DANHMUC.VIEW_ALL"],
   "/bao-cao": ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"],
   "/xu-ly-buoc": ["WORKFLOW.PROCESS", "GOITHAU.EDIT", "GOITHAU.CREATE"],

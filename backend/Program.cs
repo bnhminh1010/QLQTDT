@@ -57,7 +57,9 @@ if (!builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     {
         var interceptor = sp.GetRequiredService<AuditInterceptor>();
-        options.UseSqlServer($"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;")
+        options.UseSqlServer(
+                   $"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;",
+                   sqlOptions => sqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
                .AddInterceptors(interceptor);
     });
 }
@@ -69,7 +71,6 @@ if (string.IsNullOrWhiteSpace(jwtSecret))
     if (builder.Environment.IsDevelopment())
     {
         jwtSecret = "DevOnlySecret_" + Guid.NewGuid().ToString("N");
-        Console.WriteLine("⚠️  WARNING: JWT_SECRET chưa được cấu hình. Đang dùng secret tạm cho Development.");
     }
     else
     {
@@ -117,17 +118,42 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
                 var userIdString = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                                 ?? context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+                var jti = context.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
 
-                if (!int.TryParse(userIdString, out var userId))
+                if (!int.TryParse(userIdString, out var userId) || string.IsNullOrWhiteSpace(jti))
                 {
-                    context.Fail("Token không chứa userId hợp lệ.");
+                    context.Fail("Token không hợp lệ.");
                     return;
                 }
 
+                // Kiểm tra session còn hoạt động không (cho phép force-logout)
+                var session = await dbContext.UserSessions
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s =>
+                        s.NguoiDungId == userId &&
+                        s.Jti == jti &&
+                        s.RevokedAt == null);
+
+                if (session == null)
+                {
+                    context.Fail("Session đã bị thu hồi hoặc không tồn tại.");
+                    return;
+                }
+
+                // Cập nhật LastActivityAt (không tracking để tránh overhead)
+                var sessionToUpdate = await dbContext.UserSessions
+                    .FirstOrDefaultAsync(s => s.Id == session.Id);
+                if (sessionToUpdate != null)
+                {
+                    sessionToUpdate.LastActivityAt = DateTime.UtcNow;
+                    await dbContext.SaveChangesAsync();
+                }
+
+                // Kiểm tra tài khoản còn hoạt động không
                 var isActive = await dbContext.NguoiDungs
                     .AsNoTracking()
                     .Where(u => u.Id == userId)
-                    .Select(u => u.TrangThaiHoatDong)
+                    .Select(u => u.TrangThaiHoatDong && !u.DaXoa)
                     .FirstOrDefaultAsync();
 
                 if (!isActive)
@@ -235,6 +261,13 @@ builder.Services.AddRateLimiter(options =>
         cfg.Window = TimeSpan.FromMinutes(1);
         cfg.QueueLimit = 0;
     });
+    // Forgot password: 5 request/phút/IP
+    options.AddFixedWindowLimiter("ForgotPassword", cfg =>
+    {
+        cfg.PermitLimit = 5;
+        cfg.Window = TimeSpan.FromMinutes(1);
+        cfg.QueueLimit = 0;
+    });
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
@@ -308,7 +341,6 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 
 // Exception Handling Middleware
 app.UseMiddleware<ExceptionMiddleware>();
-app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -324,6 +356,9 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // Rate Limiting
 app.UseRateLimiter();
+
+// CSRF Protection (after auth, before controllers)
+app.UseMiddleware<CsrfProtectionMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();

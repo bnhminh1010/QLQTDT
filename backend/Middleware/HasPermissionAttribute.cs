@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Logging;
 
 namespace QLQTDT.Api.Middleware;
 
@@ -44,10 +45,13 @@ public class HasPermissionAttribute : Attribute, IAsyncAuthorizationFilter
             return Task.CompletedTask;
         }
 
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
+
         // 2. Đọc claim "permissions" từ JWT token
         var permissionsClaim = user.FindFirstValue("permissions");
         if (string.IsNullOrEmpty(permissionsClaim))
         {
+            LogPermissionDenied(context, userId, "no-permissions-claim");
             context.Result = new ForbidResult(); // 403 — không có quyền nào
             return Task.CompletedTask;
         }
@@ -60,9 +64,20 @@ public class HasPermissionAttribute : Attribute, IAsyncAuthorizationFilter
         // 4. Kiểm tra OR logic: user cần có ít nhất 1 trong các quyền yêu cầu
         if (!_permissions.Any(p => userPermissions.Contains(p)))
         {
+            LogPermissionDenied(context, userId, string.Join(",", _permissions));
             context.Result = new ForbidResult(); // 403
         }
 
         return Task.CompletedTask;
+    }
+
+    private static void LogPermissionDenied(AuthorizationFilterContext context, string userId, string missingPermission)
+    {
+        var logger = context.HttpContext.RequestServices.GetService<ILogger<HasPermissionAttribute>>();
+        var path = context.HttpContext.Request.Path;
+        var ip = context.HttpContext.Connection.RemoteIpAddress?.ToString();
+        logger?.LogWarning(
+            "[SECURITY] Permission denied — UserId={UserId}, IP={IP}, Path={Path}, Required={RequiredPermissions}",
+            userId, ip, path, missingPermission);
     }
 }

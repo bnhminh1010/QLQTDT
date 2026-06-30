@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getCurrentUserApi, clearStoredToken } from "@/services/api";
+import { getCurrentUserApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
 import { canAccessPath } from "@/hooks/useAccessLevel";
 

@@ -66,14 +66,6 @@ function findNameById<T>(items: T[], id: number | undefined | null, getId: (item
   return item ? getName(item) : String(id);
 }
 
-function logWorkflowError(scope: string, error: unknown, context?: Record<string, unknown>) {
-  console.error(`[LapQuyTrinh] ${scope}`, {
-    context,
-    error,
-    responseData: (error as any)?.response?.data,
-  });
-}
-
 function loaiHinhToId(ten: string): number | undefined {
   const idx = LOAI_HINH_DAU_THAU.indexOf(ten as any);
   return idx >= 0 ? idx + 1 : undefined;
@@ -382,7 +374,6 @@ export default function LapQuyTrinh() {
       setIsTemplateDraft(false);
       navigate("/danh-sach-quy-trinh");
     } catch (err: any) {
-      console.error(err);
       toast.error(err?.response?.data?.message || "Lưu quy trình thất bại");
       setSaving(false);
     }
@@ -409,7 +400,6 @@ export default function LapQuyTrinh() {
       const templates = await getWorkflowTemplates(value);
       setTemplateList(templates);
     } catch (err) {
-      logWorkflowError("load workflow templates failed", err, { loaiHinh: value });
       toast.error(getErrorMessage(err, "Không thể tải quy trình chuẩn."));
     }
     finally { setLoadingTemplate(false); }
@@ -421,10 +411,6 @@ export default function LapQuyTrinh() {
     try {
       setPreviewData(await previewWorkflowTemplate(templateInfoRaw.id));
     } catch (err) {
-      logWorkflowError("preview workflow template failed", err, {
-        templateId: templateInfoRaw.id,
-        selectedTemplateIdx,
-      });
       toast.error(getErrorMessage(err, "Không thể tải preview."));
       setPreviewOpen(false);
     }
@@ -451,14 +437,6 @@ export default function LapQuyTrinh() {
         setSelectedTemplateIdx(0);
         toast.error("Không có quy trình chuẩn hợp lệ cho loại hình này.");
         return;
-      }
-
-      if (selectedTemplate.id !== selectedTemplateId) {
-        console.warn("[LapQuyTrinh] Selected template no longer exists in refreshed template list", {
-          selectedTemplateId,
-          fallbackTemplateId: selectedTemplate.id,
-          loaiHinh,
-        });
       }
 
       const selectedIdx = templates.findIndex((t) => t.id === selectedTemplate.id);

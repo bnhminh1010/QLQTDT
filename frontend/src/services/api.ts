@@ -65,14 +65,22 @@ export async function logoutApi(): Promise<void> {
 
 /* ─── Helpers ───────────────────────────────────────────── */
 
-export function setStoredToken(accessToken: string) {
-  localStorage.setItem("accessToken", accessToken);
-}
+/**
+ * Token duoc luu trong HttpOnly cookie (do backend set khi login).
+ * Frontend KHONG doc token tu localStorage — browser tu dong gui cookie.
+ * Cac ham duoi day duoc giu signature de tranh pha code goi,
+ * nhung luon tra ve null (chi dung cookie).
+ */
 
 export function getStoredToken(): string | null {
-  return localStorage.getItem("accessToken");
+  // Chi dung cookie-based auth — khong luu JWT o client JS
+  return null;
+}
+
+export function setStoredToken(_accessToken: string) {
+  // No-op: token duoc set qua HttpOnly cookie boi backend
 }
 
 export function clearStoredToken() {
-  localStorage.removeItem("accessToken");
+  // No-op: cookie het han khi server xoa hoac browser dong tab
 }

@@ -41,12 +41,37 @@ public class AppDbContext : DbContext
     public DbSet<NhomNhanhWorkflow> NhomNhanhWorkflows => Set<NhomNhanhWorkflow>();
     public DbSet<NhanhWorkflow> NhanhWorkflows => Set<NhanhWorkflow>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         // NguoiDung
+        // RefreshToken
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshToken");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ExpiresAt).HasColumnType("datetime2(3)");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+
+            // Self-referencing: ReplacedTokenId → Id
+            entity.HasOne(e => e.ReplacedBy)
+                .WithOne(r => r.ReplacedToken)
+                .HasForeignKey<RefreshToken>(e => e.ReplacedTokenId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(e => e.NguoiDung)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiDungId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => e.TokenFamilyId);
+        });
+
         modelBuilder.Entity<NguoiDung>(entity =>
         {
             entity.ToTable("NguoiDung");
@@ -65,8 +90,6 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.IdCongKhai).IsUnique();
             entity.HasIndex(e => e.TenDangNhap).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
-            entity.Property(e => e.GoogleId).HasMaxLength(100);
-            entity.HasIndex(e => e.GoogleId).IsUnique().HasFilter("[GoogleId] IS NOT NULL");
             entity.Property(e => e.AvatarUrl).HasMaxLength(500);
         });
 
@@ -697,6 +720,26 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowStepInstanceId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // UserSession
+        modelBuilder.Entity<UserSession>(entity =>
+        {
+            entity.ToTable("UserSession");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Jti).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.DiaChiIP).HasMaxLength(50);
+            entity.Property(e => e.UserAgent).HasMaxLength(500);
+            entity.Property(e => e.RefreshTokenHash).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.LastActivityAt).HasColumnType("datetime2(3)");
+            entity.Property(e => e.RevokedAt).HasColumnType("datetime2(3)");
+            entity.HasOne(e => e.NguoiDung)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiDungId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.NguoiDungId, e.RevokedAt });
+            entity.HasIndex(e => e.Jti).IsUnique();
         });
     }
 }

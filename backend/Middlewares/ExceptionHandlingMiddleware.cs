@@ -27,7 +27,10 @@ public class ExceptionHandlingMiddleware
         }
         catch (AppException ex)
         {
-            _logger.LogWarning(ex, "Application exception: {Message}", ex.Message);
+            if (ex.StatusCode >= StatusCodes.Status500InternalServerError)
+            {
+                _logger.LogError(ex, "Application exception: {Message}", ex.Message);
+            }
             await WriteErrorResponse(context, ex.StatusCode, ex.ErrorType, ex.Message);
         }
         catch (Exception ex)

@@ -30,16 +30,18 @@ public class SecurityHeadersMiddleware
         // Chặn referrer leak — ko gửi URL đầy đủ sang domain khác
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
 
-        // Content-Security-Policy — chống XSS cơ bản
-        // Cho phép: self, inline style, fonts, images từ data: và self
-        // Script: self + unsafe-inline (cần cho Vite dev) + strict-dynamic
+        // Content-Security-Policy — chống XSS cơ bản.
+        // Backend chỉ trả JSON/API; không cần inline/eval script.
         headers["Content-Security-Policy"] =
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+            "script-src 'self'; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " +
             "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; " +
             "img-src 'self' data: blob:; " +
             "connect-src 'self' https://api.thinkai.id.vn; " +
+            "object-src 'none'; " +
+            "base-uri 'self'; " +
+            "form-action 'self'; " +
             "frame-ancestors 'none';";
 
         // X-Permitted-Cross-Domain-Policies — chặn PDF/Flash cross-domain

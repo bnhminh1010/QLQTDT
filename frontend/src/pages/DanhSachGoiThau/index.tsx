@@ -777,8 +777,6 @@ export default function DanhSachGoiThau() {
       return;
     }
 
-    console.info("[DanhSachGoiThau] cancel tender", { id: numId, maGoiThau: cancelTarget.id });
-
     cancelGoiThau(numId).then(() => {
       setData((prev) =>
         prev.map((r) =>
@@ -790,7 +788,6 @@ export default function DanhSachGoiThau() {
       toast.success(`Đã hủy gói thầu "${cancelTarget.ten}"`);
       setCancelTarget(null);
     }).catch((error) => {
-      console.error("[DanhSachGoiThau] cancel tender failed", error);
       toast.error(getApiErrorMessage(error, "Không thể hủy gói thầu"));
     });
   }
@@ -1675,4 +1672,3 @@ export default function DanhSachGoiThau() {
     </>
   );
 }
-

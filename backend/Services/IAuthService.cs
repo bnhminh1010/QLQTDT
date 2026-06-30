@@ -4,7 +4,7 @@ namespace QLQTDT.Api.Services;
 
 public interface IAuthService
 {
-    Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp);
+    Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp, string? userAgent);
     Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken);
     Task RevokeRefreshTokenAsync(string refreshToken);
     Task<UserDto> GetCurrentUserAsync(int userId);
@@ -13,4 +13,9 @@ public interface IAuthService
     Task ResetPasswordAsync(ResetPasswordDto dto);
     Task UpdatePasswordAsync(int userId, UpdatePasswordDto dto);
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileDto dto);
+
+    // Session management
+    Task<List<UserSessionDto>> GetSessionsAsync(int userId, string? currentJti = null);
+    Task RevokeSessionAsync(int userId, int sessionId);
+    Task RevokeAllSessionsAsync(int userId, int? excludeSessionId = null);
 }

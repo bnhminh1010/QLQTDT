@@ -4,7 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
 import { useShowPassword } from "@/util/showPassword";
 import { loginSchema } from "@/util/validate";
-import { loginApi, setStoredToken } from "@/services/api";
+import { loginApi } from "@/services/api";
 
 type LoginFormData = {
   username: string;
@@ -27,11 +27,10 @@ export default function Login() {
 
   async function onSubmit(data: LoginFormData) {
     try {
-      const result = await loginApi({
+      await loginApi({
         tenDangNhap: data.username.trim(),
         matKhau: data.password,
       });
-      setStoredToken(result.token);
       toast.success("Đăng nhập thành công");
       navigate("/dashboard");
     } catch (err: any) {

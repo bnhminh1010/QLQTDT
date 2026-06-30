@@ -92,6 +92,24 @@ public class KhoaPhongController : ControllerBase
         if (entity is null || entity.DaXoa)
             return NotFound(ApiResponse.Fail("Không tìm thấy khoa phòng."));
 
+        if (!string.IsNullOrWhiteSpace(request.MaKhoaPhong))
+        {
+            var normalizedCode = request.MaKhoaPhong.Trim().ToUpper();
+            var codeExists = await _db.KhoaPhongs.AnyAsync(k =>
+                k.Id != id && k.MaKhoaPhong != null && k.MaKhoaPhong.ToUpper() == normalizedCode && !k.DaXoa);
+            if (codeExists)
+                return BadRequest(ApiResponse.Fail("Mã khoa/phòng đã tồn tại."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.TenKhoaPhong))
+        {
+            var normalizedName = request.TenKhoaPhong.Trim().ToLower();
+            var nameExists = await _db.KhoaPhongs.AnyAsync(k =>
+                k.Id != id && k.TenKhoaPhong.ToLower() == normalizedName && !k.DaXoa);
+            if (nameExists)
+                return BadRequest(ApiResponse.Fail("Tên khoa/phòng đã tồn tại."));
+        }
+
         if (request.TenKhoaPhong != null)
             entity.TenKhoaPhong = request.TenKhoaPhong.Trim();
         if (request.MaKhoaPhong != null)

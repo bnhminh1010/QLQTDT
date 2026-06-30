@@ -524,7 +524,7 @@ public class BaoCaoService : IBaoCaoService
                 // Average hours for completed steps only
                 var completedWithTime = g.Where(wsi =>
                     (wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT || wsi.TrangThai == WorkflowStepTrangThai.SKIPPED)
-                    && wsi.NgayBatDau != null && wsi.NgayHoanThanh != null);
+                    && wsi.NgayHoanThanh != null);
                 var avgHours = completedWithTime.Any()
                     ? Math.Round(completedWithTime.Average(wsi => (wsi.NgayHoanThanh!.Value - wsi.NgayBatDau).TotalHours), 1)
                     : 0;
