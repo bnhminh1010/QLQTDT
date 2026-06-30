@@ -5,6 +5,7 @@ import type {
   WorkflowTemplatePreview,
   LoaiBuocValue,
   LoaiHanValue,
+  HuongXuLyValue,
 } from "@/services/workflowApi";
 import type {
   WorkflowStepDraft,
@@ -88,8 +89,8 @@ export function mapHuongXuLyToUi(value?: string): HuongXuLyUI {
   return huongXuLyBackendMap[value ?? ""] ?? "Trả về bước trước";
 }
 
-export function mapHuongXuLyToBackend(value: HuongXuLyUI): string {
-  const map: Record<HuongXuLyUI, string> = {
+export function mapHuongXuLyToBackend(value: HuongXuLyUI): HuongXuLyValue {
+  const map: Record<HuongXuLyUI, HuongXuLyValue> = {
     "Trả về bước trước": "TRA_VE_BUOC_TRUOC",
     "Dừng quy trình": "DUNG_QUY_TRINH",
   };
@@ -170,6 +171,8 @@ export function previewToWorkflowDraft(
         maNhanh: b.maNhanh,
         tenNhanh: b.tenNhanh,
         thuTu: b.thuTu,
+        thoiHanNgay: b.thoiHanNgay ?? 1,
+        loaiHan: b.loaiHan,
         stepIds: buildBranchStepIds(steps, branchDraftId),
       };
     });
@@ -177,6 +180,7 @@ export function previewToWorkflowDraft(
       id: groupDraftId,
       backendId: preserveBackendIds ? pg.id : undefined,
       buocTachNhanhId: stepMap.get(pg.buocTachNhanhId) ?? String(pg.buocTachNhanhId),
+      tenNhom: pg.tenNhom,
       dieuKienHopNhat: mapDieuKienHopNhatToUi(pg.dieuKienHopNhat),
       soNhanhHopNhatToiThieu: pg.soNhanhHopNhatToiThieu ?? 2,
       buocSauHopNhatId: stepMap.get(pg.buocSauHopNhatId) ?? String(pg.buocSauHopNhatId),

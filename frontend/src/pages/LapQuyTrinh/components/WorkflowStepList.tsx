@@ -196,8 +196,8 @@ export default function WorkflowStepList({
                           onAddBranch={() => onAddBranch(group.id)}
                           onRemoveBranch={(branchId) => onRemoveBranch(group.id, branchId)}
                           onAddStepToBranch={onAddStepToBranch}
-                          onEditStep={onEditBranchStep}
-                          onDeleteStep={onDeleteBranchStep}
+                          onEditStep={onEditBranchStep ?? onEdit}
+                          onDeleteStep={onDeleteBranchStep ?? onDelete}
                         />
                       </div>
                     </div>

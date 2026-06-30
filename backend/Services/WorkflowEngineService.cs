@@ -547,11 +547,10 @@ public class WorkflowEngineService : IWorkflowEngineService
                 s.TrangThai == WorkflowStepTrangThai.HOAN_TAT))
             .Count();
 
-        var terminalBranchIds = relevantSteps
+        var skippedBranchIds = relevantSteps
             .Where(s => s.BuocWorkflow?.NhanhWorkflowId.HasValue == true)
             .GroupBy(s => s.BuocWorkflow!.NhanhWorkflowId!.Value)
             .Where(group => group.All(s =>
-                s.TrangThai == WorkflowStepTrangThai.HOAN_TAT ||
                 s.TrangThai == WorkflowStepTrangThai.SKIPPED))
             .Count();
 
@@ -569,7 +568,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 break;
             case "SKIP_ALL":
                 // Nếu tất cả nhánh đều đã kết thúc (dù là SKIPPED), merge vẫn chạy
-                mergeConditionMet = terminalBranchIds >= branchCount;
+                mergeConditionMet = skippedBranchIds >= branchCount;
                 break;
             default:
                 mergeConditionMet = completedBranchIds >= branchCount;
@@ -582,7 +581,7 @@ public class WorkflowEngineService : IWorkflowEngineService
         {
             // Branch complete but merge not yet ready
             AddAuditEntries(instance.Id, currentStep.Id, hanhDong,
-                ghiChu ?? $"Hoàn tất nhánh (chờ merge: {group.DieuKienHopNhat})",
+                ghiChu ?? $"Đã xử lý xong nhánh (chờ merge: {group.DieuKienHopNhat})",
                 currentUserId, instance.GoiThauId,
                 $"{hanhDong}_BRANCH_DONE: '{buoc.TenBuoc}' — {auditMergeMsg}");
 
@@ -590,7 +589,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 var resp = await BuildResponse2Phase(currentStep, instance, goiThau!, hanhDong,
                     false, null, null, currentStep.RowVersion, request: request);
                 resp.IsAwaitingMerge = true;
-                resp.Message = $"Hoàn tất bước '{buoc.TenBuoc}'. Đang chờ các nhánh còn lại hoàn tất ({completedBranchIds}/{branchCount}).";
+                resp.Message = $"Đã xử lý xong bước '{buoc.TenBuoc}'. Đang chờ các nhánh còn lại hoàn thành ({completedBranchIds}/{branchCount}).";
                 resp.NewRowVersion = currentStep.RowVersion;
                 resp.TinhTrangTienDo = "DUNG_TIEN_DO";
                 resp.SoNhanhHoanThanh = completedBranchIds;
@@ -621,7 +620,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             {
                 var resp = await BuildResponse2Phase(currentStep, instance, goiThau!, hanhDong,
                     false, null, null, currentStep.RowVersion, request: request);
-                resp.Message = "Nhánh đã hoàn tất. Bước merge đã được tạo trước đó.";
+                resp.Message = "Nhánh đã xử lý xong. Bước merge đã được tạo trước đó.";
                 resp.NewRowVersion = currentStep.RowVersion;
                 resp.TinhTrangTienDo = "DUNG_TIEN_DO";
                 return resp;

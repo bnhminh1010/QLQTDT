@@ -1,7 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import GoiThauDetailPanel from "@/components/workflow/GoiThauDetailPanel";
+import {
+  buildWorkflowDetailSteps,
+  resolveWorkflowCurrentStepSummary,
+} from "@/components/workflow/workflowDetailUtils";
 import { SelectField } from "@/components/ui/select";
 import { searchGoiThau } from "@/services/goiThauApi";
+import { getGoiThauChiTiet, type GoiThauDetail } from "@/services/goiThauApi";
 import {
   getThongBaos,
   markAllReadThongBao,
@@ -9,8 +15,13 @@ import {
   type ThongBaoItem,
 } from "@/services/thongBaoApi";
 import {
+  getParallelGroups,
+  getWorkflowDesignSteps,
   getWorkflowState,
+  getWorkflowSteps,
   formatWorkflowKetQua,
+  type BuocWorkflowDto,
+  type ParallelGroupDto,
   type WorkflowStateDto,
   type WorkflowStepStateDto,
 } from "@/services/workflowApi";
@@ -82,12 +93,6 @@ const BAR_COLOR: Record<BarColor, string> = {
   slate: "bg-slate-400",
   purple: "bg-purple-400",
 };
-const DOT_CLS: Record<DotState, string> = {
-  done: "bg-emerald-500 text-white",
-  warn: "bg-amber-500 text-white",
-  idle: "bg-slate-200",
-};
-
 type TableRow = {
   id: number;
   code: string;
@@ -101,6 +106,7 @@ type TableRow = {
   ngayTao: string;
   hanHT: string;
   hinhThuc: string;
+  workflowId?: number;
   overdueReason?: string;
   currentStep: string;
   currentProcessor: string;
@@ -133,17 +139,6 @@ function ProgBar({ color, pct }: { color: BarColor; pct: string }) {
         className={`h-full rounded-full ${BAR_COLOR[color]}`}
         style={{ width: pct }}
       />
-    </div>
-  );
-}
-
-function Dot({ state }: { state: DotState }) {
-  return (
-    <div
-      className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[9px] ${DOT_CLS[state]}`}
-    >
-      {state === "done" && <i className="fa-solid fa-check" />}
-      {state === "warn" && <i className="fa-solid fa-triangle-exclamation" />}
     </div>
   );
 }
@@ -223,6 +218,12 @@ export default function Dashboard() {
   const notifRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [workflowState, setWorkflowState] = useState<WorkflowStateDto | null>(null);
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStepStateDto[]>([]);
+  const [designSteps, setDesignSteps] = useState<BuocWorkflowDto[]>([]);
+  const [parallelGroups, setParallelGroups] = useState<ParallelGroupDto[]>([]);
+  const [selectedDetail, setSelectedDetail] = useState<GoiThauDetail | null>(null);
 
   // Load data from API
   useEffect(() => {
@@ -243,20 +244,21 @@ export default function Dashboard() {
           const currentStepDetail = workflowState?.steps.find(
             (step) => step.id === currentStep?.stepInstanceId,
           );
-          return {
-          id: item.id,
-          code: item.maGoiThau || `GT${item.id}`,
-          name: item.tenGoiThau || '',
-          unit: item.tenKhoaPhong || '',
-          status,
-          color,
-          pct: `${item.phanTramHoanThanh}%`,
-          txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
-          nguonVon: '',
-          ngayTao: item.ngayTao?.slice(0, 10) || '',
-          hanHT: currentStepDetail?.hanXuLy?.slice(0, 10) || '',
-          hinhThuc: item.tenHinhThuc || '',
-          currentStep: workflowState?.tenBuocHienTai || currentStep?.tenBuoc || '',
+	          return {
+	          id: item.id,
+	          code: item.maGoiThau || `GT${item.id}`,
+	          name: item.tenGoiThau || '',
+	          unit: item.tenKhoaPhong || '',
+	          status,
+	          color,
+	          pct: `${item.phanTramHoanThanh}%`,
+	          txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
+	          nguonVon: '',
+	          ngayTao: item.ngayTao?.slice(0, 10) || '',
+	          hanHT: currentStepDetail?.hanXuLy?.slice(0, 10) || '',
+	          hinhThuc: item.tenHinhThuc || '',
+	          workflowId: item.workflowId ?? workflowState?.workflowId,
+	          currentStep: workflowState?.tenBuocHienTai || currentStep?.tenBuoc || '',
           currentProcessor:
             currentStepDetail?.tenNguoiXuLy ||
             currentStepDetail?.tenNguoiKyDuyet ||
@@ -305,6 +307,99 @@ export default function Dashboard() {
 
   const selected = tableRows.length > 0 ? (tableRows[selectedIdx] || tableRows[0]) : null;
 
+  useEffect(() => {
+    if (!selected) {
+      setSelectedDetail(null);
+      setWorkflowState(null);
+      setWorkflowSteps([]);
+      setDesignSteps([]);
+      setParallelGroups([]);
+      setWorkflowLoading(false);
+      return;
+    }
+
+    const numericId = Number(selected.id);
+    const selectedWorkflowId = selected.workflowId;
+    if (!Number.isFinite(numericId) || numericId <= 0) {
+      setSelectedDetail(null);
+      setWorkflowState(null);
+      setWorkflowSteps([]);
+      setDesignSteps([]);
+      setParallelGroups([]);
+      setWorkflowLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadWorkflowDetail() {
+      setWorkflowLoading(true);
+      setSelectedDetail(null);
+      const detailPromise = getGoiThauChiTiet(numericId).catch(() => null);
+
+      void detailPromise.then((detail) => {
+        if (!cancelled) setSelectedDetail(detail);
+      });
+
+      try {
+        const [state, steps] = await Promise.all([
+          getWorkflowState(numericId),
+          getWorkflowSteps(numericId),
+        ]);
+        const detail = await detailPromise;
+        const workflowId = selectedWorkflowId ?? detail?.workflowId ?? state.workflowId;
+        const [design, groups] = workflowId
+          ? await Promise.all([
+              getWorkflowDesignSteps(workflowId).catch(() => [] as BuocWorkflowDto[]),
+              getParallelGroups(workflowId).catch(() => [] as ParallelGroupDto[]),
+            ])
+          : [[] as BuocWorkflowDto[], [] as ParallelGroupDto[]];
+
+        if (cancelled) return;
+        setWorkflowState(state);
+        setWorkflowSteps(steps);
+        setDesignSteps(design);
+        setParallelGroups(groups);
+      } catch {
+        if (cancelled) return;
+        const detail = await detailPromise;
+        setWorkflowState(null);
+        setWorkflowSteps([]);
+
+        const workflowId = selectedWorkflowId ?? detail?.workflowId;
+        if (!workflowId) {
+          setDesignSteps([]);
+          setParallelGroups([]);
+          return;
+        }
+
+        try {
+          const [design, groups] = await Promise.all([
+            getWorkflowDesignSteps(workflowId).catch(() => [] as BuocWorkflowDto[]),
+            getParallelGroups(workflowId).catch(() => [] as ParallelGroupDto[]),
+          ]);
+          if (!cancelled) {
+            setDesignSteps(design);
+            setParallelGroups(groups);
+          }
+        } catch {
+          if (!cancelled) {
+            setDesignSteps([]);
+            setParallelGroups([]);
+          }
+        }
+      } finally {
+        if (!cancelled) setWorkflowLoading(false);
+      }
+    }
+
+    void loadWorkflowDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.id, selected?.workflowId]);
+
   const filteredRows = tableRows.filter((r) => {
     const matchSearch =
       !search ||
@@ -314,6 +409,19 @@ export default function Dashboard() {
     const matchStatus = !filterStatus || r.status === filterStatus;
     return matchSearch && matchStatus;
   });
+
+  const currentWorkflowSummary = useMemo(
+    () => resolveWorkflowCurrentStepSummary(workflowState, workflowSteps),
+    [workflowState, workflowSteps],
+  );
+  const displaySteps = useMemo(
+    () => buildWorkflowDetailSteps(workflowState, workflowSteps, designSteps, parallelGroups),
+    [workflowState, workflowSteps, designSteps, parallelGroups],
+  );
+  const currentStepName =
+    currentWorkflowSummary.currentStepName ||
+    selected?.currentStep ||
+    "";
 
   /* Close notification dropdown on outside click */
   useEffect(() => {
@@ -675,238 +783,47 @@ export default function Dashboard() {
               <p className="text-xs">Chưa có dữ liệu</p>
             </div>
           ) : (
-          <div className="flex flex-col h-full">
-          <div className="font-mono text-xs font-bold text-blue-700 mb-1">
-            {selected.code}
-          </div>
-          <div className="text-sm font-bold text-slate-900 mb-0.5">
-            {selected.name}
-          </div>
-          <div className="text-xs text-slate-400 mb-3">{selected.unit}</div>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            <span className="text-xs border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
-              {selected.hinhThuc}
-            </span>
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full font-medium ${BADGE[selected.status]}`}
-            >
-              {selected.status}
-            </span>
-          </div>
-          {selected.overdueReason && (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
-              <div className="mb-1 flex items-center gap-1.5 font-semibold">
-                <i className="fa-solid fa-circle-exclamation text-[10px]" />
-                Lý do trễ hạn
-              </div>
-              <p className="leading-relaxed">{selected.overdueReason}</p>
-            </div>
-          )}
-
-          {/* Progress */}
-          <div className="flex justify-between text-xs text-slate-600 mb-1.5">
-            <span>Tiến độ quy trình</span>
-            <span>
-              {selected.txt} bước ({selected.pct})
-            </span>
-          </div>
-          <div className="h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
-            <div
-              className={`h-full rounded-full ${BAR_COLOR[selected.color]}`}
-              style={{ width: selected.pct }}
+            <GoiThauDetailPanel
+              code={selected.code}
+              title={selected.name}
+              subtitle={selected.unit}
+              badges={[
+                { label: selected.hinhThuc, className: "border border-slate-200 text-slate-600" },
+                { label: selected.status, className: BADGE[selected.status] },
+              ]}
+              progressLabel={selected.txt}
+              progressValue={selected.pct}
+              progressBarClassName={BAR_COLOR[selected.color]}
+              metaRows={[
+                { label: "Bước hiện tại", value: currentStepName || "—" },
+                { label: "Nguồn vốn", value: selectedDetail?.nguonVon || selected.nguonVon || "—" },
+                { label: "Ngày tạo", value: selectedDetail?.ngayTao?.slice(0, 10) || selected.ngayTao || "—" },
+                {
+                  label: "Hạn hoàn thành",
+                  value: currentWorkflowSummary.currentDueDate || selected.hanHT || "—",
+                  valueClassName: selected.status === "Trễ hạn" ? "text-red-500" : undefined,
+                },
+                {
+                  label: "Tình trạng tiến độ",
+                  value: selected.progressStatus,
+                  valueClassName: selected.progressStatus === "Quá hạn" ? "text-red-500" : undefined,
+                },
+              ]}
+              stepInfoRows={[
+                { label: "Người xử lý", value: currentWorkflowSummary.currentProcessor },
+                { label: "Ngày xử lý", value: currentWorkflowSummary.currentProcessDate },
+                { label: "Người ký", value: currentWorkflowSummary.currentSigner },
+                { label: "Ngày ký", value: currentWorkflowSummary.currentSignedDate },
+                { label: "Kết quả", value: currentWorkflowSummary.currentResult },
+              ]}
+              steps={displaySteps}
+              stepsLoading={workflowLoading}
+              stepsEmptyMessage="Chua co du lieu buoc quy trinh tu backend."
+              footerAction={{
+                label: "Xem chi tiết",
+                onClick: () => navigate("/danh-sach-goi-thau"),
+              }}
             />
-          </div>
-
-          {/* Meta */}
-          <div className="space-y-2 mb-5">
-            {(
-              [
-                ["Bước hiện tại", selected.currentStep, ""],
-                ["Nguồn vốn", selected.nguonVon, ""],
-                ["Ngày tạo", selected.ngayTao, ""],
-                [
-                  "Hạn hoàn thành",
-                  selected.hanHT,
-                  selected.status === "Trễ hạn" ? "text-red-500" : "",
-                ],
-              ] as [string, string, string][]
-            ).map(([lbl, val, cls]) => (
-              <div key={lbl} className="flex justify-between text-xs">
-                <span className="text-slate-400">{lbl}</span>
-                <span className={`font-semibold text-slate-800 ${cls}`}>
-                  {val}
-                </span>
-              </div>
-            ))}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-2">
-              {[
-                ["Người xử lý", selected.currentProcessor],
-                ["Ngày xử lý", selected.currentProcessDate],
-                ["Người ký", selected.currentSigner],
-                ["Ngày ký", selected.currentSignedDate],
-                ["Kết quả", selected.currentResult],
-              ].map(([lbl, val]) => (
-                <div key={lbl} className="flex justify-between gap-3 text-xs">
-                  <span className="text-slate-400">{lbl}</span>
-                  <span className="font-semibold text-slate-800 text-right">
-                    {val}
-                  </span>
-                </div>
-              ))}
-            </div>
-            {/* Progress status indicator */}
-            <div className="flex justify-between items-center text-xs pt-1">
-              <span className="text-slate-400">Tình trạng tiến độ</span>
-              {selected.progressStatus === "Quá hạn" ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-semibold text-[11px]">
-                  <i className="fa-solid fa-circle-exclamation text-[10px]" />{" "}
-                  Quá hạn
-                </span>
-              ) : selected.progressStatus === "Đúng hạn" ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 font-semibold text-[11px]">
-                  <i className="fa-solid fa-circle-check text-[10px]" />{" "}
-                  {selected.progressStatus}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold text-[11px]">
-                  <i className="fa-solid fa-clock text-[10px]" />{" "}
-                  {selected.progressStatus}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Steps */}
-          <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">
-            CÁC BƯỚC QUY TRÌNH
-          </div>
-          <div className="space-y-3 mb-5">
-            {selected.steps.length === 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-                Chua co du lieu buoc quy trinh tu backend.
-              </div>
-            ) : selected.steps.map((step) => (
-              <div key={step.name} className="space-y-2">
-              <details className="group">
-                <summary className="flex items-start gap-2.5 rounded-xl cursor-pointer list-none
-                  [&::-webkit-details-marker]:hidden
-                  [&::marker]:hidden
-                  transition-colors
-                  p-1.5 -mx-1.5 hover:bg-slate-50
-                ">
-                  <Dot state={step.state} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="text-xs font-medium text-slate-800 min-w-0">
-                        {step.name}
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                          step.status === "Trễ hạn" ? "bg-red-100 text-red-600"
-                          : step.status === "Hoàn tất" ? "bg-emerald-100 text-emerald-600"
-                          : step.status === "Chờ ký duyệt" ? "bg-amber-100 text-amber-600"
-                          : "bg-slate-100 text-slate-500"
-                        }`}>
-                          {step.status}
-                        </span>
-                        <i className="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform group-open:rotate-180" />
-                      </div>
-                    </div>
-                  </div>
-                </summary>
-                <div className="ml-[34px] mt-1.5 space-y-0.5 text-[11px] bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                  <div className="text-slate-600 grid gap-1.5">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Người xử lý</span>
-                      <span className="font-semibold text-slate-700 text-right">{step.processor}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Ngày xử lý</span>
-                      <span className="font-semibold text-slate-700 text-right">{step.ngayXuLy || "—"}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Người ký</span>
-                      <span className="font-semibold text-slate-700 text-right">{step.nguoiKy || "—"}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Ngày ký</span>
-                      <span className="font-semibold text-slate-700 text-right">{step.ngayKy || "—"}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Kết quả</span>
-                      <span className={`font-semibold text-right ${
-                        step.ketQua === "Duyệt" || step.ketQua === "Đồng ý"
-                          ? "text-emerald-600"
-                          : step.ketQua === "Không duyệt" || step.ketQua === "Từ chối"
-                            ? "text-red-600"
-                            : "text-slate-700"
-                      }`}>
-                        {step.ketQua || "—"}
-                      </span>
-                    </div>
-                    {step.reason && (
-                      <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
-                        <span className="font-semibold">Lý do không duyệt:</span> {step.reason}
-                      </div>
-                    )}
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Tình trạng tiến độ</span>
-                      <span className={`font-semibold text-right ${
-                        step.sla === "Quá hạn" ? "text-red-600"
-                        : step.sla === "Sắp quá hạn" ? "text-amber-600"
-                        : "text-emerald-600"
-                      }`}>
-                        {step.sla}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </details>
-                {selected.parallelInfo && step.name.includes("Tổ chuyên gia") && (
-                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
-                    <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
-                      <i className="fa-solid fa-code-branch text-[11px]" />
-                      NHÁNH SONG SONG
-                    </div>
-                    <p className="mb-3 leading-relaxed text-slate-600">
-                      {selected.parallelInfo.condition}
-                    </p>
-                    <div className="space-y-2">
-                      {selected.parallelInfo.branches.map((branch) => (
-                        <div key={branch.name} className="rounded-lg border border-white bg-white/80 p-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-800">{branch.name}</span>
-                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">{branch.progress} bước</span>
-                          </div>
-                          <div className="mt-1 text-[11px] text-slate-500">
-                            Bước hiện tại: <span className="font-semibold text-slate-700">{branch.currentStep}</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            Người xử lý: <span className="font-semibold text-slate-700">{branch.processor}</span>
-                          </div>
-                          <div className="mt-1 text-[11px] font-semibold text-amber-700">{branch.status}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3 rounded-lg bg-amber-50 px-2 py-2 text-[11px] font-semibold text-amber-700">
-                      {selected.parallelInfo.mergeStatus}
-                    </div>
-                    <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
-                      {selected.parallelInfo.lockedStage}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <button
-            onClick={() => navigate("/danh-sach-goi-thau")}
-            className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
-          >
-            <i className="fa-solid fa-arrow-right text-xs" /> Xem chi tiết
-          </button>
-            </div>
           )}
         </aside>
       </div>

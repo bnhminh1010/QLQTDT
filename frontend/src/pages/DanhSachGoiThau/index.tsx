@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import GoiThauDetailPanel from "@/components/workflow/GoiThauDetailPanel";
+import WorkflowStepsPanel from "@/components/workflow/WorkflowStepsPanel";
 import { SelectField } from "@/components/ui/select";
 import { getUserGoiThauList } from "./goiThauService";
 import { cancelGoiThau, deleteGoiThau } from "@/services/goiThauApi";
@@ -20,6 +22,7 @@ import {
   type LichSuTrangThaiGoiThauDto,
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
+import { normalizeParallelGroupTitle } from "@/constants/parallelGroup";
 
 /* ─── Types ───────────────────────────────────────────── */
 type DotState = "done" | "warn" | "idle";
@@ -113,14 +116,9 @@ const BAR_COLOR: Record<TrangThai, string> = {
   "Nháp": "bg-purple-400",
   "Đã chọn nhà thầu": "bg-emerald-400",
 };
-const DOT_CLS: Record<DotState, string> = {
-  done: "bg-emerald-500 text-white",
-  warn: "bg-amber-500 text-white",
-  idle: "bg-slate-200",
-};
-
 /* ─── Mock data (keep as fallback when API unavailable) ─── */
 const HISTORY_LOGS: LichSuGoiThau[] = [];
+void HISTORY_LOGS;
 
 const DEFAULT_DETAIL_INFO: GoiThauDetailInfo = {
   buocHienTai: "",
@@ -240,10 +238,18 @@ function mapWorkflowStepState(
 }
 
 function getStepProgressLabel(step: WorkflowStepStateDto) {
-  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn tất";
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn thành";
   if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
   if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "Đang xử lý";
   return "Chưa thực hiện";
+}
+
+function isStepCompleted(step: WorkflowStepStateDto) {
+  return step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
+}
+
+function isStepSkipped(step: WorkflowStepStateDto) {
+  return step.trangThai === "SKIPPED";
 }
 
 function getBranchStepState(
@@ -321,46 +327,25 @@ function buildParallelInfoBySplitStep(
   const activeStepIds = new Set(currentSteps.map((step) => step.stepInstanceId));
   return groups.reduce<Record<number, ParallelInfo>>((acc, group) => {
     const branchIds = new Set(group.branches.map((branch) => branch.id));
-    const groupRuntimeSteps = runtimeSteps.filter((step) =>
-      step.nhanhWorkflowId != null && branchIds.has(step.nhanhWorkflowId),
+    const mergeStepOpen = runtimeSteps.some((step) =>
+      step.buocWorkflowId === group.buocSauHopNhatId &&
+      step.trangThai !== "PENDING" &&
+      step.trangThai !== "CHUA_BAT_DAU",
     );
-    const completedBranchCount = group.branches.filter((branch) => {
-      const branchSteps = groupRuntimeSteps.filter((step) => step.nhanhWorkflowId === branch.id);
-      return branchSteps.length > 0 && branchSteps.every((step) =>
-        step.trangThai === "HOAN_TAT" ||
-        step.trangThai === "COMPLETED" ||
-        Boolean(step.ngayHoanThanh),
-      );
-    }).length;
-    const terminalBranchCount = group.branches.filter((branch) => {
-      const branchSteps = groupRuntimeSteps.filter((step) => step.nhanhWorkflowId === branch.id);
-      return branchSteps.length > 0 && branchSteps.every((step) =>
-        step.trangThai === "HOAN_TAT" ||
-        step.trangThai === "COMPLETED" ||
-        step.trangThai === "SKIPPED" ||
-        Boolean(step.ngayHoanThanh),
-      );
-    }).length;
-    const requiredBranchCount = group.dieuKienHopNhat === "ANY"
-      ? 1
-      : group.dieuKienHopNhat === "COUNT"
-        ? group.soNhanhHopNhatToiThieu ?? 1
-        : group.branches.length;
-    const progressBranchCount = group.dieuKienHopNhat === "SKIP_ALL" ? terminalBranchCount : completedBranchCount;
-    const lockedStage = progressBranchCount >= requiredBranchCount
+    const lockedStage = mergeStepOpen
       ? "Điều kiện hợp nhất đã thỏa, hệ thống đang mở bước sau hợp nhất."
-      : `Chưa mở bước sau hợp nhất: mới có ${progressBranchCount}/${requiredBranchCount} nhánh thỏa điều kiện.`;
+      : "Điều kiện hợp nhất chưa thỏa, chưa mở bước sau hợp nhất.";
 
     acc[group.buocTachNhanhId] = {
-      title: group.tenNhom,
+      title: normalizeParallelGroupTitle(group.tenNhom),
       condition: group.dieuKienHopNhat === "ALL"
-        ? "Tất cả nhánh phải hoàn tất trước khi hợp nhất."
+        ? "Tất cả nhánh phải hoàn thành trước khi hợp nhất."
         : group.dieuKienHopNhat === "SKIP_ALL"
-          ? "Cho phép hợp nhất khi tất cả nhánh đã hoàn tất hoặc đã bỏ qua."
-          : `Cần tối thiểu ${group.soNhanhHopNhatToiThieu ?? 1} nhánh hoàn tất trước khi hợp nhất.`,
+          ? "Chỉ cho phép hợp nhất khi tất cả nhánh đều bị bỏ qua."
+          : `Cần tối thiểu ${group.soNhanhHopNhatToiThieu ?? 1} nhánh hoàn thành trước khi hợp nhất.`,
       branches: group.branches.map((branch) => {
         const branchRuntimeSteps = dedupeWorkflowStepsByDesignStep(
-          runtimeSteps.filter((step) => step.nhanhWorkflowId === branch.id),
+          runtimeSteps.filter((step) => step.nhanhWorkflowId != null && branchIds.has(step.nhanhWorkflowId) && step.nhanhWorkflowId === branch.id),
           activeStepIds,
         );
         const branchDesignSteps = designSteps.filter((step) => step.nhanhWorkflowId === branch.id);
@@ -381,25 +366,15 @@ function buildParallelInfoBySplitStep(
           step.trangThai === "DANG_XU_LY" ||
           step.trangThai === "CHO_DUYET",
         );
-        const completedCount = branchRuntimeSteps.filter((step) =>
-          step.trangThai === "HOAN_TAT" ||
-          step.trangThai === "COMPLETED" ||
-          step.trangThai === "SKIPPED" ||
-          step.ngayHoanThanh,
-        ).length;
+        const completedCount = branchRuntimeSteps.filter(isStepCompleted).length;
         const terminalStep = branchRuntimeSteps.find((step) =>
           step.trangThai === "HOAN_TAT" ||
           step.trangThai === "COMPLETED" ||
           step.trangThai === "SKIPPED",
         );
-        const anyCompleted = branchRuntimeSteps.some((step) =>
-          step.trangThai === "HOAN_TAT" ||
-          step.trangThai === "COMPLETED" ||
-          step.ngayHoanThanh,
-        );
-        const allSkipped =
-          branchRuntimeSteps.length > 0 &&
-          branchRuntimeSteps.every((step) => step.trangThai === "SKIPPED");
+        const anyCompleted = branchRuntimeSteps.some(isStepCompleted);
+        const allCompleted = branchRuntimeSteps.length > 0 && branchRuntimeSteps.every(isStepCompleted);
+        const allSkipped = branchRuntimeSteps.length > 0 && branchRuntimeSteps.every(isStepSkipped);
         const noteSource = currentBranchStep?.ghiChu?.trim()
           ? currentBranchStep
           : [...branchRuntimeSteps].reverse().find((step) => step.ghiChu?.trim())
@@ -409,7 +384,11 @@ function buildParallelInfoBySplitStep(
           name: branch.tenNhanh,
           backendId: currentBranchStep?.id ?? terminalStep?.id ?? branchRuntimeSteps[branchRuntimeSteps.length - 1]?.id,
           progress: `${completedCount}/${steps.length}`,
-          status: anyCompleted ? "Đã hoàn tất" : allSkipped ? "Đã bỏ qua" : currentBranchStep ? getStepProgressLabel(currentBranchStep) : "Chưa đến lượt xử lý",
+          status: allSkipped
+            ? "Đã bỏ qua"
+            : currentBranchStep
+              ? getStepProgressLabel(currentBranchStep)
+              : (anyCompleted || allCompleted ? "Đã hoàn thành" : "Chưa đến lượt xử lý"),
           currentStep: currentBranchStep?.tenBuoc || terminalStep?.tenBuoc || steps[0]?.name || "—",
           processor: currentBranchStep?.tenNguoiXuLy || currentBranchStep?.tenVaiTroXuLy || terminalStep?.tenNguoiXuLy || "—",
           ghiChu: noteSource?.ghiChu,
@@ -449,17 +428,6 @@ function mapWorkflowStateToDetailInfo(
 }
 
 /* ─── Sub-components ──────────────────────────────────── */
-function Dot({ state }: { state: DotState }) {
-  return (
-    <div
-      className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[9px] ${DOT_CLS[state]}`}
-    >
-      {state === "done" && <i className="fa-solid fa-check" />}
-      {state === "warn" && <i className="fa-solid fa-triangle-exclamation" />}
-    </div>
-  );
-}
-
 function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
   if (!active)
     return <i className="fa-solid fa-sort text-slate-300 ml-1 text-[10px]" />;
@@ -997,6 +965,136 @@ export default function DanhSachGoiThau() {
       }));
 
     return (
+      <GoiThauDetailPanel
+        code={selected.id}
+        title={selected.ten}
+        subtitle={selected.donVi}
+        badges={[
+          { label: selected.hinhThuc, className: "border border-slate-200 text-slate-600" },
+          { label: selected.trangThai, className: BADGE[selected.trangThai] },
+        ]}
+        progressLabel={progressText}
+        progressValue={progressPct}
+        progressBarClassName={BAR_COLOR[selected.trangThai]}
+        metaRows={[
+          { label: "Quy trình", value: workflowState?.workflowTen || "—" },
+          { label: "Bước hiện tại", value: currentStepName || "—" },
+          { label: "Giá trị", value: formatCurrencyDisplay(selected.giaTriStr) },
+          { label: "Nguồn vốn", value: selected.detail.nguonVon || "—" },
+          { label: "Ngày tạo", value: selected.detail.ngayTao || "—" },
+          {
+            label: "Hạn hoàn thành",
+            value: selected.detail.hanHT || "—",
+            valueClassName: selected.trangThai === "Trễ hạn" ? "text-red-500" : undefined,
+          },
+          {
+            label: "Tình trạng tiến độ",
+            value: progressStatus,
+            valueClassName: selected.trangThai === "Trễ hạn" ? "text-red-500" : undefined,
+          },
+        ]}
+        noteTagsLabel="ĐƠN VỊ THEO DÕI"
+        noteTags={selected.theoDoi ?? []}
+        alert={detailInfo.lyDoTreHan ? {
+          title: "Lý do trễ hạn",
+          description: detailInfo.lyDoTreHan,
+          titleClassName: "text-red-600",
+          descriptionClassName: "text-red-700",
+        } : undefined}
+        stepInfoRows={[
+          { label: "Người xử lý", value: currentStepDetail?.tenNguoiXuLy || detailInfo.nguoiXuLy || "—" },
+          { label: "Ngày xử lý", value: currentStepDetail?.ngayXuLy?.slice(0, 10) || "—" },
+          { label: "Người ký", value: currentStepDetail?.tenNguoiKyDuyet || "—" },
+          { label: "Ngày ký", value: currentStepDetail?.ngayKyDuyet?.slice(0, 10) || "—" },
+          {
+            label: "Kết quả",
+            value: formatWorkflowKetQua(currentStepDetail?.ketQua) || (currentStepDetail?.trangThai === "HOAN_TAT" ? "Duyệt" : currentStepDetail?.trangThai || "Chờ xử lý"),
+          },
+        ]}
+        steps={displaySteps}
+        stepsLoading={workflowLoading}
+        stepsEmptyMessage="Chua co du lieu buoc quy trinh tu backend."
+        onCurrentStepAction={() => goToCurrentStep(selected)}
+        canShowCurrentStepAction={canProcessWorkflowStep}
+        onBranchStepClick={(branchStep) => goToStepResult(selected, branchStep.name, branchStep.backendId)}
+        onBranchCurrentStepAction={(branch) => {
+          navigate(
+            `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}${branch.backendId ? `&stepId=${branch.backendId}` : ""}`,
+          );
+        }}
+        onBranchSkip={async (branch) => {
+          const stepInstance = workflowState?.steps.find((s) => s.id === branch.backendId);
+          if (!stepInstance?.id || !stepInstance.rowVersion) {
+            toast.error("Khong tim thay thong tin buoc de bo qua.");
+            return;
+          }
+          const goiThauId = parseGoiThauNumericId(selected.id);
+          if (!goiThauId) {
+            toast.error("ID goi thau khong hop le.");
+            return;
+          }
+          try {
+            const result = await processStep(goiThauId, {
+              hanhDong: "SKIP",
+              workflowStepInstanceId: stepInstance.id,
+              rowVersion: stepInstance.rowVersion,
+            });
+            toast.success(result.message || "Da bo qua buoc.");
+            const [state, steps] = await Promise.all([
+              getWorkflowState(goiThauId),
+              getWorkflowSteps(goiThauId),
+            ]);
+            setWorkflowState(state);
+            setWorkflowSteps(steps);
+            setWorkflowRefreshKey((k) => k + 1);
+          } catch (error: any) {
+            toast.error(error?.message || "Khong the bo qua buoc.");
+          }
+        }}
+        actions={
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => goToCurrentStep(selected)}
+              disabled={!canUpdateCurrentStep(selected)}
+              title={
+                canUpdateCurrentStep(selected)
+                  ? "Xử lý bước hiện tại"
+                  : "Không còn thao tác xử lý"
+              }
+              className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
+            >
+              <i className="fa-solid fa-clipboard-list text-xs" />
+              Xử lý bước hiện tại
+            </button>
+            <button
+              onClick={() => openHistory(selected)}
+              className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
+            >
+              <i className="fa-solid fa-clock-rotate-left text-xs" /> Lịch sử xử lý
+            </button>
+            {selected.trangThai !== "Đã hủy" &&
+              selected.trangThai !== "Hoàn thành" && (
+                <button
+                  onClick={() => setCancelTarget(selected)}
+                  className="w-full flex items-center justify-center gap-2 text-sm text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl py-2.5 transition-colors"
+                >
+                  <i className="fa-solid fa-ban text-xs" /> Hủy gói thầu
+                </button>
+              )}
+            <button
+              onClick={() => setDeleteTarget(selected)}
+              disabled={!canDeleteGoiThau(selected)}
+              title={canDeleteGoiThau(selected) ? "Xoa goi thau" : "Chi co the xoa goi thau o trang thai Nhap"}
+              className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
+            >
+              <i className="fa-solid fa-trash text-xs" /> Xóa gói thầu
+            </button>
+          </div>
+        }
+      />
+    );
+
+    return (
       <>
         <div className="font-mono text-xs font-bold text-blue-700 mb-1">
           {selected.id}
@@ -1058,11 +1156,11 @@ export default function DanhSachGoiThau() {
             </div>
           ))}
           {/* TheoDoi tags */}
-          {selected.theoDoi && selected.theoDoi.length > 0 && (
+          {((selected.theoDoi ?? []).length > 0) && (
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] text-slate-400 font-bold tracking-wide">ĐƠN VỊ THEO DÕI</span>
               <div className="flex flex-wrap gap-1">
-                {selected.theoDoi.map((item: string) => (
+                {(selected.theoDoi ?? []).map((item: string) => (
                   <span
                     key={item}
                     className="bg-sky-50 text-sky-700 text-[10px] px-1.5 py-0.5 rounded-full border border-sky-200"
@@ -1107,264 +1205,48 @@ export default function DanhSachGoiThau() {
         <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">
           CÁC BƯỚC QUY TRÌNH
         </div>
-        <div className="space-y-3 mb-5">
-          {workflowLoading ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-              <i className="fa-solid fa-circle-notch fa-spin mr-1" />
-              Dang tai cac buoc quy trinh...
-            </div>
-          ) : displaySteps.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-              Chua co du lieu buoc quy trinh tu backend.
-            </div>
-          ) : (
-          displaySteps.map((step) => (
-            <div key={step.ten} className="space-y-2">
-            <details className="group">
-              <summary className="flex items-start gap-2.5 rounded-xl cursor-pointer list-none
-                [&::-webkit-details-marker]:hidden
-                [&::marker]:hidden
-                transition-colors
-                p-1.5 -mx-1.5 hover:bg-slate-50
-              ">
-                <Dot state={step.state} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {step.current && (
-                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
-                            BƯỚC HIỆN TẠI
-                          </span>
-                        )}
-                        <div className="text-xs font-medium text-slate-800">
-                          {step.ten}
-                        </div>
-                      </div>
-                      <div className="mt-0.5 text-[11px] text-slate-400">
-                        Đơn vị/Vai trò xử lý:{" "}
-                        <span className="font-medium text-slate-500">{step.donVi}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {step.current && canProcessWorkflowStep(step) && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); goToCurrentStep(selected); }}
-                          className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
-                        >
-                          Cập nhật
-                        </button>
-                      )}
-                      <i className="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform group-open:rotate-180" />
-                    </div>
-                  </div>
-                </div>
-              </summary>
-              <div className="ml-[34px] mt-1.5 space-y-0.5 text-[11px] bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                <div className="text-slate-600 grid gap-1.5">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-400">Người xử lý</span>
-                    <span className="font-semibold text-slate-700 text-right">{step.nguoiXuLy || "—"}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-400">Ngày xử lý</span>
-                    <span className="font-semibold text-slate-700 text-right">{step.ngayXuLy || "—"}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-400">Người ký duyệt</span>
-                    <span className="font-semibold text-slate-700 text-right">{step.nguoiKy || "—"}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-400">Ngày ký duyệt</span>
-                    <span className="font-semibold text-slate-700 text-right">{step.ngayKy || "—"}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-400">Kết quả</span>
-                    <span className={`font-semibold text-right ${
-                      step.ketQua === "Duyệt" || step.ketQua === "Đồng ý"
-                        ? "text-emerald-600"
-                        : step.ketQua === "Không duyệt" || step.ketQua === "Từ chối"
-                          ? "text-red-600"
-                          : "text-slate-700"
-                    }`}>
-                      {step.ketQua || "—"}
-                    </span>
-                  </div>
-                  {step.lyDoKhongDuyet && (
-                    <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
-                      <span className="font-semibold">Lý do không duyệt:</span> {step.lyDoKhongDuyet}
-                    </div>
-                  )}
-                  {step.ghiChu && (
-                    <div className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700 text-[11px]">
-                      <span className="font-semibold">Ghi chú / lý do thực tế:</span> {step.ghiChu}
-                    </div>
-                  )}
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-400">Tình trạng tiến độ</span>
-                    <span className={`font-semibold text-right ${
-                      step.slaText?.includes("Quá hạn")
-                        ? "text-red-600"
-                        : step.slaText?.includes("Sắp")
-                          ? "text-amber-600"
-                          : "text-emerald-600"
-                    }`}>
-                      {step.slaText || "Đang theo dõi"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </details>
-              {step.parallelInfo && (
-                <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs">
-                  <div className="mb-2 flex items-center gap-2 font-bold text-blue-700">
-                    <i className="fa-solid fa-code-branch text-[11px]" />
-                    NHÁNH SONG SONG
-                  </div>
-                  <p className="mb-3 leading-relaxed text-slate-600">
-                    {step.parallelInfo.condition}
-                  </p>
-                  <div className="space-y-2">
-                    {step.parallelInfo.branches.map((branch) => (
-                      <div key={branch.name} className="rounded-lg border border-white bg-white/80 p-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-slate-800">{branch.name}</span>
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">{branch.progress} bước</span>
-                        </div>
-                        <div className="mt-1 text-[11px] text-slate-500">
-                          Bước hiện tại: <span className="font-semibold text-slate-700">{branch.currentStep}</span>
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          Người xử lý: <span className="font-semibold text-slate-700">{branch.processor}</span>
-                        </div>
-                        {branch.ghiChu && (
-                          <div className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700">
-                            <span className="font-semibold">Ghi chú / lý do thực tế:</span> {branch.ghiChu}
-                          </div>
-                        )}
-                        <details className="mt-2 rounded-lg border border-slate-100 bg-slate-50/70 px-2 py-1">
-                          <summary className="cursor-pointer select-none text-[11px] font-semibold text-blue-700">
-                            Các bước trong nhánh
-                          </summary>
-                          <div className="mt-2 space-y-2.5">
-                            {branch.steps.map((branchStep) => (
-                              <button
-                                key={branchStep.backendId ?? branchStep.name}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  goToStepResult(selected, branchStep.name, branchStep.backendId);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] hover:bg-white"
-                              >
-                                <span
-                                  className={`h-2.5 w-2.5 rounded-full ${
-                                    branchStep.state === "done"
-                                      ? "bg-emerald-500"
-                                      : branchStep.state === "current"
-                                        ? "bg-amber-500"
-                                        : branchStep.state === "skipped"
-                                          ? "bg-slate-400"
-                                          : "bg-slate-300"
-                                  }`}
-                                />
-                                <span className="flex-1 text-slate-700">
-                                  {branchStep.name}
-                                  {branchStep.state === "current" && (
-                                    <span className="font-semibold text-amber-700"> (Bước hiện tại)</span>
-                                  )}
-                                  {branchStep.ghiChu && (
-                                    <span className="mt-0.5 block text-[10px] text-amber-700">
-                                      Ghi chú: {branchStep.ghiChu}
-                                    </span>
-                                  )}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        </details>
-                        {branch.steps.some((s) => s.state === "current") ? (
-                          <div className="mt-2 flex gap-2">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(
-                                  `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}${branch.backendId ? `&stepId=${branch.backendId}` : ""}`,
-                                );
-                              }}
-                              className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700"
-                            >
-                              Cập nhật
-                            </button>
-                            <button
-                              type="button"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                const stepInstance = workflowState?.steps.find(s => s.id === branch.backendId);
-                                if (!stepInstance?.id || !stepInstance.rowVersion) {
-                                  toast.error("Không tìm thấy thông tin bước để bỏ qua.");
-                                  return;
-                                }
-                                const goiThauId = parseGoiThauNumericId(selected.id);
-                                if (!goiThauId) {
-                                  toast.error("ID gói thầu không hợp lệ.");
-                                  return;
-                                }
-                                try {
-                                  const result = await processStep(goiThauId, {
-                                    hanhDong: "SKIP",
-                                    workflowStepInstanceId: stepInstance.id,
-                                    rowVersion: stepInstance.rowVersion,
-                                  });
-                                  toast.success(result.message || "Đã bỏ qua bước.");
-                                  const [state, steps] = await Promise.all([
-                                    getWorkflowState(goiThauId),
-                                    getWorkflowSteps(goiThauId),
-                                  ]);
-                                  setWorkflowState(state);
-                                  setWorkflowSteps(steps);
-                                  setWorkflowRefreshKey(k => k + 1);
-                                } catch (error: any) {
-                                  toast.error(error?.message || "Không thể bỏ qua bước.");
-                                }
-                              }}
-                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600"
-                            >
-                              Bỏ qua
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="mt-2">
-                            <span
-                              className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                                branch.status === "Đã hoàn tất"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : branch.status === "Đã bỏ qua"
-                                    ? "bg-slate-200 text-slate-500"
-                                    : "bg-blue-100 text-blue-700"
-                              }`}
-                            >
-                              {branch.status}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 rounded-lg bg-amber-50 px-2 py-2 text-[11px] font-semibold text-amber-700">
-                    {step.parallelInfo.mergeStatus}
-                  </div>
-                  <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
-                    {step.parallelInfo.lockedStage}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))
-          )}
-        </div>
+        <WorkflowStepsPanel
+          loading={workflowLoading}
+          steps={displaySteps}
+          emptyMessage="Chua co du lieu buoc quy trinh tu backend."
+          onCurrentStepAction={() => goToCurrentStep(selected)}
+          canShowCurrentStepAction={canProcessWorkflowStep}
+          onBranchStepClick={(branchStep) => goToStepResult(selected, branchStep.name, branchStep.backendId)}
+          onBranchCurrentStepAction={(branch) => {
+            navigate(
+              `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}${branch.backendId ? `&stepId=${branch.backendId}` : ""}`,
+            );
+          }}
+          onBranchSkip={async (branch) => {
+            const stepInstance = workflowState?.steps.find((s) => s.id === branch.backendId);
+            if (!stepInstance?.id || !stepInstance.rowVersion) {
+              toast.error("Không tìm thấy thông tin bước để bỏ qua.");
+              return;
+            }
+            const goiThauId = parseGoiThauNumericId(selected.id);
+            if (!goiThauId) {
+              toast.error("ID gói thầu không hợp lệ.");
+              return;
+            }
+            try {
+              const result = await processStep(goiThauId, {
+                hanhDong: "SKIP",
+                workflowStepInstanceId: stepInstance.id,
+                rowVersion: stepInstance.rowVersion,
+              });
+              toast.success(result.message || "Đã bỏ qua bước.");
+              const [state, steps] = await Promise.all([
+                getWorkflowState(goiThauId),
+                getWorkflowSteps(goiThauId),
+              ]);
+              setWorkflowState(state);
+              setWorkflowSteps(steps);
+              setWorkflowRefreshKey((k) => k + 1);
+            } catch (error: any) {
+              toast.error(error?.message || "Không thể bỏ qua bước.");
+            }
+          }}
+        />
 
         {/* Actions */}
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
@@ -1793,3 +1675,4 @@ export default function DanhSachGoiThau() {
     </>
   );
 }
+
