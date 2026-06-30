@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getCurrentUserApi } from "@/services/api";
+import { clearStoredToken, getCurrentUserApi, logoutApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
 import { canAccessPath } from "@/hooks/useAccessLevel";
 
@@ -58,6 +58,18 @@ export default function Sidebar() {
 
   function hasAccess(path: string) {
     return canAccessPath(path, user);
+  }
+
+  async function handleLogout() {
+    setUserMenuOpen(false);
+    try {
+      await logoutApi();
+    } catch {
+      // Dù server logout lỗi, vẫn dọn state client và đưa người dùng về màn đăng nhập.
+    } finally {
+      clearStoredToken();
+      navigate("/login", { replace: true });
+    }
   }
 
   return (
@@ -154,7 +166,7 @@ export default function Sidebar() {
             </button>
             <div className="border-t border-slate-100" />
             <button
-              onClick={() => { setUserMenuOpen(false); clearStoredToken(); navigate("/login"); }}
+              onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
               <i className="fa-solid fa-right-from-bracket text-red-400 w-4 text-center" /> Đăng xuất

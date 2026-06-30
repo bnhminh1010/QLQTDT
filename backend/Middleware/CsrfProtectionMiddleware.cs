@@ -22,8 +22,11 @@ public class CsrfProtectionMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        var isLogoutRequest = context.Request.Path.Equals("/api/auth/logout", StringComparison.OrdinalIgnoreCase);
+
         // Only validate authenticated unsafe requests
-        if (!SafeMethods.Contains(context.Request.Method)
+        if (!isLogoutRequest
+            && !SafeMethods.Contains(context.Request.Method)
             && context.User?.Identity?.IsAuthenticated == true)
         {
             var cookieToken = context.Request.Cookies["XSRF-TOKEN"];
