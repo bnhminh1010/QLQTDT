@@ -45,6 +45,13 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function logWorkflowError(message: string, error: unknown, context?: Record<string, unknown>) {
+  console.error(`[LapQuyTrinh] ${message}`, {
+    error,
+    context,
+  });
+}
+
 function normalizeLookup(value?: string | null) {
   return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }

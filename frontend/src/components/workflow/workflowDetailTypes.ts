@@ -35,6 +35,7 @@ export type WorkflowDetailStep = {
   backendId?: number;
   buocWorkflowId?: number;
   current?: boolean;
+  isCurrent?: boolean;
   nguoiXuLy?: string;
   ngayXuLy?: string;
   nguoiKy?: string;

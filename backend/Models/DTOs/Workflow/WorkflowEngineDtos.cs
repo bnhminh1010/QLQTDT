@@ -178,6 +178,25 @@ public class WorkflowStepStateDto
     public byte[]? RowVersion { get; set; }
 }
 
+public class WorkflowPendingTaskDto
+{
+    public long WorkflowInstanceId { get; set; }
+    public long WorkflowStepInstanceId { get; set; }
+    public int GoiThauId { get; set; }
+    public string MaGoiThau { get; set; } = null!;
+    public string TenGoiThau { get; set; } = null!;
+    public string BuocTen { get; set; } = null!;
+    public string TrangThai { get; set; } = null!;
+    public string? PhaHienTai { get; set; }
+    public string? TenNguoiXuLy { get; set; }
+    public string? TenNguoiKyDuyet { get; set; }
+    public DateTime? HanXuLy { get; set; }
+    public DateTime? NgayXuLy { get; set; }
+    public DateTime? NgayKyDuyet { get; set; }
+    public bool QuaHan { get; set; }
+    public bool ChoKyDuyet { get; set; }
+}
+
 // BA user-driven: Duyệt bước (POST /duyet)
 public class DuyetStepRequest
 {

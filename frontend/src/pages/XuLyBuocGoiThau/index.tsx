@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { getCurrentUserApi } from "@/services/api";
-import { formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
-import type { GoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { KetQuaXuLy } from "@/pages/DanhSachGoiThau/xuLyBuocService";
+import { getGoiThauChiTiet, type GoiThauDetail } from "@/services/goiThauApi";
 import {
   formatWorkflowKetQua,
   getWorkflowState,
@@ -26,6 +25,17 @@ const inputErrCls =
 const readonlyCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-100 text-slate-600";
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
+const DISPLAY_DASH = "—";
+
+function normalizeDisplayValue(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : DISPLAY_DASH;
+}
+
+function formatMoneyDisplay(value?: number | null) {
+  if (value == null) return DISPLAY_DASH;
+  return `${new Intl.NumberFormat("vi-VN").format(value)} đ`;
+}
 
 type FormData = {
   goiThauId: string;
@@ -65,13 +75,9 @@ export default function XuLyBuocGoiThau() {
   const [backendLoading, setBackendLoading] = useState(true);
   const [backendError, setBackendError] = useState("");
   const [step, setStep] = useState<WorkflowStepStateDto | null>(null);
+  const [workflowState, setWorkflowState] = useState<Awaited<ReturnType<typeof getWorkflowState>> | null>(null);
+  const [goiThauDetail, setGoiThauDetail] = useState<GoiThauDetail | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [goiThau] = useState<GoiThau>(() => ({
-    id, ten: "", tenGoiThau: "", maGoiThau: "",
-    hinhThuc: "", giaTriStr: "0", giaTriNum: 0, donVi: "",
-    trangThai: "Đang xử lý" as any,
-    detail: { nguonVon: "--", ngayTao: "--", hanHT: "--", pct: "0%", buoc: "0/0" },
-  }));
 
   const [form, setForm] = useState<FormData>(emptyForm(id));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -89,11 +95,19 @@ export default function XuLyBuocGoiThau() {
     let cancelled = false;
     setBackendLoading(true);
     setBackendError("");
+    setWorkflowState(null);
+    setGoiThauDetail(null);
 
     const loadStep = async () => {
-      const targetStepId = readonlyMode
-        ? stepId
-        : (await getWorkflowState(goiThauId)).currentSteps?.[0]?.stepInstanceId ?? stepId;
+      const workflowStatePromise = getWorkflowState(goiThauId).catch(() => null);
+      const currentUserPromise = getCurrentUserApi().catch(() => null);
+      const goiThauDetailPromise = getGoiThauChiTiet(goiThauId).catch(() => null);
+      void goiThauDetailPromise.then((detail) => {
+        if (!cancelled) setGoiThauDetail(detail);
+      });
+      const targetStepId = stepId ?? (readonlyMode
+        ? undefined
+        : (await workflowStatePromise)?.currentSteps?.[0]?.stepInstanceId);
 
       if (!targetStepId) {
         if (!readonlyMode) {
@@ -103,20 +117,24 @@ export default function XuLyBuocGoiThau() {
         return;
       }
 
-      const [backendStep, currentUser] = await Promise.all([
+      const [backendStep, workflowStateResult, currentUser, goiThauDetailResult] = await Promise.all([
         getWorkflowStepDetail(goiThauId, targetStepId),
-        getCurrentUserApi().catch(() => null),
+        workflowStatePromise,
+        currentUserPromise,
+        goiThauDetailPromise,
       ]);
       if (cancelled) return;
 
       setStep(backendStep);
+      setWorkflowState(workflowStateResult);
+      setGoiThauDetail(goiThauDetailResult);
       const isDone = readonlyMode || Boolean(backendStep.ngayHoanThanh)
         || backendStep.trangThai === "HOAN_TAT" || backendStep.trangThai === "COMPLETED";
 
       setForm({
         goiThauId: id,
         buocWorkflow: backendStep.tenBuoc || viewingStep,
-        nguoiXuLy: backendStep.tenNguoiXuLy || currentUser?.hoTen || "",
+        nguoiXuLy: backendStep.tenNguoiXuLy || currentUser?.hoTen || workflowStateResult?.tenNguoiTao || "",
         ngayXuLy: backendStep.ngayXuLy?.slice(0, 10) || todayInputValue(),
         nguoiKyDuyet: backendStep.tenNguoiKyDuyet || "",
         ngayKyDuyet: backendStep.ngayKyDuyet?.slice(0, 10) || "",
@@ -141,16 +159,6 @@ export default function XuLyBuocGoiThau() {
 
     return () => { cancelled = true; };
   }, [id, readonlyMode, stepId, viewingStep]);
-
-  if (!goiThau) {
-    return (
-      <div className="p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-600">
-          Không tìm thấy gói thầu cần xử lý.
-        </div>
-      </div>
-    );
-  }
 
   function updateField(field: keyof FormData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -232,21 +240,40 @@ export default function XuLyBuocGoiThau() {
           </h1>
         </div>
         <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-          {goiThau.id}
+          {normalizeDisplayValue(goiThauDetail?.maGoiThau || id)}
         </span>
       </header>
 
       <main className="p-4 lg:p-6 space-y-5">
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="font-mono text-xs font-bold text-blue-700">{goiThau.id}</p>
-              <h2 className="mt-1 text-lg font-bold text-slate-900">
-                {goiThau.ten}
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                {goiThau.donVi} · {goiThau.hinhThuc} · {formatVND(goiThau.giaTriStr)} đ
+            <div className="min-w-0">
+              <p className="font-mono text-xs font-bold text-blue-700">
+                {normalizeDisplayValue(goiThauDetail?.maGoiThau || id)}
               </p>
+              <h2 className="mt-1 text-lg font-bold text-slate-900">
+                {normalizeDisplayValue(goiThauDetail?.tenGoiThau)}
+              </h2>
+              <div className="mt-2 grid gap-1 text-sm text-slate-500">
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  <span className="text-slate-400">Hình thức đấu thầu:</span>
+                  <span className="font-medium text-slate-700">
+                    {normalizeDisplayValue(goiThauDetail?.tenHinhThuc)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  <span className="text-slate-400">Giá trị gói thầu:</span>
+                  <span className="font-medium text-slate-700">
+                    {formatMoneyDisplay(goiThauDetail?.nganSach)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  <span className="text-slate-400">Đơn vị/khoa phòng:</span>
+                  <span className="font-medium text-slate-700">
+                    {normalizeDisplayValue(goiThauDetail?.tenKhoaPhong || workflowState?.tenKhoaPhong)}
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="rounded-xl border border-slate-200 px-4 py-2 text-sm">
               <span className="text-slate-400">Kết quả xử lý: </span>

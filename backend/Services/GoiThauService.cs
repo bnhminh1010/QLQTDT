@@ -189,6 +189,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
 
         var entity = await _set
             .Include(g => g.HinhThuc)
+            .Include(g => g.KhoaPhong)
             .FirstOrDefaultAsync(g => g.Id == id);
         if (entity is null || !entity.TrangThaiHoatDong)
             throw new NotFoundException($"Không tìm thấy gói thầu với Id = {id}");

@@ -4,8 +4,11 @@ import GoiThauDetailPanel from "@/components/workflow/GoiThauDetailPanel";
 import {
   buildWorkflowDetailSteps,
   resolveWorkflowCurrentStepSummary,
+  resolveWorkflowSlaState,
+  type WorkflowSlaState,
 } from "@/components/workflow/workflowDetailUtils";
 import { SelectField } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/pagination";
 import { searchGoiThau } from "@/services/goiThauApi";
 import { getGoiThauChiTiet, type GoiThauDetail } from "@/services/goiThauApi";
 import {
@@ -14,14 +17,17 @@ import {
   markReadThongBao,
   type ThongBaoItem,
 } from "@/services/thongBaoApi";
+import { getThongBaoStyle } from "@/util/thongBaoStyle";
 import {
   getParallelGroups,
   getWorkflowDesignSteps,
+  getWorkflowPendingTasks,
   getWorkflowState,
   getWorkflowSteps,
   formatWorkflowKetQua,
   type BuocWorkflowDto,
   type ParallelGroupDto,
+  type WorkflowPendingTaskDto,
   type WorkflowStateDto,
   type WorkflowStepStateDto,
 } from "@/services/workflowApi";
@@ -31,6 +37,7 @@ import {
   type GoiThauBarColor,
   type GoiThauTrangThaiLabel,
 } from "@/util/goiThauTrangThai";
+import { resolveGoiThauNguonVon } from "@/util/goiThauDisplay";
 
 /* ─ RBAC ─ */
 const CAN_CREATE = true;
@@ -119,8 +126,29 @@ type TableRow = {
   parallelInfo?: ParallelInfo;
 };
 
+type ApprovalItem = WorkflowPendingTaskDto;
+type ApprovalItemView = ApprovalItem & {
+  sla: WorkflowSlaState;
+  sortBucket: number;
+  sortDueAt: number;
+};
+
 const TABLE_ROWS: TableRow[] = []; void TABLE_ROWS;
 const APPROVAL_ITEMS: any[] = [];
+const APPROVAL_PAGE_SIZE = 5;
+const DASHBOARD_GOI_THAU_PAGE_SIZE = 10;
+
+function getApprovalPersonLabel(item: ApprovalItem) {
+  return item.choKyDuyet ? "Người ký" : "Người xử lý";
+}
+
+function getApprovalPersonName(item: ApprovalItem) {
+  return item.tenNguoiKyDuyet || item.tenNguoiXuLy || "—";
+}
+
+function getApprovalDateLabel(item: ApprovalItem) {
+  return item.choKyDuyet ? "Ngày cần duyệt" : "Hạn xử lý";
+}
 
 function Badge({ label }: { label: BadgeStatus }) {
   return (
@@ -163,6 +191,62 @@ const TIEN_DO_LABEL: Record<string, string> = {
   HOAN_TAT: "Hoàn tất",
 };
 
+const APPROVAL_SLA_STYLE: Record<
+  "emerald" | "amber" | "red" | "slate",
+  {
+    card: string;
+    icon: string;
+    badge: string;
+    label: string;
+  }
+> = {
+  emerald: {
+    card: "bg-emerald-50/40",
+    icon: "bg-emerald-100 text-emerald-600",
+    badge: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+    label: "text-emerald-600",
+  },
+  amber: {
+    card: "bg-amber-50/40",
+    icon: "bg-amber-100 text-amber-600",
+    badge: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+    label: "text-amber-600",
+  },
+  red: {
+    card: "bg-red-50/40",
+    icon: "bg-red-100 text-red-600",
+    badge: "bg-red-50 text-red-700 ring-1 ring-red-200",
+    label: "text-red-600",
+  },
+  slate: {
+    card: "bg-slate-50/50",
+    icon: "bg-slate-100 text-slate-500",
+    badge: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+    label: "text-slate-500",
+  },
+};
+
+function getApprovalSla(item: ApprovalItem) {
+  return resolveWorkflowSlaState(item.hanXuLy, item.progressStatus ?? item.tinhTrangTienDo);
+}
+
+function getApprovalSortBucket(item: ApprovalItem, sla: WorkflowSlaState) {
+  if (!sla.hasDeadline) return 3;
+  if (sla.tone === "red" || item.quaHan || item.tinhTrangTienDo === "QUA_HAN" || item.progressStatus === "QUA_HAN") {
+    return 0;
+  }
+  if (sla.tone === "amber" || item.tinhTrangTienDo === "SAP_QUA_HAN" || item.progressStatus === "SAP_QUA_HAN") {
+    return 1;
+  }
+  return 2;
+}
+
+function getApprovalSortDueAt(item: ApprovalItem) {
+  if (!item.hanXuLy) return Number.POSITIVE_INFINITY;
+  const dueAt = new Date(item.hanXuLy).getTime();
+  return Number.isNaN(dueAt) ? Number.POSITIVE_INFINITY : dueAt;
+}
+
 function mapWorkflowStepStatus(step: WorkflowStepStateDto): StepStatus {
   if (step.ngayHoanThanh) return "Hoàn tất";
   if (step.trangThai && STEP_STATUS_LABEL[step.trangThai]) return STEP_STATUS_LABEL[step.trangThai];
@@ -177,19 +261,15 @@ function mapWorkflowStep(
 ): WorkflowStep {
   const completed = step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
   const current = step.id === currentStepId;
-  const overdue = Boolean(step.quaHan) || step.tinhTrangTienDo === "QUA_HAN";
+  const progressStatus = step.tinhTrangTienDo ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo : undefined;
+  const warningStatus = step.tinhTrangTienDo === "SAP_QUA_HAN" || step.tinhTrangTienDo === "QUA_HAN";
 
   return {
-    state: completed ? "done" : current || overdue ? "warn" : "idle",
+    state: completed ? "done" : current || warningStatus ? "warn" : "idle",
     name: step.tenBuoc,
-    processor:
-      step.tenNguoiXuLy ||
-      step.tenNguoiKyDuyet ||
-      step.tenVaiTroXuLy ||
-      step.tenVaiTroKyDuyet ||
-      "-",
+    processor: step.tenNguoiXuLy || step.tenNguoiKyDuyet || "-",
     status: mapWorkflowStepStatus(step),
-    sla: overdue ? "Quá hạn" : TIEN_DO_LABEL[step.tinhTrangTienDo ?? ""] || step.hanXuLy?.slice(0, 10) || "-",
+    sla: progressStatus || step.hanXuLy?.slice(0, 10) || "-",
     ngayXuLy: step.ngayXuLy?.slice(0, 10),
     nguoiKy: step.tenNguoiKyDuyet,
     ngayKy: step.ngayKyDuyet?.slice(0, 10),
@@ -198,17 +278,10 @@ function mapWorkflowStep(
   };
 }
 
-function getProgressStatus(state?: WorkflowStateDto | null): TableRow["progressStatus"] {
-  if (state?.tinhTrangTienDo === "QUA_HAN" || state?.steps.some((step) => step.quaHan)) {
-    return "Quá hạn";
-  }
-  if (state?.tinhTrangTienDo === "SAP_QUA_HAN") return "Sắp quá hạn";
-  return "Đúng hạn";
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const [tableRows, setTableRows] = useState<TableRow[]>([]);
+  const [page, setPage] = useState(1);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifs, setNotifs] = useState<ThongBaoItem[]>([]);
@@ -218,6 +291,9 @@ export default function Dashboard() {
   const notifRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
+  const [approvalLoading, setApprovalLoading] = useState(true);
+  const [approvalItems, setApprovalItems] = useState<ApprovalItem[]>([]);
+  const [approvalPage, setApprovalPage] = useState(1);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [workflowState, setWorkflowState] = useState<WorkflowStateDto | null>(null);
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStepStateDto[]>([]);
@@ -240,41 +316,32 @@ export default function Dashboard() {
           } catch {
             workflowState = null;
           }
-          const currentStep = workflowState?.currentSteps?.[0];
-          const currentStepDetail = workflowState?.steps.find(
-            (step) => step.id === currentStep?.stepInstanceId,
-          );
-	          return {
-	          id: item.id,
-	          code: item.maGoiThau || `GT${item.id}`,
-	          name: item.tenGoiThau || '',
-	          unit: item.tenKhoaPhong || '',
-	          status,
-	          color,
-	          pct: `${item.phanTramHoanThanh}%`,
-	          txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
-	          nguonVon: '',
-	          ngayTao: item.ngayTao?.slice(0, 10) || '',
-	          hanHT: currentStepDetail?.hanXuLy?.slice(0, 10) || '',
-	          hinhThuc: item.tenHinhThuc || '',
-	          workflowId: item.workflowId ?? workflowState?.workflowId,
-	          currentStep: workflowState?.tenBuocHienTai || currentStep?.tenBuoc || '',
-          currentProcessor:
-            currentStepDetail?.tenNguoiXuLy ||
-            currentStepDetail?.tenNguoiKyDuyet ||
-            currentStepDetail?.tenVaiTroXuLy ||
-            currentStepDetail?.tenVaiTroKyDuyet ||
-            '',
-          currentProcessDate: currentStepDetail?.ngayXuLy?.slice(0, 10) || '',
-          currentSigner: currentStepDetail?.tenNguoiKyDuyet || '',
-          currentSignedDate: currentStepDetail?.ngayKyDuyet?.slice(0, 10) || '',
-          currentResult:
-            formatWorkflowKetQua(currentStepDetail?.ketQua) ||
-            (currentStepDetail?.trangThai === "HOAN_TAT" ? "Duyệt" : currentStepDetail?.trangThai || ''),
-          progressStatus: getProgressStatus(workflowState),
-          steps: workflowState?.steps.map((step) =>
-            mapWorkflowStep(step, currentStep?.stepInstanceId),
-          ) ?? [],
+          const workflowSummary = resolveWorkflowCurrentStepSummary(workflowState, workflowState?.steps ?? []);
+          const currentStepId = workflowSummary.currentStep?.stepInstanceId;
+          return {
+            id: item.id,
+            code: item.maGoiThau || `GT${item.id}`,
+            name: item.tenGoiThau || "",
+            unit: item.tenKhoaPhong || "",
+            status,
+            color,
+            pct: `${item.phanTramHoanThanh}%`,
+            txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
+            nguonVon: "",
+            ngayTao: item.ngayTao?.slice(0, 10) || "",
+            hanHT: workflowSummary.currentDueDate,
+            hinhThuc: item.tenHinhThuc || "",
+            workflowId: item.workflowId ?? workflowState?.workflowId,
+            currentStep: workflowSummary.currentStepName,
+            currentProcessor: workflowSummary.currentProcessor,
+            currentProcessDate: workflowSummary.currentProcessDate,
+            currentSigner: workflowSummary.currentSigner,
+            currentSignedDate: workflowSummary.currentSignedDate,
+            currentResult: workflowSummary.currentResult,
+            progressStatus: workflowSummary.progressStatus as TableRow["progressStatus"],
+            steps: workflowState?.steps.map((step) =>
+              mapWorkflowStep(step, currentStepId),
+            ) ?? [],
           };
         }));
         setTableRows(rows);
@@ -284,6 +351,28 @@ export default function Dashboard() {
         setLoading(false);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadApprovalItems() {
+      setApprovalLoading(true);
+      try {
+        const items = await getWorkflowPendingTasks();
+        if (!cancelled) setApprovalItems(items);
+      } catch {
+        if (!cancelled) setApprovalItems([]);
+      } finally {
+        if (!cancelled) setApprovalLoading(false);
+      }
+    }
+
+    void loadApprovalItems();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function loadNotifications() {
@@ -400,23 +489,94 @@ export default function Dashboard() {
     };
   }, [selected?.id, selected?.workflowId]);
 
-  const filteredRows = tableRows.filter((r) => {
-    const matchSearch =
-      !search ||
-      r.code.toLowerCase().includes(search.toLowerCase()) ||
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.unit.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = !filterStatus || r.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+  const filteredRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return tableRows.filter((r) => {
+      const matchSearch =
+        !query ||
+        r.code.toLowerCase().includes(query) ||
+        r.name.toLowerCase().includes(query) ||
+        r.unit.toLowerCase().includes(query);
+      const matchStatus = !filterStatus || r.status === filterStatus;
+      return matchSearch && matchStatus;
+    });
+  }, [tableRows, search, filterStatus]);
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / DASHBOARD_GOI_THAU_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedRows = useMemo(
+    () =>
+      filteredRows.slice(
+        (safePage - 1) * DASHBOARD_GOI_THAU_PAGE_SIZE,
+        safePage * DASHBOARD_GOI_THAU_PAGE_SIZE,
+      ),
+    [filteredRows, safePage],
+  );
+  const approvalItemsToShow = useMemo<ApprovalItemView[]>(
+    () =>
+      [...approvalItems]
+        .map((item) => {
+          const sla = getApprovalSla(item);
+          return {
+            ...item,
+            sla,
+            sortBucket: getApprovalSortBucket(item, sla),
+            sortDueAt: getApprovalSortDueAt(item),
+          };
+        })
+        .sort((a, b) => {
+          if (a.sortBucket !== b.sortBucket) return a.sortBucket - b.sortBucket;
+          if (a.sortDueAt !== b.sortDueAt) return a.sortDueAt - b.sortDueAt;
+          return a.maGoiThau.localeCompare(b.maGoiThau, "vi");
+        }),
+    [approvalItems],
+  );
+  const approvalTotalPages = Math.max(
+    1,
+    Math.ceil(approvalItemsToShow.length / APPROVAL_PAGE_SIZE),
+  );
+  const safeApprovalPage = Math.min(approvalPage, approvalTotalPages);
+  const paginatedApprovalItems = useMemo(
+    () =>
+      approvalItemsToShow.slice(
+        (safeApprovalPage - 1) * APPROVAL_PAGE_SIZE,
+        safeApprovalPage * APPROVAL_PAGE_SIZE,
+      ),
+    [approvalItemsToShow, safeApprovalPage],
+  );
 
   const currentWorkflowSummary = useMemo(
     () => resolveWorkflowCurrentStepSummary(workflowState, workflowSteps),
     [workflowState, workflowSteps],
   );
   const displaySteps = useMemo(
-    () => buildWorkflowDetailSteps(workflowState, workflowSteps, designSteps, parallelGroups),
-    [workflowState, workflowSteps, designSteps, parallelGroups],
+    () =>
+      buildWorkflowDetailSteps(workflowState, workflowSteps, designSteps, parallelGroups).map((step) =>
+        step.current
+          ? {
+              ...step,
+              ten: currentWorkflowSummary.currentStepName || step.ten,
+              nguoiXuLy: currentWorkflowSummary.currentProcessor || step.nguoiXuLy,
+              ngayXuLy: currentWorkflowSummary.currentProcessDate || step.ngayXuLy,
+              nguoiKy: currentWorkflowSummary.currentSigner || step.nguoiKy,
+              ngayKy: currentWorkflowSummary.currentSignedDate || step.ngayKy,
+              ketQua: currentWorkflowSummary.currentResult || step.ketQua,
+              slaText: currentWorkflowSummary.progressStatus,
+            }
+          : step,
+      ),
+    [
+      workflowState,
+      workflowSteps,
+      designSteps,
+      parallelGroups,
+      currentWorkflowSummary.currentStepName,
+      currentWorkflowSummary.currentProcessor,
+      currentWorkflowSummary.currentProcessDate,
+      currentWorkflowSummary.currentSigner,
+      currentWorkflowSummary.currentSignedDate,
+      currentWorkflowSummary.currentResult,
+      currentWorkflowSummary.progressStatus,
+    ],
   );
   const currentStepName =
     currentWorkflowSummary.currentStepName ||
@@ -433,6 +593,18 @@ export default function Dashboard() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    if (approvalPage > approvalTotalPages) setApprovalPage(approvalTotalPages);
+  }, [approvalPage, approvalTotalPages]);
 
   function markAllRead() {
     markAllReadThongBao()
@@ -494,21 +666,28 @@ export default function Dashboard() {
                       Chưa có thông báo nào
                     </div>
                   )}
-                  {notifs.map((n) => (
+                  {notifs.map((n) => {
+                    const style = getThongBaoStyle(n);
+                      return (
                     <div
                       key={n.idCongKhai}
                       onClick={() => openNotification(n)}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors ${!n.daDoc ? "bg-blue-50/40" : ""}`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors ${!n.daDoc ? "bg-slate-50/70" : ""}`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-sm">
-                        <i className="fa-solid fa-bell" />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm ${style.iconClassName}`}>
+                        <i className={`fa-solid ${style.icon}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-xs ${!n.daDoc ? "font-semibold text-slate-800" : "text-slate-600"}`}
-                        >
-                          {n.tieuDe}
-                        </p>
+                        <div className="flex items-start gap-2">
+                          <p
+                            className={`min-w-0 flex-1 text-xs leading-5 ${style.titleClassName} ${!n.daDoc ? "font-semibold" : "font-medium"}`}
+                          >
+                            {n.tieuDe}
+                          </p>
+                          <span className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${style.badgeClassName}`}>
+                            {style.label}
+                          </span>
+                        </div>
                         {n.noiDung && (
                           <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
                             {n.noiDung}
@@ -518,11 +697,10 @@ export default function Dashboard() {
                           {n.ngayTao ? new Date(n.ngayTao).toLocaleString("vi-VN") : ""}
                         </p>
                       </div>
-                      {!n.daDoc && (
-                        <div className="w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0" />
-                      )}
+                      {!n.daDoc && <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${style.dotClassName}`} />}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -662,7 +840,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredRows.length === 0 ? (
+                  {paginatedRows.length === 0 ? (
                     <tr>
                       <td
                         colSpan={5}
@@ -672,7 +850,7 @@ export default function Dashboard() {
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((row) => {
+                    paginatedRows.map((row) => {
                       const idx = tableRows.indexOf(row);
                       return (
                         <tr
@@ -707,6 +885,14 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              page={safePage}
+              totalPages={totalPages}
+              totalItems={filteredRows.length}
+              pageSize={DASHBOARD_GOI_THAU_PAGE_SIZE}
+              itemLabel="gói thầu"
+              onPageChange={setPage}
+            />
           </div>
 
           {/* APPROVAL — only visible to Admin/Quản lý */}
@@ -714,11 +900,94 @@ export default function Dashboard() {
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
               <div className="px-5 py-3.5 border-b border-slate-100">
                 <span className="font-semibold text-slate-800 text-sm">
-                  Bước cần phê duyệt hôm nay
+                  Bước cần phê duyệt
                 </span>
               </div>
-              <div className="divide-y divide-slate-100">
-                {APPROVAL_ITEMS.map((item) => (
+              {approvalLoading ? (
+                <div className="flex flex-col items-center justify-center py-8 text-slate-500">
+                  <i className="fa-solid fa-circle-notch fa-spin text-blue-500 text-base" />
+                  <span className="mt-2 text-sm">Đang tải bước cần phê duyệt...</span>
+                </div>
+              ) : approvalItemsToShow.length === 0 ? (
+                <div className="px-5 py-8 text-center text-sm text-slate-400">
+                  Không có bước cần phê duyệt
+                </div>
+              ) : (
+                <>
+                  <div className="divide-y divide-slate-100">
+                    {paginatedApprovalItems.map((item) => {
+                      const sla = item.sla;
+                      const slaStyle = APPROVAL_SLA_STYLE[sla.tone];
+                      const dueLabel = getApprovalDateLabel(item);
+                      const personLabel = getApprovalPersonLabel(item);
+                      const personName = getApprovalPersonName(item);
+                      const actionPath = `/xu-ly-buoc/${item.goiThauId}?stepId=${item.workflowStepInstanceId}`;
+
+                      return (
+                        <div
+                          key={`${item.workflowStepInstanceId}-${item.goiThauId}`}
+                          className={`flex items-start gap-4 px-5 py-4 transition-colors ${sla.tone === "red" ? "bg-red-50/30" : sla.tone === "amber" ? "bg-amber-50/30" : sla.tone === "emerald" ? "bg-emerald-50/30" : "hover:bg-slate-50"}`}
+                        >
+                          <div
+                            className={`mt-0.5 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${slaStyle.icon}`}
+                          >
+                            <i className={`fa-solid ${item.choKyDuyet ? "fa-pen-to-square" : "fa-file-signature"}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="text-sm font-semibold text-slate-800">
+                                {item.maGoiThau}
+                              </div>
+                              <Badge label={item.quaHan ? "Trễ hạn" : "Đang xử lý"} />
+                            </div>
+                            <div className="text-sm text-slate-600 mt-0.5 line-clamp-2">
+                              {item.tenGoiThau}
+                            </div>
+                            <div className="mt-2 grid gap-1 text-xs text-slate-600">
+                              <div className="flex gap-1.5">
+                                <span className="text-slate-400">Bước hiện tại:</span>
+                                <span className="font-medium text-slate-700">{item.buocTen}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-slate-400">Tiến độ:</span>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${slaStyle.badge}`}>
+                                  {sla.statusText}
+                                </span>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <span className="text-slate-400">{dueLabel}:</span>
+                                <span className={`font-medium ${sla.hasDeadline ? "text-slate-700" : "text-slate-500"}`}>
+                                  {sla.dueDateText}
+                                </span>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <span className="text-slate-400">{personLabel}:</span>
+                                <span className="font-medium text-slate-700">{personName}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => navigate(actionPath)}
+                            className={`mt-1 inline-flex shrink-0 items-center rounded-xl px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors ${item.choKyDuyet ? "bg-amber-500 hover:bg-amber-600" : "bg-blue-600 hover:bg-blue-700"}`}
+                          >
+                            Xử lý
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Pagination
+                    page={safeApprovalPage}
+                    totalPages={approvalTotalPages}
+                    totalItems={approvalItemsToShow.length}
+                    pageSize={APPROVAL_PAGE_SIZE}
+                    itemLabel="bước cần phê duyệt"
+                    onPageChange={setApprovalPage}
+                  />
+                </>
+              )}
+                {false && APPROVAL_ITEMS.map((item) => (
                   <button
                     key={item.code}
                     type="button"
@@ -767,7 +1036,6 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-            </div>
           )}
         </main>
 
@@ -796,17 +1064,17 @@ export default function Dashboard() {
               progressBarClassName={BAR_COLOR[selected.color]}
               metaRows={[
                 { label: "Bước hiện tại", value: currentStepName || "—" },
-                { label: "Nguồn vốn", value: selectedDetail?.nguonVon || selected.nguonVon || "—" },
-                { label: "Ngày tạo", value: selectedDetail?.ngayTao?.slice(0, 10) || selected.ngayTao || "—" },
-                {
-                  label: "Hạn hoàn thành",
-                  value: currentWorkflowSummary.currentDueDate || selected.hanHT || "—",
+              { label: "Nguồn vốn", value: resolveGoiThauNguonVon(selectedDetail?.nguonVon) },
+              { label: "Ngày tạo", value: selectedDetail?.ngayTao?.slice(0, 10) || selected.ngayTao || "—" },
+              {
+                  label: "Hạn xử lý",
+                  value: currentWorkflowSummary.currentDueDate || "—",
                   valueClassName: selected.status === "Trễ hạn" ? "text-red-500" : undefined,
-                },
+              },
                 {
                   label: "Tình trạng tiến độ",
-                  value: selected.progressStatus,
-                  valueClassName: selected.progressStatus === "Quá hạn" ? "text-red-500" : undefined,
+                  value: currentWorkflowSummary.progressStatus,
+                  valueClassName: currentWorkflowSummary.progressStatus === "Quá hạn" ? "text-red-500" : undefined,
                 },
               ]}
               stepInfoRows={[

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { normalizeWorkflowText } from "./workflowDetailUtils";
 import WorkflowStepsPanel from "./WorkflowStepsPanel";
 import type { WorkflowDetailStep } from "./workflowDetailTypes";
 
@@ -49,6 +50,9 @@ type Props = {
   onCurrentStepAction?: (step: WorkflowDetailStep) => void;
   canShowCurrentStepAction?: (step: WorkflowDetailStep) => boolean;
   currentStepActionLabel?: string;
+  currentStepActionTooltip?: (step: WorkflowDetailStep) => string;
+  onUpdateCurrentStep?: (step: WorkflowDetailStep) => void;
+  canUpdateCurrentStep?: (step: WorkflowDetailStep) => boolean;
   onBranchStepClick?: Parameters<typeof WorkflowStepsPanel>[0]["onBranchStepClick"];
   onBranchCurrentStepAction?: Parameters<typeof WorkflowStepsPanel>[0]["onBranchCurrentStepAction"];
   onBranchSkip?: Parameters<typeof WorkflowStepsPanel>[0]["onBranchSkip"];
@@ -61,7 +65,7 @@ function Row({ label, value, valueClassName }: DetailRow) {
     <div className="flex justify-between text-xs">
       <span className="text-slate-400">{label}</span>
       <span className={`max-w-[150px] text-right font-semibold ${valueClassName ?? "text-slate-800"}`}>
-        {value}
+        {normalizeWorkflowText(value)}
       </span>
     </div>
   );
@@ -89,6 +93,9 @@ export default function GoiThauDetailPanel({
   onCurrentStepAction,
   canShowCurrentStepAction,
   currentStepActionLabel,
+  currentStepActionTooltip,
+  onUpdateCurrentStep,
+  canUpdateCurrentStep,
   onBranchStepClick,
   onBranchCurrentStepAction,
   onBranchSkip,
@@ -165,7 +172,7 @@ export default function GoiThauDetailPanel({
                 <div key={row.label} className="flex justify-between gap-3">
                   <span className="text-slate-400">{row.label}</span>
                   <span className={`text-right font-semibold ${row.valueClassName ?? "text-slate-800"}`}>
-                    {row.value}
+                    {normalizeWorkflowText(row.value)}
                   </span>
                 </div>
               ))}
@@ -179,9 +186,12 @@ export default function GoiThauDetailPanel({
         loading={stepsLoading}
         steps={steps}
         emptyMessage={stepsEmptyMessage}
-        onCurrentStepAction={onCurrentStepAction}
-        canShowCurrentStepAction={canShowCurrentStepAction}
+        onCurrentStepAction={onCurrentStepAction ?? onUpdateCurrentStep}
+        onUpdateCurrentStep={onUpdateCurrentStep}
+        canShowCurrentStepAction={canShowCurrentStepAction ?? canUpdateCurrentStep}
+        canUpdateCurrentStep={canUpdateCurrentStep}
         currentStepActionLabel={currentStepActionLabel}
+        currentStepActionTooltip={currentStepActionTooltip}
         onBranchStepClick={onBranchStepClick}
         onBranchCurrentStepAction={onBranchCurrentStepAction}
         onBranchSkip={onBranchSkip}

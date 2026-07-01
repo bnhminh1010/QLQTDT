@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import { toast } from "sonner";
+import { clearAuthClientState, getCsrfToken } from "@/util/authStorage";
 
 /** Mở rộng AxiosRequestConfig thêm flag skip toast */
 declare module "axios" {
@@ -12,22 +13,6 @@ const httpClient = axios.create({
   baseURL: import.meta.env.VITE_BASE_API ?? "http://localhost:5208/api",
   withCredentials: true,
 });
-
-const CSRF_STORAGE_KEY = "qlqtdt.csrfToken";
-
-export function setCsrfToken(token?: string | null) {
-  if (token) {
-    sessionStorage.setItem(CSRF_STORAGE_KEY, token);
-  }
-}
-
-export function clearCsrfToken() {
-  sessionStorage.removeItem(CSRF_STORAGE_KEY);
-}
-
-function getCsrfToken(): string | null {
-  return sessionStorage.getItem(CSRF_STORAGE_KEY);
-}
 
 const _send = async <T>(
   method: string,
@@ -66,6 +51,7 @@ httpClient.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
+      clearAuthClientState();
       toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
       window.location.hash = "#/login";
       return Promise.reject(error);

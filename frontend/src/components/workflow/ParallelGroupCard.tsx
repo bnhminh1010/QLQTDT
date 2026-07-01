@@ -4,6 +4,7 @@ import type {
   WorkflowParallelInfo,
 } from "./workflowDetailTypes";
 import { DEFAULT_PARALLEL_GROUP_TITLE, normalizeParallelGroupTitle } from "@/constants/parallelGroup";
+import { normalizeWorkflowText } from "./workflowDetailUtils";
 
 type Props = {
   parallelInfo: WorkflowParallelInfo;
@@ -29,7 +30,7 @@ export default function ParallelGroupCard({
 
       <div className="mb-3 rounded-lg bg-white/80 px-3 py-2 text-[11px] text-slate-600">
         <div className="mb-1 font-semibold text-slate-700">Điều kiện hợp nhất</div>
-        <div className="leading-relaxed">{parallelInfo.condition}</div>
+        <div className="leading-relaxed">{normalizeWorkflowText(parallelInfo.condition)}</div>
       </div>
 
       <div className="space-y-2">
@@ -41,23 +42,23 @@ export default function ParallelGroupCard({
               ? "text-slate-600"
               : "text-amber-700";
           return (
-            <div key={branch.name} className="rounded-lg border border-white bg-white/80 p-2">
+            <div key={branch.backendId ?? branch.name} className="rounded-lg border border-white bg-white/80 p-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-slate-800">{branch.name}</span>
+                <span className="font-semibold text-slate-800">{normalizeWorkflowText(branch.name)}</span>
                 <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
                   {branch.progress} bước
                 </span>
               </div>
               <div className="mt-1 text-[11px] text-slate-500">
-                Bước hiện tại: <span className="font-semibold text-slate-700">{branch.currentStep}</span>
+                Bước hiện tại: <span className="font-semibold text-slate-700">{normalizeWorkflowText(branch.currentStep)}</span>
               </div>
               <div className="text-[11px] text-slate-500">
-                Người xử lý: <span className="font-semibold text-slate-700">{branch.processor}</span>
+                Người xử lý: <span className="font-semibold text-slate-700">{normalizeWorkflowText(branch.processor)}</span>
               </div>
               <div className={`mt-1 text-[11px] font-semibold ${statusClass}`}>{branch.status}</div>
               {branch.ghiChu && (
                 <div className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700">
-                  <span className="font-semibold">Ghi chú / lý do thực tế:</span> {branch.ghiChu}
+                  <span className="font-semibold">Ghi chú / lý do thực tế:</span> {normalizeWorkflowText(branch.ghiChu, "")}
                 </div>
               )}
 
@@ -90,13 +91,13 @@ export default function ParallelGroupCard({
                         }`}
                       />
                       <span className="flex-1 text-slate-700">
-                        {branchStep.name}
+                        {normalizeWorkflowText(branchStep.name)}
                         {branchStep.state === "current" && (
                           <span className="font-semibold text-amber-700"> (Bước hiện tại)</span>
                         )}
                         {branchStep.ghiChu && (
                           <span className="mt-0.5 block text-[10px] text-amber-700">
-                            Ghi chú: {branchStep.ghiChu}
+                            Ghi chú: {normalizeWorkflowText(branchStep.ghiChu, "")}
                           </span>
                         )}
                       </span>
@@ -142,10 +143,10 @@ export default function ParallelGroupCard({
         <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-amber-500">
           Bước sau hợp nhất
         </div>
-        {parallelInfo.mergeStatus}
+        {normalizeWorkflowText(parallelInfo.mergeStatus)}
       </div>
       <div className="mt-2 rounded-lg bg-slate-100 px-2 py-2 text-[11px] font-semibold text-slate-600">
-        {parallelInfo.lockedStage}
+        {normalizeWorkflowText(parallelInfo.lockedStage)}
       </div>
     </div>
   );

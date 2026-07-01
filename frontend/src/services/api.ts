@@ -1,7 +1,8 @@
 /* ─────────────────────────────────────────────────────────────
    Core API service — login, logout, current user, refresh
 ───────────────────────────────────────────────────────────── */
-import http, { clearCsrfToken, setCsrfToken } from "@/util/http";
+import http from "@/util/http";
+import { clearCsrfToken, setCsrfToken } from "@/util/authStorage";
 
 /* ─── Auth ──────────────────────────────────────────────── */
 
@@ -62,11 +63,34 @@ export async function updateProfileApi(data: {
 }
 
 export async function logoutApi(): Promise<void> {
-  await http.post("/auth/logout");
-  clearCsrfToken();
+  try {
+    await http.post("/auth/logout");
+  } finally {
+    clearAuthClientState();
+  }
 }
 
 /* ─── Helpers ───────────────────────────────────────────── */
+
+const AUTH_STORAGE_KEYS = [
+  "token",
+  "accessToken",
+  "refreshToken",
+  "authToken",
+  "qlqtdt.token",
+  "qlqtdt.accessToken",
+  "qlqtdt.refreshToken",
+  "qlqtdt.authToken",
+];
+
+export function clearAuthClientState() {
+  clearCsrfToken();
+
+  for (const key of AUTH_STORAGE_KEYS) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+}
 
 /**
  * Token duoc luu trong HttpOnly cookie (do backend set khi login).
@@ -85,5 +109,5 @@ export function setStoredToken(_accessToken: string) {
 }
 
 export function clearStoredToken() {
-  clearCsrfToken();
+  clearAuthClientState();
 }

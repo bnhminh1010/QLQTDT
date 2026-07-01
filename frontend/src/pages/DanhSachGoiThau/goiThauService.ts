@@ -11,6 +11,7 @@ import {
 } from "@/services/goiThauApi";
 import type { HinhThucDauThau } from "@/services/hinhThauApi";
 import { toGoiThauTrangThaiLabel } from "@/util/goiThauTrangThai";
+import { resolveGoiThauNguonVon } from "@/util/goiThauDisplay";
 
 /* ─── Types (backward-compat with existing pages) ───────── */
 
@@ -101,6 +102,11 @@ async function ensureKhoaPhongCache(): Promise<void> {
 }
 
 function mapItem(item: GoiThauItem): GoiThau {
+  const rawItem = item as GoiThauItem & {
+    nguonVon?: string;
+    detail?: { nguonVon?: string };
+  };
+  const nguonVon = resolveGoiThauNguonVon(rawItem.nguonVon, rawItem.detail?.nguonVon);
   const pct = item.tongSoBuoc > 0
     ? Math.round((item.soBuocHoanThanh / item.tongSoBuoc) * 100)
     : 0;
@@ -128,7 +134,7 @@ function mapItem(item: GoiThauItem): GoiThau {
     donVi: item.tenKhoaPhong ?? "",
     trangThai: computedTrangThai,
     detail: {
-      nguonVon: "",
+      nguonVon,
       ngayTao: item.ngayTao?.slice(0, 10) ?? "",
       hanHT: "",
       pct: `${pct}%`,

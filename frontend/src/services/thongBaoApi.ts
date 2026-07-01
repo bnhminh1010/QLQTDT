@@ -6,6 +6,8 @@ import http from "@/util/http";
 export type ThongBaoItem = {
   idCongKhai: string;
   loaiThongBao: string;
+  trangThai?: string;
+  mucDo?: string;
   tieuDe: string;
   noiDung?: string;
   daDoc: boolean;

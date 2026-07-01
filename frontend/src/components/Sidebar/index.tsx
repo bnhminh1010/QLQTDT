@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getCurrentUserApi } from "@/services/api";
+import { getCurrentUserApi, logoutApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
 import { canAccessPath } from "@/hooks/useAccessLevel";
 
@@ -23,6 +23,18 @@ export default function Sidebar() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  async function handleLogout() {
+    setUserMenuOpen(false);
+
+    try {
+      await logoutApi();
+    } catch {
+      // Backend logout may fail if the session is already invalidated.
+    }
+
+    navigate("/login", { replace: true });
+  }
 
   const link = (path: string, disabled = false) =>
     `flex items-center justify-center lg:justify-start gap-2.5 px-3 lg:px-4 py-[9px] text-[13px] transition-colors ${
@@ -141,20 +153,29 @@ export default function Sidebar() {
         {userMenuOpen && (
           <div className="absolute bottom-full left-2 w-56 lg:left-0 lg:right-0 lg:w-auto mb-1 mx-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-[200]">
             <button
-              onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
+              type="button"
+              onClick={() => {
+                setUserMenuOpen(false);
+                navigate("/profile");
+              }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <i className="fa-solid fa-user-circle text-slate-400 w-4 text-center" /> Hồ sơ cá nhân
             </button>
             <button
-              onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
+              type="button"
+              onClick={() => {
+                setUserMenuOpen(false);
+                navigate("/profile");
+              }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <i className="fa-solid fa-lock text-slate-400 w-4 text-center" /> Đổi mật khẩu
             </button>
             <div className="border-t border-slate-100" />
             <button
-              onClick={() => { setUserMenuOpen(false); clearStoredToken(); navigate("/login"); }}
+              type="button"
+              onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
               <i className="fa-solid fa-right-from-bracket text-red-400 w-4 text-center" /> Đăng xuất

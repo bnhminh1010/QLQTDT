@@ -59,6 +59,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             currentStep = await _db.WorkflowStepInstances
                 .Include(s => s.BuocWorkflow)
                 .Include(s => s.WorkflowAssignments)
+                .ThenInclude(a => a.NguoiDuocGiao)
                 .FirstOrDefaultAsync(s =>
                     s.Id == request.WorkflowStepInstanceId.Value &&
                     s.WorkflowInstanceId == instance.Id &&
@@ -86,6 +87,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             currentStep = (await _db.WorkflowStepInstances
                 .Include(s => s.BuocWorkflow)
                 .Include(s => s.WorkflowAssignments)
+                .ThenInclude(a => a.NguoiDuocGiao)
                 .FirstOrDefaultAsync(s =>
                     s.WorkflowInstanceId == instance.Id &&
                     s.BuocWorkflowId == instance.BuocHienTaiId &&
@@ -340,7 +342,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 : null;
             await _db.SaveChangesAsync();
 
-            AssignStepToTenderCreator(nextStep.Id, goiThau, currentUserId);
+            AssignStepToTenderCreator(nextStep, goiThau);
 
             instance.BuocHienTaiId = nextBuoc.Id;
             newStepId = nextStep.Id;
@@ -411,7 +413,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                     : null;
             await _db.SaveChangesAsync();
 
-            AssignStepToTenderCreator(branchStep.Id, goiThau, currentUserId);
+            AssignStepToTenderCreator(branchStep, goiThau);
 
             createdSteps.Add(branchStep);
 
@@ -480,7 +482,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 : null;
         await _db.SaveChangesAsync();
 
-        AssignStepToTenderCreator(nextStep.Id, goiThau, currentUserId);
+        AssignStepToTenderCreator(nextStep, goiThau);
 
         instance.BuocHienTaiId = null;
 
@@ -653,7 +655,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             : null;
         await _db.SaveChangesAsync();
 
-        AssignStepToTenderCreator(mergeStep.Id, goiThau, currentUserId);
+        AssignStepToTenderCreator(mergeStep, goiThau);
 
         // Cancel remaining active steps in other branches
         var remainingActiveSteps = await _db.WorkflowStepInstances
@@ -751,7 +753,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             _db.WorkflowStepInstances.Add(previousStep);
             await _db.SaveChangesAsync();
 
-            AssignStepToTenderCreator(previousStep.Id, goiThau, currentUserId);
+            AssignStepToTenderCreator(previousStep, goiThau);
 
             var hasOtherActiveSteps = await _db.WorkflowStepInstances.AnyAsync(s =>
                 s.WorkflowInstanceId == instance.Id &&
@@ -862,7 +864,7 @@ public class WorkflowEngineService : IWorkflowEngineService
         _db.WorkflowStepInstances.Add(previousStep);
         await _db.SaveChangesAsync();
 
-        AssignStepToTenderCreator(previousStep.Id, goiThau, currentUserId);
+        AssignStepToTenderCreator(previousStep, goiThau);
 
         instance.BuocHienTaiId = rollbackTransition.TuBuoc.Id;
 
@@ -983,7 +985,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 ? DateTime.UtcNow.AddDays(nextBuoc.SoNgayLapHoSo)
                 : null;
             await _db.SaveChangesAsync();
-            AssignStepToTenderCreator(nextStep.Id, goiThau, currentUserId);
+            AssignStepToTenderCreator(nextStep, goiThau);
 
             instance.BuocHienTaiId = nextBuoc.Id;
             newStepId = nextStep.Id;
@@ -1183,7 +1185,7 @@ public class WorkflowEngineService : IWorkflowEngineService
 
             var stepInstance = stepInstances.First(step => step.BuocWorkflowId == firstStep.Id);
 
-            AssignStepToTenderCreator(stepInstance.Id, lockedGoiThau, currentUserId);
+            AssignStepToTenderCreator(stepInstance, lockedGoiThau);
 
             var actionHistory = new WorkflowActionHistory
             {
@@ -1267,10 +1269,18 @@ public class WorkflowEngineService : IWorkflowEngineService
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiXuLy)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.NguoiKyDuyet)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.WorkflowAssignments).ThenInclude(a => a.NguoiDuocGiao)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.NhanhWorkflow)
             .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
 
         if (instance is null) return null;
+
+        var tenderCreatorName = instance.GoiThau?.NguoiTaoId.HasValue == true
+            ? await _db.NguoiDungs
+                .Where(n => n.Id == instance.GoiThau.NguoiTaoId.Value)
+                .Select(n => n.HoTen)
+                .FirstOrDefaultAsync()
+            : null;
 
         var buocHienTai = instance.BuocHienTaiId.HasValue
             ? instance.WorkflowStepInstances
@@ -1293,7 +1303,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 PhaHienTai = s.PhaHienTai,
                 NgayBatDau = s.NgayBatDau,
                 NgayHoanThanh = s.NgayHoanThanh,
-                TenNguoiXuLy = !string.IsNullOrWhiteSpace(s.NguoiXuLyText) ? s.NguoiXuLyText : s.NguoiXuLy?.HoTen,
+                TenNguoiXuLy = ResolveStepProcessorDisplayName(s, tenderCreatorName),
                 NgayXuLy = s.NgayXuLy,
                 TenNguoiKyDuyet = !string.IsNullOrWhiteSpace(s.NguoiKyDuyetText) ? s.NguoiKyDuyetText : s.NguoiKyDuyet?.HoTen,
                 NgayKyDuyet = s.NgayKyDuyet,
@@ -1367,9 +1377,23 @@ public class WorkflowEngineService : IWorkflowEngineService
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.DonViXuLy)
             .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.BuocWorkflow!).ThenInclude(b => b.NhanhWorkflow)
+            .Include(i => i.WorkflowStepInstances).ThenInclude(s => s.WorkflowAssignments).ThenInclude(a => a.NguoiDuocGiao)
             .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
 
         if (instance is null) return [];
+
+        var tenderCreatorName = instance.WorkflowStepInstances.Count > 0
+            ? await _db.GoiThaus
+                .Where(g => g.Id == goiThauId)
+                .Select(g => g.NguoiTaoId)
+                .FirstOrDefaultAsync()
+            : null;
+        var resolvedTenderCreatorName = tenderCreatorName.HasValue
+            ? await _db.NguoiDungs
+                .Where(n => n.Id == tenderCreatorName.Value)
+                .Select(n => n.HoTen)
+                .FirstOrDefaultAsync()
+            : null;
 
         return instance.WorkflowStepInstances
             .OrderBy(s => s.BuocWorkflow?.ThuTu ?? int.MaxValue)
@@ -1385,7 +1409,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 PhaHienTai = s.PhaHienTai,
                 NgayBatDau = s.NgayBatDau,
                 NgayHoanThanh = s.NgayHoanThanh,
-                TenNguoiXuLy = !string.IsNullOrWhiteSpace(s.NguoiXuLyText) ? s.NguoiXuLyText : s.NguoiXuLy?.HoTen,
+                TenNguoiXuLy = ResolveStepProcessorDisplayName(s, resolvedTenderCreatorName),
                 NgayXuLy = s.NgayXuLy,
                 TenNguoiKyDuyet = !string.IsNullOrWhiteSpace(s.NguoiKyDuyetText) ? s.NguoiKyDuyetText : s.NguoiKyDuyet?.HoTen,
                 NgayKyDuyet = s.NgayKyDuyet,
@@ -1415,6 +1439,17 @@ public class WorkflowEngineService : IWorkflowEngineService
             .FirstOrDefaultAsync(i => i.GoiThauId == goiThauId);
         if (instance is null) return null;
 
+        var creatorId = await _db.GoiThaus
+            .Where(g => g.Id == goiThauId)
+            .Select(g => g.NguoiTaoId)
+            .FirstOrDefaultAsync();
+        var tenderCreatorName = creatorId.HasValue
+            ? await _db.NguoiDungs
+                .Where(n => n.Id == creatorId.Value)
+                .Select(n => n.HoTen)
+                .FirstOrDefaultAsync()
+            : null;
+
         var step = await _db.WorkflowStepInstances
             .Include(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroXuLyHoSo)
             .Include(s => s.BuocWorkflow!).ThenInclude(b => b.VaiTroKyDuyet)
@@ -1433,7 +1468,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             PhaHienTai = step.PhaHienTai,
             NgayBatDau = step.NgayBatDau,
             NgayHoanThanh = step.NgayHoanThanh,
-            TenNguoiXuLy = !string.IsNullOrWhiteSpace(step.NguoiXuLyText) ? step.NguoiXuLyText : step.NguoiXuLy?.HoTen,
+            TenNguoiXuLy = ResolveStepProcessorDisplayName(step, tenderCreatorName),
             NgayXuLy = step.NgayXuLy,
             TenNguoiKyDuyet = !string.IsNullOrWhiteSpace(step.NguoiKyDuyetText) ? step.NguoiKyDuyetText : step.NguoiKyDuyet?.HoTen,
             NgayKyDuyet = step.NgayKyDuyet,
@@ -1450,6 +1485,89 @@ public class WorkflowEngineService : IWorkflowEngineService
         };
     }
     // ════════════════════════════════════════════════════════════════════
+    public async Task<List<WorkflowPendingTaskDto>> GetPendingTasksAsync()
+    {
+        var currentUserId = GetCurrentUserId();
+
+        var activeStatuses = new[]
+        {
+            WorkflowStepTrangThai.DANG_XU_LY,
+            WorkflowStepTrangThai.CHO_DUYET,
+            WorkflowStepTrangThai.CHO_KY_DUYET
+        };
+
+        var pendingSteps = await _db.WorkflowStepInstances
+            .AsNoTracking()
+            .Include(step => step.BuocWorkflow)
+            .Include(step => step.NguoiXuLy)
+            .Include(step => step.NguoiKyDuyet)
+            .Include(step => step.WorkflowInstance)
+                .ThenInclude(instance => instance!.GoiThau)
+            .Include(step => step.WorkflowAssignments)
+                .ThenInclude(a => a.NguoiDuocGiao)
+            .Where(step =>
+                activeStatuses.Contains(step.TrangThai) &&
+                step.WorkflowInstance != null &&
+                step.WorkflowInstance.TrangThai == WorkflowTrangThai.ACTIVE &&
+                step.WorkflowAssignments.Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy))
+            .OrderByDescending(step => step.QuaHan == true)
+            .ThenBy(step => step.HanXuLy ?? step.NgayKyDuyet ?? step.NgayXuLy ?? step.NgayBatDau)
+            .ThenByDescending(step => step.TrangThai == WorkflowStepTrangThai.CHO_KY_DUYET || step.PhaHienTai == "KY_DUYET")
+            .ToListAsync();
+
+        if (pendingSteps.Count == 0)
+            return [];
+
+        var goiThauIds = pendingSteps
+            .Select(step => step.WorkflowInstance?.GoiThauId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        var creatorNamesByGoiThauId = goiThauIds.Count == 0
+            ? new Dictionary<int, string>()
+            : await _db.GoiThaus
+                .AsNoTracking()
+                .Where(goiThau => goiThauIds.Contains(goiThau.Id) && goiThau.NguoiTaoId.HasValue)
+                .Join(
+                    _db.NguoiDungs.AsNoTracking(),
+                    goiThau => goiThau.NguoiTaoId!.Value,
+                    nguoiDung => nguoiDung.Id,
+                    (goiThau, nguoiDung) => new { goiThau.Id, nguoiDung.HoTen })
+                .ToDictionaryAsync(item => item.Id, item => item.HoTen!);
+
+        return pendingSteps.Select(step =>
+        {
+            creatorNamesByGoiThauId.TryGetValue(step.WorkflowInstance!.GoiThauId, out var tenderCreatorName);
+
+            return new WorkflowPendingTaskDto
+            {
+                WorkflowInstanceId = step.WorkflowInstanceId,
+                WorkflowStepInstanceId = step.Id,
+                GoiThauId = step.WorkflowInstance.GoiThauId,
+                MaGoiThau = step.WorkflowInstance.GoiThau!.MaGoiThau,
+                TenGoiThau = step.WorkflowInstance.GoiThau.TenGoiThau,
+                BuocTen = step.BuocWorkflow!.TenBuoc,
+                TrangThai = step.TrangThai,
+                PhaHienTai = step.PhaHienTai,
+                TenNguoiXuLy = ResolveStepProcessorDisplayName(step, tenderCreatorName),
+                TenNguoiKyDuyet = !string.IsNullOrWhiteSpace(step.NguoiKyDuyetText)
+                    ? step.NguoiKyDuyetText
+                    : step.NguoiKyDuyet != null
+                        ? step.NguoiKyDuyet.HoTen
+                        : null,
+                HanXuLy = step.HanXuLy,
+                NgayXuLy = step.NgayXuLy,
+                NgayKyDuyet = step.NgayKyDuyet,
+                QuaHan = step.QuaHan ?? false,
+                ChoKyDuyet = step.TrangThai == WorkflowStepTrangThai.CHO_DUYET ||
+                    step.TrangThai == WorkflowStepTrangThai.CHO_KY_DUYET ||
+                    step.PhaHienTai == "KY_DUYET"
+            };
+        }).ToList();
+    }
+
     //  Helpers
     // ════════════════════════════════════════════════════════════════════
 
@@ -1511,19 +1629,16 @@ public class WorkflowEngineService : IWorkflowEngineService
 
         var rv = isCompleted ? null : (rowVersion ?? currentStep.RowVersion);
 
-        // Try to resolve user display names.
-        // NguoiXuLy is determined by the current user/role and is not overridden by UI input.
+        // Try to resolve user display names from persisted step data.
         string? tenNguoiXuLy = null;
         string? tenNguoiKyDuyet = null;
-        if (!string.IsNullOrWhiteSpace(currentStep.NguoiXuLyText))
-        {
-            tenNguoiXuLy = currentStep.NguoiXuLyText;
-        }
-        else if (currentStep.NguoiXuLyId.HasValue)
+        if (currentStep.NguoiXuLyId.HasValue)
         {
             var u = await _db.NguoiDungs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == currentStep.NguoiXuLyId.Value);
             tenNguoiXuLy = u?.HoTen;
         }
+        if (string.IsNullOrWhiteSpace(tenNguoiXuLy))
+            tenNguoiXuLy = ResolveStepProcessorDisplayName(currentStep);
 
         if (!string.IsNullOrWhiteSpace(currentStep.NguoiKyDuyetText))
         {
@@ -1586,26 +1701,7 @@ public class WorkflowEngineService : IWorkflowEngineService
     }
 
     private static string? ComputeTinhTrangTienDo(DateTime? hanXuLy, string trangThai)
-    {
-        if (trangThai is WorkflowStepTrangThai.HOAN_TAT or WorkflowStepTrangThai.TRA_VE
-            or WorkflowStepTrangThai.SKIPPED)
-            return "HOAN_TAT";
-
-        if (trangThai is "PENDING" or "CHUA_BAT_DAU")
-            return "CHUA_THUC_HIEN";
-
-        if (!hanXuLy.HasValue)
-            return "CHUA_CO_HAN";
-
-        var remaining = hanXuLy.Value - DateTime.UtcNow;
-
-        if (remaining.TotalDays < 0)
-            return "QUA_HAN";
-        if (remaining.TotalDays <= 3)
-            return "SAP_QUA_HAN";
-
-        return "DUNG_TIEN_DO";
-    }
+        => WorkflowDeadlineStatusHelper.ComputeTinhTrangTienDo(hanXuLy, trangThai);
 
     private async Task<BuocWorkflow?> ResolveSequentialNextBuocAsync(int workflowId, BuocWorkflow currentBuoc)
     {
@@ -1639,12 +1735,34 @@ public class WorkflowEngineService : IWorkflowEngineService
         return id;
     }
 
-    private void AssignStepToTenderCreator(long stepInstanceId, GoiThau? goiThau, int fallbackUserId)
+    private static string? ResolveStepProcessorDisplayName(WorkflowStepInstance step, string? fallbackCreatorName = null)
     {
+        if (!string.IsNullOrWhiteSpace(step.NguoiXuLyText))
+            return step.NguoiXuLyText.Trim();
+
+        if (!string.IsNullOrWhiteSpace(step.NguoiXuLy?.HoTen))
+            return step.NguoiXuLy!.HoTen;
+
+        var assignedName = step.WorkflowAssignments
+            .Select(a => a.NguoiDuocGiao?.HoTen)
+            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
+        if (!string.IsNullOrWhiteSpace(assignedName))
+            return assignedName;
+
+        return string.IsNullOrWhiteSpace(fallbackCreatorName) ? null : fallbackCreatorName.Trim();
+    }
+
+    private void AssignStepToTenderCreator(WorkflowStepInstance stepInstance, GoiThau? goiThau)
+    {
+        var creatorId = goiThau?.NguoiTaoId
+            ?? throw new InvalidOperationException("Không xác định được người tạo gói thầu để gán người xử lý.");
+
+        stepInstance.NguoiXuLyId = creatorId;
+
         _db.WorkflowAssignments.Add(new WorkflowAssignment
         {
-            WorkflowStepInstanceId = stepInstanceId,
-            NguoiDuocGiaoId = goiThau?.NguoiTaoId ?? fallbackUserId,
+            WorkflowStepInstanceId = stepInstance.Id,
+            NguoiDuocGiaoId = creatorId,
             NgayGiao = DateTime.UtcNow
         });
     }
