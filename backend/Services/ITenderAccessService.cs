@@ -20,6 +20,7 @@ public interface ITenderAccessService
     Task EnsureCanViewAsync(int userId, int goiThauId);
     Task EnsureCanEditAsync(int userId, int goiThauId);
     Task EnsureCanProcessAsync(int userId, int goiThauId);
+    Task EnsureNotAdminObserverAsync(int userId);
     Task<GoiThau> GetAccessibleTenderAsync(int userId, int goiThauId, bool requireFullScope = false);
 
     /// <summary>

@@ -1192,7 +1192,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 HanhDong = "START",
                 GhiChu = $"Khoi tao workflow '{workflow.TenWorkflow}' cho goi thau {lockedGoiThau.MaGoiThau}",
                 NguoiThucHienId = currentUserId,
-                ThoiGian = DateTime.UtcNow
+                ThoiGian = BusinessClock.VietnamNow
             };
             _db.WorkflowActionHistories.Add(actionHistory);
 
@@ -1203,7 +1203,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 MoTaChiTiet = $"Khoi tao workflow '{workflow.TenWorkflow}' cho goi thau '{lockedGoiThau.MaGoiThau}'. " +
                               $"Buoc dau tien: '{firstStep.TenBuoc}'",
                 NguoiThucHienId = currentUserId,
-                ThoiGianThucHien = DateTime.UtcNow
+                ThoiGianThucHien = BusinessClock.VietnamNow
             });
 
             var oldStatus = lockedGoiThau.TrangThai;
@@ -1464,7 +1464,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             HanhDong = hanhDong,
             GhiChu = ghiChu,
             NguoiThucHienId = nguoiThucHienId,
-            ThoiGian = DateTime.UtcNow
+            ThoiGian = BusinessClock.VietnamNow
         });
 
         _db.NhatKyKiemToans.Add(new NhatKyKiemToan
@@ -1473,7 +1473,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             HanhDong = hanhDong,
             MoTaChiTiet = moTaChiTiet,
             NguoiThucHienId = nguoiThucHienId,
-            ThoiGianThucHien = DateTime.UtcNow
+            ThoiGianThucHien = BusinessClock.VietnamNow
         });
     }
 
@@ -1659,7 +1659,7 @@ public class WorkflowEngineService : IWorkflowEngineService
             TrangThaiCu = oldStatus,
             TrangThaiMoi = newStatus,
             NguoiThayDoiId = userId,
-            ThoiGianThayDoi = DateTime.UtcNow
+            ThoiGianThayDoi = BusinessClock.VietnamNow
         });
     }
 

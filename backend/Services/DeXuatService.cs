@@ -401,7 +401,7 @@ public class DeXuatService : IDeXuatService
                 note = string.IsNullOrWhiteSpace(note) ? null : InputSanitizer.Sanitize(note)
             }),
             NguoiThucHienId = userId,
-            ThoiGianThucHien = DateTime.UtcNow
+            ThoiGianThucHien = BusinessClock.VietnamNow
         });
     }
 

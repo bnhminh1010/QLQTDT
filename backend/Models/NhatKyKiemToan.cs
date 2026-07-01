@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using QLQTDT.Api.Helpers;
 
 namespace QLQTDT.Api.Models;
 
@@ -31,5 +32,5 @@ public class NhatKyKiemToan
 
     public int NguoiThucHienId { get; set; }
 
-    public DateTime ThoiGianThucHien { get; set; } = DateTime.UtcNow;
+    public DateTime ThoiGianThucHien { get; set; } = BusinessClock.VietnamNow;
 }

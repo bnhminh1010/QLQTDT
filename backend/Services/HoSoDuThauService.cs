@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.HoSoDuThau;
 using QLQTDT.Api.Models.Entities;
@@ -305,7 +306,7 @@ public class HoSoDuThauService : IHoSoDuThauService
             TrangThaiCu = oldStatus,
             TrangThaiMoi = newStatus,
             NguoiThayDoiId = userId,
-            ThoiGianThayDoi = DateTime.UtcNow
+            ThoiGianThayDoi = BusinessClock.VietnamNow
         });
     }
 

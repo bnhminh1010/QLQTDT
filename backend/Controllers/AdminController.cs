@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Admin;
 using QLQTDT.Api.Models.DTOs.Common;
@@ -209,7 +210,7 @@ public class AdminController : ControllerBase
                 moTa = description,
             }),
             NguoiThucHienId = actorId.Value,
-            ThoiGianThucHien = DateTime.UtcNow,
+            ThoiGianThucHien = BusinessClock.VietnamNow,
         });
         await _db.SaveChangesAsync();
     }

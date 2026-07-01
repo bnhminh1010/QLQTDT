@@ -75,12 +75,31 @@ public class TenderAccessService : ITenderAccessService
 
     public async Task EnsureCanEditAsync(int userId, int goiThauId)
     {
+        await EnsureNotAdminObserverAsync(userId);
         await GetAccessibleTenderAsync(userId, goiThauId);
     }
 
     public async Task EnsureCanProcessAsync(int userId, int goiThauId)
     {
+        await EnsureNotAdminObserverAsync(userId);
         await GetAccessibleTenderAsync(userId, goiThauId);
+    }
+
+    public async Task EnsureNotAdminObserverAsync(int userId)
+    {
+        var isAdmin = await _db.NguoiDungKhoaPhongVaiTros
+            .AsNoTracking()
+            .Include(nkv => nkv.VaiTro)
+            .AnyAsync(nkv =>
+                nkv.NguoiDungId == userId &&
+                nkv.VaiTro != null &&
+                (
+                    nkv.VaiTro.MaVaiTro == "ADMIN" ||
+                    nkv.VaiTro.TenVaiTro == "ADMIN"
+                ));
+
+        if (isAdmin)
+            throw new ForbiddenException("Admin chỉ có quyền quan sát gói thầu, không được cập nhật dữ liệu gói thầu.");
     }
 
     public async Task<GoiThau> GetAccessibleTenderAsync(int userId, int goiThauId, bool requireFullScope = false)

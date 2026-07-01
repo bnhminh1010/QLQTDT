@@ -5,6 +5,8 @@ import GoiThauDetailPanel from "@/components/workflow/GoiThauDetailPanel";
 import WorkflowStepsPanel from "@/components/workflow/WorkflowStepsPanel";
 import { SelectField } from "@/components/ui/select";
 import { getUserGoiThauList } from "./goiThauService";
+import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
+import { getRoleCode } from "@/hooks/useAccessLevel";
 import { cancelGoiThau, deleteGoiThau } from "@/services/goiThauApi";
 import {
   getWorkflowState,
@@ -637,6 +639,15 @@ export default function DanhSachGoiThau() {
   const [historyTarget, setHistoryTarget] = useState<GoiThau | null>(null);
   const [historyEntries, setHistoryEntries] = useState<LichSuGoiThau[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<LoginUserDto | null | undefined>(undefined);
+  const isAdminObserver = currentUser ? getRoleCode(currentUser) === "ADMIN" : false;
+  const canMutateGoiThau = currentUser != null && !isAdminObserver;
+  const canUserEditGoiThau = (item?: GoiThau | null) =>
+    canMutateGoiThau && canEditGoiThau(item);
+  const canUserDeleteGoiThau = (item?: GoiThau | null) =>
+    canMutateGoiThau && canDeleteGoiThau(item);
+  const canUserUpdateCurrentStep = (item?: GoiThau | null) =>
+    canMutateGoiThau && canUpdateCurrentStep(item);
 
   // Load data from API
   const loadData = useCallback(async () => {
@@ -664,6 +675,20 @@ export default function DanhSachGoiThau() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentUserApi()
+      .then((user) => {
+        if (!cancelled) setCurrentUser(user);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentUser(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function openHistory(item: GoiThau) {
     setHistoryTarget(item);
@@ -833,7 +858,7 @@ export default function DanhSachGoiThau() {
 
   function handleDelete() {
     if (!deleteTarget) return;
-    if (!canDeleteGoiThau(deleteTarget)) {
+    if (!canUserDeleteGoiThau(deleteTarget)) {
       toast.error("Chỉ có thể xóa gói thầu ở trạng thái Nháp");
       setDeleteTarget(null);
       return;
@@ -852,7 +877,7 @@ export default function DanhSachGoiThau() {
   }
 
   function goToEdit(item: GoiThau) {
-    if (!canEditGoiThau(item)) {
+    if (!canUserEditGoiThau(item)) {
       toast.error("Chỉ được chỉnh sửa gói thầu ở trạng thái Nháp");
       return;
     }
@@ -873,11 +898,11 @@ export default function DanhSachGoiThau() {
   }
 
   function handlePrimaryAction(item: GoiThau) {
-    if (canEditGoiThau(item)) {
+    if (canUserEditGoiThau(item)) {
       goToEdit(item);
       return;
     }
-    if (canUpdateCurrentStep(item)) {
+    if (canUserUpdateCurrentStep(item)) {
       navigate(getCurrentStepUrl(item));
       return;
     }
@@ -885,7 +910,7 @@ export default function DanhSachGoiThau() {
   }
 
   function goToCurrentStep(item: GoiThau) {
-    if (!canUpdateCurrentStep(item)) {
+    if (!canUserUpdateCurrentStep(item)) {
       toast.error("Gói thầu ở trạng thái này không còn thao tác xử lý bước");
       return;
     }
@@ -911,7 +936,7 @@ export default function DanhSachGoiThau() {
     );
     const activeStepIds = new Set(workflowState?.currentSteps?.map((step) => step.stepInstanceId) ?? []);
     const canProcessWorkflowStep = (step: QuyTrinhStepDetail) =>
-      canUpdateCurrentStep(selected) &&
+      canUserUpdateCurrentStep(selected) &&
       step.backendId != null &&
       activeStepIds.has(step.backendId) &&
       step.state !== "done" &&
@@ -975,7 +1000,7 @@ export default function DanhSachGoiThau() {
               ...step,
               current: isCurrent,
               state:
-                isCurrent && canUpdateCurrentStep(selected)
+                isCurrent && canUserUpdateCurrentStep(selected)
                   ? ("warn" as DotState)
                   : step.state,
               nguoiXuLy: step.nguoiXuLy || detailInfo.nguoiXuLy,
@@ -1050,15 +1075,15 @@ export default function DanhSachGoiThau() {
         steps={displaySteps}
         stepsLoading={workflowLoading}
         stepsEmptyMessage="Chua co du lieu buoc quy trinh tu backend."
-        onCurrentStepAction={() => goToCurrentStep(selected)}
+        onCurrentStepAction={canMutateGoiThau ? () => goToCurrentStep(selected) : undefined}
         canShowCurrentStepAction={canProcessWorkflowStep}
         onBranchStepClick={(branchStep) => goToStepResult(selected, branchStep.name, branchStep.backendId)}
-        onBranchCurrentStepAction={(branch) => {
+        onBranchCurrentStepAction={canMutateGoiThau ? (branch) => {
           navigate(
             `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}${branch.backendId ? `&stepId=${branch.backendId}` : ""}`,
           );
-        }}
-        onBranchSkip={async (branch) => {
+        } : undefined}
+        onBranchSkip={canMutateGoiThau ? async (branch) => {
           const stepInstance = workflowState?.steps.find((s) => s.id === branch.backendId);
           if (!stepInstance?.id || !stepInstance.rowVersion) {
             toast.error("Khong tim thay thong tin buoc de bo qua.");
@@ -1086,29 +1111,32 @@ export default function DanhSachGoiThau() {
           } catch (error: any) {
             toast.error(error?.message || "Khong the bo qua buoc.");
           }
-        }}
+        } : undefined}
         actions={
           <div className="flex flex-col gap-2">
-            <button
-              onClick={() => goToCurrentStep(selected)}
-              disabled={!canUpdateCurrentStep(selected)}
-              title={
-                canUpdateCurrentStep(selected)
-                  ? "Xử lý bước hiện tại"
-                  : "Không còn thao tác xử lý"
-              }
-              className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
-            >
-              <i className="fa-solid fa-clipboard-list text-xs" />
-              Xử lý bước hiện tại
-            </button>
+            {canMutateGoiThau && (
+              <button
+                onClick={() => goToCurrentStep(selected)}
+                disabled={!canUserUpdateCurrentStep(selected)}
+                title={
+                  canUserUpdateCurrentStep(selected)
+                    ? "Xử lý bước hiện tại"
+                    : "Không còn thao tác xử lý"
+                }
+                className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
+              >
+                <i className="fa-solid fa-clipboard-list text-xs" />
+                Xử lý bước hiện tại
+              </button>
+            )}
             <button
               onClick={() => openHistory(selected)}
               className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
             >
               <i className="fa-solid fa-clock-rotate-left text-xs" /> Lịch sử xử lý
             </button>
-            {selected.trangThai !== "Đã hủy" &&
+            {canMutateGoiThau &&
+              selected.trangThai !== "Đã hủy" &&
               selected.trangThai !== "Hoàn thành" && (
                 <button
                   onClick={() => setCancelTarget(selected)}
@@ -1117,14 +1145,16 @@ export default function DanhSachGoiThau() {
                   <i className="fa-solid fa-ban text-xs" /> Hủy gói thầu
                 </button>
               )}
-            <button
-              onClick={() => setDeleteTarget(selected)}
-              disabled={!canDeleteGoiThau(selected)}
-              title={canDeleteGoiThau(selected) ? "Xoa goi thau" : "Chi co the xoa goi thau o trang thai Nhap"}
-              className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
-            >
-              <i className="fa-solid fa-trash text-xs" /> Xóa gói thầu
-            </button>
+            {canMutateGoiThau && (
+              <button
+                onClick={() => setDeleteTarget(selected)}
+                disabled={!canUserDeleteGoiThau(selected)}
+                title={canUserDeleteGoiThau(selected) ? "Xoa goi thau" : "Chi co the xoa goi thau o trang thai Nhap"}
+                className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
+              >
+                <i className="fa-solid fa-trash text-xs" /> Xóa gói thầu
+              </button>
+            )}
           </div>
         }
       />
@@ -1245,15 +1275,15 @@ export default function DanhSachGoiThau() {
           loading={workflowLoading}
           steps={displaySteps}
           emptyMessage="Chua co du lieu buoc quy trinh tu backend."
-          onCurrentStepAction={() => goToCurrentStep(selected)}
+          onCurrentStepAction={canMutateGoiThau ? () => goToCurrentStep(selected) : undefined}
           canShowCurrentStepAction={canProcessWorkflowStep}
           onBranchStepClick={(branchStep) => goToStepResult(selected, branchStep.name, branchStep.backendId)}
-          onBranchCurrentStepAction={(branch) => {
+          onBranchCurrentStepAction={canMutateGoiThau ? (branch) => {
             navigate(
               `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}${branch.backendId ? `&stepId=${branch.backendId}` : ""}`,
             );
-          }}
-          onBranchSkip={async (branch) => {
+          } : undefined}
+          onBranchSkip={canMutateGoiThau ? async (branch) => {
             const stepInstance = workflowState?.steps.find((s) => s.id === branch.backendId);
             if (!stepInstance?.id || !stepInstance.rowVersion) {
               toast.error("Không tìm thấy thông tin bước để bỏ qua.");
@@ -1281,31 +1311,34 @@ export default function DanhSachGoiThau() {
             } catch (error: any) {
               toast.error(error?.message || "Không thể bỏ qua bước.");
             }
-          }}
+          } : undefined}
         />
 
         {/* Actions */}
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
-          <button
-            onClick={() => goToCurrentStep(selected)}
-            disabled={!canUpdateCurrentStep(selected)}
-            title={
-              canUpdateCurrentStep(selected)
-                ? "Xử lý bước hiện tại"
-                : "Không còn thao tác xử lý"
-            }
-            className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
-          >
-            <i className="fa-solid fa-clipboard-list text-xs" />
-            Xử lý bước hiện tại
-          </button>
+          {canMutateGoiThau && (
+            <button
+              onClick={() => goToCurrentStep(selected)}
+              disabled={!canUserUpdateCurrentStep(selected)}
+              title={
+                canUserUpdateCurrentStep(selected)
+                  ? "Xử lý bước hiện tại"
+                  : "Không còn thao tác xử lý"
+              }
+              className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
+            >
+              <i className="fa-solid fa-clipboard-list text-xs" />
+              Xử lý bước hiện tại
+            </button>
+          )}
           <button
             onClick={() => openHistory(selected)}
             className="w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors"
           >
             <i className="fa-solid fa-clock-rotate-left text-xs" /> Lịch sử xử lý
           </button>
-          {selected.trangThai !== "Đã hủy" &&
+          {canMutateGoiThau &&
+            selected.trangThai !== "Đã hủy" &&
             selected.trangThai !== "Hoàn thành" && (
               <button
                 onClick={() => setCancelTarget(selected)}
@@ -1314,14 +1347,16 @@ export default function DanhSachGoiThau() {
                 <i className="fa-solid fa-ban text-xs" /> Hủy gói thầu
               </button>
             )}
-          <button
-            onClick={() => setDeleteTarget(selected)}
-            disabled={!canDeleteGoiThau(selected)}
-            title={canDeleteGoiThau(selected) ? "Xóa gói thầu" : "Chỉ có thể xóa gói thầu ở trạng thái Nháp"}
-            className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
-          >
-            <i className="fa-solid fa-trash text-xs" /> Xóa gói thầu
-          </button>
+          {canMutateGoiThau && (
+            <button
+              onClick={() => setDeleteTarget(selected)}
+              disabled={!canUserDeleteGoiThau(selected)}
+              title={canUserDeleteGoiThau(selected) ? "Xóa gói thầu" : "Chỉ có thể xóa gói thầu ở trạng thái Nháp"}
+              className="w-full flex items-center justify-center gap-2 text-sm text-red-500 hover:bg-red-50 border border-red-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
+            >
+              <i className="fa-solid fa-trash text-xs" /> Xóa gói thầu
+            </button>
+          )}
         </div>
       </>
     );
@@ -1352,12 +1387,14 @@ export default function DanhSachGoiThau() {
           >
             <i className="fa-solid fa-sidebar-flip" />
           </button>
-          <button
-            onClick={() => navigate("/tao-goi-thau")}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <i className="fa-solid fa-plus text-xs" /> Tạo gói thầu
-          </button>
+          {canMutateGoiThau && (
+            <button
+              onClick={() => navigate("/tao-goi-thau")}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <i className="fa-solid fa-plus text-xs" /> Tạo gói thầu
+            </button>
+          )}
         </div>
       </header>
 
@@ -1550,21 +1587,24 @@ export default function DanhSachGoiThau() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="flex items-center justify-center gap-1">
-                              <button
-                                title={
-                                  canEditGoiThau(row)
-                                    ? "Chỉnh sửa gói thầu"
-                                    : canUpdateCurrentStep(row)
-                                      ? "Cập nhật bước hiện tại"
-                                      : "Không còn thao tác xử lý"
-                                }
-                                onClick={() => handlePrimaryAction(row)}
-                                disabled={!canEditGoiThau(row) && !canUpdateCurrentStep(row)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
-                              >
-                                <i className={`fa-solid ${canEditGoiThau(row) ? "fa-pen" : "fa-clipboard-list"} text-xs`} />
-                              </button>
-                              {row.trangThai !== "Đã hủy" &&
+                              {canMutateGoiThau && (
+                                <button
+                                  title={
+                                    canUserEditGoiThau(row)
+                                      ? "Chỉnh sửa gói thầu"
+                                      : canUserUpdateCurrentStep(row)
+                                        ? "Cập nhật bước hiện tại"
+                                        : "Không còn thao tác xử lý"
+                                  }
+                                  onClick={() => handlePrimaryAction(row)}
+                                  disabled={!canUserEditGoiThau(row) && !canUserUpdateCurrentStep(row)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
+                                >
+                                  <i className={`fa-solid ${canUserEditGoiThau(row) ? "fa-pen" : "fa-clipboard-list"} text-xs`} />
+                                </button>
+                              )}
+                              {canMutateGoiThau &&
+                                row.trangThai !== "Đã hủy" &&
                                 row.trangThai !== "Hoàn thành" && (
                                   <button
                                     title="Hủy gói thầu"
@@ -1574,14 +1614,16 @@ export default function DanhSachGoiThau() {
                                     <i className="fa-solid fa-ban text-xs" />
                                   </button>
                                 )}
-                              <button
-                                title={canDeleteGoiThau(row) ? "Xóa" : "Chỉ có thể xóa gói thầu ở trạng thái Nháp"}
-                                onClick={() => setDeleteTarget(row)}
-                                disabled={!canDeleteGoiThau(row)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
-                              >
-                                <i className="fa-solid fa-trash text-xs" />
-                              </button>
+                              {canMutateGoiThau && (
+                                <button
+                                  title={canUserDeleteGoiThau(row) ? "Xóa" : "Chỉ có thể xóa gói thầu ở trạng thái Nháp"}
+                                  onClick={() => setDeleteTarget(row)}
+                                  disabled={!canUserDeleteGoiThau(row)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
+                                >
+                                  <i className="fa-solid fa-trash text-xs" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

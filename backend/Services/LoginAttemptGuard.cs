@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.Entities;
 
@@ -122,7 +123,7 @@ public class LoginAttemptGuard
                     HanhDong = "LOGIN_LOCKOUT",
                     MoTaChiTiet = $"[SECURITY] Brute-force lockout: {safeIdentifier} locked until {lockoutEnd:u}",
                     DiaChiIP = identifier.Split(':')[0],
-                    ThoiGianThucHien = DateTime.UtcNow
+                    ThoiGianThucHien = BusinessClock.VietnamNow
                 });
             }
 

@@ -370,6 +370,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
     public async Task<GoiThauDetailDto> CreateAsync(CreateGoiThauDto dto)
     {
         var currentUserId = GetCurrentUserId() ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        await _tenderAccess.EnsureNotAdminObserverAsync(currentUserId);
 
         // Validate HinhThucDauThau exists and is active
         var selectedHinhThuc = await _db.HinhThucDauThaus
@@ -643,7 +644,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             TrangThaiCu = oldStatus,
             TrangThaiMoi = newStatus,
             NguoiThayDoiId = userId,
-            ThoiGianThayDoi = DateTime.UtcNow
+            ThoiGianThayDoi = BusinessClock.VietnamNow
         });
     }
 

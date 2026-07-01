@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { getCurrentUserApi } from "@/services/api";
+import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
+import { getRoleCode } from "@/hooks/useAccessLevel";
 import { formatVND } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { KetQuaXuLy } from "@/pages/DanhSachGoiThau/xuLyBuocService";
@@ -79,8 +80,10 @@ export default function XuLyBuocGoiThau() {
   const [rejectReason, setRejectReason] = useState("");
   const [locked, setLocked] = useState(readonlyMode);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
+  const isAdminObserver = currentUser ? getRoleCode(currentUser) === "ADMIN" : false;
 
   useEffect(() => {
     const goiThauId = Number(id.replace(/^GT/i, ""));
@@ -109,7 +112,9 @@ export default function XuLyBuocGoiThau() {
       ]);
       if (cancelled) return;
 
+      setCurrentUser(currentUser);
       setStep(backendStep);
+      const isAdmin = currentUser ? getRoleCode(currentUser) === "ADMIN" : false;
       const isDone = readonlyMode || Boolean(backendStep.ngayHoanThanh)
         || backendStep.trangThai === "HOAN_TAT" || backendStep.trangThai === "COMPLETED";
 
@@ -128,7 +133,7 @@ export default function XuLyBuocGoiThau() {
       const nextKetQua = formatWorkflowKetQua(backendStep.ketQua) || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
       setDecision(nextKetQua === "Không duyệt" || nextKetQua === "Duyệt" ? nextKetQua as KetQuaXuLy : "");
       setRejectReason(backendStep.lyDoKhongDuyet || "");
-      setLocked(isDone);
+      setLocked(isDone || isAdmin);
     };
 
     loadStep()
@@ -177,6 +182,10 @@ export default function XuLyBuocGoiThau() {
   }
 
   async function saveUpdate() {
+    if (isAdminObserver) {
+      toast.error("Admin chỉ có quyền quan sát, không được cập nhật bước gói thầu.");
+      return;
+    }
     if (!decision) {
       setErrors((prev) => ({ ...prev, ketQua: "Vui lòng chọn kết quả duyệt" }));
       return;

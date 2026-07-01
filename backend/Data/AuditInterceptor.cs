@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using System.Security.Claims;
 using System.Text.Json;
@@ -78,7 +79,7 @@ public class AuditInterceptor : SaveChangesInterceptor
                 MoTaChiTiet = FormatChangeDescription(entry),
                 DiaChiIP = ipAddress,
                 NguoiThucHienId = userId,
-                ThoiGianThucHien = DateTime.UtcNow
+                ThoiGianThucHien = BusinessClock.VietnamNow
             };
             auditLogs.Add(log);
         }

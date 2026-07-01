@@ -31,6 +31,7 @@ import { getWorkflowTemplates, getWorkflows, getParallelGroups } from "@/service
 import type { WorkflowTemplateSummary, WorkflowItem, ParallelGroupDto, BuocWorkflowDto } from "@/services/workflowApi";
 import { getCurrentUserApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
+import { getRoleCode } from "@/hooks/useAccessLevel";
 import { getKhoaPhongs } from "@/services/adminApi";
 import type { KhoaPhong } from "@/services/adminApi";
 
@@ -263,6 +264,13 @@ export default function TaoGoiThau() {
   });
 
   const watched = watch();
+
+  useEffect(() => {
+    if (currentUser && getRoleCode(currentUser) === "ADMIN") {
+      toast.error("Admin chỉ có quyền quan sát gói thầu, không được tạo hoặc chỉnh sửa.");
+      navigate("/danh-sach-goi-thau", { replace: true });
+    }
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     if (isEditMode || !donViDeXuat || watched.donVi) return;
