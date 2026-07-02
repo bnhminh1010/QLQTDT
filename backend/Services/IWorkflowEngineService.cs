@@ -9,4 +9,5 @@ public interface IWorkflowEngineService
     Task<WorkflowStateDto?> GetWorkflowStateAsync(int goiThauId);
     Task<List<WorkflowStepStateDto>> GetWorkflowStepsAsync(int goiThauId);
     Task<WorkflowStepStateDto?> GetWorkflowStepDetailAsync(int goiThauId, long stepId);
+    Task<List<WorkflowPendingTaskDto>> GetPendingTasksAsync();
 }

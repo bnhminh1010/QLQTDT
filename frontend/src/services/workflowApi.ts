@@ -562,6 +562,26 @@ export type WorkflowStepStateDto = {
   rowVersion?: string;
 };
 
+export type WorkflowPendingTaskDto = {
+  workflowInstanceId: number;
+  workflowStepInstanceId: number;
+  goiThauId: number;
+  maGoiThau: string;
+  tenGoiThau: string;
+  buocTen: string;
+  trangThai: string;
+  phaHienTai?: string;
+  tenNguoiXuLy?: string;
+  tenNguoiKyDuyet?: string;
+  hanXuLy?: string;
+  ngayXuLy?: string;
+  ngayKyDuyet?: string;
+  quaHan: boolean;
+  choKyDuyet: boolean;
+  tinhTrangTienDo?: string;
+  progressStatus?: string;
+};
+
 export type ProcessStepRequest = {
   hanhDong: string;
   ghiChu?: string;
@@ -651,6 +671,11 @@ export async function getWorkflowStepDetail(
   stepId: number
 ): Promise<WorkflowStepStateDto> {
   const res = await http.get<ApiResponse<WorkflowStepStateDto>>(`/goi-thau/${goiThauId}/steps/${stepId}`);
+  return res.data;
+}
+
+export async function getWorkflowPendingTasks(): Promise<WorkflowPendingTaskDto[]> {
+  const res = await http.get<ApiResponse<WorkflowPendingTaskDto[]>>("/workflow/pending");
   return res.data;
 }
 

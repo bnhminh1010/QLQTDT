@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getCurrentUserApi, sendProfileChangeRequest, updateProfileApi, logoutApi, clearStoredToken } from "@/services/api";
+import { getCurrentUserApi, sendProfileChangeRequest, updateProfileApi, logoutApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
 import { getThongBaos, markAllReadThongBao, markReadThongBao } from "@/services/thongBaoApi";
 import type { ThongBaoItem } from "@/services/thongBaoApi";
+import { getThongBaoStyle } from "@/util/thongBaoStyle";
 
 const inputCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -93,9 +94,8 @@ export default function UserProfile() {
 
   async function handleLogout() {
     try { await logoutApi(); } catch { /* ignore */ }
-    clearStoredToken();
     toast.success("Đã đăng xuất");
-    navigate("/login");
+    navigate("/login", { replace: true });
   }
 
   function handleOpenNotification(item: ThongBaoItem) {
@@ -378,22 +378,30 @@ export default function UserProfile() {
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {notifs.map((n) => (
+                {notifs.map((n) => {
+                  const style = getThongBaoStyle(n);
+                  return (
                   <div key={n.idCongKhai} onClick={() => handleOpenNotification(n)}
-                    className={`flex items-start gap-3 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.daDoc ? "bg-blue-50/40" : ""}`}>
-                    <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0 text-sm">
-                      <i className="fa-solid fa-bell text-blue-600" />
+                    className={`flex items-start gap-3 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.daDoc ? "bg-slate-50/70" : ""}`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm ${style.iconClassName}`}>
+                      <i className={`fa-solid ${style.icon}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!n.daDoc ? "font-semibold text-slate-800" : "text-slate-600"}`}>{n.tieuDe}</p>
+                      <div className="flex items-start gap-2">
+                        <p className={`min-w-0 flex-1 text-sm leading-5 ${style.titleClassName} ${!n.daDoc ? "font-semibold" : "font-medium"}`}>{n.tieuDe}</p>
+                        <span className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${style.badgeClassName}`}>
+                          {style.label}
+                        </span>
+                      </div>
                       {n.noiDung && <p className="text-xs text-slate-400 mt-0.5">{n.noiDung}</p>}
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         {n.ngayTao ? new Date(n.ngayTao).toLocaleString("vi-VN") : ""}
                       </p>
                     </div>
-                    {!n.daDoc && <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />}
+                    {!n.daDoc && <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${style.dotClassName}`} />}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

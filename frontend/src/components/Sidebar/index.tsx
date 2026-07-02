@@ -154,19 +154,28 @@ export default function Sidebar() {
         {userMenuOpen && (
           <div className="absolute bottom-full left-2 w-56 lg:left-0 lg:right-0 lg:w-auto mb-1 mx-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-[200]">
             <button
-              onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
+              type="button"
+              onClick={() => {
+                setUserMenuOpen(false);
+                navigate("/profile");
+              }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <i className="fa-solid fa-user-circle text-slate-400 w-4 text-center" /> Hồ sơ cá nhân
             </button>
             <button
-              onClick={() => { setUserMenuOpen(false); navigate("/profile"); }}
+              type="button"
+              onClick={() => {
+                setUserMenuOpen(false);
+                navigate("/profile");
+              }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <i className="fa-solid fa-lock text-slate-400 w-4 text-center" /> Đổi mật khẩu
             </button>
             <div className="border-t border-slate-100" />
             <button
+              type="button"
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
