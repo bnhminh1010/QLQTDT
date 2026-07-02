@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getCurrentUserApi, sendProfileChangeRequest, updateProfileApi, logoutApi } from "@/services/api";
-import type { LoginUserDto } from "@/services/api";
+import { getCurrentUserApi, getMyPendingProfileChangeRequest, sendProfileChangeRequest, updateProfileApi, logoutApi } from "@/services/api";
+import type { LoginUserDto, ProfileChangeRequest } from "@/services/api";
 import { getThongBaos, markAllReadThongBao, markReadThongBao } from "@/services/thongBaoApi";
 import type { ThongBaoItem } from "@/services/thongBaoApi";
 import { getThongBaoStyle } from "@/util/thongBaoStyle";
@@ -29,6 +29,7 @@ export default function UserProfile() {
   const [editForm, setEditForm] = useState({ hoTen: "", email: "", soDienThoai: "" });
   const [savingProfile, setSavingProfile] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  const [pendingProfileChangeRequest, setPendingProfileChangeRequest] = useState<ProfileChangeRequest | null>(null);
   const [user, setUser] = useState<LoginUserDto | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,8 +41,14 @@ export default function UserProfile() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
-    getCurrentUserApi()
-      .then((u) => setUser(u))
+    Promise.all([
+      getCurrentUserApi(),
+      getMyPendingProfileChangeRequest().catch(() => null),
+    ])
+      .then(([u, pending]) => {
+        setUser(u);
+        setPendingProfileChangeRequest(pending);
+      })
       .catch(() => toast.error("Không thể tải thông tin người dùng"))
       .finally(() => setLoading(false));
   }, []);
@@ -248,7 +255,20 @@ export default function UserProfile() {
                 </button>
               </div>
             )}
-            {!isAdmin && !editing && (
+            {!isAdmin && pendingProfileChangeRequest && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                <div className="flex items-center gap-2 font-semibold">
+                  <i className="fa-solid fa-hourglass-half text-amber-500" />
+                  Yêu cầu đang chờ duyệt
+                </div>
+                <div className="mt-2 grid gap-1 sm:grid-cols-3">
+                  <span>Họ tên: {pendingProfileChangeRequest.giaTriMoi.hoTen ?? "—"}</span>
+                  <span>Email: {pendingProfileChangeRequest.giaTriMoi.email ?? "—"}</span>
+                  <span>Điện thoại: {pendingProfileChangeRequest.giaTriMoi.soDienThoai || "—"}</span>
+                </div>
+              </div>
+            )}
+            {!isAdmin && !editing && !pendingProfileChangeRequest && (
               <div className="space-y-3">
                 <button onClick={() => {
                   setEditForm({ hoTen: user?.hoTen ?? "", email: user?.email ?? "", soDienThoai: user?.soDienThoai ?? "" });
@@ -266,8 +286,13 @@ export default function UserProfile() {
                 <button onClick={() => {
                   setSavingProfile(true);
                   sendProfileChangeRequest(editForm)
-                    .then(() => { setEditing(false); setRequestSent(true); toast.success("Yêu cầu đã gửi đến Quản trị viên"); })
-                    .catch(() => toast.error("Gửi yêu cầu thất bại"))
+                    .then((request) => {
+                      setPendingProfileChangeRequest(request);
+                      setEditing(false);
+                      setRequestSent(true);
+                      toast.success("Yêu cầu đã gửi đến Quản trị viên");
+                    })
+                    .catch((error) => toast.error(error?.response?.data?.error || "Gửi yêu cầu thất bại"))
                     .finally(() => setSavingProfile(false));
                 }} disabled={savingProfile}
                   className="h-8 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold disabled:opacity-60 flex items-center gap-1.5">

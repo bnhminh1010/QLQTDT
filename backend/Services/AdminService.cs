@@ -13,12 +13,18 @@ public class AdminService : IAdminService
     private readonly AppDbContext _context;
     private readonly ILogger<AdminService> _logger;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IAuthStateInvalidator _authStateInvalidator;
 
-    public AdminService(AppDbContext context, ILogger<AdminService> logger, IHttpContextAccessor httpContextAccessor)
+    public AdminService(
+        AppDbContext context,
+        ILogger<AdminService> logger,
+        IHttpContextAccessor httpContextAccessor,
+        IAuthStateInvalidator authStateInvalidator)
     {
         _context = context;
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
+        _authStateInvalidator = authStateInvalidator;
     }
 
     public async Task<AdminUserListDto> GetUsersAsync(int page, int pageSize, bool? trangThai, string? search)
@@ -178,6 +184,7 @@ public class AdminService : IAdminService
 
         user.TrangThaiHoatDong = false;
         await _context.SaveChangesAsync();
+        await _authStateInvalidator.RevokeUserAuthStateAsync(user.Id);
 
         _logger.LogInformation("Admin đã khóa tài khoản: {TenDangNhap} (ID: {IdCongKhai})", user.TenDangNhap, idCongKhai);
     }

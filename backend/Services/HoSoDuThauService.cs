@@ -164,6 +164,15 @@ public class HoSoDuThauService : IHoSoDuThauService
 
     public async Task<HoSoDuThauDetailDto> GetByIdAsync(int id)
     {
+        var goiThauId = await _db.HoSoDuThaus
+            .Where(h => h.Id == id)
+            .Select(h => (int?)h.GoiThauId)
+            .FirstOrDefaultAsync()
+            ?? throw new NotFoundException($"Không tìm thấy hồ sơ dự thầu với Id = {id}");
+
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanViewAsync(currentUserId, goiThauId);
+
         return await BuildDetailDtoAsync(id);
     }
 
@@ -171,6 +180,9 @@ public class HoSoDuThauService : IHoSoDuThauService
     {
         var entity = await _db.HoSoDuThaus.FindAsync(id)
             ?? throw new NotFoundException($"Không tìm thấy hồ sơ dự thầu với Id = {id}");
+
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanEditAsync(currentUserId, entity.GoiThauId);
 
         if (!HoSoDuThauTrangThai.CoTheCapNhat.Contains(request.TrangThai))
             throw new BadRequestException($"Trạng thái không hợp lệ. Các giá trị được phép: {string.Join(", ", HoSoDuThauTrangThai.CoTheCapNhat)}");
@@ -314,6 +326,9 @@ public class HoSoDuThauService : IHoSoDuThauService
     {
         var entity = await _db.HoSoDuThaus.FindAsync(id)
             ?? throw new NotFoundException($"Không tìm thấy hồ sơ dự thầu với Id = {id}");
+
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanEditAsync(currentUserId, entity.GoiThauId);
 
         if (entity.TrangThai == HoSoDuThauTrangThai.TRUNG_THAU)
             throw new BadRequestException("Không thể đánh giá hồ sơ đã trúng thầu.");

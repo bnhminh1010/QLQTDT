@@ -23,9 +23,9 @@ public class SecurityHeadersMiddleware
         // Chặn MIME sniffing — trình duyệt ko tự đoán content-type
         headers["X-Content-Type-Options"] = "nosniff";
 
-        // Force HTTPS — bảo trình duyệt luôn dùng HTTPS trong tương lai
-        // max-age=1 năm, includeSubDomains áp dụng cho subdomain
-        headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+        // Force HTTPS only when the request is already HTTPS (after forwarded headers).
+        if (context.Request.IsHttps)
+            headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
 
         // Chặn referrer leak — ko gửi URL đầy đủ sang domain khác
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";

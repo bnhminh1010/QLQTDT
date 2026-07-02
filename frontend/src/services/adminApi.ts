@@ -64,9 +64,44 @@ export type UserAuditLog = {
   nguoiThucHienId: number;
 };
 
+export type ProfileChangeSnapshot = {
+  hoTen?: string | null;
+  email?: string | null;
+  soDienThoai?: string | null;
+};
+
+export type ProfileChangeRequest = {
+  idCongKhai: string;
+  nguoiDungId: number;
+  tenDangNhap: string;
+  hoTenNguoiDung: string;
+  emailNguoiDung: string;
+  trangThai: "PENDING" | "APPROVED" | "REJECTED" | string;
+  giaTriCu: ProfileChangeSnapshot;
+  giaTriMoi: ProfileChangeSnapshot;
+  ngayTao: string;
+  ngayXuLy?: string | null;
+  nguoiXuLy?: string | null;
+  lyDoTuChoi?: string | null;
+};
+
 export async function getUserAuditLogs(userId: number): Promise<UserAuditLog[]> {
   const res = await http.get<ApiResponse<UserAuditLog[]>>(`/admin/users/${userId}/audit-log`);
   return res.data ?? [];
+}
+
+export async function getProfileChangeRequests(status = "PENDING"): Promise<ProfileChangeRequest[]> {
+  return await http.get<ProfileChangeRequest[]>("/admin/profile-change-requests", {
+    params: { status },
+  });
+}
+
+export async function approveProfileChangeRequest(idCongKhai: string): Promise<void> {
+  await http.post(`/admin/profile-change-requests/${idCongKhai}/approve`);
+}
+
+export async function rejectProfileChangeRequest(idCongKhai: string, lyDoTuChoi: string): Promise<void> {
+  await http.post(`/admin/profile-change-requests/${idCongKhai}/reject`, { lyDoTuChoi });
 }
 
 /* ─── Khoa phòng ────────────────────────────────────────── */

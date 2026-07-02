@@ -49,6 +49,7 @@ function AppRoutes() {
         <Route path="/danh-sach-quy-trinh" element={<Guarded><LazyLoad><DanhSachQuyTrinh /></LazyLoad></Guarded>} />
         <Route path="/khoa-phong" element={<Guarded><LazyLoad><KhoaPhong /></LazyLoad></Guarded>} />
         <Route path="/nguoi-dung" element={<Guarded><LazyLoad><NguoiDung /></LazyLoad></Guarded>} />
+        <Route path="/nguoi-dung/yeu-cau-thay-doi" element={<Guarded><LazyLoad><NguoiDung /></LazyLoad></Guarded>} />
         <Route path="/bao-cao" element={<Guarded><LazyLoad><BaoCao /></LazyLoad></Guarded>} />
         <Route path="/profile" element={<Guarded><LazyLoad><UserProfile /></LazyLoad></Guarded>} />
       </Route>

@@ -8,10 +8,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using QLQTDT.Api.Config;
 using QLQTDT.Api.Data;
+using QLQTDT.Api.Models.DTOs.Admin;
 using QLQTDT.Api.Models.DTOs.Auth;
 using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.Entities;
+using QLQTDT.Api.Security;
 using QLQTDT.Api.Services;
+using System.Text.Json;
 
 namespace QLQTDT.Api.Controllers;
 
@@ -51,7 +54,9 @@ public class AuthController : ControllerBase
         var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
         var result = await _authService.LoginAsync(dto, clientIp, userAgent);
 
-        Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateCookieOptions());
+        Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateAccessCookieOptions());
+        if (!string.IsNullOrWhiteSpace(result.RefreshToken))
+            Response.Cookies.Append(_jwtConfig.RefreshCookieName, result.RefreshToken, CreateRefreshCookieOptions());
         result.CsrfToken = SetXsrfCookie();
         return Ok(result);
     }
@@ -59,10 +64,13 @@ public class AuthController : ControllerBase
     /// <summary>Đăng xuất hệ thống</summary>
     [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto? dto = null)
+    public async Task<IActionResult> Logout()
     {
-        if (dto?.RefreshToken != null)
-            await _authService.RevokeRefreshTokenAsync(dto.RefreshToken);
+        if (Request.Cookies.TryGetValue(_jwtConfig.RefreshCookieName, out var refreshToken)
+            && !string.IsNullOrWhiteSpace(refreshToken))
+        {
+            await _authService.RevokeRefreshTokenAsync(refreshToken);
+        }
 
         // Revoke current session
         var userId = GetCurrentUserId();
@@ -78,20 +86,12 @@ public class AuthController : ControllerBase
             }
         }
 
-        Response.Cookies.Delete(_jwtConfig.CookieName, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = !_env.IsDevelopment(),
-            SameSite = GetCookieSameSite(),
-            Path = "/"
-        });
-        Response.Cookies.Delete("XSRF-TOKEN", new CookieOptions
-        {
-            HttpOnly = false,
-            Secure = !_env.IsDevelopment(),
-            SameSite = GetCookieSameSite(),
-            Path = "/"
-        });
+        Response.Cookies.Delete(_jwtConfig.CookieName,
+            AuthCookieOptionsFactory.CreateDeleteAccessCookieOptions(_env.IsDevelopment()));
+        Response.Cookies.Delete(_jwtConfig.RefreshCookieName,
+            AuthCookieOptionsFactory.CreateDeleteRefreshCookieOptions(_env.IsDevelopment()));
+        Response.Cookies.Delete(AuthCookieOptionsFactory.XsrfCookieName,
+            AuthCookieOptionsFactory.CreateDeleteXsrfCookieOptions(_env.IsDevelopment()));
         return Ok(new MessageResponse { Message = "Đăng xuất thành công" });
     }
 
@@ -123,19 +123,94 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> SendChangeRequest([FromBody] UpdateProfileDto dto)
     {
         var userId = GetCurrentUserId();
-        var user = await _authService.GetCurrentUserAsync(userId);
+        var user = await _db.NguoiDungs
+            .FirstOrDefaultAsync(u => u.Id == userId && !u.DaXoa);
+        if (user is null)
+            return Unauthorized(new ApiErrorResponse { Status = 401, Error = "Yêu cầu chưa được xác thực." });
 
-        // Tạo noti cho tất cả admin
+        var hasPending = await _db.YeuCauThayDoiThongTinNguoiDungs
+            .AnyAsync(r => r.NguoiDungId == userId && r.TrangThai == ProfileChangeRequestStatus.Pending);
+        if (hasPending)
+            return BadRequest(new ApiErrorResponse { Status = 400, Error = "Bạn đã có yêu cầu thay đổi thông tin đang chờ duyệt." });
+
+        var oldValue = new ProfileChangeSnapshotDto
+        {
+            HoTen = user.HoTen,
+            Email = user.Email,
+            SoDienThoai = user.SoDienThoai
+        };
+        var newValue = new ProfileChangeSnapshotDto
+        {
+            HoTen = user.HoTen,
+            Email = user.Email,
+            SoDienThoai = user.SoDienThoai
+        };
+
+        var changes = new List<string>();
+        if (dto.HoTen is not null)
+        {
+            var hoTen = dto.HoTen.Trim();
+            if (string.IsNullOrWhiteSpace(hoTen))
+                return BadRequest(new ApiErrorResponse { Status = 400, Error = "Họ tên không được để trống." });
+            if (hoTen != user.HoTen)
+            {
+                newValue.HoTen = hoTen;
+                changes.Add($"họ tên: {user.HoTen} → {hoTen}");
+            }
+        }
+
+        if (dto.Email is not null)
+        {
+            var email = dto.Email.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new ApiErrorResponse { Status = 400, Error = "Email không được để trống." });
+            if (!string.Equals(email, user.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                var emailExists = await _db.NguoiDungs
+                    .AnyAsync(u => u.Id != userId && !u.DaXoa && u.Email.ToLower() == email);
+                if (emailExists)
+                    return BadRequest(new ApiErrorResponse { Status = 400, Error = "Email đã được sử dụng trong hệ thống." });
+
+                newValue.Email = email;
+                changes.Add($"email: {user.Email} → {email}");
+            }
+        }
+
+        if (dto.SoDienThoai is not null)
+        {
+            var soDienThoai = string.IsNullOrWhiteSpace(dto.SoDienThoai)
+                ? null
+                : dto.SoDienThoai.Trim();
+            if (soDienThoai != user.SoDienThoai)
+            {
+                newValue.SoDienThoai = soDienThoai;
+                changes.Add($"số điện thoại: {user.SoDienThoai ?? "—"} → {soDienThoai ?? "—"}");
+            }
+        }
+
+        if (changes.Count == 0)
+            return BadRequest(new ApiErrorResponse { Status = 400, Error = "Không có thay đổi nào để gửi duyệt." });
+
         var adminIds = await _db.NguoiDungKhoaPhongVaiTros
-            .Where(nkv => nkv.VaiTro.MaVaiTro == "ADMIN")
+            .Where(nkv => nkv.VaiTro.MaVaiTro == "ADMIN" && nkv.NguoiDung.TrangThaiHoatDong && !nkv.NguoiDung.DaXoa)
             .Select(nkv => nkv.NguoiDungId)
             .Distinct()
             .ToListAsync();
+        if (adminIds.Count == 0)
+            return BadRequest(new ApiErrorResponse { Status = 400, Error = "Không tìm thấy Quản trị viên để xử lý yêu cầu." });
 
-        var changes = new List<string>();
-        if (dto.HoTen != null && dto.HoTen != user.HoTen) changes.Add($"họ tên: {user.HoTen} → {dto.HoTen}");
-        if (dto.Email != null && dto.Email != user.Email) changes.Add($"email: {user.Email} → {dto.Email}");
-        if (dto.SoDienThoai != null) changes.Add($"số điện thoại: {dto.SoDienThoai}");
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        var request = new YeuCauThayDoiThongTinNguoiDung
+        {
+            IdCongKhai = Guid.NewGuid(),
+            NguoiDungId = user.Id,
+            TrangThai = ProfileChangeRequestStatus.Pending,
+            GiaTriCuJson = JsonSerializer.Serialize(oldValue, JsonOptions),
+            GiaTriMoiJson = JsonSerializer.Serialize(newValue, JsonOptions),
+            NgayTao = DateTime.UtcNow
+        };
+        _db.YeuCauThayDoiThongTinNguoiDungs.Add(request);
+        await _db.SaveChangesAsync();
 
         var noiDung = $"Người dùng {user.HoTen} ({user.TenDangNhap}) yêu cầu thay đổi: {string.Join(", ", changes)}";
 
@@ -149,12 +224,30 @@ public class AuthController : ControllerBase
                 TieuDe = "Yêu cầu thay đổi thông tin cá nhân",
                 NoiDung = noiDung,
                 DaDoc = false,
-                UrlDieuHuong = "/nguoi-dung",
+                UrlDieuHuong = $"/nguoi-dung/yeu-cau-thay-doi?requestId={request.IdCongKhai}",
+                NotificationKey = $"profile-change-request:{request.Id}:{adminId}",
                 NgayTao = DateTime.UtcNow
             });
         }
+        await transaction.CommitAsync();
 
-        return Ok(new { message = "Yêu cầu đã được gửi đến Quản trị viên." });
+        return Ok(MapProfileChangeRequest(request, user));
+    }
+
+    [HttpGet("me/change-request/pending")]
+    [Authorize]
+    [ProducesResponseType(typeof(ProfileChangeRequestDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPendingChangeRequest()
+    {
+        var userId = GetCurrentUserId();
+        var request = await _db.YeuCauThayDoiThongTinNguoiDungs
+            .Include(r => r.NguoiDung)
+            .Include(r => r.NguoiXuLy)
+            .Where(r => r.NguoiDungId == userId && r.TrangThai == ProfileChangeRequestStatus.Pending)
+            .OrderByDescending(r => r.NgayTao)
+            .FirstOrDefaultAsync();
+
+        return Ok(request is null ? null : MapProfileChangeRequest(request, request.NguoiDung!));
     }
 
     /// <summary>Lấy danh sách quyền của người dùng hiện tại</summary>
@@ -203,15 +296,15 @@ public class AuthController : ControllerBase
     /// <summary>Cấp lại access token mới bằng refresh token</summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
-    public async Task<IActionResult> Refresh(
-        [FromBody] RefreshTokenRequestDto dto,
-        [FromServices] IValidator<RefreshTokenRequestDto> validator)
+    public async Task<IActionResult> Refresh()
     {
-        var validation = await validator.ValidateAsync(dto);
-        if (!validation.IsValid) return BadRequest(ToValidationError(validation));
-
-        var result = await _authService.RefreshTokenAsync(dto.RefreshToken);
-        Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateCookieOptions());
+        var refreshToken = GetRefreshTokenFromCookie();
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+        var result = await _authService.RefreshTokenAsync(refreshToken, clientIp, userAgent);
+        Response.Cookies.Append(_jwtConfig.CookieName, result.Token, CreateAccessCookieOptions());
+        if (!string.IsNullOrWhiteSpace(result.RefreshToken))
+            Response.Cookies.Append(_jwtConfig.RefreshCookieName, result.RefreshToken, CreateRefreshCookieOptions());
         result.CsrfToken = SetXsrfCookie();
         return Ok(result);
     }
@@ -219,9 +312,12 @@ public class AuthController : ControllerBase
     /// <summary>Thu hồi refresh token</summary>
     [HttpPost("revoke")]
     [Authorize]
-    public async Task<IActionResult> Revoke([FromBody] RefreshTokenRequestDto dto)
+    public async Task<IActionResult> Revoke()
     {
-        await _authService.RevokeRefreshTokenAsync(dto.RefreshToken);
+        var refreshToken = GetRefreshTokenFromCookie();
+        await _authService.RevokeRefreshTokenAsync(refreshToken);
+        Response.Cookies.Delete(_jwtConfig.RefreshCookieName,
+            AuthCookieOptionsFactory.CreateDeleteRefreshCookieOptions(_env.IsDevelopment()));
         return Ok(new MessageResponse { Message = "Thu hồi refresh token thành công." });
     }
 
@@ -288,32 +384,61 @@ public class AuthController : ControllerBase
         return int.TryParse(sub, out var id) ? id : throw new Exceptions.UnauthorizedException("Yêu cầu chưa được xác thực.");
     }
 
-    private CookieOptions CreateCookieOptions() => new()
+    private string GetRefreshTokenFromCookie()
     {
-        HttpOnly = true,
-        Secure = !_env.IsDevelopment(),
-        SameSite = GetCookieSameSite(),
-        Path = "/",
-        MaxAge = TimeSpan.FromMinutes(_jwtConfig.ExpiryMinutes)
+        if (Request.Cookies.TryGetValue(_jwtConfig.RefreshCookieName, out var refreshToken)
+            && !string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return refreshToken;
+        }
+
+        throw new Exceptions.UnauthorizedException("Refresh token không hợp lệ.");
+    }
+
+    private CookieOptions CreateAccessCookieOptions() =>
+        AuthCookieOptionsFactory.CreateAccessCookieOptions(_jwtConfig, _env.IsDevelopment());
+
+    private CookieOptions CreateRefreshCookieOptions() =>
+        AuthCookieOptionsFactory.CreateRefreshCookieOptions(_jwtConfig, _env.IsDevelopment());
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
+
+    private static ProfileChangeRequestDto MapProfileChangeRequest(
+        YeuCauThayDoiThongTinNguoiDung request,
+        NguoiDung user)
+    {
+        return new ProfileChangeRequestDto
+        {
+            IdCongKhai = request.IdCongKhai,
+            NguoiDungId = request.NguoiDungId,
+            TenDangNhap = user.TenDangNhap,
+            HoTenNguoiDung = user.HoTen,
+            EmailNguoiDung = user.Email,
+            TrangThai = request.TrangThai,
+            GiaTriCu = DeserializeSnapshot(request.GiaTriCuJson),
+            GiaTriMoi = DeserializeSnapshot(request.GiaTriMoiJson),
+            NgayTao = request.NgayTao,
+            NgayXuLy = request.NgayXuLy,
+            NguoiXuLy = request.NguoiXuLy?.HoTen,
+            LyDoTuChoi = request.LyDoTuChoi
+        };
+    }
+
+    private static ProfileChangeSnapshotDto DeserializeSnapshot(string json)
+    {
+        return JsonSerializer.Deserialize<ProfileChangeSnapshotDto>(json, JsonOptions) ?? new ProfileChangeSnapshotDto();
+    }
 
     private string SetXsrfCookie()
     {
         var token = Guid.NewGuid().ToString("N");
-        Response.Cookies.Append("XSRF-TOKEN", token, new CookieOptions
-        {
-            HttpOnly = false,
-            Secure = !_env.IsDevelopment(),
-            SameSite = GetCookieSameSite(),
-            Path = "/",
-            MaxAge = TimeSpan.FromMinutes(_jwtConfig.ExpiryMinutes)
-        });
+        Response.Cookies.Append(AuthCookieOptionsFactory.XsrfCookieName, token,
+            AuthCookieOptionsFactory.CreateXsrfCookieOptions(_jwtConfig, _env.IsDevelopment()));
         return token;
     }
-
-    private SameSiteMode GetCookieSameSite() => _env.IsDevelopment()
-        ? SameSiteMode.Lax
-        : SameSiteMode.None;
 
     private static ApiErrorResponse ToValidationError(FluentValidation.Results.ValidationResult result) => new()
     {

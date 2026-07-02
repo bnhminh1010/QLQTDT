@@ -8,18 +8,25 @@ namespace QLQTDT.Api.Services;
 public class DashboardService : IDashboardService
 {
     private readonly AppDbContext _db;
+    private readonly ITenderAccessService _tenderAccess;
 
-    public DashboardService(AppDbContext db)
+    public DashboardService(AppDbContext db, ITenderAccessService tenderAccess)
     {
         _db = db;
+        _tenderAccess = tenderAccess;
     }
 
     public async Task<DashboardTongQuanDto> GetTongQuanAsync(int userId)
     {
+        var (allowedKhoaPhongIds, isFullScope) = await _tenderAccess.ResolveTenderScopeAsync(userId);
+
         var query = _db.GoiThaus
             .Where(g => g.TrangThaiHoatDong)
             .AsNoTracking()
             .AsQueryable();
+
+        if (!isFullScope)
+            query = query.Where(g => allowedKhoaPhongIds.Contains(g.KhoaPhongId ?? -1));
 
         // KPI cards
         var tongGoiThau = await query.CountAsync();
@@ -52,9 +59,8 @@ public class DashboardService : IDashboardService
             .ToListAsync();
 
         // Notable package — pick first active with workflow instance
-        var activeQuery = _db.GoiThaus
-            .Where(g => g.TrangThaiHoatDong && g.TrangThai == GoiThauTrangThai.DANG_XU_LY)
-            .AsQueryable();
+        var activeQuery = query
+            .Where(g => g.TrangThai == GoiThauTrangThai.DANG_XU_LY);
 
         var notable = await activeQuery
             .OrderByDescending(g => g.NgayTao)

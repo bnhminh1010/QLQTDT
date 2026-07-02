@@ -10,8 +10,22 @@ import type {
   UserAddFormValues,
   UserEditFormValues,
 } from "./types";
-import { getUsers, createUser, updateUser, deleteUser, getAllRoles, getUserRoles, assignUserRole, removeUserRole, getKhoaPhongs, getUserAuditLogs } from "@/services/adminApi";
-import type { RoleItem, UserRoleInfo, KhoaPhong, UserAuditLog } from "@/services/adminApi";
+import {
+  approveProfileChangeRequest,
+  assignUserRole,
+  createUser,
+  deleteUser,
+  getAllRoles,
+  getKhoaPhongs,
+  getProfileChangeRequests,
+  getUserAuditLogs,
+  getUserRoles,
+  getUsers,
+  rejectProfileChangeRequest,
+  removeUserRole,
+  updateUser,
+} from "@/services/adminApi";
+import type { RoleItem, UserRoleInfo, KhoaPhong, UserAuditLog, ProfileChangeRequest } from "@/services/adminApi";
 
 /* ─── Badge maps ──────────────────────────────────────── */
 const VAI_TRO_COLORS = [
@@ -145,6 +159,8 @@ export default function NguoiDung() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [rejectProfileTarget, setRejectProfileTarget] = useState<ProfileChangeRequest | null>(null);
+  const [rejectProfileReason, setRejectProfileReason] = useState("");
   const [lockTarget, setLockTarget] = useState<User | null>(null);
   const [disableTarget, setDisableTarget] = useState<User | null>(null);
   const [detailTab, setDetailTab] = useState<"info" | "roles" | "history" | "access">("info");
@@ -156,6 +172,8 @@ export default function NguoiDung() {
   const [selectedKhoaPhongId, setSelectedKhoaPhongId] = useState("");
   const [auditLogs, setAuditLogs] = useState<UserAuditLog[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [profileRequests, setProfileRequests] = useState<ProfileChangeRequest[]>([]);
+  const [profileRequestsLoading, setProfileRequestsLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -221,6 +239,20 @@ export default function NguoiDung() {
   useEffect(() => {
     loadAuditLogs(selected.id);
   }, [selected.id, loadAuditLogs]);
+
+  const loadProfileRequests = useCallback(async () => {
+    setProfileRequestsLoading(true);
+    try {
+      const items = await getProfileChangeRequests("PENDING");
+      setProfileRequests(items);
+    } catch {
+      setProfileRequests([]);
+    } finally {
+      setProfileRequestsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadProfileRequests(); }, [loadProfileRequests]);
 
   const filtered = useMemo(() => {
     let list = data.filter(
@@ -311,12 +343,46 @@ export default function NguoiDung() {
     toast.success(msg);
   }
 
+  function handleApproveProfileRequest(request: ProfileChangeRequest) {
+    approveProfileChangeRequest(request.idCongKhai)
+      .then(() => {
+        toast.success("Đã duyệt yêu cầu thay đổi thông tin");
+        loadProfileRequests();
+        loadData();
+        if (String(request.nguoiDungId) === selected.id) loadAuditLogs(selected.id);
+      })
+      .catch((error) => toast.error(error?.response?.data?.error || "Duyệt yêu cầu thất bại"));
+  }
+
+  function handleRejectProfileRequest(request: ProfileChangeRequest) {
+    setRejectProfileTarget(request);
+    setRejectProfileReason("");
+  }
+
+  function submitRejectProfileRequest() {
+    if (!rejectProfileTarget) return;
+    if (!rejectProfileReason.trim()) {
+      toast.error("Vui lòng nhập lý do từ chối");
+      return;
+    }
+
+    rejectProfileChangeRequest(rejectProfileTarget.idCongKhai, rejectProfileReason.trim())
+      .then(() => {
+        toast.success("Đã từ chối yêu cầu thay đổi thông tin");
+        setRejectProfileTarget(null);
+        setRejectProfileReason("");
+        loadProfileRequests();
+        if (String(rejectProfileTarget.nguoiDungId) === selected.id) loadAuditLogs(selected.id);
+      })
+      .catch((error) => toast.error(error?.response?.data?.error || "Từ chối yêu cầu thất bại"));
+  }
+
   return (
     <>
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200 h-14 flex items-center justify-between px-6 shrink-0">
         <h1 className="text-[17px] font-bold text-slate-900">Người dùng</h1>
         <div className="flex items-center gap-3">
-          <button onClick={() => loadData()} title="Tải lại"
+          <button onClick={() => { loadData(); loadProfileRequests(); }} title="Tải lại"
             className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
             <i className={`fa-solid fa-rotate-right ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -347,6 +413,82 @@ export default function NguoiDung() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
+              <span className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                <i className="fa-solid fa-user-pen text-amber-500" />
+                Yêu cầu thay đổi
+                {profileRequests.length > 0 && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                    {profileRequests.length} chờ duyệt
+                  </span>
+                )}
+              </span>
+              <button onClick={loadProfileRequests}
+                className="h-8 px-3 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 flex items-center gap-1.5">
+                <i className={`fa-solid fa-rotate-right ${profileRequestsLoading ? "animate-spin" : ""}`} />
+                Tải lại
+              </button>
+            </div>
+            {profileRequestsLoading ? (
+              <div className="px-5 py-8 text-center text-sm text-slate-400">
+                <i className="fa-solid fa-circle-notch fa-spin text-blue-400 mr-2" />
+                Đang tải yêu cầu...
+              </div>
+            ) : profileRequests.length === 0 ? (
+              <div className="px-5 py-6 text-sm text-slate-400">Không có yêu cầu thay đổi thông tin đang chờ duyệt.</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {profileRequests.map((request) => {
+                  const changes = ([
+                    ["Họ tên", request.giaTriCu.hoTen, request.giaTriMoi.hoTen],
+                    ["Email", request.giaTriCu.email, request.giaTriMoi.email],
+                    ["Điện thoại", request.giaTriCu.soDienThoai, request.giaTriMoi.soDienThoai],
+                  ] as const).filter(([, oldValue, newValue]) => (oldValue || "") !== (newValue || ""));
+
+                  return (
+                    <div key={request.idCongKhai} className="px-5 py-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-800">{request.hoTenNguoiDung}</span>
+                          <span className="text-xs text-slate-400">@{request.tenDangNhap}</span>
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100">
+                            PENDING
+                          </span>
+                        </div>
+                        <div className="mt-2 grid gap-2 md:grid-cols-3">
+                          {changes.map(([label, oldValue, newValue]) => (
+                            <div key={label} className="rounded-xl bg-slate-50 px-3 py-2 text-xs">
+                              <div className="font-semibold text-slate-500">{label}</div>
+                              <div className="mt-1 flex items-center gap-1.5 text-slate-600">
+                                <span className="truncate">{oldValue || "—"}</span>
+                                <i className="fa-solid fa-arrow-right text-[10px] text-slate-300" />
+                                <span className="truncate font-semibold text-slate-900">{newValue || "—"}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-2 text-[11px] text-slate-400">
+                          Gửi lúc {request.ngayTao ? new Date(request.ngayTao).toLocaleString("vi-VN") : "—"}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button onClick={() => handleApproveProfileRequest(request)}
+                          className="h-8 px-3 rounded-lg bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 flex items-center gap-1.5">
+                          <i className="fa-solid fa-check" /> Duyệt
+                        </button>
+                        <button onClick={() => handleRejectProfileRequest(request)}
+                          className="h-8 px-3 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-1.5">
+                          <i className="fa-solid fa-xmark" /> Từ chối
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -610,6 +752,43 @@ export default function NguoiDung() {
           )}
         </aside>
       </div>
+
+      {rejectProfileTarget && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-xmark text-red-500" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-slate-800 text-sm">Từ chối yêu cầu thay đổi</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  {rejectProfileTarget.hoTenNguoiDung} (@{rejectProfileTarget.tenDangNhap})
+                </p>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Lý do từ chối</label>
+              <textarea
+                value={rejectProfileReason}
+                onChange={(e) => setRejectProfileReason(e.target.value)}
+                className="min-h-24 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                placeholder="Nhập lý do để gửi lại cho người dùng"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setRejectProfileTarget(null)}
+                className="h-9 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">
+                Hủy
+              </button>
+              <button onClick={submitRejectProfileRequest}
+                className="h-9 px-5 rounded-xl bg-red-500 text-sm font-semibold text-white hover:bg-red-600">
+                Từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {addOpen && (
         <ThemNguoiDungModal

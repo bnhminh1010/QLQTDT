@@ -5,6 +5,7 @@ using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
+using QLQTDT.Api.Security;
 using System.Security.Claims;
 
 namespace QLQTDT.Api.Services;
@@ -16,25 +17,29 @@ public class WorkflowEngineService : IWorkflowEngineService
     private readonly ILogger<WorkflowEngineService> _logger;
     private readonly ITenderAccessService _tenderAccess;
     private readonly IThongBaoService _thongBaoService;
+    private readonly IPermissionService _permissionService;
 
     public WorkflowEngineService(
         AppDbContext db,
         IHttpContextAccessor httpContextAccessor,
         ILogger<WorkflowEngineService> logger,
         ITenderAccessService tenderAccess,
-        IThongBaoService thongBaoService)
+        IThongBaoService thongBaoService,
+        IPermissionService permissionService)
     {
         _db = db;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
         _tenderAccess = tenderAccess;
         _thongBaoService = thongBaoService;
+        _permissionService = permissionService;
     }
 
     public async Task<ProcessStepResponse> ProcessStepAsync(int goiThauId, ProcessStepRequest request)
     {
         var currentUserId = GetCurrentUserId();
         await _tenderAccess.EnsureCanProcessAsync(currentUserId, goiThauId);
+        await EnsureActionPermissionAsync(currentUserId, request.HanhDong);
 
         // ─── 1. Validate GoiThau ───────────────────────────────────────────
         var goiThau = await _db.GoiThaus.FindAsync(goiThauId);
@@ -172,6 +177,16 @@ public class WorkflowEngineService : IWorkflowEngineService
         {
             await txn.RollbackAsync();
             throw;
+        }
+    }
+
+    private async Task EnsureActionPermissionAsync(int userId, string action)
+    {
+        var permissions = await _permissionService.GetPermissionsAsync(userId);
+        if (!WorkflowActionPermissionPolicy.HasRequiredPermission(action, permissions))
+        {
+            var required = WorkflowActionPermissionPolicy.GetRequiredPermission(action);
+            throw new ForbiddenException($"Bạn không có quyền {required} để xử lý workflow.");
         }
     }
 

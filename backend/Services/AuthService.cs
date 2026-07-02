@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using QLQTDT.Api.Data;
@@ -7,6 +5,7 @@ using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models.DTOs.Auth;
 using QLQTDT.Api.Models.Entities;
+using QLQTDT.Api.Security;
 
 namespace QLQTDT.Api.Services;
 
@@ -77,11 +76,11 @@ public class AuthService : IAuthService
         var permissionSet = await _permissionService.GetPermissionsAsync(user.Id);
 
         var token = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
-        var refreshToken = await CreateRefreshTokenAsync(user.Id);
+        var refreshToken = CreateRefreshToken(user.Id);
 
         // ─── Session management ─────────────────────────────────
         var jti = ExtractJti(token);
-        var refreshTokenHash = HashToken(refreshToken);
+        var refreshTokenHash = TokenHasher.Hash(refreshToken);
 
         // Enforce concurrent session limit: revoke oldest if exceeded
         var activeSessions = await _context.UserSessions
@@ -135,9 +134,9 @@ public class AuthService : IAuthService
         };
     }
 
-    public async Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken)
+    public async Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken, string clientIp, string? userAgent)
     {
-        var tokenHash = HashToken(refreshToken);
+        var tokenHash = TokenHasher.Hash(refreshToken);
         var storedToken = await _context.RefreshTokens
             .Include(rt => rt.NguoiDung)
             .FirstOrDefaultAsync(rt => rt.Token == tokenHash)
@@ -158,8 +157,18 @@ public class AuthService : IAuthService
         if (storedToken.IsExpired)
             throw new UnauthorizedException("Refresh token đã hết hạn hoặc đã bị thu hồi.");
 
+        var now = DateTime.UtcNow;
+
         // Revoke old refresh token (rotation)
-        storedToken.RevokedAt = DateTime.UtcNow;
+        storedToken.RevokedAt = now;
+
+        var oldSession = await _context.UserSessions
+            .FirstOrDefaultAsync(s =>
+                s.NguoiDungId == storedToken.NguoiDungId &&
+                s.RefreshTokenHash == tokenHash &&
+                s.RevokedAt == null);
+        if (oldSession != null)
+            oldSession.RevokedAt = now;
 
         var user = storedToken.NguoiDung!;
         if (user.DaXoa || !user.TrangThaiHoatDong)
@@ -171,7 +180,19 @@ public class AuthService : IAuthService
 
         var newToken = _jwtService.GenerateToken(user.Id, user.Email, user.HoTen, roleNames, permissionSet);
         // Tao refresh token moi, link vao family + predecessor
-        var newRefreshToken = await CreateRefreshTokenAsync(user.Id, storedToken.TokenFamilyId, storedToken.Id);
+        var newRefreshToken = CreateRefreshToken(user.Id, storedToken.TokenFamilyId, storedToken.Id);
+        var newTokenHash = TokenHasher.Hash(newRefreshToken);
+
+        _context.UserSessions.Add(new UserSession
+        {
+            NguoiDungId = user.Id,
+            Jti = ExtractJti(newToken),
+            DiaChiIP = clientIp,
+            UserAgent = userAgent,
+            RefreshTokenHash = newTokenHash,
+            CreatedAt = now,
+            LastActivityAt = now
+        });
 
         await _context.SaveChangesAsync();
 
@@ -201,21 +222,16 @@ public class AuthService : IAuthService
 
     public async Task RevokeRefreshTokenAsync(string refreshToken)
     {
-        var tokenHash = HashToken(refreshToken);
+        var tokenHash = TokenHasher.Hash(refreshToken);
         var storedToken = await _context.RefreshTokens
             .FirstOrDefaultAsync(rt => rt.Token == tokenHash);
 
         if (storedToken != null)
         {
             storedToken.RevokedAt = DateTime.UtcNow;
+            await RevokeSessionsByRefreshTokenHashAsync(storedToken.NguoiDungId, tokenHash);
             await _context.SaveChangesAsync();
         }
-    }
-
-    private static string HashToken(string token)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
-        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
     private async Task RevokeAllRefreshTokensAsync(int userId)
@@ -228,6 +244,29 @@ public class AuthService : IAuthService
             token.RevokedAt = DateTime.UtcNow;
     }
 
+    private async Task RevokeAllSessionsForUserAsync(int userId)
+    {
+        var sessions = await _context.UserSessions
+            .Where(s => s.NguoiDungId == userId && s.RevokedAt == null)
+            .ToListAsync();
+
+        foreach (var session in sessions)
+            session.RevokedAt = DateTime.UtcNow;
+    }
+
+    private async Task RevokeSessionsByRefreshTokenHashAsync(int userId, string refreshTokenHash)
+    {
+        var sessions = await _context.UserSessions
+            .Where(s =>
+                s.NguoiDungId == userId &&
+                s.RefreshTokenHash == refreshTokenHash &&
+                s.RevokedAt == null)
+            .ToListAsync();
+
+        foreach (var session in sessions)
+            session.RevokedAt = DateTime.UtcNow;
+    }
+
     /// <summary>Revoke all tokens in a family chain (reuse detection).</summary>
     private async Task RevokeTokenFamilyAsync(Guid familyId, int userId)
     {
@@ -238,26 +277,37 @@ public class AuthService : IAuthService
         foreach (var token in familyTokens)
             token.RevokedAt = DateTime.UtcNow;
 
+        var familyTokenHashes = familyTokens.Select(t => t.Token).ToList();
+        var familySessions = await _context.UserSessions
+            .Where(s =>
+                s.NguoiDungId == userId &&
+                s.RefreshTokenHash != null &&
+                familyTokenHashes.Contains(s.RefreshTokenHash) &&
+                s.RevokedAt == null)
+            .ToListAsync();
+
+        foreach (var session in familySessions)
+            session.RevokedAt = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
 
         _logger.LogWarning(
-            "Revoked entire token family — FamilyId={FamilyId}, UserId={UserId}, Count={Count}",
-            familyId, userId, familyTokens.Count);
+            "Revoked entire token family — FamilyId={FamilyId}, UserId={UserId}, TokenCount={TokenCount}, SessionCount={SessionCount}",
+            familyId, userId, familyTokens.Count, familySessions.Count);
     }
 
-    private async Task<string> CreateRefreshTokenAsync(int userId, Guid? familyId = null, int? replacedTokenId = null)
+    private string CreateRefreshToken(int userId, Guid? familyId = null, int? replacedTokenId = null)
     {
         var tokenString = _jwtService.GenerateRefreshToken();
         _context.RefreshTokens.Add(new RefreshToken
         {
-            Token = HashToken(tokenString),
+            Token = TokenHasher.Hash(tokenString),
             NguoiDungId = userId,
             TokenFamilyId = familyId ?? Guid.NewGuid(),
             ReplacedTokenId = replacedTokenId,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
         });
-        await _context.SaveChangesAsync();
         return tokenString;
     }
 
@@ -278,6 +328,7 @@ public class AuthService : IAuthService
             TenDangNhap = user.TenDangNhap,
             HoTen = user.HoTen,
             Email = user.Email,
+            SoDienThoai = user.SoDienThoai,
             TrangThaiHoatDong = user.TrangThaiHoatDong,
             NgayTao = user.NgayTao,
             NgayDangNhapCuoi = user.NgayDangNhapCuoi,
@@ -317,10 +368,10 @@ public class AuthService : IAuthService
             return;
         }
 
-        var token = Guid.NewGuid().ToString();
+        var token = Guid.NewGuid().ToString("N");
         _context.PasswordResetTokens.Add(new PasswordResetToken
         {
-            Token = token,
+            Token = TokenHasher.Hash(token),
             NguoiDungId = user.Id,
             ExpiresAt = DateTime.UtcNow.AddMinutes(30),
             Used = false,
@@ -333,9 +384,10 @@ public class AuthService : IAuthService
 
     public async Task ResetPasswordAsync(ResetPasswordDto dto)
     {
+        var resetTokenHash = TokenHasher.Hash(dto.Token);
         var resetToken = await _context.PasswordResetTokens
             .Include(t => t.NguoiDung)
-            .FirstOrDefaultAsync(t => t.Token == dto.Token);
+            .FirstOrDefaultAsync(t => t.Token == resetTokenHash);
 
         if (resetToken == null || resetToken.Used || resetToken.ExpiresAt < DateTime.UtcNow)
             throw new BadRequestException("Token đặt lại mật khẩu không hợp lệ, đã sử dụng hoặc đã hết hạn.");
@@ -346,6 +398,7 @@ public class AuthService : IAuthService
             resetToken.NguoiDung.MatKhauHash = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
             resetToken.Used = true;
             await RevokeAllRefreshTokensAsync(resetToken.NguoiDungId);
+            await RevokeAllSessionsForUserAsync(resetToken.NguoiDungId);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
         }
@@ -366,6 +419,7 @@ public class AuthService : IAuthService
 
         user.MatKhauHash = BCrypt.Net.BCrypt.HashPassword(dto.MatKhauMoi);
         await RevokeAllRefreshTokensAsync(userId);
+        await RevokeAllSessionsForUserAsync(userId);
         await _context.SaveChangesAsync();
     }
 

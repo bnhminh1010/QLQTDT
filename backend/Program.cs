@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QLQTDT.Api.Data;
@@ -15,6 +16,7 @@ using QLQTDT.Api.Services;
 using System.Text;
 using System.Text.Json;
 using QLQTDT.Api.Config;
+using QLQTDT.Api.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +52,13 @@ var dbServer = Environment.GetEnvironmentVariable("DB_SERVER");
 var dbUser = Environment.GetEnvironmentVariable("DB_USER");
 var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+var dbEncrypt = !bool.TryParse(Environment.GetEnvironmentVariable("DB_ENCRYPT"), out var parsedDbEncrypt)
+    || parsedDbEncrypt;
+var dbTrustServerCertificate = bool.TryParse(
+    Environment.GetEnvironmentVariable("DB_TRUST_SERVER_CERTIFICATE"),
+    out var parsedDbTrustServerCertificate)
+    ? parsedDbTrustServerCertificate
+    : true;
 
 builder.Services.AddSingleton<AuditInterceptor>();
 if (!builder.Environment.IsEnvironment("Testing"))
@@ -57,8 +66,18 @@ if (!builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddDbContext<AppDbContext>((sp, options) =>
     {
         var interceptor = sp.GetRequiredService<AuditInterceptor>();
+        var connectionString = new SqlConnectionStringBuilder
+        {
+            DataSource = dbServer,
+            UserID = dbUser,
+            Password = dbPassword,
+            InitialCatalog = dbName,
+            Encrypt = dbEncrypt,
+            TrustServerCertificate = dbTrustServerCertificate
+        }.ConnectionString;
+
         options.UseSqlServer(
-                   $"Server={dbServer};User Id={dbUser};Password={dbPassword};Database={dbName};TrustServerCertificate=True;",
+                   connectionString,
                    sqlOptions => sqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
                .AddInterceptors(interceptor);
     });
@@ -81,6 +100,12 @@ if (string.IsNullOrWhiteSpace(jwtSecret))
 }
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "QLQTDT";
 var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "QLQTDT.Frontend";
+var accessCookieName = Environment.GetEnvironmentVariable("JWT_COOKIE_NAME") ?? "AccessToken";
+var refreshCookieName = Environment.GetEnvironmentVariable("JWT_REFRESH_COOKIE_NAME") ?? "RefreshToken";
+var allowBearerInProduction = bool.TryParse(
+    Environment.GetEnvironmentVariable(AuthTokenTransport.AllowBearerInProductionEnvVar),
+    out var parsedAllowBearerInProduction)
+    && parsedAllowBearerInProduction;
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -99,18 +124,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
-                // Ưu tiên đọc từ Header (giúp test Postman dễ dàng bằng Bearer token)
-                if (context.Request.Headers.ContainsKey("Authorization"))
-                {
-                    return Task.CompletedTask; // Middleware tự parse header
-                }
-
-                // Fallback sang Cookie nếu không có Header
-                if (context.Request.Cookies.TryGetValue("AccessToken", out var token))
-                {
-                    context.Token = token;
-                }
-
+                AuthTokenTransport.ResolveAccessToken(
+                    context,
+                    builder.Environment.EnvironmentName,
+                    allowBearerInProduction,
+                    accessCookieName);
                 return Task.CompletedTask;
             },
             OnTokenValidated = async context =>
@@ -170,7 +188,8 @@ builder.Services.Configure<JwtConfig>(options =>
     options.Issuer = jwtIssuer;
     options.Audience = jwtAudience;
     options.ExpiryMinutes = 60;
-    options.CookieName = "AccessToken";
+    options.CookieName = accessCookieName;
+    options.RefreshCookieName = refreshCookieName;
 });
 
 // FTP
@@ -281,6 +300,7 @@ builder.Services.AddScoped<LoginAttemptGuard>();
 builder.Services.AddHostedService<LockoutCleanupService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuthStateInvalidator, AuthStateInvalidator>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IVaiTroService, VaiTroService>();

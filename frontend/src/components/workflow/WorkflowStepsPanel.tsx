@@ -67,7 +67,7 @@ export default function WorkflowStepsPanel({
         steps.map((step) => {
           const isCurrentStep = Boolean(step.current ?? step.isCurrent);
           const canShowAction = !canShowCurrentStepActionResolved || canShowCurrentStepActionResolved(step);
-          const isActionDisabled = isCurrentStep && !!currentStepAction && !canShowAction;
+          const shouldShowCurrentStepAction = isCurrentStep && currentStepAction && canShowAction;
 
           return (
             <div key={step.backendId ?? step.ten} className="space-y-2">
@@ -96,22 +96,15 @@ export default function WorkflowStepsPanel({
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {isCurrentStep && currentStepAction && (
+                        {shouldShowCurrentStepAction && (
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               currentStepAction(step);
                             }}
-                            disabled={isActionDisabled}
-                            title={currentStepActionTooltip?.(step) ?? (isActionDisabled
-                              ? "Không thể cập nhật bước này"
-                              : "Cập nhật bước hiện tại")}
-                            className={`rounded-lg border bg-white px-2 py-1 text-[11px] font-semibold ${
-                              isActionDisabled
-                                ? "cursor-not-allowed border-slate-200 text-slate-300"
-                                : "border-amber-200 text-amber-700 hover:bg-amber-100"
-                            }`}
+                            title={currentStepActionTooltip?.(step) ?? "Cập nhật bước hiện tại"}
+                            className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
                           >
                             {currentStepActionLabel}
                           </button>

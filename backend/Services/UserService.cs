@@ -11,11 +11,13 @@ public class UserService : IUserService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<UserService> _logger;
+    private readonly IAuthStateInvalidator _authStateInvalidator;
 
-    public UserService(AppDbContext context, ILogger<UserService> logger)
+    public UserService(AppDbContext context, ILogger<UserService> logger, IAuthStateInvalidator authStateInvalidator)
     {
         _context = context;
         _logger = logger;
+        _authStateInvalidator = authStateInvalidator;
     }
 
     public async Task AssignRoleAsync(int userId, AssignRoleRequest request)
@@ -52,6 +54,7 @@ public class UserService : IUserService
         });
 
         await _context.SaveChangesAsync();
+        await _authStateInvalidator.RevokeUserAuthStateAsync(userId);
         _logger.LogInformation("Assign role: user={UserId}, khoaPhong={KhoaPhongId}, vaiTro={VaiTroId}",
             userId, request.KhoaPhongId, request.VaiTroId);
     }
@@ -83,8 +86,10 @@ public class UserService : IUserService
         var assignment = await _context.NguoiDungKhoaPhongVaiTros.FindAsync(assignmentId)
             ?? throw new NotFoundException($"Không tìm thấy phân vai trò với Id = {assignmentId}");
 
+        var userId = assignment.NguoiDungId;
         _context.NguoiDungKhoaPhongVaiTros.Remove(assignment);
         await _context.SaveChangesAsync();
+        await _authStateInvalidator.RevokeUserAuthStateAsync(userId);
         _logger.LogInformation("Remove role assignment: id={AssignmentId}", assignmentId);
     }
 }

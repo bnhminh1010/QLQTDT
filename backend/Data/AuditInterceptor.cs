@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
+using QLQTDT.Api.Security;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -60,8 +61,8 @@ public class AuditInterceptor : SaveChangesInterceptor
                     if (prop.Metadata.Name is "Id" or "NgayTao" or "NgayCapNhat") continue;
                     if (prop.IsModified)
                     {
-                        oldValues[prop.Metadata.Name] = prop.OriginalValue;
-                        newValues[prop.Metadata.Name] = prop.CurrentValue;
+                        oldValues[prop.Metadata.Name] = AuditValueRedactor.Redact(prop.Metadata.Name, prop.OriginalValue);
+                        newValues[prop.Metadata.Name] = AuditValueRedactor.Redact(prop.Metadata.Name, prop.CurrentValue);
                     }
                 }
                 duLieuCu = JsonSerializer.Serialize(oldValues, JsonOptions);
@@ -131,19 +132,19 @@ public class AuditInterceptor : SaveChangesInterceptor
 
             if (entry.State == EntityState.Added)
             {
-                changes[prop.Metadata.Name] = prop.CurrentValue;
+                changes[prop.Metadata.Name] = AuditValueRedactor.Redact(prop.Metadata.Name, prop.CurrentValue);
             }
             else if (entry.State == EntityState.Modified && prop.IsModified)
             {
                 changes[prop.Metadata.Name] = new
                 {
-                    cu = prop.OriginalValue,
-                    moi = prop.CurrentValue
+                    cu = AuditValueRedactor.Redact(prop.Metadata.Name, prop.OriginalValue),
+                    moi = AuditValueRedactor.Redact(prop.Metadata.Name, prop.CurrentValue)
                 };
             }
             else if (entry.State == EntityState.Deleted)
             {
-                changes[prop.Metadata.Name] = prop.OriginalValue;
+                changes[prop.Metadata.Name] = AuditValueRedactor.Redact(prop.Metadata.Name, prop.OriginalValue);
             }
         }
 

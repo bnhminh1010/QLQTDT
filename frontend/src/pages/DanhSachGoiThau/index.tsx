@@ -148,7 +148,7 @@ type SortCol = "id" | "ten" | "giaTriNum" | "trangThai";
 
 const EDITABLE_STATUSES: TrangThai[] = ["Nháp"];
 const STEP_UPDATE_STATUSES: TrangThai[] = ["Đang xử lý", "Chờ duyệt", "Trễ hạn"];
-const CURRENT_STEP_UPDATE_PERMISSIONS = ["WORKFLOW.PROCESS", "GOITHAU.EDIT", "GOITHAU.CREATE"];
+const CURRENT_STEP_UPDATE_PERMISSIONS = ["WORKFLOW.PROCESS"];
 const canEditGoiThau = (item?: GoiThau | null) =>
   item ? EDITABLE_STATUSES.includes(item.trangThai) : false;
 const canDeleteGoiThau = canEditGoiThau;
@@ -199,8 +199,8 @@ function getCurrentStepActionState(
 
   if (!userLoaded) {
     return {
-      enabled: true,
-      reason: "Cập nhật bước hiện tại",
+      enabled: false,
+      reason: "Đang kiểm tra quyền người dùng.",
     };
   }
 
@@ -742,12 +742,13 @@ export default function DanhSachGoiThau() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const isAdminObserver = currentUser ? getRoleCode(currentUser) === "ADMIN" : false;
   const canMutateGoiThau = currentUser != null && !isAdminObserver;
+  const canProcessWorkflow = currentUser != null && hasAnyPermission(currentUser, CURRENT_STEP_UPDATE_PERMISSIONS);
   const canUserEditGoiThau = (item?: GoiThau | null) =>
     canMutateGoiThau && canEditGoiThau(item);
   const canUserDeleteGoiThau = (item?: GoiThau | null) =>
     canMutateGoiThau && canDeleteGoiThau(item);
   const canUserUpdateCurrentStep = (item?: GoiThau | null) =>
-    canMutateGoiThau && canUpdateCurrentStep(item);
+    canMutateGoiThau && canProcessWorkflow && canUpdateCurrentStep(item);
 
   // Load data from API
   const loadData = useCallback(async () => {
@@ -1190,10 +1191,9 @@ export default function DanhSachGoiThau() {
         } : undefined}
         actions={
           <div className="flex flex-col gap-2">
-            {canMutateGoiThau && (
+            {canMutateGoiThau && currentStepActionState.enabled && (
               <button
                 onClick={() => goToCurrentStep(selected)}
-                disabled={!currentStepActionState.enabled}
                 title={currentStepActionState.reason}
                 className="w-full flex items-center justify-center gap-2 text-sm text-amber-600 hover:bg-amber-50 border border-amber-200 rounded-xl py-2.5 transition-colors disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white"
               >

@@ -7,6 +7,7 @@ using QLQTDT.Api.Models.DTOs.HoSoDuThau;
 using QLQTDT.Api.Models.DTOs.NhaThau;
 using QLQTDT.Api.Models.Entities;
 using System.Linq.Expressions;
+using System.Security.Claims;
 using System.Text.RegularExpressions;
 
 namespace QLQTDT.Api.Services;
@@ -17,10 +18,18 @@ public partial class NhaThauService : BaseService<NhaThau>, INhaThauService
     private const string HoSoNangLucFolder = "hosonangluc";
 
     private readonly IFtpService _ftp;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITenderAccessService _tenderAccess;
 
-    public NhaThauService(AppDbContext db, IFtpService ftp) : base(db)
+    public NhaThauService(
+        AppDbContext db,
+        IFtpService ftp,
+        IHttpContextAccessor httpContextAccessor,
+        ITenderAccessService tenderAccess) : base(db)
     {
         _ftp = ftp;
+        _httpContextAccessor = httpContextAccessor;
+        _tenderAccess = tenderAccess;
     }
 
     public async Task<PagedResult<NhaThau>> SearchAsync(int page, int pageSize, string? search)
@@ -208,9 +217,20 @@ public partial class NhaThauService : BaseService<NhaThau>, INhaThauService
     {
         await EnsureNhaThauExistsAsync(nhaThauId);
 
-        return await _db.HoSoDuThaus
+        var currentUserId = GetCurrentUserId();
+        var scope = await _tenderAccess.ResolveTenderScopeDetailAsync(currentUserId);
+
+        var query = _db.HoSoDuThaus
             .AsNoTracking()
-            .Where(h => h.NhaThauId == nhaThauId)
+            .Where(h => h.NhaThauId == nhaThauId && h.GoiThau!.TrangThaiHoatDong);
+
+        if (!scope.IsFullScope)
+        {
+            query = query.Where(h => h.GoiThau!.NguoiTaoId == currentUserId
+                || scope.KhoaPhongIds.Contains(h.GoiThau.KhoaPhongId ?? -1));
+        }
+
+        return await query
             .OrderByDescending(h => h.NgayNop)
             .Select(h => new LichSuDauThauItemDto
             {
@@ -226,6 +246,14 @@ public partial class NhaThauService : BaseService<NhaThau>, INhaThauService
                 NgayCapNhat = h.NgayCapNhat
             })
             .ToListAsync();
+    }
+
+    private int GetCurrentUserId()
+    {
+        var claim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        if (claim is null || !int.TryParse(claim.Value, out var id))
+            throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
+        return id;
     }
 
     private async Task EnsureNhaThauExistsAsync(int nhaThauId, CancellationToken ct = default)

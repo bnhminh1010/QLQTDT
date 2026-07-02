@@ -8,4 +8,5 @@ public class JwtConfig
     public int ExpiryMinutes { get; set; } = 15;
     public int RefreshTokenExpiryDays { get; set; } = 7;
     public string CookieName { get; set; } = "AccessToken";
+    public string RefreshCookieName { get; set; } = "RefreshToken";
 }

@@ -65,3 +65,31 @@ public class AdminNhaThauDto
     public string? NguoiDaiDien { get; set; }
     public bool TrangThaiHoatDong { get; set; }
 }
+
+public class ProfileChangeSnapshotDto
+{
+    public string? HoTen { get; set; }
+    public string? Email { get; set; }
+    public string? SoDienThoai { get; set; }
+}
+
+public class ProfileChangeRequestDto
+{
+    public Guid IdCongKhai { get; set; }
+    public int NguoiDungId { get; set; }
+    public string TenDangNhap { get; set; } = null!;
+    public string HoTenNguoiDung { get; set; } = null!;
+    public string EmailNguoiDung { get; set; } = null!;
+    public string TrangThai { get; set; } = null!;
+    public ProfileChangeSnapshotDto GiaTriCu { get; set; } = new();
+    public ProfileChangeSnapshotDto GiaTriMoi { get; set; } = new();
+    public DateTime NgayTao { get; set; }
+    public DateTime? NgayXuLy { get; set; }
+    public string? NguoiXuLy { get; set; }
+    public string? LyDoTuChoi { get; set; }
+}
+
+public class RejectProfileChangeRequest
+{
+    public string LyDoTuChoi { get; set; } = null!;
+}

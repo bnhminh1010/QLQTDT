@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.TaiLieu;
+using QLQTDT.Api.Security;
 using QLQTDT.Api.Services;
 
 namespace QLQTDT.Api.Controllers;
@@ -35,6 +36,7 @@ public class FilesController : ControllerBase
     public async Task<IActionResult> Download(int id, CancellationToken ct)
     {
         var (stream, fileName, contentType) = await _service.DownloadAsync(id, ct);
+        FileDownloadHeaderPolicy.Apply(Response);
         return File(stream, contentType, fileName);
     }
 

@@ -38,6 +38,7 @@ public class AppDbContext : DbContext
     public DbSet<NhomVaiTro> NhomVaiTros => Set<NhomVaiTro>();
     public DbSet<HopDong> HopDongs => Set<HopDong>();
     public DbSet<ThongBao> ThongBaos => Set<ThongBao>();
+    public DbSet<YeuCauThayDoiThongTinNguoiDung> YeuCauThayDoiThongTinNguoiDungs => Set<YeuCauThayDoiThongTinNguoiDung>();
     public DbSet<NhomNhanhWorkflow> NhomNhanhWorkflows => Set<NhomNhanhWorkflow>();
     public DbSet<NhanhWorkflow> NhanhWorkflows => Set<NhanhWorkflow>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
@@ -719,6 +720,31 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.WorkflowStepInstance)
                 .WithMany()
                 .HasForeignKey(e => e.WorkflowStepInstanceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<YeuCauThayDoiThongTinNguoiDung>(entity =>
+        {
+            entity.ToTable("YeuCauThayDoiThongTinNguoiDung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.IdCongKhai).HasDefaultValueSql("NEWSEQUENTIALID()");
+            entity.Property(e => e.TrangThai).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.GiaTriCuJson).IsRequired();
+            entity.Property(e => e.GiaTriMoiJson).IsRequired();
+            entity.Property(e => e.LyDoTuChoi).HasMaxLength(1000);
+            entity.Property(e => e.NgayTao).HasColumnType("datetime2(3)").HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.NgayXuLy).HasColumnType("datetime2(3)");
+            entity.HasIndex(e => e.IdCongKhai)
+                .IsUnique()
+                .HasDatabaseName("IX_YeuCauThayDoiThongTinNguoiDung_IdCongKhai");
+            entity.HasIndex(e => new { e.TrangThai, e.NgayTao });
+            entity.HasOne(e => e.NguoiDung)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiDungId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.NguoiXuLy)
+                .WithMany()
+                .HasForeignKey(e => e.NguoiXuLyId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 

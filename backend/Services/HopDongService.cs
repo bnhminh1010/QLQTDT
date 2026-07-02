@@ -126,9 +126,8 @@ public class HopDongService : IHopDongService
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var goiThauExists = await _db.GoiThaus.AnyAsync(g => g.Id == goiThauId);
-        if (!goiThauExists)
-            throw new NotFoundException($"Không tìm thấy gói thầu với Id = {goiThauId}");
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanViewAsync(currentUserId, goiThauId);
 
         var query = _db.HopDongs
             .Where(h => h.GoiThauId == goiThauId)
@@ -161,6 +160,15 @@ public class HopDongService : IHopDongService
 
     public async Task<HopDongDetailDto> GetByIdAsync(int id)
     {
+        var goiThauId = await _db.HopDongs
+            .Where(h => h.Id == id)
+            .Select(h => (int?)h.GoiThauId)
+            .FirstOrDefaultAsync()
+            ?? throw new NotFoundException($"Không tìm thấy hợp đồng với Id = {id}");
+
+        var currentUserId = GetCurrentUserId();
+        await _tenderAccess.EnsureCanViewAsync(currentUserId, goiThauId);
+
         return await BuildDetailDtoAsync(id);
     }
 

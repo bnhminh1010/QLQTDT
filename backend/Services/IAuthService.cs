@@ -5,7 +5,7 @@ namespace QLQTDT.Api.Services;
 public interface IAuthService
 {
     Task<LoginResponseDto> LoginAsync(LoginRequestDto dto, string clientIp, string? userAgent);
-    Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken);
+    Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken, string clientIp, string? userAgent);
     Task RevokeRefreshTokenAsync(string refreshToken);
     Task<UserDto> GetCurrentUserAsync(int userId);
     Task<IReadOnlyCollection<string>> GetPermissionsAsync(int userId);

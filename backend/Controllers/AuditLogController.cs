@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Services;
 
@@ -8,6 +9,7 @@ namespace QLQTDT.Api.Controllers;
 [ApiController]
 [Route("api/audit-log")]
 [Authorize(Roles = "ADMIN,TONG_PHAP_CHE,VIEN_TRUONG")]
+[HasPermission("AUDIT.VIEW_ALL")]
 public class AuditLogController : ControllerBase
 {
     private readonly IAuditLogService _service;

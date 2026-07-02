@@ -9,6 +9,7 @@ using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.Constants;
 using QLQTDT.Api.Models.DTOs.GoiThau;
 using QLQTDT.Api.Models.Entities;
+using QLQTDT.Api.Security;
 
 namespace QLQTDT.Api.Services;
 
@@ -422,6 +423,10 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 .FirstOrDefaultAsync();
             khoaPhongId = primaryKp;
         }
+
+        var creationScope = await _tenderAccess.ResolveTenderScopeDetailAsync(currentUserId);
+        if (!TenderCreationScopePolicy.CanCreateForKhoaPhong(creationScope, khoaPhongId))
+            throw new ForbiddenException("Bạn không có quyền tạo gói thầu cho khoa/phòng này.");
 
         if (dto.DeXuatId.HasValue)
         {

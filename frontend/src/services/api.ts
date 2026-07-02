@@ -26,11 +26,30 @@ export type LoginUserDto = {
   quyen: string[];
 };
 
+export type ProfileChangeSnapshot = {
+  hoTen?: string | null;
+  email?: string | null;
+  soDienThoai?: string | null;
+};
+
+export type ProfileChangeRequest = {
+  idCongKhai: string;
+  nguoiDungId: number;
+  tenDangNhap: string;
+  hoTenNguoiDung: string;
+  emailNguoiDung: string;
+  trangThai: "PENDING" | "APPROVED" | "REJECTED" | string;
+  giaTriCu: ProfileChangeSnapshot;
+  giaTriMoi: ProfileChangeSnapshot;
+  ngayTao: string;
+  ngayXuLy?: string | null;
+  nguoiXuLy?: string | null;
+  lyDoTuChoi?: string | null;
+};
+
 export type LoginResponse = {
   message: string;
   user: LoginUserDto;
-  token: string;
-  refreshToken?: string;
   csrfToken?: string;
 };
 
@@ -49,8 +68,12 @@ export async function sendProfileChangeRequest(data: {
   hoTen?: string;
   email?: string;
   soDienThoai?: string;
-}): Promise<void> {
-  await http.post("/auth/me/change-request", data);
+}): Promise<ProfileChangeRequest> {
+  return await http.post<ProfileChangeRequest>("/auth/me/change-request", data);
+}
+
+export async function getMyPendingProfileChangeRequest(): Promise<ProfileChangeRequest | null> {
+  return await http.get<ProfileChangeRequest | null>("/auth/me/change-request/pending");
 }
 
 export async function updateProfileApi(data: {

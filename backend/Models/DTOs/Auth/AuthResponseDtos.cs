@@ -1,11 +1,14 @@
 namespace QLQTDT.Api.Models.DTOs.Auth;
 
+using System.Text.Json.Serialization;
+
 public class UserDto
 {
     public Guid IdCongKhai { get; set; }
     public string TenDangNhap { get; set; } = null!;
     public string HoTen { get; set; } = null!;
     public string Email { get; set; } = null!;
+    public string? SoDienThoai { get; set; }
     public bool TrangThaiHoatDong { get; set; }
     public DateTime NgayTao { get; set; }
     public DateTime? NgayDangNhapCuoi { get; set; }
@@ -33,10 +36,13 @@ public class LoginResponseDto
     public UserDto User { get; set; } = null!;
 
     /// <summary>
-    /// JWT Token
+    /// Access token for server-side cookie emission only. Never serialize to API clients.
     /// </summary>
+    [JsonIgnore]
     public string Token { get; set; } = null!;
 
+    /// <summary>Refresh token for server-side HttpOnly cookie emission only.</summary>
+    [JsonIgnore]
     public string? RefreshToken { get; set; }
 
     public string? CsrfToken { get; set; }
@@ -44,7 +50,7 @@ public class LoginResponseDto
 
 public class RefreshTokenRequestDto
 {
-    public string RefreshToken { get; set; } = null!;
+    public string? RefreshToken { get; set; }
 }
 
 public class RefreshTokenResponseDto
@@ -52,9 +58,10 @@ public class RefreshTokenResponseDto
     public string Message { get; set; } = null!;
     public UserDto User { get; set; } = null!;
 
-    [System.Text.Json.Serialization.JsonIgnore]
+    [JsonIgnore]
     public string Token { get; set; } = null!;
 
+    [JsonIgnore]
     public string? RefreshToken { get; set; }
 
     public string? CsrfToken { get; set; }
@@ -70,6 +77,6 @@ public class UserSessionDto
     public bool IsActive { get; set; }
 
     /// <summary>true if this session matches current request (for UI highlight).</summary>
-    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IsCurrent { get; set; }
 }
