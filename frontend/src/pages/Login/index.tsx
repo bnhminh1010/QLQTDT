@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "sonner";
@@ -200,7 +200,7 @@ export default function Login() {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center">
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
                 <input
                   {...register("rememberMe")}
@@ -209,12 +209,6 @@ export default function Login() {
                 />{" "}
                 Ghi nhớ đăng nhập
               </label>
-              <Link
-                to="/forgot-password"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Quên mật khẩu?
-              </Link>
             </div>
 
             <button

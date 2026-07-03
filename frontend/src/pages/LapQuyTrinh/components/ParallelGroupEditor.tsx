@@ -103,12 +103,14 @@ export default function ParallelGroupEditor({
                 <div className="space-y-1">
                   {branchStepsList.map((s, si) => (
                     <div key={s.id} className="flex items-center gap-2">
-                      <div className="flex-1 flex items-center gap-2 text-xs text-slate-600 bg-white rounded-lg border border-slate-200 px-3 py-2">
+                      <div className="flex min-w-0 flex-1 items-center gap-2 text-xs text-slate-600 bg-white rounded-lg border border-slate-200 px-3 py-2">
                         <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center shrink-0">
                           {si + 1}
                         </span>
-                        <span className="flex-1 truncate">{s.tenBuoc}</span>
-                        <div className="flex items-center gap-1 shrink-0">
+                        <span className="min-w-0 flex-1 truncate" title={s.tenBuoc}>
+                          {s.tenBuoc}
+                        </span>
+                        <div className="flex shrink-0 items-center gap-1">
                           <button
                             onClick={() => onAddStepToBranch(branch.id, s.id)}
                             className="w-6 h-6 flex items-center justify-center rounded text-blue-500 hover:bg-blue-50"
