@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { SelectField } from "@/components/ui/select";
 import { getWorkflows } from "@/services/workflowApi";
+import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
+import { canManageWorkflowDesign } from "@/hooks/useAccessLevel";
 import http from "@/util/http";
 
 const HT_BADGE: Record<string, string> = {
@@ -45,6 +47,8 @@ export default function DanhSachQuyTrinh() {
   const [sortField, setSortField] = useState<SortField>("");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
+  const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
+  const canManageWorkflow = canManageWorkflowDesign(currentUser);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -70,6 +74,10 @@ export default function DanhSachQuyTrinh() {
   useEffect(() => {
     reload();
   }, [reload]);
+
+  useEffect(() => {
+    getCurrentUserApi().then(setCurrentUser).catch(() => setCurrentUser(null));
+  }, []);
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -154,12 +162,14 @@ export default function DanhSachQuyTrinh() {
               className={`fa-solid fa-rotate-right ${loading ? "animate-spin" : ""}`}
             />
           </button>
-          <button
-            onClick={() => navigate("/lap-quy-trinh")}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            <i className="fa-solid fa-plus text-xs" /> Tạo quy trình
-          </button>
+          {canManageWorkflow && (
+            <button
+              onClick={() => navigate("/lap-quy-trinh")}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <i className="fa-solid fa-plus text-xs" /> Tạo quy trình
+            </button>
+          )}
         </div>
       </header>
 
@@ -237,12 +247,14 @@ export default function DanhSachQuyTrinh() {
               <p className="text-sm font-medium text-slate-500">
                 Chưa có quy trình nào
               </p>
-              <button
-                onClick={() => navigate("/lap-quy-trinh")}
-                className="mt-2 h-9 px-4 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 flex items-center gap-1.5"
-              >
-                <i className="fa-solid fa-plus" /> Tạo quy trình đầu tiên
-              </button>
+              {canManageWorkflow && (
+                <button
+                  onClick={() => navigate("/lap-quy-trinh")}
+                  className="mt-2 h-9 px-4 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 flex items-center gap-1.5"
+                >
+                  <i className="fa-solid fa-plus" /> Tạo quy trình đầu tiên
+                </button>
+              )}
             </div>
           )}
 
@@ -281,7 +293,7 @@ export default function DanhSachQuyTrinh() {
                       Ngày tạo <SortIcon field="ngayTao" />
                     </th>
                     <th className="px-5 py-3 text-left">Tóm tắt luồng</th>
-                    <th className="px-5 py-3 text-center">Thao tác</th>
+                    {canManageWorkflow && <th className="px-5 py-3 text-center">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -328,39 +340,41 @@ export default function DanhSachQuyTrinh() {
                           {qt.soBuoc > 0 ? `${qt.soBuoc} bước cấu hình` : "Chưa có bước"}
                         </span>
                       </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            title="Chỉnh sửa"
-                            onClick={() =>
-                              navigate(`/lap-quy-trinh?id=${qt.id}`)
-                            }
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
-                          >
-                            <i className="fa-solid fa-pen text-xs" />
-                          </button>
-                          <button
-                            title={
-                              qt.trangThai === "Đang hoạt động"
-                                ? "Tắt quy trình"
-                                : "Kích hoạt"
-                            }
-                            onClick={() => handleToggle(qt)}
-                            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${qt.trangThai === "Đang hoạt động" ? "text-slate-500 hover:bg-slate-100" : "text-emerald-500 hover:bg-emerald-50"}`}
-                          >
-                            <i
-                              className={`fa-solid ${qt.trangThai === "Đang hoạt động" ? "fa-toggle-on" : "fa-toggle-off"} text-xs`}
-                            />
-                          </button>
-                          <button
-                            title="Xóa"
-                            onClick={() => setDeleteTarget(qt)}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                          >
-                            <i className="fa-solid fa-trash text-xs" />
-                          </button>
-                        </div>
-                      </td>
+                      {canManageWorkflow && (
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              title="Chỉnh sửa"
+                              onClick={() =>
+                                navigate(`/lap-quy-trinh?id=${qt.id}`)
+                              }
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
+                            >
+                              <i className="fa-solid fa-pen text-xs" />
+                            </button>
+                            <button
+                              title={
+                                qt.trangThai === "Đang hoạt động"
+                                  ? "Tắt quy trình"
+                                  : "Kích hoạt"
+                              }
+                              onClick={() => handleToggle(qt)}
+                              className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${qt.trangThai === "Đang hoạt động" ? "text-slate-500 hover:bg-slate-100" : "text-emerald-500 hover:bg-emerald-50"}`}
+                            >
+                              <i
+                                className={`fa-solid ${qt.trangThai === "Đang hoạt động" ? "fa-toggle-on" : "fa-toggle-off"} text-xs`}
+                              />
+                            </button>
+                            <button
+                              title="Xóa"
+                              onClick={() => setDeleteTarget(qt)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                            >
+                              <i className="fa-solid fa-trash text-xs" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -20,7 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\QLQTDT.Api.csproj" />
     <ProjectReference Include="..\backend\QLQTDT.Api.csproj" />
   </ItemGroup>
 

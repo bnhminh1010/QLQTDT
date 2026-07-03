@@ -24,30 +24,23 @@ export default function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const link = (path: string, disabled = false) =>
+  const link = (path: string) =>
     `flex items-center justify-center lg:justify-start gap-2.5 px-3 lg:px-4 py-[9px] text-[13px] transition-colors ${
-      disabled
-        ? "text-slate-600/70 cursor-not-allowed opacity-50"
-        : pathname === path
-          ? "bg-blue-900 text-white"
-          : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-300"
+      pathname === path
+        ? "bg-blue-900 text-white"
+        : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-300"
     }`;
 
   function renderNavItem(path: string, icon: string, label: string) {
     const allowed = hasAccess(path);
+    if (!allowed) return null;
+
     return (
       <li>
-        {allowed ? (
-          <Link to={path} className={link(path)}>
-            <i className={`fa-solid ${icon} w-4 text-center shrink-0`} />
-            <span className="hidden lg:inline">{label}</span>
-          </Link>
-        ) : (
-          <span className={link(path, true)} title="Không có quyền truy cập">
-            <i className={`fa-solid ${icon} w-4 text-center shrink-0 opacity-50`} />
-            <span className="hidden lg:inline opacity-50">{label}</span>
-          </span>
-        )}
+        <Link to={path} className={link(path)}>
+          <i className={`fa-solid ${icon} w-4 text-center shrink-0`} />
+          <span className="hidden lg:inline">{label}</span>
+        </Link>
       </li>
     );
   }

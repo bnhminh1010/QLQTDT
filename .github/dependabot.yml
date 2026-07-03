@@ -1,0 +1,46 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Asia/Ho_Chi_Minh"
+
+  - package-ecosystem: "nuget"
+    directory: "/backend"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:15"
+      timezone: "Asia/Ho_Chi_Minh"
+
+  - package-ecosystem: "nuget"
+    directory: "/Tests"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:30"
+      timezone: "Asia/Ho_Chi_Minh"
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:45"
+      timezone: "Asia/Ho_Chi_Minh"
+
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Ho_Chi_Minh"

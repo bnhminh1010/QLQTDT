@@ -9,6 +9,7 @@ import type { LoginUserDto } from "@/services/api";
  */
 export type AccessLevel = 1 | 3 | 5 | null;
 export type RoleCode = "ADMIN" | "CAP_CAO" | "TRUNG_BINH" | "THAP";
+export const WORKFLOW_DESIGN_PERMISSIONS = ["WORKFLOW.CREATE", "WORKFLOW.CONFIG"];
 
 /* Route → permissions mapping (OR logic — 1 trong số đó là đủ) */
 const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
@@ -16,7 +17,7 @@ const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
   "/danh-sach-goi-thau": ["GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW_INTERNAL"],
   "/tao-goi-thau": ["GOITHAU.CREATE"],
   "/danh-sach-quy-trinh": ["WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL"],
-  "/lap-quy-trinh": ["WORKFLOW.CREATE", "WORKFLOW.CONFIG", "WORKFLOW.VIEW_ALL"],
+  "/lap-quy-trinh": WORKFLOW_DESIGN_PERMISSIONS,
   "/danh-muc-thuc-hien": ["HINHTHUCDAUTHAU.VIEW", "DANHMUC.VIEW", "DANHMUC.VIEW_ALL"],
   "/bao-cao": ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"],
   "/xu-ly-buoc": ["WORKFLOW.PROCESS", "GOITHAU.EDIT", "GOITHAU.CREATE"],
@@ -107,6 +108,10 @@ export function canAccessPath(path: string, user?: LoginUserDto | null): boolean
 
 export function canAccessReport(user: LoginUserDto | null | undefined, ...permissions: string[]): boolean {
   return hasAnyPermission(user, permissions.length > 0 ? permissions : ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"]);
+}
+
+export function canManageWorkflowDesign(user: LoginUserDto | null | undefined): boolean {
+  return hasAnyPermission(user, WORKFLOW_DESIGN_PERMISSIONS);
 }
 
 export function useAccessLevel(user?: LoginUserDto | null): AccessLevel {

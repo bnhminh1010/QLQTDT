@@ -8,6 +8,8 @@ import { DeleteModal } from "./DeleteModal";
 import { getAllHinhThuc, createHinhThuc, updateHinhThuc, deleteHinhThuc } from "@/services/hinhThauApi";
 import type { HinhThucDauThau } from "@/services/hinhThauApi";
 import { getWorkflowTemplates, previewWorkflowTemplate, getWorkflows } from "@/services/workflowApi";
+import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
+import { canManageWorkflowDesign } from "@/hooks/useAccessLevel";
 import http from "@/util/http";
 
 /* ─ Typical steps per loại hình (informational only) ──── */
@@ -152,6 +154,8 @@ export default function DanhMucThucHien() {
   const [detailTab, setDetailTab] = useState<"info" | "history">("info");
   const [loadingSteps, setLoadingSteps] = useState(false);
   const [selectedSteps, setSelectedSteps] = useState<StepRow[]>([]);
+  const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
+  const canManageWorkflow = canManageWorkflowDesign(currentUser);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -168,6 +172,10 @@ export default function DanhMucThucHien() {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+
+  useEffect(() => {
+    getCurrentUserApi().then(setCurrentUser).catch(() => setCurrentUser(null));
+  }, []);
 
   // Load template steps khi chọn item
   async function handleSelectItem(item: DanhMuc) {
@@ -275,6 +283,7 @@ export default function DanhMucThucHien() {
   }
 
   async function goEditQuyTrinh() {
+    if (!canManageWorkflow) return;
     if (!selItem) return;
     try {
       const workflows = await getWorkflows(selItem.ten);
@@ -508,10 +517,12 @@ export default function DanhMucThucHien() {
                     </div>
                   ))}
                 </div>
-                <button type="button" onClick={goEditQuyTrinh}
-                  className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors">
-                  <i className="fa-solid fa-diagram-project text-xs" /> Đi tới quy trình
-                </button>
+                {canManageWorkflow && (
+                  <button type="button" onClick={goEditQuyTrinh}
+                    className="mt-5 w-full flex items-center justify-center gap-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-xl py-2.5 transition-colors">
+                    <i className="fa-solid fa-diagram-project text-xs" /> Đi tới quy trình
+                  </button>
+                )}
               </div>
             )}
             {detailTab === "history" && (

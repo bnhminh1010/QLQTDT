@@ -40,7 +40,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPost]
-    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
+    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.CONFIG")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> Create(
         [FromBody] WorkflowCreateRequest request,
@@ -55,7 +55,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPost("from-design")]
-    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
+    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.CONFIG")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<WorkflowCreateResponse>>> CreateFromDesign(
         [FromBody] WorkflowDesignSaveRequest request)
@@ -66,7 +66,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPut("{id}/from-design")]
-    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
+    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.CONFIG")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse>> UpdateFromDesign(
         int id, [FromBody] WorkflowDesignSaveRequest request)
@@ -84,7 +84,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
+    [HasPermission("WORKFLOW.CREATE", "WORKFLOW.CONFIG")]
     [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse>> Update(
         int id,
