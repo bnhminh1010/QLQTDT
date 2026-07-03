@@ -113,6 +113,15 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> UpdateMe([FromBody] UpdateProfileDto dto)
     {
         var userId = GetCurrentUserId();
+        if (!await IsAdminAsync(userId))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ApiErrorResponse
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Error = "Chỉ Admin mới được cập nhật trực tiếp hồ sơ cá nhân. Vui lòng gửi yêu cầu thay đổi thông tin."
+            });
+        }
+
         var user = await _authService.UpdateProfileAsync(userId, dto);
         return Ok(user);
     }
@@ -127,6 +136,8 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(u => u.Id == userId && !u.DaXoa);
         if (user is null)
             return Unauthorized(new ApiErrorResponse { Status = 401, Error = "Yêu cầu chưa được xác thực." });
+        if (await IsAdminAsync(userId))
+            return StatusCode(StatusCodes.Status403Forbidden, new ApiErrorResponse { Status = StatusCodes.Status403Forbidden, Error = "Admin hãy dùng Lưu thay đổi để cập nhật hồ sơ của chính mình." });
 
         var hasPending = await _db.YeuCauThayDoiThongTinNguoiDungs
             .AnyAsync(r => r.NguoiDungId == userId && r.TrangThai == ProfileChangeRequestStatus.Pending);
@@ -405,6 +416,12 @@ public class AuthController : ControllerBase
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
+
+    private async Task<bool> IsAdminAsync(int userId)
+    {
+        return await _db.NguoiDungKhoaPhongVaiTros
+            .AnyAsync(nkv => nkv.NguoiDungId == userId && nkv.VaiTro.MaVaiTro == "ADMIN");
+    }
 
     private static ProfileChangeRequestDto MapProfileChangeRequest(
         YeuCauThayDoiThongTinNguoiDung request,

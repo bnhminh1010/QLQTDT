@@ -13,6 +13,34 @@ const inputReadonlyCls =
   "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-100 text-slate-500 cursor-not-allowed";
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
 
+type ProfileFormState = {
+  hoTen: string;
+  email: string;
+  soDienThoai: string;
+};
+
+const EMPTY_PROFILE_FORM: ProfileFormState = {
+  hoTen: "",
+  email: "",
+  soDienThoai: "",
+};
+
+function normalizeProfileForm(source?: Partial<ProfileFormState> | null): ProfileFormState {
+  return {
+    hoTen: source?.hoTen?.trim() ?? "",
+    email: source?.email?.trim() ?? "",
+    soDienThoai: source?.soDienThoai?.trim() ?? "",
+  };
+}
+
+function hasSameProfileForm(a: ProfileFormState, b: ProfileFormState) {
+  return (
+    a.hoTen.trim() === b.hoTen.trim()
+    && a.email.trim().toLowerCase() === b.email.trim().toLowerCase()
+    && a.soDienThoai.trim() === b.soDienThoai.trim()
+  );
+}
+
 const BADGE_CLS: Record<string, string> = {
   "Hoạt động": "bg-emerald-100 text-emerald-700",
   "Bị khóa": "bg-red-100 text-red-600",
@@ -26,12 +54,12 @@ export default function UserProfile() {
   const [notifs, setNotifs] = useState<ThongBaoItem[]>([]);
   const [notifsCount, setNotifsCount] = useState(0);
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ hoTen: "", email: "", soDienThoai: "" });
+  const [editForm, setEditForm] = useState<ProfileFormState>(EMPTY_PROFILE_FORM);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [requestSent, setRequestSent] = useState(false);
   const [pendingProfileChangeRequest, setPendingProfileChangeRequest] = useState<ProfileChangeRequest | null>(null);
   const [user, setUser] = useState<LoginUserDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const profileSnapshotRef = useRef<ProfileFormState>(EMPTY_PROFILE_FORM);
 
   /* ── Password form ── */
   const [pwdForm, setPwdForm] = useState({ current: "", newPwd: "", confirm: "" });
@@ -66,12 +94,60 @@ export default function UserProfile() {
   }, []);
 
   const unreadCount = notifs.filter((n) => !n.daDoc).length;
+  const isAdmin = user?.roles?.some((r) => r.maVaiTro === "ADMIN" || r.tenVaiTro === "ADMIN") ?? false;
+  const hasProfileChanges = editing && !hasSameProfileForm(editForm, profileSnapshotRef.current);
+  const showProfileActions = editing && (hasProfileChanges || savingProfile);
+
+  function syncProfileForm(source = user) {
+    const nextForm = normalizeProfileForm({
+      hoTen: source?.hoTen ?? "",
+      email: source?.email ?? "",
+      soDienThoai: source?.soDienThoai ?? "",
+    });
+    setEditForm(nextForm);
+    return nextForm;
+  }
+
+  function startEditingProfile() {
+    profileSnapshotRef.current = syncProfileForm();
+    setEditing(true);
+  }
+
+  function cancelEditingProfile() {
+    setEditForm(profileSnapshotRef.current);
+    setEditing(false);
+  }
+
+  async function submitProfileChanges() {
+    if (!hasProfileChanges || savingProfile) return;
+
+    setSavingProfile(true);
+    try {
+      if (isAdmin) {
+        const updated = await updateProfileApi(editForm);
+        setUser(updated);
+        profileSnapshotRef.current = normalizeProfileForm(updated);
+        setEditForm(profileSnapshotRef.current);
+        toast.success("Đã lưu thay đổi");
+      } else {
+        const request = await sendProfileChangeRequest(editForm);
+        setPendingProfileChangeRequest(request);
+        setEditForm(profileSnapshotRef.current);
+        toast.success("Đã gửi yêu cầu cập nhật hồ sơ");
+      }
+
+      setEditing(false);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || (isAdmin ? "Lưu thay đổi thất bại" : "Gửi yêu cầu thất bại"));
+    } finally {
+      setSavingProfile(false);
+    }
+  }
 
   // Derived fields
   const donVi = user?.roles?.[0]?.tenKhoaPhong ?? "—";
   const vaiTro = user?.roles?.[0]?.tenVaiTro ?? "—";
   const trangThaiLabel = user?.trangThaiHoatDong ? "Hoạt động" : "Bị khóa";
-  const isAdmin = user?.roles?.some((r) => r.tenVaiTro === "ADMIN") ?? false;
 
   function validatePassword(): boolean {
     const errs: Record<string, string> = {};
@@ -181,22 +257,13 @@ export default function UserProfile() {
               <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <i className="fa-solid fa-user-circle text-blue-500" /> Thông tin tài khoản
               </h2>
-              {isAdmin && (
-                <button onClick={() => {
-                  if (editing) {
-                    setSavingProfile(true);
-                    updateProfileApi(editForm)
-                      .then((updated) => { setUser(updated); setEditing(false); toast.success("Cập nhật thành công"); })
-                      .catch(() => toast.error("Cập nhật thất bại"))
-                      .finally(() => setSavingProfile(false));
-                  } else {
-                    setEditForm({ hoTen: user?.hoTen ?? "", email: user?.email ?? "", soDienThoai: user?.soDienThoai ?? "" });
-                    setEditing(true);
-                  }
-                }}
-                  className="h-8 px-3.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5">
-                  {savingProfile ? <i className="fa-solid fa-circle-notch fa-spin" /> : <i className={`fa-solid ${editing ? "fa-floppy-disk" : "fa-pen"}`} />}
-                  {savingProfile ? "Đang lưu..." : editing ? "Lưu" : "Chỉnh sửa"}
+              {!editing && (!isAdmin ? !pendingProfileChangeRequest : true) && (
+                <button
+                  onClick={startEditingProfile}
+                  className="h-8 px-3.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+                >
+                  <i className="fa-solid fa-pen text-xs" />
+                  {isAdmin ? "Chỉnh sửa" : "Yêu cầu thay đổi thông tin"}
                 </button>
               )}
             </div>
@@ -240,21 +307,6 @@ export default function UserProfile() {
                 <input readOnly value={user?.ngayCapNhat ? new Date(user.ngayCapNhat).toLocaleString("vi-VN") : "—"} className={inputReadonlyCls} />
               </div>
             </div>
-            {editing && (
-              <div className="flex justify-end gap-2 pt-1">
-                <button onClick={() => setEditing(false)} className="h-8 px-4 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50">Hủy</button>
-                <button onClick={() => {
-                  setSavingProfile(true);
-                  updateProfileApi(editForm)
-                    .then((updated) => { setUser(updated); setEditing(false); toast.success("Cập nhật thành công"); })
-                    .catch(() => toast.error("Cập nhật thất bại"))
-                    .finally(() => setSavingProfile(false));
-                }} disabled={savingProfile}
-                  className="h-8 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold disabled:opacity-60">
-                  {savingProfile ? "Đang lưu..." : "Lưu thay đổi"}
-                </button>
-              </div>
-            )}
             {!isAdmin && pendingProfileChangeRequest && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
                 <div className="flex items-center gap-2 font-semibold">
@@ -268,44 +320,29 @@ export default function UserProfile() {
                 </div>
               </div>
             )}
-            {!isAdmin && !editing && !pendingProfileChangeRequest && (
-              <div className="space-y-3">
-                <button onClick={() => {
-                  setEditForm({ hoTen: user?.hoTen ?? "", email: user?.email ?? "", soDienThoai: user?.soDienThoai ?? "" });
-                  setRequestSent(false);
-                  setEditing(true);
-                }}
-                  className="h-8 px-3.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5">
-                  <i className="fa-solid fa-pen" /> Yêu cầu thay đổi thông tin
+            {showProfileActions && (
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={cancelEditingProfile}
+                  disabled={savingProfile}
+                  className="h-9 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <i className="fa-solid fa-xmark text-xs" />
+                  Hủy
+                </button>
+                <button
+                  onClick={submitProfileChanges}
+                  disabled={savingProfile}
+                  className="h-9 px-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors"
+                >
+                  {savingProfile ? (
+                    <i className="fa-solid fa-circle-notch fa-spin text-xs" />
+                  ) : (
+                    <i className={`fa-solid ${isAdmin ? "fa-floppy-disk" : "fa-paper-plane"}`} />
+                  )}
+                  {savingProfile ? "Đang lưu..." : isAdmin ? "Lưu thay đổi" : "Gửi yêu cầu"}
                 </button>
               </div>
-            )}
-            {!isAdmin && editing && (
-              <div className="flex justify-end gap-2 pt-1">
-                <button onClick={() => setEditing(false)} className="h-8 px-4 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50">Hủy</button>
-                <button onClick={() => {
-                  setSavingProfile(true);
-                  sendProfileChangeRequest(editForm)
-                    .then((request) => {
-                      setPendingProfileChangeRequest(request);
-                      setEditing(false);
-                      setRequestSent(true);
-                      toast.success("Yêu cầu đã gửi đến Quản trị viên");
-                    })
-                    .catch((error) => toast.error(error?.response?.data?.error || "Gửi yêu cầu thất bại"))
-                    .finally(() => setSavingProfile(false));
-                }} disabled={savingProfile}
-                  className="h-8 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold disabled:opacity-60 flex items-center gap-1.5">
-                  {savingProfile ? <i className="fa-solid fa-circle-notch fa-spin" /> : <i className="fa-solid fa-paper-plane" />}
-                  {savingProfile ? "Đang gửi..." : "Gửi yêu cầu"}
-                </button>
-              </div>
-            )}
-            {requestSent && (
-              <p className="text-xs text-emerald-700 flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-                <i className="fa-solid fa-circle-check text-emerald-500" />
-                Yêu cầu của bạn đã được gửi đến Quản trị viên và đang chờ xử lý.
-              </p>
             )}
           </div>
         )}

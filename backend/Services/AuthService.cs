@@ -428,9 +428,32 @@ public class AuthService : IAuthService
         var user = await _context.NguoiDungs.FindAsync(userId)
             ?? throw new UnauthorizedException("Yêu cầu chưa được xác thực.");
 
-        if (dto.HoTen != null) user.HoTen = dto.HoTen;
-        if (dto.Email != null) user.Email = dto.Email;
-        if (dto.SoDienThoai != null) user.SoDienThoai = dto.SoDienThoai;
+        if (dto.HoTen != null)
+        {
+            var hoTen = dto.HoTen.Trim();
+            if (string.IsNullOrWhiteSpace(hoTen))
+                throw new BadRequestException("Họ tên không được để trống.");
+            user.HoTen = hoTen;
+        }
+
+        if (dto.Email != null)
+        {
+            var email = dto.Email.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(email))
+                throw new BadRequestException("Email không được để trống.");
+
+            var emailExists = await _context.NguoiDungs
+                .AnyAsync(u => u.Id != userId && !u.DaXoa && u.Email.ToLower() == email);
+            if (emailExists)
+                throw new BadRequestException("Email đã được sử dụng trong hệ thống.");
+
+            user.Email = email;
+        }
+
+        if (dto.SoDienThoai != null)
+            user.SoDienThoai = string.IsNullOrWhiteSpace(dto.SoDienThoai) ? null : dto.SoDienThoai.Trim();
+
+        user.NgayCapNhat = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 
