@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.Workflow;
@@ -10,6 +11,7 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[DenyRoles("KHOA_PHONG")]
 [Route("api/workflows/{workflowId}/steps")]
 public class WorkflowStepsController : ControllerBase
 {
@@ -21,6 +23,7 @@ public class WorkflowStepsController : ControllerBase
     }
 
     [HttpGet]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<List<BuocWorkflowListItemDto>>>> GetAll(int workflowId)
     {
         var items = await _buocWorkflowService.GetStepsByWorkflowIdAsync(workflowId);

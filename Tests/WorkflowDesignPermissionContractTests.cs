@@ -31,6 +31,27 @@ public class WorkflowDesignPermissionContractTests
     }
 
     [Fact]
+    public void KhoaPhong_DoesNotRenderWorkflowListMenuItem()
+    {
+        var hookSource = ReadFrontendSource("hooks/useAccessLevel.ts");
+        var sidebarSource = ReadFrontendSource("components/Sidebar/index.tsx");
+
+        Assert.Contains("export function canViewWorkflowList", hookSource);
+        Assert.Contains("if (isKhoaPhongUser(user)) return false;", hookSource);
+        Assert.Contains("canViewWorkflowList(user) && renderNavItem(\"/danh-sach-quy-trinh\"", sidebarSource);
+    }
+
+    [Fact]
+    public void KhoaPhong_CannotAccessWorkflowManagementRoute()
+    {
+        var source = ReadFrontendSource("hooks/useAccessLevel.ts");
+
+        Assert.Contains("if (isKhoaPhongUser(user)) return false;", source);
+        Assert.Contains("return false;", source);
+        Assert.Contains("\"/danh-sach-quy-trinh\": [\"WORKFLOW.VIEW\", \"WORKFLOW.VIEW_ALL\"]", source);
+    }
+
+    [Fact]
     public void WorkflowMutationEndpoints_DoNotAllowViewOnlyPermissions()
     {
         var source = ReadBackendSource("Controllers/WorkflowsController.cs");
@@ -39,6 +60,64 @@ public class WorkflowDesignPermissionContractTests
             4,
             Regex.Matches(source, """\[HasPermission\("WORKFLOW\.CREATE", "WORKFLOW\.CONFIG"\)\]""").Count);
         Assert.DoesNotContain("[HasPermission(\"WORKFLOW.CREATE\", \"WORKFLOW.VIEW\", \"WORKFLOW.VIEW_ALL\")]", source);
+    }
+
+    [Fact]
+    public void WorkflowManagementControllers_DenyKhoaPhongRole()
+    {
+        Assert.Contains("[DenyRoles(\"KHOA_PHONG\")]", ReadBackendSource("Controllers/WorkflowsController.cs"));
+        Assert.Contains("[DenyRoles(\"KHOA_PHONG\")]", ReadBackendSource("Controllers/WorkflowStepsController.cs"));
+        Assert.Contains("[DenyRoles(\"KHOA_PHONG\")]", ReadBackendSource("Controllers/WorkflowStepItemController.cs"));
+        Assert.Contains("[DenyRoles(\"KHOA_PHONG\")]", ReadBackendSource("Controllers/ParallelGroupsController.cs"));
+    }
+
+    [Fact]
+    public void DanhSachGoiThau_SkipsWorkflowDesignApisWithoutDesignAccess()
+    {
+        var source = ReadFrontendSource("pages/DanhSachGoiThau/index.tsx");
+
+        Assert.Contains("const canViewWorkflowDesign = currentUserLoaded && canManageWorkflowDesign(currentUser);", source);
+        Assert.Contains("if (!workflowId || !canViewWorkflowDesign) {", source);
+        Assert.Contains("getWorkflowDesignSteps(workflowId, { skipAuthToast: true })", source);
+        Assert.DoesNotContain("getWorkflowDesignSteps(selected.workflowId)", source);
+    }
+
+    [Fact]
+    public void TaoGoiThau_UsesTemplatePreviewApiInsteadOfWorkflowManagementApis()
+    {
+        var source = ReadFrontendSource("pages/TaoGoiThau/index.tsx");
+
+        Assert.Contains("getWorkflowTemplates()", source);
+        Assert.Contains("previewWorkflowTemplate(wfId)", source);
+        Assert.DoesNotContain("getWorkflows()", source);
+        Assert.DoesNotContain("getWorkflowDesignSteps(", source);
+        Assert.DoesNotContain("getParallelGroups(", source);
+    }
+
+    [Fact]
+    public void HinhThucDauThauController_UsesAdminOnlyMutationGuards()
+    {
+        var source = ReadBackendSource("Controllers/HinhThucDauThauController.cs");
+
+        Assert.Equal(
+            3,
+            Regex.Matches(source, """\[Authorize\(Roles = "ADMIN"\)\]""").Count);
+        Assert.Contains("[HasPermission(\"HINHTHUCDAUTHAU.VIEW\")]", source);
+        Assert.Contains("EnsureCanView()", source);
+        Assert.Contains("IsKhoaPhongUser()", source);
+    }
+
+    [Fact]
+    public void KhoaPhongRole_NoLongerReceivesHinhThucViewPermission()
+    {
+        var source = ReadBackendSource("Data/DbInitializer.cs");
+        var start = source.IndexOf("[\"KHOA_PHONG\"] =");
+        var end = source.IndexOf("[\"BCN_KHOA_PHONG\"] =", start + 1);
+
+        Assert.True(start >= 0 && end > start, "Could not isolate KHOA_PHONG permission block.");
+
+        var block = source.Substring(start, end - start);
+        Assert.DoesNotContain("HINHTHUCDAUTHAU.VIEW", block);
     }
 
     private static string ReadFrontendSource(string relativePath)

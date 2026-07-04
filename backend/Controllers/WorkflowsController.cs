@@ -12,6 +12,7 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[DenyRoles("KHOA_PHONG")]
 [Route("api/workflows")]
 public class WorkflowsController : ControllerBase
 {

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { clearStoredToken, getCurrentUserApi, logoutApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
-import { canAccessPath, getRoleCode } from "@/hooks/useAccessLevel";
+import { canAccessPath, canViewWorkflowList, getRoleCode } from "@/hooks/useAccessLevel";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
@@ -101,7 +101,7 @@ export default function Sidebar() {
           {renderNavItem("/danh-sach-goi-thau", "fa-list", "Danh sách gói thầu")}
           {!isAdminObserver && renderNavItem("/tao-goi-thau", "fa-plus-circle", "Tạo gói thầu")}
           {renderNavItem("/danh-muc-thuc-hien", "fa-bars-staggered", "Danh mục thực hiện")}
-          {renderNavItem("/danh-sach-quy-trinh", "fa-diagram-project", "Danh sách quy trình")}
+          {canViewWorkflowList(user) && renderNavItem("/danh-sach-quy-trinh", "fa-diagram-project", "Danh sách quy trình")}
           {renderNavItem("/lap-quy-trinh", "fa-plus-square", "Lập quy trình")}
         </ul>
 

@@ -6,6 +6,7 @@ public class WorkflowTemplateSummaryDto
     public int Id { get; set; }
     public string MaWorkflow { get; set; } = null!;
     public string TenWorkflow { get; set; } = null!;
+    public int HinhThucId { get; set; }
     public string? LoaiHinhDauThau { get; set; }
     public string? MoTaNgan { get; set; }
     public int SoBuoc { get; set; }

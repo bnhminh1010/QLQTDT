@@ -60,6 +60,14 @@ export function hasAnyPermission(user: LoginUserDto | null | undefined, permissi
   return permissions.some((p) => user.quyen.includes(p));
 }
 
+export function hasRoleCode(user: LoginUserDto | null | undefined, roleCode: string): boolean {
+  return user?.roles?.some((r) => (r.maVaiTro ?? r.tenVaiTro ?? "").toUpperCase() === roleCode.toUpperCase()) ?? false;
+}
+
+export function isKhoaPhongUser(user: LoginUserDto | null | undefined): boolean {
+  return hasRoleCode(user, "KHOA_PHONG");
+}
+
 function getPrimaryPath(path: string) {
   const cleanPath = path.split("?")[0].replace(/\/+$/, "");
   const key = cleanPath.replace(/^\//, "").split("/")[0];
@@ -93,6 +101,9 @@ export function getDefaultPath(user?: LoginUserDto | null) {
 export function canAccessPath(path: string, user?: LoginUserDto | null): boolean {
   // Try permission-based first
   const primaryPath = getPrimaryPath(path);
+  if (primaryPath === "/danh-muc-thuc-hien" && isKhoaPhongUser(user)) {
+    return false;
+  }
   const neededPerms = ROUTE_PERMISSION_MAP[primaryPath];
   if (neededPerms && user?.quyen?.length) {
     if (neededPerms.length === 0) return true; // no permission needed
@@ -111,7 +122,13 @@ export function canAccessReport(user: LoginUserDto | null | undefined, ...permis
 }
 
 export function canManageWorkflowDesign(user: LoginUserDto | null | undefined): boolean {
+  if (isKhoaPhongUser(user)) return false;
   return hasAnyPermission(user, WORKFLOW_DESIGN_PERMISSIONS);
+}
+
+export function canViewWorkflowList(user: LoginUserDto | null | undefined): boolean {
+  if (isKhoaPhongUser(user)) return false;
+  return canAccessPath("/danh-sach-quy-trinh", user);
 }
 
 export function useAccessLevel(user?: LoginUserDto | null): AccessLevel {

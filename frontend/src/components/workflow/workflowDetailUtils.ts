@@ -494,6 +494,7 @@ export function buildWorkflowDetailSteps(
   fallbackSteps: WorkflowStepStateDto[] = [],
   designSteps: BuocWorkflowDto[] = [],
   parallelGroups: ParallelGroupDto[] = [],
+  options?: { allowWorkflowDesign?: boolean },
 ): WorkflowDetailStep[] {
   const detailInfo = mapWorkflowStateToDetailInfo(state, fallbackSteps);
   const { currentWorkflowBuocWorkflowId } = resolveCurrentWorkflowStepContext(state, fallbackSteps);
@@ -502,6 +503,19 @@ export function buildWorkflowDetailSteps(
     currentWorkflowBuocWorkflowId != null ? [currentWorkflowBuocWorkflowId] : [],
   );
   const runtimeSteps = state?.steps.length ? state.steps : fallbackSteps;
+  const useWorkflowDesign = options?.allowWorkflowDesign !== false && (designSteps.length > 0 || parallelGroups.length > 0);
+
+  if (!useWorkflowDesign) {
+    return dedupeDetailStepsByDesignStep(
+      detailInfo.steps,
+      activeStepIds,
+      currentWorkflowBuocWorkflowIds,
+    ).map((step) => ({
+      ...step,
+      parallelInfo: undefined,
+    }));
+  }
+
   const parallelInfoBySplitStep = buildParallelInfoBySplitStep(
     parallelGroups,
     runtimeSteps,

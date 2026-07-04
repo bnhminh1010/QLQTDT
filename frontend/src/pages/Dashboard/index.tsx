@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
 import GoiThauDetailPanel from "@/components/workflow/GoiThauDetailPanel";
 import {
   buildWorkflowDetailSteps,
@@ -31,6 +32,7 @@ import {
   type WorkflowStateDto,
   type WorkflowStepStateDto,
 } from "@/services/workflowApi";
+import { canManageWorkflowDesign } from "@/hooks/useAccessLevel";
 import {
   getGoiThauTrangThaiBarColor,
   toGoiThauTrangThaiLabel,
@@ -300,6 +302,27 @@ export default function Dashboard() {
   const [designSteps, setDesignSteps] = useState<BuocWorkflowDto[]>([]);
   const [parallelGroups, setParallelGroups] = useState<ParallelGroupDto[]>([]);
   const [selectedDetail, setSelectedDetail] = useState<GoiThauDetail | null>(null);
+  const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
+  const [currentUserLoaded, setCurrentUserLoaded] = useState(false);
+  const canViewWorkflowDesign = currentUserLoaded && canManageWorkflowDesign(currentUser);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentUserApi()
+      .then((user) => {
+        if (!cancelled) setCurrentUser(user);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCurrentUserLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Load data from API
   useEffect(() => {
@@ -437,10 +460,10 @@ export default function Dashboard() {
         ]);
         const detail = await detailPromise;
         const workflowId = selectedWorkflowId ?? detail?.workflowId ?? state.workflowId;
-        const [design, groups] = workflowId
+        const [design, groups] = workflowId && canViewWorkflowDesign
           ? await Promise.all([
-              getWorkflowDesignSteps(workflowId).catch(() => [] as BuocWorkflowDto[]),
-              getParallelGroups(workflowId).catch(() => [] as ParallelGroupDto[]),
+              getWorkflowDesignSteps(workflowId, { skipAuthToast: true }).catch(() => [] as BuocWorkflowDto[]),
+              getParallelGroups(workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
             ])
           : [[] as BuocWorkflowDto[], [] as ParallelGroupDto[]];
 
@@ -456,7 +479,7 @@ export default function Dashboard() {
         setWorkflowSteps([]);
 
         const workflowId = selectedWorkflowId ?? detail?.workflowId;
-        if (!workflowId) {
+        if (!workflowId || !canViewWorkflowDesign) {
           setDesignSteps([]);
           setParallelGroups([]);
           return;
@@ -464,8 +487,8 @@ export default function Dashboard() {
 
         try {
           const [design, groups] = await Promise.all([
-            getWorkflowDesignSteps(workflowId).catch(() => [] as BuocWorkflowDto[]),
-            getParallelGroups(workflowId).catch(() => [] as ParallelGroupDto[]),
+            getWorkflowDesignSteps(workflowId, { skipAuthToast: true }).catch(() => [] as BuocWorkflowDto[]),
+            getParallelGroups(workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
           ]);
           if (!cancelled) {
             setDesignSteps(design);
@@ -550,7 +573,13 @@ export default function Dashboard() {
   );
   const displaySteps = useMemo(
     () =>
-      buildWorkflowDetailSteps(workflowState, workflowSteps, designSteps, parallelGroups).map((step) =>
+      buildWorkflowDetailSteps(
+        workflowState,
+        workflowSteps,
+        designSteps,
+        parallelGroups,
+        { allowWorkflowDesign: canViewWorkflowDesign },
+      ).map((step) =>
         step.current
           ? {
               ...step,
@@ -569,6 +598,7 @@ export default function Dashboard() {
       workflowSteps,
       designSteps,
       parallelGroups,
+      canViewWorkflowDesign,
       currentWorkflowSummary.currentStepName,
       currentWorkflowSummary.currentProcessor,
       currentWorkflowSummary.currentProcessDate,

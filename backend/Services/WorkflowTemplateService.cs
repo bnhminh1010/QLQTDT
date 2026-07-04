@@ -33,6 +33,7 @@ public class WorkflowTemplateService : IWorkflowTemplateService
                 Id = w.Id,
                 MaWorkflow = w.MaWorkflow,
                 TenWorkflow = w.TenWorkflow,
+                HinhThucId = w.HinhThucId,
                 LoaiHinhDauThau = w.LoaiHinhDauThau,
                 MoTaNgan = w.MoTaNgan,
                 SoBuoc = w.BuocWorkflows.Count

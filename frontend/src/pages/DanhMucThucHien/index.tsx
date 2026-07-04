@@ -9,7 +9,7 @@ import { getAllHinhThuc, createHinhThuc, updateHinhThuc, deleteHinhThuc } from "
 import type { HinhThucDauThau } from "@/services/hinhThauApi";
 import { getWorkflowTemplates, previewWorkflowTemplate, getWorkflows } from "@/services/workflowApi";
 import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
-import { canManageWorkflowDesign } from "@/hooks/useAccessLevel";
+import { canManageWorkflowDesign, getRoleCode } from "@/hooks/useAccessLevel";
 import http from "@/util/http";
 
 /* ─ Typical steps per loại hình (informational only) ──── */
@@ -155,6 +155,7 @@ export default function DanhMucThucHien() {
   const [loadingSteps, setLoadingSteps] = useState(false);
   const [selectedSteps, setSelectedSteps] = useState<StepRow[]>([]);
   const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
+  const isAdmin = currentUser ? getRoleCode(currentUser) === "ADMIN" : false;
   const canManageWorkflow = canManageWorkflowDesign(currentUser);
 
   const reload = useCallback(async () => {
@@ -232,6 +233,10 @@ export default function DanhMucThucHien() {
   }
 
   async function onAdd(values: { id: string; hinhThuc: string; badge: string }) {
+    if (!isAdmin) {
+      toast.error("Bạn không có quyền thêm hình thức đấu thầu.");
+      return;
+    }
     try {
       await createHinhThuc({ maHinhThuc: values.id.trim().toUpperCase(), tenHinhThuc: values.hinhThuc.trim() });
       toast.success(`Đã thêm danh mục "${values.hinhThuc}"`);
@@ -242,6 +247,10 @@ export default function DanhMucThucHien() {
 
   async function onEdit(values: { id: string; hinhThuc: string; badge: string }) {
     if (!editTarget) return;
+    if (!isAdmin) {
+      toast.error("Bạn không có quyền sửa hình thức đấu thầu.");
+      return;
+    }
     try {
       await updateHinhThuc(editTarget.id, { tenHinhThuc: values.hinhThuc.trim() });
       toast.success("Đã cập nhật danh mục");
@@ -252,6 +261,10 @@ export default function DanhMucThucHien() {
 
   function toggleActive(item: DanhMuc, e: React.MouseEvent) {
     e.stopPropagation();
+    if (!isAdmin) {
+      toast.error("Bạn không có quyền thay đổi trạng thái hình thức đấu thầu.");
+      return;
+    }
     updateHinhThuc(item.id, { trangThaiHoatDong: !item.active }).then(() => {
       reload();
     }).catch(() => toast.error("Cập nhật thất bại"));
@@ -259,6 +272,10 @@ export default function DanhMucThucHien() {
 
   async function doDelete() {
     if (!deleteTarget) return;
+    if (!isAdmin) {
+      toast.error("Bạn không có quyền xóa hình thức đấu thầu.");
+      return;
+    }
     try {
       await deleteHinhThuc(deleteTarget.id);
       toast.success(`Đã xóa danh mục "${deleteTarget.ten}"`);
@@ -275,6 +292,10 @@ export default function DanhMucThucHien() {
 
   function requestDelete(item: DanhMuc, e: React.MouseEvent) {
     e.stopPropagation();
+    if (!isAdmin) {
+      toast.error("Bạn không có quyền xóa hình thức đấu thầu.");
+      return;
+    }
     if (item.soGoi > 0) {
       toast.error("Không thể xóa hình thức đấu thầu đang được sử dụng bởi các gói thầu.");
       return;
@@ -317,12 +338,14 @@ export default function DanhMucThucHien() {
           >
             <i className={`fa-solid fa-rotate-right ${loading ? "animate-spin" : ""}`} />
           </button>
+          {isAdmin && (
           <button
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             <i className="fa-solid fa-plus text-xs" /> Thêm hình thức đấu thầu
           </button>
+          )}
         </div>
       </header>
 
@@ -341,33 +364,58 @@ export default function DanhMucThucHien() {
             </div>
           ) : (
             <>
+              <div className="space-y-4">
+              {/* FILTER BAR */}
+              <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[220px]">
+                  <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                  <input
+                    type="text"
+                    placeholder="Tìm hình thức, mã..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-9 text-xs focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setPage(1);
+                      }}
+                      aria-label="Xóa từ khóa tìm kiếm"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <i className="fa-solid fa-xmark text-xs" />
+                    </button>
+                  )}
+                </div>
+                <SelectField
+                  value={filterActive || "__all"}
+                  onValueChange={(value) => {
+                    setFilterActive(value === "__all" ? "" : (value as "true" | "false"));
+                    setPage(1);
+                  }}
+                  options={[
+                    { value: "__all", label: "Tất cả trạng thái" },
+                    { value: "true", label: "Đang hoạt động" },
+                    { value: "false", label: "Đã ẩn" },
+                  ]}
+                  triggerClassName="h-9 min-w-[170px] rounded-xl bg-white px-3 text-xs"
+                />
+                <span className="text-xs text-slate-400 ml-auto">
+                  {filtered.length} danh mục
+                </span>
+              </div>
+
               {/* TABLE */}
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-4 flex-wrap">
+                <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
                   <span className="font-semibold text-slate-800 text-sm">Danh sách hình thức đấu thầu</span>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="relative">
-                      <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
-                      <input type="text" placeholder="Tìm hình thức, mã..." value={search}
-                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                        className="pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
-                      />
-                    </div>
-                    <SelectField
-                      value={filterActive || "__all"}
-                      onValueChange={(value) => { setFilterActive(value === "__all" ? "" : (value as "true" | "false")); setPage(1); }}
-                      options={[
-                        { value: "__all", label: "Tất cả trạng thái" },
-                        { value: "true", label: "Đang hoạt động" },
-                        { value: "false", label: "Đã ẩn" },
-                      ]}
-                      triggerClassName="h-8 min-w-[150px] rounded-lg bg-white px-2 text-xs"
-                    />
-                    {(search || filterActive) && (
-                      <button onClick={() => { setSearch(""); setFilterActive(""); setPage(1); }}
-                        className="text-xs text-slate-400 hover:text-red-500"><i className="fa-solid fa-xmark" /></button>
-                    )}
-                  </div>
+                  <span className="text-xs text-slate-400">{filtered.length} kết quả</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -383,12 +431,12 @@ export default function DanhMucThucHien() {
                           Số gói đang thực hiện <SortIcon field="soGoi" />
                         </th>
                         <th className="px-5 py-3 text-left">Trạng thái</th>
-                        <th className="px-5 py-3 text-center">Hành động</th>
+                        {isAdmin && <th className="px-5 py-3 text-center">Hành động</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {paginated.length === 0 ? (
-                        <tr><td colSpan={5} className="text-center py-10 text-slate-400 text-sm">Không tìm thấy danh mục phù hợp</td></tr>
+                        <tr><td colSpan={isAdmin ? 5 : 4} className="text-center py-10 text-slate-400 text-sm">Không tìm thấy danh mục phù hợp</td></tr>
                       ) : (
                         paginated.map((d) => (
                           <tr key={d.id} onClick={() => handleSelectItem(d)}
@@ -416,24 +464,26 @@ export default function DanhMucThucHien() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-5 py-3">
-                              <div className="flex items-center justify-center gap-1">
-                                <button title="Chỉnh sửa" onClick={(e) => { e.stopPropagation(); setEditTarget(d); }}
-                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                                  <i className="fa-solid fa-pen text-xs" />
-                                </button>
-                                <button title={d.active ? "Ẩn danh mục" : "Hiện danh mục"}
-                                  onClick={(e) => toggleActive(d, e)}
-                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${d.active ? "text-slate-400 hover:text-amber-500 hover:bg-amber-50" : "text-amber-500 hover:text-slate-400 hover:bg-slate-100"}`}>
-                                  <i className={`fa-solid ${d.active ? "fa-eye-slash" : "fa-eye"} text-xs`} />
-                                </button>
-                                <button title={d.soGoi > 0 ? `Không thể xóa (${d.soGoi} gói)` : "Xóa danh mục"}
-                                  onClick={(e) => requestDelete(d, e)}
-                                  className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${d.soGoi > 0 ? "text-slate-200 cursor-not-allowed" : "text-slate-400 hover:text-red-500 hover:bg-red-50"}`}>
-                                  <i className="fa-solid fa-trash text-xs" />
-                                </button>
-                              </div>
-                            </td>
+                            {isAdmin && (
+                              <td className="px-5 py-3">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button title="Chỉnh sửa" onClick={(e) => { e.stopPropagation(); setEditTarget(d); }}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                                    <i className="fa-solid fa-pen text-xs" />
+                                  </button>
+                                  <button title={d.active ? "Ẩn danh mục" : "Hiện danh mục"}
+                                    onClick={(e) => toggleActive(d, e)}
+                                    className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${d.active ? "text-slate-400 hover:text-amber-500 hover:bg-amber-50" : "text-amber-500 hover:text-slate-400 hover:bg-slate-100"}`}>
+                                    <i className={`fa-solid ${d.active ? "fa-eye-slash" : "fa-eye"} text-xs`} />
+                                  </button>
+                                  <button title={d.soGoi > 0 ? `Không thể xóa (${d.soGoi} gói)` : "Xóa danh mục"}
+                                    onClick={(e) => requestDelete(d, e)}
+                                    className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${d.soGoi > 0 ? "text-slate-200 cursor-not-allowed" : "text-slate-400 hover:text-red-500 hover:bg-red-50"}`}>
+                                    <i className="fa-solid fa-trash text-xs" />
+                                  </button>
+                                </div>
+                              </td>
+                            )}
                           </tr>
                         ))
                       )}
@@ -462,6 +512,7 @@ export default function DanhMucThucHien() {
                   </div>
                 )}
               </div>
+              </div>
             </>
           )}
         </main>
@@ -472,10 +523,12 @@ export default function DanhMucThucHien() {
             <div className="p-5 border-b border-slate-100">
               <div className="flex items-start justify-between mb-1">
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${selItem.badge}`}>{selItem.ten}</span>
-                <button title="Sửa hình thức" onClick={(e) => { e.stopPropagation(); setEditTarget(selItem); }}
-                  className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                  <i className="fa-solid fa-pen text-[10px]" /> Sửa hình thức
-                </button>
+                {isAdmin && (
+                  <button title="Sửa hình thức" onClick={(e) => { e.stopPropagation(); setEditTarget(selItem); }}
+                    className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                    <i className="fa-solid fa-pen text-[10px]" /> Sửa hình thức
+                  </button>
+                )}
               </div>
               <div className="text-[11px] text-slate-400 font-mono mt-0.5">{selItem.maHinhThuc}</div>
               <div className="text-xs text-slate-400 mt-1">{selItem.steps.length} bước quy trình</div>

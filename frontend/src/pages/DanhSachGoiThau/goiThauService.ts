@@ -9,7 +9,6 @@ import {
   type CreateGoiThauFullRequest,
   type UpdateGoiThauFullRequest,
 } from "@/services/goiThauApi";
-import type { HinhThucDauThau } from "@/services/hinhThauApi";
 import { toGoiThauTrangThaiLabel } from "@/util/goiThauTrangThai";
 import { resolveGoiThauNguonVon } from "@/util/goiThauDisplay";
 
@@ -34,6 +33,7 @@ export type GoiThau = {
   tenGoiThau: string;
   loaiGoiThau?: LoaiGoiThau;
   hinhThuc: HinhThuc;
+  hinhThucId?: number;
   ghiChu?: string;
   canCuApDungRutGon?: string;
   theoDoi?: string[];
@@ -51,11 +51,13 @@ export type GoiThau = {
   };
 };
 
-// Cache to avoid calling getAllHinhThuc many times
-let _hinhThucCache: HinhThucDauThau[] | null = null;
-let _hinhThucCachePromise: Promise<HinhThucDauThau[]> | null = null;
+type HinhThucLookup = { id: number; tenHinhThuc: string };
 
-async function getHinhThucList(): Promise<HinhThucDauThau[]> {
+// Cache to avoid calling getAllHinhThuc many times
+let _hinhThucCache: HinhThucLookup[] | null = null;
+let _hinhThucCachePromise: Promise<HinhThucLookup[]> | null = null;
+
+async function getHinhThucList(): Promise<HinhThucLookup[]> {
   if (_hinhThucCache) return _hinhThucCache;
   if (_hinhThucCachePromise) return _hinhThucCachePromise;
   _hinhThucCachePromise = (async () => {
@@ -85,6 +87,17 @@ function tenHinhThucToId(tenHinhThuc?: string): number | undefined {
   return _hinhThucCache.find(
     ht => normalizeText(ht.tenHinhThuc) === normalizedName
   )?.id;
+}
+
+async function resolveHinhThucId(item: Partial<GoiThau>): Promise<number | undefined> {
+  if (typeof item.hinhThucId === "number" && item.hinhThucId > 0) {
+    return item.hinhThucId;
+  }
+
+  if (!item.hinhThuc) return undefined;
+
+  await getHinhThucList();
+  return tenHinhThucToId(item.hinhThuc);
 }
 
 /** Resolve tenKhoaPhong → khoaPhongId (for KhoaPhong dropdown in form) */
@@ -173,11 +186,9 @@ export const getGoiThauById = async (id: string): Promise<GoiThau | undefined> =
 
 /** Send full payload with hinhThucId resolution */
 export const addGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
-  await getHinhThucList();
   await ensureKhoaPhongCache();
 
-
-  const hinhThucId = tenHinhThucToId(item.hinhThuc);
+  const hinhThucId = await resolveHinhThucId(item);
 
   const payload: CreateGoiThauFullRequest = {
     tenGoiThau: item.tenGoiThau || item.ten || '',
@@ -200,10 +211,9 @@ export const themGoiThau = addGoiThau;
 export const updateGoiThau = async (item: Partial<GoiThau>): Promise<void> => {
   const numId = parseInt((item.id || '').replace(/^GT/, ''), 10);
   if (isNaN(numId)) return;
-  await getHinhThucList();
   await ensureKhoaPhongCache();
 
-  const hinhThucId = tenHinhThucToId(item.hinhThuc);
+  const hinhThucId = await resolveHinhThucId(item);
 
   if (!hinhThucId) {
     throw new Error(`Không tìm thấy hình thức đấu thầu: ${item.hinhThuc}`);

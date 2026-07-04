@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using QLQTDT.Api.Exceptions;
 using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
@@ -29,21 +30,40 @@ public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhTh
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
+        EnsureCanView();
         var search = HttpContext.Request.Query["search"].FirstOrDefault();
         var result = await _service.SearchAsync(page, pageSize, search);
         return Ok(ApiResponse<PagedResult<HinhThucDauThau>>.Ok(result));
     }
 
+    [NonAction]
+    public override Task<ActionResult<ApiResponse<HinhThucDauThau>>> GetById(int id)
+        => throw new NotSupportedException("Sử dụng GetHinhThucById thay vì GetById mặc định.");
+
+    [HttpGet("{id}")]
+    [HasPermission("HINHTHUCDAUTHAU.VIEW")]
+    public async Task<ActionResult<ApiResponse<HinhThucDauThau>>> GetHinhThucById(int id)
+    {
+        EnsureCanView();
+        var entity = await _service.GetByIdAsync(id);
+        if (entity is null)
+            return NotFound(ApiResponse.Fail($"Không tìm thấy bản ghi với Id = {id}"));
+
+        return Ok(ApiResponse<HinhThucDauThau>.Ok(entity));
+    }
+
     [HttpPost]
+    [Authorize(Roles = "ADMIN")]
     public async Task<ActionResult<ApiResponse<HinhThucDauThau>>> CreateHinhThuc(
         [FromBody] CreateHinhThucDauThauDto dto)
     {
         var created = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id },
+        return CreatedAtAction(nameof(GetHinhThucById), new { id = created.Id },
             ApiResponse<HinhThucDauThau>.Ok(created, "Tạo hình thức đấu thầu thành công"));
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "ADMIN")]
     public async Task<ActionResult<ApiResponse<HinhThucDauThau>>> UpdateHinhThuc(
         int id, [FromBody] UpdateHinhThucDauThauDto dto)
     {
@@ -52,6 +72,7 @@ public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhTh
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "ADMIN")]
     public async Task<ActionResult<ApiResponse>> DeleteHinhThuc(int id)
     {
         try
@@ -81,4 +102,15 @@ public class HinhThucDauThauController : BaseController<HinhThucDauThau, IHinhTh
     [NonAction]
     public override Task<ActionResult<ApiResponse>> Delete(int id)
         => throw new NotSupportedException("Sử dụng DeleteHinhThuc thay vì Delete trực tiếp.");
+    private void EnsureCanView()
+    {
+        if (IsKhoaPhongUser())
+            throw new ForbiddenException("Khoa/phòng không được truy cập danh mục thực hiện.");
+    }
+
+    private bool IsKhoaPhongUser()
+    {
+        return User?.FindAll(ClaimTypes.Role)
+            .Any(c => string.Equals(c.Value, "KHOA_PHONG", StringComparison.OrdinalIgnoreCase)) == true;
+    }
 }

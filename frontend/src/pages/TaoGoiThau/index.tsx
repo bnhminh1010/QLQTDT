@@ -27,8 +27,8 @@ import {
   updateGoiThau,
 } from "@/pages/DanhSachGoiThau/goiThauService";
 import type { GoiThau, HinhThuc, LoaiGoiThau } from "@/pages/DanhSachGoiThau/goiThauService";
-import { getWorkflowTemplates, getWorkflows, getParallelGroups } from "@/services/workflowApi";
-import type { WorkflowTemplateSummary, WorkflowItem, ParallelGroupDto, BuocWorkflowDto } from "@/services/workflowApi";
+import { getWorkflowTemplates, previewWorkflowTemplate } from "@/services/workflowApi";
+import type { WorkflowTemplateSummary, ParallelGroupDto, BuocWorkflowDto } from "@/services/workflowApi";
 import { getCurrentUserApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
 import { getRoleCode } from "@/hooks/useAccessLevel";
@@ -228,20 +228,13 @@ export default function TaoGoiThau() {
   const { attachments, getRootProps, getInputProps, isDragActive, removeFile } =
     useFileAttachment();
 
-  // Load current user + workflow templates + admin workflows on mount
+  // Load current user + workflow templates on mount
   useEffect(() => {
     getCurrentUserApi().then(setCurrentUser).catch(() => {});
     getKhoaPhongs().then(setKhoaPhongList).catch(() => {});
-    Promise.all([
-      getWorkflowTemplates().catch(() => [] as WorkflowTemplateSummary[]),
-      getWorkflows().catch(() => [] as WorkflowItem[]),
-    ]).then(([templates, workflows]) => {
-      const seen = new Set<number>();
-      const merged: WorkflowTemplateSummary[] = [];
-      for (const t of templates) { if (!seen.has(t.id)) { seen.add(t.id); merged.push(t); } }
-      for (const w of workflows) { if (!seen.has(w.id)) { seen.add(w.id); merged.push({ id: w.id, maWorkflow: w.maWorkflow, tenWorkflow: w.tenWorkflow, loaiHinhDauThau: w.loaiHinhDauThau, soBuoc: w.soBuoc }); } }
-      setQuyTrinhList(merged);
-    });
+    getWorkflowTemplates()
+      .then(setQuyTrinhList)
+      .catch(() => setQuyTrinhList([]));
   }, []);
 
   const userKhoaPhong =
@@ -342,13 +335,9 @@ export default function TaoGoiThau() {
   // Load steps + parallel groups when selectedQT changes
   const loadQTS = useCallback(async (wfId: number) => {
     try {
-      const { getWorkflowDesignSteps } = await import('@/services/workflowApi');
-      const [steps, groups] = await Promise.all([
-        getWorkflowDesignSteps(wfId),
-        getParallelGroups(wfId).catch(() => [] as ParallelGroupDto[]),
-      ]);
-      setSelectedQTSteps(steps);
-      setSelectedParallelGroups(groups);
+      const preview = await previewWorkflowTemplate(wfId);
+      setSelectedQTSteps(preview.steps);
+      setSelectedParallelGroups(preview.parallelGroups);
     } catch { setSelectedQTSteps([]); setSelectedParallelGroups([]); }
   }, []);
   useEffect(() => {
@@ -408,6 +397,7 @@ export default function TaoGoiThau() {
   function buildGoiThauFromForm(data: FormData, trangThai: GoiThau["trangThai"]) {
     const digits = String(data.giaTriStr ?? "").replace(/[^\d]/g, "");
     const num = parseInt(digits, 10) || 0;
+    const hinhThucId = resolveHinhThucIdFromWorkflow(selectedQT);
     return {
       id: editingGoiThau?.id ?? generateGoiThauId(),
       ten: data.ten.trim(),
@@ -415,6 +405,7 @@ export default function TaoGoiThau() {
       canCuApDungRutGon: data.canCuApDungRutGon?.trim() || "",
       loaiGoiThau: data.loaiGoiThau as LoaiGoiThau,
       hinhThuc: data.hinhThuc as HinhThuc,
+      hinhThucId,
       theoDoi: theoDoiList,
       workflowId: selectedQT?.id,
       giaTriStr: digits,
@@ -429,6 +420,12 @@ export default function TaoGoiThau() {
         buoc: editingGoiThau?.detail.buoc ?? (selectedQT ? `0/${selectedQT.soBuoc}` : "1/14"),
       },
     };
+  }
+
+  function resolveHinhThucIdFromWorkflow(
+    workflow: WorkflowTemplateSummary | null,
+  ): number | undefined {
+    return workflow?.hinhThucId;
   }
 
   function validateRutGonOrToast(data: FormData) {

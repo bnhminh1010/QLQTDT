@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.Workflow;
@@ -11,6 +12,7 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[DenyRoles("KHOA_PHONG")]
 [Route("api/workflows/{workflowId}/parallel-groups")]
 public class ParallelGroupsController : ControllerBase
 {
@@ -22,6 +24,7 @@ public class ParallelGroupsController : ControllerBase
     }
 
     [HttpGet]
+    [HasPermission("WORKFLOW.VIEW", "WORKFLOW.VIEW_ALL")]
     public async Task<ActionResult<ApiResponse<List<ParallelGroupDto>>>> GetAll(int workflowId)
     {
         var items = await _parallelGroupService.GetGroupsAsync(workflowId);
@@ -84,6 +87,7 @@ public class ParallelGroupsController : ControllerBase
 
 [ApiController]
 [Authorize(Roles = "ADMIN")]
+[DenyRoles("KHOA_PHONG")]
 [Route("api/parallel-groups/{groupId}/branches")]
 public class ParallelBranchesController : ControllerBase
 {
@@ -126,6 +130,7 @@ public class ParallelBranchesController : ControllerBase
 
 [ApiController]
 [Authorize(Roles = "ADMIN")]
+[DenyRoles("KHOA_PHONG")]
 [Route("api/parallel-branches/{branchId}")]
 public class ParallelBranchItemController : ControllerBase
 {

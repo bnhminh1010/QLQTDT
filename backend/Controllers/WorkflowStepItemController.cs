@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QLQTDT.Api.Middleware;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Common;
 using QLQTDT.Api.Models.DTOs.Workflow;
@@ -10,6 +11,7 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "ADMIN")]
+[DenyRoles("KHOA_PHONG")]
 [Route("api/workflows/steps")]
 public class WorkflowStepItemController : ControllerBase
 {

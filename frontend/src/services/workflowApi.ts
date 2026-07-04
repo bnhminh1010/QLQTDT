@@ -148,6 +148,7 @@ export type WorkflowTemplateSummary = {
   id: number;
   maWorkflow: string;
   tenWorkflow: string;
+  hinhThucId: number;
   loaiHinhDauThau?: string;
   moTaNgan?: string;
   soBuoc: number;
@@ -337,8 +338,11 @@ export type ReorderStepsRequest = {
   steps: StepOrderDto[];
 };
 
-export async function getWorkflowDesignSteps(workflowId: number): Promise<BuocWorkflowDto[]> {
-  const res = await http.get<ApiResponse<BuocWorkflowDto[]>>(`/workflows/${workflowId}/steps`);
+export async function getWorkflowDesignSteps(
+  workflowId: number,
+  options?: { skipAuthToast?: boolean },
+): Promise<BuocWorkflowDto[]> {
+  const res = await http.get<ApiResponse<BuocWorkflowDto[]>>(`/workflows/${workflowId}/steps`, options?.skipAuthToast ? { _skipAuthToast: true } : undefined);
   return res.data;
 }
 
@@ -458,8 +462,11 @@ export type ParallelBranchUpdateRequest = {
   buocDauTienId?: number;
 };
 
-export async function getParallelGroups(workflowId: number): Promise<ParallelGroupDto[]> {
-  const res = await http.get<ApiResponse<ParallelGroupDto[]>>(`/workflows/${workflowId}/parallel-groups`);
+export async function getParallelGroups(
+  workflowId: number,
+  options?: { skipAuthToast?: boolean },
+): Promise<ParallelGroupDto[]> {
+  const res = await http.get<ApiResponse<ParallelGroupDto[]>>(`/workflows/${workflowId}/parallel-groups`, options?.skipAuthToast ? { _skipAuthToast: true } : undefined);
   return res.data;
 }
 

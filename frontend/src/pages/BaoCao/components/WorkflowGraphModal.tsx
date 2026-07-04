@@ -327,8 +327,8 @@ export function WorkflowGraphModal({
         const workflowId = workflowState.workflowId;
         if (workflowId) {
           const [steps, groups] = await Promise.all([
-            getWorkflowDesignSteps(workflowId).catch(() => [] as BuocWorkflowDto[]),
-            getParallelGroups(workflowId).catch(() => [] as ParallelGroupDto[]),
+            getWorkflowDesignSteps(workflowId, { skipAuthToast: true }).catch(() => [] as BuocWorkflowDto[]),
+            getParallelGroups(workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
           ]);
           if (cancelled) return;
           setDesignSteps(steps);
