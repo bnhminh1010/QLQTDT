@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { clearStoredToken, getCurrentUserApi, logoutApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
-import { canAccessPath, canViewWorkflowList, getRoleCode } from "@/hooks/useAccessLevel";
+import { canAccessCreateTender, canAccessPath, canAccessReport, canViewWorkflowList } from "@/hooks/useAccessLevel";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
@@ -48,7 +48,6 @@ export default function Sidebar() {
   const hoTen = user?.hoTen ?? "?";
   const initial = hoTen.charAt(0).toUpperCase();
   const donVi = user?.roles?.[0]?.tenKhoaPhong ?? "";
-  const isAdminObserver = user ? getRoleCode(user) === "ADMIN" : false;
 
   function hasAccess(path: string) {
     return canAccessPath(path, user);
@@ -99,7 +98,7 @@ export default function Sidebar() {
         </div>
         <ul>
           {renderNavItem("/danh-sach-goi-thau", "fa-list", "Danh sách gói thầu")}
-          {!isAdminObserver && renderNavItem("/tao-goi-thau", "fa-plus-circle", "Tạo gói thầu")}
+          {canAccessCreateTender(user) && renderNavItem("/tao-goi-thau", "fa-plus-circle", "Tạo gói thầu")}
           {renderNavItem("/danh-muc-thuc-hien", "fa-bars-staggered", "Danh mục thực hiện")}
           {canViewWorkflowList(user) && renderNavItem("/danh-sach-quy-trinh", "fa-diagram-project", "Danh sách quy trình")}
           {renderNavItem("/lap-quy-trinh", "fa-plus-square", "Lập quy trình")}
@@ -109,7 +108,7 @@ export default function Sidebar() {
           HỆ THỐNG
         </div>
         <ul>
-          {renderNavItem("/bao-cao", "fa-chart-bar", "Báo cáo")}
+          {canAccessReport(user) && renderNavItem("/bao-cao", "fa-chart-bar", "Báo cáo")}
           {renderNavItem("/khoa-phong", "fa-building", "Khoa/phòng")}
           {renderNavItem("/nguoi-dung", "fa-user", "Người dùng")}
           <li>

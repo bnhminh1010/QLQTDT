@@ -130,6 +130,9 @@ public class WorkflowStateDto
     /// <summary>Tên khoa/phòng của gói thầu (KhoaPhong.TenKhoaPhong)</summary>
     public string? TenKhoaPhong { get; set; }
 
+    /// <summary>Nhóm nhánh song song của workflow template để render detail đồng nhất theo mọi role.</summary>
+    public List<ParallelGroupDto> ParallelGroups { get; set; } = [];
+
     /// <summary>Collection of currently active step instances. Multiple when in parallel branches.</summary>
     public List<CurrentStepDto> CurrentSteps { get; set; } = [];
 

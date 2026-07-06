@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
 import GoiThauDetailPanel from "@/components/workflow/GoiThauDetailPanel";
 import {
   buildWorkflowDetailSteps,
@@ -20,19 +19,14 @@ import {
 } from "@/services/thongBaoApi";
 import { getThongBaoStyle } from "@/util/thongBaoStyle";
 import {
-  getParallelGroups,
-  getWorkflowDesignSteps,
   getWorkflowPendingTasks,
   getWorkflowState,
   getWorkflowSteps,
   formatWorkflowKetQua,
-  type BuocWorkflowDto,
-  type ParallelGroupDto,
   type WorkflowPendingTaskDto,
   type WorkflowStateDto,
   type WorkflowStepStateDto,
 } from "@/services/workflowApi";
-import { canManageWorkflowDesign } from "@/hooks/useAccessLevel";
 import {
   getGoiThauTrangThaiBarColor,
   toGoiThauTrangThaiLabel,
@@ -299,30 +293,7 @@ export default function Dashboard() {
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [workflowState, setWorkflowState] = useState<WorkflowStateDto | null>(null);
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStepStateDto[]>([]);
-  const [designSteps, setDesignSteps] = useState<BuocWorkflowDto[]>([]);
-  const [parallelGroups, setParallelGroups] = useState<ParallelGroupDto[]>([]);
   const [selectedDetail, setSelectedDetail] = useState<GoiThauDetail | null>(null);
-  const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
-  const [currentUserLoaded, setCurrentUserLoaded] = useState(false);
-  const canViewWorkflowDesign = currentUserLoaded && canManageWorkflowDesign(currentUser);
-
-  useEffect(() => {
-    let cancelled = false;
-    getCurrentUserApi()
-      .then((user) => {
-        if (!cancelled) setCurrentUser(user);
-      })
-      .catch(() => {
-        if (!cancelled) setCurrentUser(null);
-      })
-      .finally(() => {
-        if (!cancelled) setCurrentUserLoaded(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Load data from API
   useEffect(() => {
@@ -424,20 +395,15 @@ export default function Dashboard() {
       setSelectedDetail(null);
       setWorkflowState(null);
       setWorkflowSteps([]);
-      setDesignSteps([]);
-      setParallelGroups([]);
       setWorkflowLoading(false);
       return;
     }
 
     const numericId = Number(selected.id);
-    const selectedWorkflowId = selected.workflowId;
     if (!Number.isFinite(numericId) || numericId <= 0) {
       setSelectedDetail(null);
       setWorkflowState(null);
       setWorkflowSteps([]);
-      setDesignSteps([]);
-      setParallelGroups([]);
       setWorkflowLoading(false);
       return;
     }
@@ -458,48 +424,14 @@ export default function Dashboard() {
           getWorkflowState(numericId),
           getWorkflowSteps(numericId),
         ]);
-        const detail = await detailPromise;
-        const workflowId = selectedWorkflowId ?? detail?.workflowId ?? state.workflowId;
-        const [design, groups] = workflowId && canViewWorkflowDesign
-          ? await Promise.all([
-              getWorkflowDesignSteps(workflowId, { skipAuthToast: true }).catch(() => [] as BuocWorkflowDto[]),
-              getParallelGroups(workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
-            ])
-          : [[] as BuocWorkflowDto[], [] as ParallelGroupDto[]];
 
         if (cancelled) return;
         setWorkflowState(state);
         setWorkflowSteps(steps);
-        setDesignSteps(design);
-        setParallelGroups(groups);
       } catch {
         if (cancelled) return;
-        const detail = await detailPromise;
         setWorkflowState(null);
         setWorkflowSteps([]);
-
-        const workflowId = selectedWorkflowId ?? detail?.workflowId;
-        if (!workflowId || !canViewWorkflowDesign) {
-          setDesignSteps([]);
-          setParallelGroups([]);
-          return;
-        }
-
-        try {
-          const [design, groups] = await Promise.all([
-            getWorkflowDesignSteps(workflowId, { skipAuthToast: true }).catch(() => [] as BuocWorkflowDto[]),
-            getParallelGroups(workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
-          ]);
-          if (!cancelled) {
-            setDesignSteps(design);
-            setParallelGroups(groups);
-          }
-        } catch {
-          if (!cancelled) {
-            setDesignSteps([]);
-            setParallelGroups([]);
-          }
-        }
       } finally {
         if (!cancelled) setWorkflowLoading(false);
       }
@@ -576,9 +508,8 @@ export default function Dashboard() {
       buildWorkflowDetailSteps(
         workflowState,
         workflowSteps,
-        designSteps,
-        parallelGroups,
-        { allowWorkflowDesign: canViewWorkflowDesign },
+        [],
+        workflowState?.parallelGroups ?? [],
       ).map((step) =>
         step.current
           ? {
@@ -596,9 +527,6 @@ export default function Dashboard() {
     [
       workflowState,
       workflowSteps,
-      designSteps,
-      parallelGroups,
-      canViewWorkflowDesign,
       currentWorkflowSummary.currentStepName,
       currentWorkflowSummary.currentProcessor,
       currentWorkflowSummary.currentProcessDate,

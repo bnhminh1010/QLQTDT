@@ -528,6 +528,7 @@ export type WorkflowStateDto = {
   tinhTrangTienDo?: string;
   tenNguoiTao?: string;
   tenKhoaPhong?: string;
+  parallelGroups?: ParallelGroupDto[];
   currentSteps: CurrentStepDto[];
   steps: WorkflowStepStateDto[];
 };

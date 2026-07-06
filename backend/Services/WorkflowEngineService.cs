@@ -1354,6 +1354,41 @@ public class WorkflowEngineService : IWorkflowEngineService
                 TinhTrangTienDo = ComputeTinhTrangTienDo(s.HanXuLy, s.TrangThai),
             }).ToList();
 
+        var parallelGroupEntities = await _db.NhomNhanhWorkflows
+            .AsNoTracking()
+            .Include(g => g.Nhanhs.OrderBy(n => n.ThuTu))
+            .Where(g => g.WorkflowId == instance.WorkflowId)
+            .OrderBy(g => g.BuocTachNhanhId)
+            .ThenBy(g => g.Id)
+            .ToListAsync();
+
+        var parallelGroups = parallelGroupEntities.Select(g => new ParallelGroupDto
+        {
+            Id = g.Id,
+            WorkflowId = g.WorkflowId,
+            BuocTachNhanhId = g.BuocTachNhanhId,
+            TenNhom = g.TenNhom,
+            DieuKienHopNhat = g.DieuKienHopNhat,
+            SoNhanhHopNhatToiThieu = g.SoNhanhHopNhatToiThieu,
+            BuocSauHopNhatId = g.BuocSauHopNhatId,
+            Branches = g.Nhanhs
+                .OrderBy(n => n.ThuTu)
+                .Select(n => new ParallelBranchDto
+                {
+                    Id = n.Id,
+                    NhomNhanhWorkflowId = n.NhomNhanhWorkflowId,
+                    MaNhanh = n.MaNhanh,
+                    TenNhanh = n.TenNhanh,
+                    ThuTu = n.ThuTu,
+                    DonViXuLyId = n.DonViXuLyId,
+                    VaiTroXuLyId = n.VaiTroXuLyId,
+                    ThoiHanNgay = n.ThoiHanNgay,
+                    LoaiHan = n.LoaiHan,
+                    BuocDauTienId = n.BuocDauTienId
+                })
+                .ToList()
+        }).ToList();
+
         return new WorkflowStateDto
         {
             WorkflowInstanceId = instance.Id,
@@ -1374,6 +1409,7 @@ public class WorkflowEngineService : IWorkflowEngineService
                 .Select(n => n.HoTen)
                 .FirstOrDefaultAsync(),
             TenKhoaPhong = instance.GoiThau?.KhoaPhong?.TenKhoaPhong,
+            ParallelGroups = parallelGroups,
             CurrentSteps = currentSteps,
             Steps = steps
         };

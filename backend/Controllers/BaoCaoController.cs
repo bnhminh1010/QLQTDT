@@ -10,6 +10,7 @@ namespace QLQTDT.Api.Controllers;
 
 [ApiController]
 [Route("api/bao-cao")]
+[DenyRoles("KHOA_PHONG")]
 public class BaoCaoController : ControllerBase
 {
     private readonly IBaoCaoService _baoCaoService;

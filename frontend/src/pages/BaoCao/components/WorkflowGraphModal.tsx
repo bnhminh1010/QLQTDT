@@ -42,7 +42,6 @@ type WorkflowGraphNodeData = {
 
 type GraphNode = Node<WorkflowGraphNodeData, "workflowStep">;
 
-const NODE_WIDTH = 210;
 const MAIN_Y = 190;
 const X_GAP = 260;
 const BRANCH_Y_START = 40;

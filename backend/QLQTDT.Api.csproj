@@ -31,4 +31,8 @@
     <None Remove="publish/**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="artifacts/**/*.cs" />
+  </ItemGroup>
+
 </Project>

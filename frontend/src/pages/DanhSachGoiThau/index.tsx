@@ -11,8 +11,6 @@ import {
   getWorkflowSteps,
   formatWorkflowKetQua,
   processStep,
-  getWorkflowDesignSteps,
-  getParallelGroups,
   getLichSuGoiThau,
 
   type WorkflowStateDto,
@@ -23,7 +21,7 @@ import {
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 import { normalizeParallelGroupTitle } from "@/constants/parallelGroup";
-import { canManageWorkflowDesign, getRoleCode, hasAnyPermission } from "@/hooks/useAccessLevel";
+import { getRoleCode, hasAnyPermission } from "@/hooks/useAccessLevel";
 import {
   buildWorkflowDetailSteps,
   resolveWorkflowCurrentStepSummary,
@@ -174,11 +172,11 @@ function getCurrentStepActionState(
   workflowState: WorkflowStateDto | null,
   currentWorkflowSummary: ReturnType<typeof resolveWorkflowCurrentStepSummary>,
   user: LoginUserDto | null,
-  userLoaded: boolean,
 ) {
   const baseEnabled = Boolean(item && canUpdateCurrentStep(item));
   const activeStep = workflowState?.currentSteps?.[0];
   const activeStepId = activeStep?.stepInstanceId;
+  const userLoaded = true;
 
   if (!baseEnabled) {
     return {
@@ -721,7 +719,6 @@ export default function DanhSachGoiThau() {
   const [page, setPage] = useState(1);
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
-  const [currentUserLoaded, setCurrentUserLoaded] = useState(false);
 
   // Real loading from API
   const [loading, setLoading] = useState(true);
@@ -730,10 +727,6 @@ export default function DanhSachGoiThau() {
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStepStateDto[] | null>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
-  const [parallelGroups, setParallelGroups] = useState<ParallelGroupDto[]>([]);
-
-  // Design-time step preview (fallback when workflow not started)
-  const [designSteps, setDesignSteps] = useState<BuocWorkflowDto[]>([]);
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GoiThau | null>(null);
   const [historyTarget, setHistoryTarget] = useState<GoiThau | null>(null);
@@ -742,7 +735,6 @@ export default function DanhSachGoiThau() {
   const isAdminObserver = currentUser ? getRoleCode(currentUser) === "ADMIN" : false;
   const canMutateGoiThau = currentUser != null && !isAdminObserver;
   const canProcessWorkflow = currentUser != null && hasAnyPermission(currentUser, CURRENT_STEP_UPDATE_PERMISSIONS);
-  const canViewWorkflowDesign = currentUserLoaded && canManageWorkflowDesign(currentUser);
   const canUserEditGoiThau = (item?: GoiThau | null) =>
     canMutateGoiThau && canEditGoiThau(item);
   const canUserDeleteGoiThau = (item?: GoiThau | null) =>
@@ -785,9 +777,6 @@ export default function DanhSachGoiThau() {
       })
       .catch(() => {
         if (!cancelled) setCurrentUser(null);
-      })
-      .finally(() => {
-        if (!cancelled) setCurrentUserLoaded(true);
       });
 
     return () => {
@@ -865,8 +854,6 @@ export default function DanhSachGoiThau() {
     if (!numericId) {
       setWorkflowState(null);
       setWorkflowSteps(null);
-      setDesignSteps([]);
-      setParallelGroups([]);
       return;
     }
 
@@ -883,48 +870,10 @@ export default function DanhSachGoiThau() {
         if (cancelled) return;
         setWorkflowState(state);
         setWorkflowSteps(steps);
-
-        const workflowId = selected.workflowId ?? state.workflowId;
-        if (!workflowId || !canViewWorkflowDesign) {
-          setDesignSteps([]);
-          setParallelGroups([]);
-          return;
-        }
-
-        const [design, groups] = await Promise.all([
-          getWorkflowDesignSteps(workflowId, { skipAuthToast: true }).catch(() => [] as BuocWorkflowDto[]),
-          getParallelGroups(workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
-        ]);
-
-        if (cancelled) return;
-        setDesignSteps(design);
-        setParallelGroups(groups);
       } catch {
         if (cancelled) return;
         setWorkflowState(null);
         setWorkflowSteps(null);
-        setDesignSteps([]);
-        setParallelGroups([]);
-
-        if (!selected.workflowId || !canViewWorkflowDesign) {
-          return;
-        }
-
-        try {
-          const [steps, groups] = await Promise.all([
-            getWorkflowDesignSteps(selected.workflowId, { skipAuthToast: true }),
-            getParallelGroups(selected.workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
-          ]);
-          if (!cancelled) {
-            setDesignSteps(steps);
-            setParallelGroups(groups);
-          }
-        } catch {
-          if (!cancelled) {
-            setDesignSteps([]);
-            setParallelGroups([]);
-          }
-        }
       } finally {
         if (!cancelled) setWorkflowLoading(false);
       }
@@ -935,7 +884,7 @@ export default function DanhSachGoiThau() {
     return () => {
       cancelled = true;
     };
-  }, [selected.id, selected.workflowId, workflowRefreshKey, canViewWorkflowDesign]);
+  }, [selected.id, selected.workflowId, workflowRefreshKey]);
 
   /* ─ Derived list ─ */
   const filtered = useMemo(() => {
@@ -1057,7 +1006,6 @@ export default function DanhSachGoiThau() {
       workflowState,
       currentWorkflowSummary,
       currentUser,
-      currentUserLoaded,
     );
     if (!actionState.enabled) {
       toast.error(actionState.reason);
@@ -1081,28 +1029,24 @@ export default function DanhSachGoiThau() {
     const baseSteps = buildWorkflowDetailSteps(
       workflowState,
       workflowSteps ?? [],
-      designSteps,
-      parallelGroups,
-      { allowWorkflowDesign: canViewWorkflowDesign },
+      [],
+      workflowState?.parallelGroups ?? [],
     );
     const completedSteps = baseSteps.filter((step) => step.state === "done").length;
     const progressText = workflowState
-      ? canViewWorkflowDesign && baseSteps.length > 0
+      ? baseSteps.length > 0
         ? `${completedSteps}/${baseSteps.length}`
         : `${workflowState.soBuocHoanThanh}/${workflowState.tongSoBuoc}`
       : selected.detail.buoc;
     const progressPct =
       workflowState && baseSteps.length > 0
-        ? canViewWorkflowDesign
-          ? `${Math.round((completedSteps / baseSteps.length) * 100)}%`
-          : `${workflowState.tongSoBuoc > 0 ? Math.round((workflowState.soBuocHoanThanh / workflowState.tongSoBuoc) * 100) : 0}%`
+        ? `${Math.round((completedSteps / baseSteps.length) * 100)}%`
         : selected.detail.pct;
     const currentStepActionState = getCurrentStepActionState(
       selected,
       workflowState,
       currentWorkflowSummary,
       currentUser,
-      currentUserLoaded,
     );
     const canProcessWorkflowStep = () => canMutateGoiThau && currentStepActionState.enabled;
 

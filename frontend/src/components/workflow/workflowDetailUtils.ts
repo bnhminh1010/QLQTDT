@@ -503,7 +503,8 @@ export function buildWorkflowDetailSteps(
     currentWorkflowBuocWorkflowId != null ? [currentWorkflowBuocWorkflowId] : [],
   );
   const runtimeSteps = state?.steps.length ? state.steps : fallbackSteps;
-  const useWorkflowDesign = options?.allowWorkflowDesign !== false && (designSteps.length > 0 || parallelGroups.length > 0);
+  const resolvedParallelGroups = parallelGroups.length > 0 ? parallelGroups : state?.parallelGroups ?? [];
+  const useWorkflowDesign = options?.allowWorkflowDesign !== false && (designSteps.length > 0 || resolvedParallelGroups.length > 0);
 
   if (!useWorkflowDesign) {
     return dedupeDetailStepsByDesignStep(
@@ -517,7 +518,7 @@ export function buildWorkflowDetailSteps(
   }
 
   const parallelInfoBySplitStep = buildParallelInfoBySplitStep(
-    parallelGroups,
+    resolvedParallelGroups,
     runtimeSteps,
     designSteps,
     state?.currentSteps ?? [],

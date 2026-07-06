@@ -52,6 +52,33 @@ public class WorkflowDesignPermissionContractTests
     }
 
     [Fact]
+    public void CreateTenderAndReportUseSharedRolePolicy()
+    {
+        var hookSource = ReadFrontendSource("hooks/useAccessLevel.ts");
+        var sidebarSource = ReadFrontendSource("components/Sidebar/index.tsx");
+        var routeGuardSource = ReadFrontendSource("components/RouteGuard.tsx");
+        var taoSource = ReadFrontendSource("pages/TaoGoiThau/index.tsx");
+
+        Assert.Contains("export function canAccessCreateTender", hookSource);
+        Assert.Contains("return isKhoaPhongUser(user);", hookSource);
+        Assert.Contains("export function canAccessReport", hookSource);
+        Assert.Contains("if (isKhoaPhongUser(user)) return false;", hookSource);
+        Assert.Contains("canAccessCreateTender(user) && renderNavItem(\"/tao-goi-thau\"", sidebarSource);
+        Assert.Contains("canAccessReport(user) && renderNavItem(\"/bao-cao\"", sidebarSource);
+        Assert.Contains("path === \"/tao-goi-thau\" && !canAccessCreateTender(user)", routeGuardSource);
+        Assert.Contains("path === \"/bao-cao\" && !canAccessReport(user)", routeGuardSource);
+        Assert.Contains("if (currentUser && !canAccessCreateTender(currentUser))", taoSource);
+    }
+
+    [Fact]
+    public void BaoCaoController_DeniesKhoaPhongRole()
+    {
+        var source = ReadBackendSource("Controllers/BaoCaoController.cs");
+
+        Assert.Contains("[DenyRoles(\"KHOA_PHONG\")]", source);
+    }
+
+    [Fact]
     public void WorkflowMutationEndpoints_DoNotAllowViewOnlyPermissions()
     {
         var source = ReadBackendSource("Controllers/WorkflowsController.cs");
@@ -72,14 +99,19 @@ public class WorkflowDesignPermissionContractTests
     }
 
     [Fact]
-    public void DanhSachGoiThau_SkipsWorkflowDesignApisWithoutDesignAccess()
+    public void WorkflowDetailPages_UseParallelGroupsFromWorkflowState()
     {
-        var source = ReadFrontendSource("pages/DanhSachGoiThau/index.tsx");
+        var dashboardSource = ReadFrontendSource("pages/Dashboard/index.tsx");
+        var goiThauSource = ReadFrontendSource("pages/DanhSachGoiThau/index.tsx");
 
-        Assert.Contains("const canViewWorkflowDesign = currentUserLoaded && canManageWorkflowDesign(currentUser);", source);
-        Assert.Contains("if (!workflowId || !canViewWorkflowDesign) {", source);
-        Assert.Contains("getWorkflowDesignSteps(workflowId, { skipAuthToast: true })", source);
-        Assert.DoesNotContain("getWorkflowDesignSteps(selected.workflowId)", source);
+        Assert.Contains("workflowState?.parallelGroups ?? []", dashboardSource);
+        Assert.Contains("workflowState?.parallelGroups ?? []", goiThauSource);
+        Assert.DoesNotContain("getWorkflowDesignSteps(", dashboardSource);
+        Assert.DoesNotContain("getParallelGroups(", dashboardSource);
+        Assert.DoesNotContain("getWorkflowDesignSteps(", goiThauSource);
+        Assert.DoesNotContain("getParallelGroups(", goiThauSource);
+        Assert.DoesNotContain("canManageWorkflowDesign", dashboardSource);
+        Assert.DoesNotContain("canManageWorkflowDesign", goiThauSource);
     }
 
     [Fact]
