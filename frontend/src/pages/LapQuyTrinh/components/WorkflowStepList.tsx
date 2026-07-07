@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import type { WorkflowStepDraft, ParallelGroupDraft } from "../workflowDesignerTypes";
 import WorkflowStepCard from "./WorkflowStepCard";
 import ParallelGroupEditor from "./ParallelGroupEditor";
+import { getMainWorkflowSteps } from "../workflowDesignerUtils";
 
 interface Props {
   steps: WorkflowStepDraft[];
@@ -145,7 +146,7 @@ export default function WorkflowStepList({
       ) : (
         <ol className="space-y-2.5">
           {(() => {
-            const mainSteps = steps.filter((s) => !s.nhanhId);
+            const mainSteps = getMainWorkflowSteps(steps, parallelGroups);
 
             return mainSteps.map((s, idx) => {
               const isOrphan = orphanIds.has(s.id);

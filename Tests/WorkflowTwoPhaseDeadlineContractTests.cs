@@ -96,11 +96,41 @@ public class WorkflowTwoPhaseDeadlineContractTests
         var previewSource = ReadFrontendSource("pages/LapQuyTrinh/components/WorkflowPreview.tsx");
 
         Assert.Contains("function moveMainStep(stepId: string, direction: -1 | 1)", designerSource);
-        Assert.Contains("const mainSteps = prev.filter((step) => !step.nhanhId);", designerSource);
+        Assert.Contains("const mainSteps = getMainWorkflowSteps(prev, parallelGroups);", designerSource);
         Assert.Contains("onMoveUp={() => onMoveUp(s.id)}", stepListSource);
         Assert.Contains("onMoveDown={() => onMoveDown(s.id)}", stepListSource);
         Assert.Contains("nodes.map((n, nodeIndex)", previewSource);
         Assert.Contains("idxNotLast(nodeIndex, nodes)", previewSource);
+    }
+
+    [Fact]
+    public void WorkflowDesigner_PreviewRendersMainFlowAndBranchesSeparately()
+    {
+        var previewSource = ReadFrontendSource("pages/LapQuyTrinh/components/WorkflowPreview.tsx");
+        var stepListSource = ReadFrontendSource("pages/LapQuyTrinh/components/WorkflowStepList.tsx");
+        var designerSource = ReadFrontendSource("pages/LapQuyTrinh/index.tsx");
+        var utilsSource = ReadFrontendSource("pages/LapQuyTrinh/workflowDesignerUtils.ts");
+
+        Assert.Contains("buildParallelBranchStepIdSet", utilsSource);
+        Assert.Contains("branch.stepIds", utilsSource);
+        Assert.Contains("const mainSteps = getMainWorkflowSteps(steps, parallelGroups);", previewSource);
+        Assert.Contains("const mainSteps = getMainWorkflowSteps(steps, parallelGroups);", stepListSource);
+        Assert.Contains("for (let idx = 0; idx < mainSteps.length; idx++)", previewSource);
+        Assert.Contains("const step = mainSteps[idx];", previewSource);
+        Assert.Contains("branch.stepIds", previewSource);
+        Assert.Contains("function handleOpenMainLibrary()", designerSource);
+        Assert.Contains("setModalContext({ type: \"main\" });", designerSource);
+    }
+
+    [Fact]
+    public void WorkflowDelete_ClearsBoundaryStepsBeforeDeletingDesignSteps()
+    {
+        var source = ReadBackendSource("Services/WorkflowConfigService.cs");
+
+        Assert.Contains("entity.BuocBatDauId = null;", source);
+        Assert.Contains("entity.BuocKetThucId = null;", source);
+        Assert.Contains("Workflow delete blocked: workflowId={WorkflowId}", source);
+        Assert.Contains("Workflow delete failed due to configuration references", source);
     }
 
     private static string ReadBackendSource(string relativePath)

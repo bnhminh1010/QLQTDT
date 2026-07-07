@@ -1,5 +1,6 @@
 import type { WorkflowStepDraft, ParallelGroupDraft } from "../workflowDesignerTypes";
 import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
+import { getMainWorkflowSteps } from "../workflowDesignerUtils";
 
 interface Props {
   steps: WorkflowStepDraft[];
@@ -20,11 +21,12 @@ export default function WorkflowPreview({ steps, parallelGroups, orphanIds }: Pr
 
   const splitStepIds = new Set(parallelGroups.map((g) => g.buocTachNhanhId));
   const mergeStepIds = new Set(parallelGroups.map((g) => g.buocSauHopNhatId));
+  const mainSteps = getMainWorkflowSteps(steps, parallelGroups);
 
   // Build ordered node list from steps, injecting branch views between split/merge
   const nodes: StepNode[] = [];
-  for (let idx = 0; idx < steps.length; idx++) {
-    const step = steps[idx];
+  for (let idx = 0; idx < mainSteps.length; idx++) {
+    const step = mainSteps[idx];
     const isSplit = splitStepIds.has(step.id);
     const isMerge = mergeStepIds.has(step.id);
 
@@ -143,15 +145,16 @@ function BranchView({ group, allSteps }: { group: ParallelGroupDraft; allSteps: 
         Nhánh song song
       </p>
       <div className="space-y-0.5">
-        {group.branches.map((b, bi) => {
-          const branchStepNames = allSteps
-            .filter((s) => s.nhanhId === b.id)
+        {group.branches.map((branch, bi) => {
+          const branchStepNames = branch.stepIds
+            .map((stepId) => allSteps.find((s) => s.id === stepId))
+            .filter((step): step is WorkflowStepDraft => Boolean(step))
             .map((s) => s.tenBuoc)
             .join(" → ");
           return (
-            <p key={b.id} className="text-[10px] text-slate-600 font-mono leading-relaxed">
+            <p key={branch.id} className="text-[10px] text-slate-600 font-mono leading-relaxed">
               {bi === 0 ? "├─ " : bi === group.branches.length - 1 ? "└─ " : "├─ "}
-              <span className="font-semibold">{resolveParallelBranchLabel(b, bi)}:</span>{" "}
+              <span className="font-semibold">{resolveParallelBranchLabel(branch, bi)}:</span>{" "}
               <span className="text-slate-500">{branchStepNames || "—"}</span>
             </p>
           );

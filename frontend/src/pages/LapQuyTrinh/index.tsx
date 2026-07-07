@@ -24,6 +24,7 @@ import StepLibraryModal from "./components/StepLibraryModal";
 import DeleteStepConfirmModal from "./components/DeleteStepConfirmModal";
 import LeaveConfirmModal from "./components/LeaveConfirmModal";
 import type { TemplateInfo } from "./workflowDesignerTypes";
+import { getMainWorkflowSteps } from "./workflowDesignerUtils";
 import { getAllRoles, getKhoaPhongs, type KhoaPhong, type RoleItem } from "@/services/adminApi";
 import { normalizeParallelGroupTitle } from "@/constants/parallelGroup";
 import { getDefaultParallelBranchLabel, resolveParallelBranchLabel } from "@/constants/parallelBranch";
@@ -509,7 +510,7 @@ export default function LapQuyTrinh() {
 
   function moveMainStep(stepId: string, direction: -1 | 1) {
     setBuocList((prev) => {
-      const mainSteps = prev.filter((step) => !step.nhanhId);
+      const mainSteps = getMainWorkflowSteps(prev, parallelGroups);
       const mainIndex = mainSteps.findIndex((step) => step.id === stepId);
       const targetMainStep = mainSteps[mainIndex + direction];
       if (mainIndex < 0 || !targetMainStep) return prev;
@@ -721,6 +722,13 @@ export default function LapQuyTrinh() {
     setNewStepForm(emptyStepForm());
     setNewStepErrs({});
     setStepModalOpen(true);
+  }
+
+  function handleOpenMainLibrary() {
+    setEditTargetIdx(undefined);
+    setModalContext({ type: "main" });
+    setNewStepErrs({});
+    setLibraryOpen(true);
   }
 
   function handleNewStepSave() {
@@ -975,7 +983,7 @@ export default function LapQuyTrinh() {
           onInsertAfter={handleInsertAfter}
           onCreateParallel={handleCreateParallel}
           onClone={handleClone}
-          onAddFromLibrary={() => setLibraryOpen(true)}
+          onAddFromLibrary={handleOpenMainLibrary}
           onAddNew={() => { setEditTargetIdx(undefined); setModalContext({ type: "main" }); setNewStepForm(emptyStepForm()); setNewStepErrs({}); setStepModalOpen(true); }}
           onUpdateGroup={handleUpdateGroup}
           onDeleteGroup={handleDeleteGroup}
@@ -1011,7 +1019,7 @@ export default function LapQuyTrinh() {
         donViOptions={donViOptionLabels}
         vaiTroOptions={vaiTroOptionLabels}
         onChange={(d) => setNewStepForm(d)} onSave={handleNewStepSave}
-        onClose={() => { setStepModalOpen(false); setEditTargetIdx(undefined); }}
+        onClose={() => { setStepModalOpen(false); setEditTargetIdx(undefined); setModalContext({ type: "main" }); }}
       />
 
       <StepLibraryModal

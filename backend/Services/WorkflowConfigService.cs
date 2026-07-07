@@ -731,7 +731,7 @@ public class WorkflowConfigService : IWorkflowConfigService
         if (runningInstanceCount > 0)
         {
             _logger.LogWarning(
-                "Delete blocked for workflowId={WorkflowId}. workflowInstanceCount={WorkflowInstanceCount}",
+                "Workflow delete blocked: workflowId={WorkflowId}, workflowInstanceCount={WorkflowInstanceCount}",
                 id, runningInstanceCount);
             throw new AppException(409, "WORKFLOW_IN_USE", "Quy trình đã được sử dụng, không thể xóa.");
         }
@@ -740,6 +740,10 @@ public class WorkflowConfigService : IWorkflowConfigService
 
         try
         {
+            entity.BuocBatDauId = null;
+            entity.BuocKetThucId = null;
+            await _context.SaveChangesAsync();
+
             var workflowInstanceIds = await _context.WorkflowInstances
                 .Where(i => i.WorkflowId == id)
                 .Select(i => i.Id)
@@ -838,7 +842,7 @@ public class WorkflowConfigService : IWorkflowConfigService
             await tx.RollbackAsync();
             _logger.LogError(
                 ex,
-                "Failed to delete workflow: id={WorkflowId}, ex.Message={ExceptionMessage}, innerException={InnerExceptionMessage}",
+                "Workflow delete failed due to configuration references: id={WorkflowId}, ex.Message={ExceptionMessage}, innerException={InnerExceptionMessage}",
                 id,
                 ex.Message,
                 ex.InnerException?.Message ?? "<none>");
