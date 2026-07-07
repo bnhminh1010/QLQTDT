@@ -14,8 +14,11 @@ public class TaiLieuDto
     public string TenFile { get; set; } = null!;
     public long KichThuoc { get; set; }
     public string LoaiTaiLieu { get; set; } = null!;
+    public string? DocumentPhase { get; set; }
     public string ContentType { get; set; } = null!;
     public int? GoiThauId { get; set; }
+    public long? WorkflowStepInstanceId { get; set; }
     public int? NguoiUploadId { get; set; }
+    public string? NguoiUploadTen { get; set; }
     public DateTime NgayTao { get; set; }
 }

@@ -100,6 +100,7 @@ export type WorkflowDesignBranchRequest = {
   id: string;
   maNhanh: string;
   tenNhanh: string;
+  branchName?: string;
   thuTu: number;
   donViXuLyId?: number;
   vaiTroXuLyId?: number;
@@ -199,6 +200,8 @@ export type ParallelBranchDto = {
   nhomNhanhWorkflowId: number;
   maNhanh: string;
   tenNhanh: string;
+  branchName?: string;
+  name?: string;
   thuTu: number;
   donViXuLyId?: number;
   vaiTroXuLyId?: number;
@@ -444,6 +447,7 @@ export type ParallelGroupUpdateRequest = {
 export type ParallelBranchCreateRequest = {
   maNhanh: string;
   tenNhanh: string;
+  branchName?: string;
   thuTu: number;
   donViXuLyId?: number;
   vaiTroXuLyId?: number;
@@ -454,6 +458,7 @@ export type ParallelBranchCreateRequest = {
 
 export type ParallelBranchUpdateRequest = {
   tenNhanh?: string;
+  branchName?: string;
   thuTu?: number;
   donViXuLyId?: number | null;
   vaiTroXuLyId?: number | null;
@@ -540,15 +545,18 @@ export type CurrentStepDto = {
   trangThai: string;
   phaHienTai: string;
   tenNhanh?: string;
+  branchName?: string;
   hanXuLy?: string;
   tinhTrangTienDo?: string;
 };
 
 export type WorkflowStepStateDto = {
   id: number;
+  workflowStepInstanceId?: number;
   buocWorkflowId: number;
   nhanhWorkflowId?: number;
   tenNhanh?: string;
+  branchName?: string;
   tenBuoc: string;
   trangThai: string;
   phaHienTai?: string;
@@ -560,10 +568,16 @@ export type WorkflowStepStateDto = {
   ngayKyDuyet?: string;
   ketQua?: string;
   ghiChu?: string;
+  ghiChuNguon?: "USER" | "SYSTEM";
   lyDoKhongDuyet?: string;
   tenVaiTroXuLy?: string;
   tenVaiTroKyDuyet?: string;
   tenDonViXuLy?: string;
+  tenDonViKyDuyet?: string;
+  processingUnitName?: string;
+  processingRoleName?: string;
+  approvalUnitName?: string;
+  approvalRoleName?: string;
   hanXuLy?: string;
   quaHan?: boolean;
   tinhTrangTienDo?: string;
@@ -605,6 +619,13 @@ export type ProcessStepRequest = {
   nguoiXuLy?: string;
   nguoiKyDuyet?: string;
   ketQua?: string;
+};
+
+export type SkipBranchRequest = {
+  branchId?: number;
+  parallelBranchId?: number;
+  workflowInstanceId?: number;
+  ghiChu?: string;
 };
 
 export type ProcessStepResponse = {
@@ -694,6 +715,17 @@ export async function processStep(
   const res = await http.post<ApiResponse<ProcessStepResponse>>(
     `/goi-thau/${goiThauId}/process-step`,
     request
+  );
+  return res.data;
+}
+
+export async function skipBranch(
+  goiThauId: number,
+  request: SkipBranchRequest,
+): Promise<ProcessStepResponse> {
+  const res = await http.post<ApiResponse<ProcessStepResponse>>(
+    `/goi-thau/${goiThauId}/skip-branch`,
+    request,
   );
   return res.data;
 }

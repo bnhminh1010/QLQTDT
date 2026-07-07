@@ -59,10 +59,38 @@ public class TraVeStepValidator : AbstractValidator<TraVeStepRequest>
     }
 }
 
+public class SkipBranchRequestValidator : AbstractValidator<SkipBranchRequest>
+{
+    public SkipBranchRequestValidator()
+    {
+        RuleFor(x => x)
+            .Must(x => x.BranchId.HasValue || x.ParallelBranchId.HasValue)
+            .WithMessage("BranchId hoặc ParallelBranchId là bắt buộc.");
+
+        RuleFor(x => x.BranchId)
+            .GreaterThan(0).When(x => x.BranchId.HasValue)
+            .WithMessage("BranchId phải lớn hơn 0.");
+
+        RuleFor(x => x.ParallelBranchId)
+            .GreaterThan(0).When(x => x.ParallelBranchId.HasValue)
+            .WithMessage("ParallelBranchId phải lớn hơn 0.");
+
+        RuleFor(x => x.WorkflowInstanceId)
+            .GreaterThan(0).When(x => x.WorkflowInstanceId.HasValue)
+            .WithMessage("WorkflowInstanceId phải lớn hơn 0.");
+
+        RuleFor(x => x.GhiChu)
+            .MaximumLength(1000).WithMessage("GhiChu không được vượt quá 1000 ký tự.");
+    }
+}
+
 public class ProcessStepValidator : AbstractValidator<ProcessStepRequest>
 {
     private static readonly string[] AllowedActions =
         ["APPROVE", "REJECT", "ROLLBACK", "SKIP", "REASSIGN", "DUYET", "KHONG_DUYET", "TRA_VE"];
+
+    private static bool IsApprovalDecisionAction(string? action)
+        => action is WorkflowHanhDong.DUYET or WorkflowHanhDong.KHONG_DUYET;
 
     public ProcessStepValidator()
     {
@@ -81,7 +109,13 @@ public class ProcessStepValidator : AbstractValidator<ProcessStepRequest>
         RuleFor(x => x.RowVersion)
             .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
 
-        // Actor/time are derived server-side from JWT claims and DateTime.UtcNow.
-        // Client must NOT send NguoiXuLyId/NguoiKyDuyetId/NgayXuLy/NgayKyDuyet.
+        RuleFor(x => x.NguoiKyDuyet)
+            .NotEmpty().WithMessage("Người ký duyệt là bắt buộc khi cập nhật kết quả ký duyệt.")
+            .MaximumLength(200).WithMessage("Người ký duyệt không được vượt quá 200 ký tự.")
+            .When(x => IsApprovalDecisionAction(x.HanhDong));
+
+        RuleFor(x => x.NgayKyDuyet)
+            .NotNull().WithMessage("Ngày ký duyệt là bắt buộc khi cập nhật kết quả ký duyệt.")
+            .When(x => IsApprovalDecisionAction(x.HanhDong));
     }
 }

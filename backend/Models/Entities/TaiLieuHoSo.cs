@@ -13,20 +13,29 @@ public static class LoaiTaiLieu
 
     public static readonly string[] All = [HOSO_DUTHAU, HOP_DONG, PHU_LUC_HOP_DONG, NGHIEM_THU, QUYET_TOAN, BAO_CAO, HO_SO_NANG_LUC, KHAC];
 
-    // Các loại tài liệu hợp lệ khi đính kèm vào hợp đồng
     public static readonly string[] HopDongTypes = [HOP_DONG, PHU_LUC_HOP_DONG, NGHIEM_THU, QUYET_TOAN];
+}
+
+public static class DocumentPhase
+{
+    public const string Processing = "Processing";
+    public const string Approval = "Approval";
+
+    public static readonly string[] All = [Processing, Approval];
 }
 
 public class TaiLieuHoSo : IBaseEntity, ISoftDeletable
 {
     public int Id { get; set; }
     public int? GoiThauId { get; set; }
+    public long? WorkflowStepInstanceId { get; set; }
     public int? HoSoDuThauId { get; set; }
     public int? HopDongId { get; set; }
     public string TenFile { get; set; } = null!;
     public string DuongDanFtp { get; set; } = null!;
     public long KichThuoc { get; set; }
     public string LoaiTaiLieu { get; set; } = null!;
+    public string? DocumentPhase { get; set; }
     public string ContentType { get; set; } = null!;
     public int? NguoiUploadId { get; set; }
     public DateTime NgayTao { get; set; }

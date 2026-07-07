@@ -1,10 +1,11 @@
+import { useEffect, useState } from "react";
 import { SelectField } from "@/components/ui/select";
 import type { ParallelGroupDraft, DieuKienHopNhatUI } from "../workflowDesignerTypes";
 import type { WorkflowStepDraft } from "../workflowDesignerTypes";
+import { getDefaultParallelBranchLabel, MAX_PARALLEL_BRANCH_LABEL_LENGTH, resolveParallelBranchLabel } from "@/constants/parallelBranch";
 
 interface Props {
   group: ParallelGroupDraft;
-  idx: number;
   steps: WorkflowStepDraft[];
   inline?: boolean;
   onUpdateGroup: (g: ParallelGroupDraft) => void;
@@ -32,6 +33,8 @@ export default function ParallelGroupEditor({
   onDeleteStep,
 }: Props) {
   const stepMap = new Map(steps.map((step) => [step.id, step] as const));
+  const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
+  const [editingBranchName, setEditingBranchName] = useState("");
 
   // Only show main-flow steps that come AFTER the split step
   const splitStepIdx = steps.findIndex((s) => s.id === group.buocTachNhanhId);
@@ -45,6 +48,31 @@ export default function ParallelGroupEditor({
     stepIds
       .map((stepId) => stepMap.get(stepId))
       .filter((step): step is WorkflowStepDraft => Boolean(step));
+
+  useEffect(() => {
+    if (editingBranchId && !group.branches.some((branch) => branch.id === editingBranchId)) {
+      setEditingBranchId(null);
+      setEditingBranchName("");
+    }
+  }, [editingBranchId, group.branches]);
+
+  function updateBranchName(branchId: string, rawValue: string, branchIndex: number) {
+    const nextName = rawValue.trim() || getDefaultParallelBranchLabel(branchIndex);
+    onUpdateGroup({
+      ...group,
+      branches: group.branches.map((branch) =>
+        branch.id === branchId
+          ? { ...branch, branchName: nextName, tenNhanh: nextName }
+          : branch,
+      ),
+    });
+  }
+
+  function finishEditing(branchId: string, branchIndex: number) {
+    updateBranchName(branchId, editingBranchName, branchIndex);
+    setEditingBranchId(null);
+    setEditingBranchName("");
+  }
 
   return (
     <div className={inline ? "h-full border border-purple-100 rounded-xl bg-purple-50/40 p-3 space-y-3" : "ml-8 border-l-2 border-purple-300 pl-4 my-2 space-y-3"}>
@@ -81,6 +109,8 @@ export default function ParallelGroupEditor({
           {group.branches.map((branch, bi) => {
             const branchStepsList = branchSteps(branch.stepIds);
             const hasStep = branchStepsList.length > 0;
+            const branchLabel = resolveParallelBranchLabel(branch, bi);
+            const isEditing = editingBranchId === branch.id;
 
             return (
               <div
@@ -88,9 +118,43 @@ export default function ParallelGroupEditor({
                 className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-600">
-                    {branch.tenNhanh || `Nhánh ${bi + 1}`}
-                  </span>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    {isEditing ? (
+                      <input
+                        autoFocus
+                        value={editingBranchName}
+                        maxLength={MAX_PARALLEL_BRANCH_LABEL_LENGTH}
+                        onChange={(e) => setEditingBranchName(e.target.value)}
+                        onBlur={() => finishEditing(branch.id, bi)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            finishEditing(branch.id, bi);
+                          }
+                          if (e.key === "Escape") {
+                            setEditingBranchId(null);
+                            setEditingBranchName("");
+                          }
+                        }}
+                        className="min-w-0 flex-1 rounded-lg border border-purple-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-purple-300"
+                      />
+                    ) : (
+                      <span className="truncate text-xs font-semibold text-slate-600" title={branchLabel}>
+                        {branchLabel}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingBranchId(branch.id);
+                        setEditingBranchName(branchLabel);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:bg-white hover:text-purple-500"
+                      title="Sửa tên nhánh"
+                    >
+                      <i className="fa-solid fa-pen text-[10px]" />
+                    </button>
+                  </div>
                   <button
                     onClick={() => onRemoveBranch(branch.id)}
                     className="w-5 h-5 flex items-center justify-center rounded text-red-400 hover:bg-red-50"

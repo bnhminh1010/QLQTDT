@@ -1,5 +1,6 @@
 import type { WorkflowTemplatePreview } from "@/services/workflowApi";
 import type { ParallelGroupDto } from "@/services/workflowApi";
+import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
 
 interface Props {
   open: boolean;
@@ -15,9 +16,9 @@ function renderParallelGroups(groups: ParallelGroupDto[]) {
       {groups.map((g) => (
         <div key={g.id} className="ml-4 border-l-2 border-amber-300 pl-3 my-1 text-xs text-amber-700">
           <div className="font-semibold">Tách nhánh: {g.tenNhom}</div>
-          {g.branches.map((b) => (
+          {g.branches.map((b, bi) => (
             <div key={b.id} className="ml-2 text-slate-600">
-              ├─ {b.tenNhanh}
+              ├─ {resolveParallelBranchLabel(b, bi)}
             </div>
           ))}
           <div className="text-purple-600 font-semibold mt-1">

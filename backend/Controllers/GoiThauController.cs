@@ -112,6 +112,21 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Xử lý bước workflow thành công"));
     }
 
+    [HttpPost("{id}/skip-branch")]
+    [HasPermission("WORKFLOW.PROCESS")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> SkipBranch(
+        int id,
+        [FromBody] SkipBranchRequest request,
+        [FromServices] IValidator<SkipBranchRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToErrorResponse(validation));
+
+        var result = await _workflowEngine.SkipBranchAsync(id, request);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Bỏ qua nhánh workflow thành công"));
+    }
+
     /// <summary>
     /// BA user-driven flow: Duyệt bước hiện tại → chuyển step kế hoặc complete
     /// </summary>

@@ -136,6 +136,13 @@ public class WorkflowDesignParallelBranchRequestValidator : AbstractValidator<Wo
             .NotEmpty().WithMessage("TenNhanh khong duoc de trong")
             .MaximumLength(255).WithMessage("TenNhanh toi da 255 ky tu");
 
+        When(x => x.BranchName != null, () =>
+        {
+            RuleFor(x => x.BranchName)
+                .NotEmpty().WithMessage("BranchName khong duoc de trong")
+                .MaximumLength(100).WithMessage("BranchName toi da 100 ky tu");
+        });
+
         RuleFor(x => x.ThuTu)
             .GreaterThan(0).WithMessage("ThuTu phai lon hon 0");
 
@@ -268,6 +275,13 @@ public class ParallelBranchCreateRequestValidator : AbstractValidator<ParallelBr
             .NotEmpty().WithMessage("TenNhanh khong duoc de trong")
             .MaximumLength(255).WithMessage("TenNhanh toi da 255 ky tu");
 
+        When(x => x.BranchName != null, () =>
+        {
+            RuleFor(x => x.BranchName)
+                .NotEmpty().WithMessage("BranchName khong duoc de trong")
+                .MaximumLength(100).WithMessage("BranchName toi da 100 ky tu");
+        });
+
         RuleFor(x => x.BuocDauTienId)
             .GreaterThan(0).WithMessage("BuocDauTienId phai lon hon 0");
 
@@ -289,6 +303,13 @@ public class ParallelBranchUpdateRequestValidator : AbstractValidator<ParallelBr
             RuleFor(x => x.TenNhanh)
                 .NotEmpty().WithMessage("TenNhanh khong duoc de trong")
                 .MaximumLength(255).WithMessage("TenNhanh toi da 255 ky tu");
+        });
+
+        When(x => x.BranchName != null, () =>
+        {
+            RuleFor(x => x.BranchName)
+                .NotEmpty().WithMessage("BranchName khong duoc de trong")
+                .MaximumLength(100).WithMessage("BranchName toi da 100 ky tu");
         });
 
         When(x => x.LoaiHan != null, () =>

@@ -10,9 +10,10 @@ import type {
   WorkflowDetailInfo,
   WorkflowDetailStep,
   WorkflowParallelInfo,
-  WorkflowParallelBranchStepState,
+  WorkflowParallelBranchStep,
 } from "./workflowDetailTypes";
 import { normalizeParallelGroupTitle } from "@/constants/parallelGroup";
+import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
 
 const TIEN_DO_LABEL: Record<string, string> = {
   DUNG_TIEN_DO: "Đúng hạn",
@@ -21,6 +22,7 @@ const TIEN_DO_LABEL: Record<string, string> = {
   CHUA_THUC_HIEN: "Chưa thực hiện",
   CHUA_CO_HAN: "Chưa có hạn xử lý",
   HOAN_TAT: "Hoàn tất",
+  SKIPPED: "Đã bỏ qua",
 };
 
 const SLA_TONE_MAP: Record<string, "emerald" | "amber" | "red" | "slate"> = {
@@ -30,6 +32,7 @@ const SLA_TONE_MAP: Record<string, "emerald" | "amber" | "red" | "slate"> = {
   CHUA_CO_HAN: "slate",
   CHUA_THUC_HIEN: "slate",
   HOAN_TAT: "emerald",
+  SKIPPED: "slate",
 };
 
 const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
@@ -81,6 +84,18 @@ export function resolveWorkflowSlaState(
   hanXuLy?: string | null,
   rawProgressStatus?: string | null,
 ): WorkflowSlaState {
+  const normalizedRawStatus = rawProgressStatus?.trim() || "";
+
+  if (normalizedRawStatus === "SKIPPED") {
+    return {
+      statusText: TIEN_DO_LABEL.SKIPPED,
+      dueDateText: hanXuLy ? formatVietnamDate(new Date(hanXuLy)) : WORKFLOW_DISPLAY_DASH,
+      tone: "slate",
+      hasDeadline: Boolean(hanXuLy),
+      source: "backend",
+    };
+  }
+
   if (!hanXuLy) {
     return {
       statusText: "Chưa thiết lập hạn xử lý",
@@ -94,7 +109,6 @@ export function resolveWorkflowSlaState(
   const dueDate = new Date(hanXuLy);
   const dueDateKey = getVietnamDateKey(dueDate);
   const dueDateText = formatVietnamDate(dueDate);
-  const normalizedRawStatus = rawProgressStatus?.trim() || "";
 
   if (normalizedRawStatus) {
     const tone = getSlaTone(normalizedRawStatus);
@@ -163,6 +177,43 @@ export function normalizeWorkflowText(value?: string | null, fallback = WORKFLOW
   return normalized || fallback;
 }
 
+function isSystemGeneratedSkipNote(note?: string | null) {
+  if (!note) return false;
+  const normalized = normalizeWorkflowText(note, "");
+  return normalized.startsWith("Đã bỏ qua toàn bộ nhánh ") || normalized.startsWith("Bỏ qua nhánh ");
+}
+
+export function resolveWorkflowNoteLabel(
+  step: {
+    ghiChu?: string | null;
+    ghiChuNguon?: string | null;
+    trangThai?: string | null;
+    state?: string | null;
+  },
+) {
+  if (!step.ghiChu?.trim()) return "Ghi chú";
+
+  const isSkipped = step.trangThai === "SKIPPED" || step.state === "skipped";
+
+  if (isSkipped) {
+    if (step.ghiChuNguon === "SYSTEM") return "Ghi chú hệ thống";
+    if (step.ghiChuNguon === "USER") return "Lý do bỏ qua";
+    return isSystemGeneratedSkipNote(step.ghiChu) ? "Ghi chú hệ thống" : "Lý do bỏ qua";
+  }
+
+  return "Ghi chú";
+}
+
+export function resolveSkippedBranchNoteLabel(ghiChuNguon?: string | null, ghiChu?: string | null) {
+  if (ghiChuNguon === "SYSTEM") return "Ghi chú hệ thống";
+  if (ghiChuNguon === "USER") return "Lý do bỏ qua";
+  return isSystemGeneratedSkipNote(ghiChu) ? "Ghi chú hệ thống" : "Lý do bỏ qua";
+}
+
+function resolveUnitOrRoleName(unitName?: string | null, roleName?: string | null) {
+  return normalizeWorkflowText(unitName || roleName, "");
+}
+
 function resolveCurrentWorkflowStepContext(
   state?: WorkflowStateDto | null,
   fallbackSteps: WorkflowStepStateDto[] = [],
@@ -197,29 +248,21 @@ function resolveCurrentProcessorName(stepName?: string | null, creatorName?: str
 }
 
 function getStepProgressLabel(step: WorkflowStepStateDto) {
-  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn thành";
   if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn thành";
   if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "Đang xử lý";
   return "Chưa thực hiện";
 }
 
 function isStepCompleted(step: WorkflowStepStateDto) {
-  return step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
+  return (
+    step.trangThai !== "SKIPPED" &&
+    (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh))
+  );
 }
 
 function isStepSkipped(step: WorkflowStepStateDto) {
   return step.trangThai === "SKIPPED";
-}
-
-function getBranchStepState(
-  step: WorkflowStepStateDto,
-  activeStepIds: Set<number>,
-): WorkflowParallelBranchStepState {
-  if (step.trangThai === "SKIPPED") return "skipped";
-  if (activeStepIds.has(step.id)) return "current";
-  if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "current";
-  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "done";
-  return "idle";
 }
 
 function rankWorkflowStepInstance(
@@ -293,18 +336,35 @@ export function mapWorkflowStepState(
   currentStepId?: number,
   currentWorkflowBuocWorkflowId?: number,
 ): WorkflowDetailStep {
-  const completed = step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED";
+  const isSkipped = step.trangThai === "SKIPPED";
+  const completed = !isSkipped && (step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED");
   const current =
     step.id === currentStepId ||
     (currentWorkflowBuocWorkflowId != null && step.buocWorkflowId === currentWorkflowBuocWorkflowId);
-  const progressStatus = step.tinhTrangTienDo ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo : undefined;
+  const progressStatus = isSkipped
+    ? TIEN_DO_LABEL.SKIPPED
+    : step.tinhTrangTienDo
+      ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo
+      : undefined;
   const warningStatus = step.tinhTrangTienDo === "SAP_QUA_HAN" || step.tinhTrangTienDo === "QUA_HAN";
+  const processingUnitName = resolveUnitOrRoleName(step.processingUnitName ?? step.tenDonViXuLy, step.processingRoleName ?? step.tenVaiTroXuLy);
+  const processingRoleName = normalizeWorkflowText(step.processingRoleName ?? step.tenVaiTroXuLy, "");
+  const approvalUnitName = resolveUnitOrRoleName(step.approvalUnitName ?? step.tenDonViKyDuyet, step.approvalRoleName ?? step.tenVaiTroKyDuyet);
+  const approvalRoleName = normalizeWorkflowText(step.approvalRoleName ?? step.tenVaiTroKyDuyet, "");
+  const processingText = processingUnitName || processingRoleName || normalizeWorkflowText(step.tenDonViXuLy || step.tenVaiTroXuLy, "");
+  const approvalText = approvalUnitName || approvalRoleName;
 
   return {
-    state: completed ? "done" : current || warningStatus ? "warn" : "idle",
+    state: isSkipped ? "skipped" : completed ? "done" : current || warningStatus ? "warn" : "idle",
     ten: normalizeWorkflowText(step.tenBuoc),
-    donVi: normalizeWorkflowText(step.tenDonViXuLy || step.tenVaiTroXuLy || step.tenVaiTroKyDuyet),
+    donVi: normalizeWorkflowText(processingText),
+    donViKyDuyet: normalizeWorkflowText(approvalText, ""),
+    processingUnitName,
+    processingRoleName,
+    approvalUnitName,
+    approvalRoleName,
     backendId: step.id,
+    workflowStepInstanceId: step.id,
     buocWorkflowId: step.buocWorkflowId,
     current,
     isCurrent: current,
@@ -314,8 +374,28 @@ export function mapWorkflowStepState(
     ngayKy: normalizeWorkflowText(step.ngayKyDuyet?.slice(0, 10)),
     ketQua: formatWorkflowKetQua(step.ketQua),
     ghiChu: normalizeWorkflowText(step.ghiChu, ""),
+    ghiChuNguon: step.ghiChuNguon ?? (isSkipped && isSystemGeneratedSkipNote(step.ghiChu) ? "SYSTEM" : undefined),
     lyDoKhongDuyet: normalizeWorkflowText(step.lyDoKhongDuyet, ""),
     slaText: progressStatus,
+  };
+}
+
+function mapWorkflowBranchStepState(
+  step: WorkflowStepStateDto,
+  activeStepIds: Set<number>,
+  currentWorkflowBuocWorkflowIds: Set<number>,
+): WorkflowParallelBranchStep {
+  const currentStepId = activeStepIds.has(step.id) ? step.id : undefined;
+  const currentWorkflowBuocWorkflowId = currentWorkflowBuocWorkflowIds.has(step.buocWorkflowId)
+    ? step.buocWorkflowId
+    : undefined;
+  const base = mapWorkflowStepState(step, currentStepId, currentWorkflowBuocWorkflowId);
+
+  return {
+    ...base,
+    state: step.trangThai === "SKIPPED"
+      ? "skipped"
+      : base.state,
   };
 }
 
@@ -343,7 +423,12 @@ export function mapWorkflowStateToDetailInfo(
     buocHienTai: normalizeWorkflowText(currentStepDetail?.tenBuoc || state?.tenBuocHienTai || currentStep?.tenBuoc),
     nguoiXuLy: currentProcessor,
     donViXuLy: normalizeWorkflowText(
-      state?.tenKhoaPhong || currentStepDetail?.tenVaiTroXuLy || currentStepDetail?.tenVaiTroKyDuyet,
+      state?.tenKhoaPhong ||
+        currentStepDetail?.processingUnitName ||
+        currentStepDetail?.processingRoleName ||
+        currentStepDetail?.tenDonViXuLy ||
+        currentStepDetail?.tenVaiTroXuLy ||
+        currentStepDetail?.tenVaiTroKyDuyet,
     ),
     sla: resolveWorkflowProgressStatus(state, currentStepDetail),
     steps: steps.map((step) => mapWorkflowStepState(step, currentStep?.stepInstanceId, currentWorkflowBuocWorkflowId ?? undefined)),
@@ -392,7 +477,11 @@ export function resolveWorkflowCurrentStepSummary(
     currentSignedDate: normalizeWorkflowText(currentStepDetail?.ngayKyDuyet?.slice(0, 10)),
     currentResult: currentStepDetail
       ? formatWorkflowKetQua(currentStepDetail.ketQua) ||
-        (currentStepDetail.trangThai === "HOAN_TAT" ? "Duyệt" : currentStepDetail.trangThai || WORKFLOW_DISPLAY_DASH)
+        (currentStepDetail.trangThai === "SKIPPED"
+          ? "Bỏ qua"
+          : currentStepDetail.trangThai === "HOAN_TAT"
+            ? "Duyệt"
+            : currentStepDetail.trangThai || WORKFLOW_DISPLAY_DASH)
       : WORKFLOW_DISPLAY_DASH,
     currentDueDate: normalizeWorkflowText(currentStepDetail?.hanXuLy?.slice(0, 10)),
     progressStatus: resolveWorkflowProgressStatus(state, currentStepDetail),
@@ -421,12 +510,13 @@ export function buildParallelInfoBySplitStep(
 
     acc[group.buocTachNhanhId] = {
       title: normalizeParallelGroupTitle(group.tenNhom),
+      mergeCondition: group.dieuKienHopNhat,
       condition: group.dieuKienHopNhat === "ALL"
         ? "Tất cả nhánh phải hoàn thành trước khi hợp nhất."
         : group.dieuKienHopNhat === "SKIP_ALL"
           ? "Chỉ cho phép hợp nhất khi tất cả nhánh đều bị bỏ qua."
           : `Cần tối thiểu ${group.soNhanhHopNhatToiThieu ?? 1} nhánh hoàn thành trước khi hợp nhất.`,
-      branches: group.branches.map((branch) => {
+      branches: group.branches.map((branch, branchIndex) => {
         const branchRuntimeSteps = dedupeWorkflowStepsByDesignStep(
           runtimeSteps.filter((step) => step.nhanhWorkflowId != null && branchIds.has(step.nhanhWorkflowId) && step.nhanhWorkflowId === branch.id),
           activeStepIds,
@@ -434,16 +524,24 @@ export function buildParallelInfoBySplitStep(
         );
         const branchDesignSteps = designSteps.filter((step) => step.nhanhWorkflowId === branch.id);
         const steps = branchRuntimeSteps.length > 0
-          ? branchRuntimeSteps.map((step) => ({
-              name: step.tenBuoc,
-              backendId: step.id,
-              state: getBranchStepState(step, activeStepIds),
-              ghiChu: normalizeWorkflowText(step.ghiChu, ""),
-            }))
+          ? branchRuntimeSteps.map((step) => mapWorkflowBranchStepState(step, activeStepIds, currentWorkflowBuocWorkflowIds))
           : branchDesignSteps.map((step) => ({
-              name: step.tenBuoc,
-              backendId: step.id,
               state: "idle" as const,
+              ten: normalizeWorkflowText(step.tenBuoc),
+              donVi: String(step.donViXuLyId ?? ""),
+              backendId: step.id,
+              workflowStepInstanceId: step.id,
+              buocWorkflowId: step.id,
+              current: false,
+              isCurrent: false,
+              nguoiXuLy: undefined,
+              ngayXuLy: undefined,
+              nguoiKy: undefined,
+              ngayKy: undefined,
+              ketQua: undefined,
+              ghiChu: undefined,
+              lyDoKhongDuyet: undefined,
+              slaText: undefined,
             }));
 
         const currentBranchStep = branchRuntimeSteps.find((step) =>
@@ -461,23 +559,30 @@ export function buildParallelInfoBySplitStep(
         const anyCompleted = branchRuntimeSteps.some(isStepCompleted);
         const allCompleted = branchRuntimeSteps.length > 0 && branchRuntimeSteps.every(isStepCompleted);
         const allSkipped = branchRuntimeSteps.length > 0 && branchRuntimeSteps.every(isStepSkipped);
+        const hasSkipped = branchRuntimeSteps.some(isStepSkipped);
+        const hasActive = branchRuntimeSteps.some((step) => !isStepCompleted(step) && !isStepSkipped(step));
         const noteSource = currentBranchStep?.ghiChu?.trim()
           ? currentBranchStep
           : [...branchRuntimeSteps].reverse().find((step) => step.ghiChu?.trim())
           ?? terminalStep;
-
         return {
-          name: branch.tenNhanh,
+          name: resolveParallelBranchLabel(branch, branchIndex),
+          branchId: branch.id,
+          parallelGroupId: group.id,
           backendId: currentBranchStep?.id ?? terminalStep?.id ?? branchRuntimeSteps[branchRuntimeSteps.length - 1]?.id,
           progress: `${completedCount}/${steps.length}`,
           status: allSkipped
             ? "Đã bỏ qua"
+            : hasSkipped && !hasActive
+              ? "Đã bỏ qua"
             : currentBranchStep
               ? getStepProgressLabel(currentBranchStep)
               : (anyCompleted || allCompleted ? "Đã hoàn thành" : "Chưa đến lượt xử lý"),
-          currentStep: normalizeWorkflowText(currentBranchStep?.tenBuoc || terminalStep?.tenBuoc || steps[0]?.name),
+          currentStep: normalizeWorkflowText(currentBranchStep?.tenBuoc || terminalStep?.tenBuoc || steps[0]?.ten),
           processor: normalizeWorkflowText(currentBranchStep?.tenNguoiXuLy || terminalStep?.tenNguoiXuLy || tenderCreatorName),
           ghiChu: normalizeWorkflowText(noteSource?.ghiChu, ""),
+          ghiChuNguon: noteSource?.ghiChuNguon ?? (noteSource?.ghiChu && isSystemGeneratedSkipNote(noteSource.ghiChu) ? "SYSTEM" : undefined),
+          canSkipBranch: group.dieuKienHopNhat !== "ALL" && branchRuntimeSteps.some((step) => !isStepCompleted(step) && !isStepSkipped(step)),
           steps,
         };
       }),
@@ -543,7 +648,7 @@ export function buildWorkflowDetailSteps(
   const mainDesignSteps = designSteps.filter((step) => step.nhanhWorkflowId == null);
 
   const displaySteps = mainDetailSteps.length > 0
-    ? mainDetailSteps
+      ? mainDetailSteps
       : mainDesignSteps.map((step) => ({
         state: "idle" as const,
         ten: normalizeWorkflowText(step.tenBuoc),

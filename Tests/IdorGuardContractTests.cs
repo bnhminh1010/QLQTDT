@@ -77,6 +77,28 @@ public class IdorGuardContractTests
         Assert.Contains("query = query.Where(h => h.GoiThau!.NguoiTaoId == currentUserId", historyMethod);
     }
 
+    [Fact]
+    public void Files_List_UsesTenderAndStepScopeInsteadOfHardPermissionGate()
+    {
+        var controllerSource = ReadBackendSource("Controllers/FilesController.cs");
+        Assert.DoesNotContain("[HasPermission(\"TAILIEU.UPLOAD\")]", controllerSource);
+        Assert.DoesNotContain("[HasPermission(\"TAILIEU.VIEW\")]", controllerSource);
+        Assert.DoesNotContain("[HasPermission(\"TAILIEU.DOWNLOAD\")]", controllerSource);
+
+        var serviceSource = ReadBackendSource("Services/TaiLieuService.cs");
+        Assert.Contains("ResolveUploadAccessAsync", serviceSource);
+        Assert.Contains("_permissionService.HasPermissionAsync(userId, \"TAILIEU.UPLOAD\")", serviceSource);
+        Assert.Contains("CanUploadStepDocuments", serviceSource);
+        Assert.Contains("ResolveDocumentAccessAsync", serviceSource);
+        Assert.Contains("CanViewStepDocumentsAsync", serviceSource);
+        Assert.Contains("DonViXuLyId", serviceSource);
+        Assert.Contains("EnsureCanReadDocumentAsync", serviceSource);
+        Assert.Contains("_permissionService.HasPermissionAsync(userId, \"TAILIEU.DOWNLOAD\")", serviceSource);
+        Assert.Contains("_permissionService.HasPermissionAsync(userId, \"TAILIEU.VIEW\")", serviceSource);
+        Assert.Contains("ResolveStepAccessContextAsync(entity.WorkflowStepInstanceId.Value, ct)", serviceSource);
+        Assert.Contains("_tenderAccess.EnsureCanViewAsync(userId, stepAccess.GoiThauId);", serviceSource);
+    }
+
     private static string ReadBackendSource(string relativePath)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

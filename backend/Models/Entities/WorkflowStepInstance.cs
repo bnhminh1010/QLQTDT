@@ -31,6 +31,7 @@ public class WorkflowStepInstance
     public bool? QuaHan { get; set; }
 
     public string? GhiChu { get; set; }
+    public string? GhiChuNguon { get; set; }
     public byte[]? RowVersion { get; set; }
 
     // Navigation

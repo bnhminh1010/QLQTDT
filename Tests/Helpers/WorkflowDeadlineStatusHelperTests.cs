@@ -50,6 +50,13 @@ public class WorkflowDeadlineStatusHelperTests
         var deadline = new DateTime(2026, 7, 3, 12, 0, 0, DateTimeKind.Utc);
 
         Assert.Equal("HOAN_TAT", WorkflowDeadlineStatusHelper.ComputeTinhTrangTienDo(deadline, "HOAN_TAT", ReferenceNowUtc));
-        Assert.Equal("HOAN_TAT", WorkflowDeadlineStatusHelper.ComputeTinhTrangTienDo(deadline, "SKIPPED", ReferenceNowUtc));
+    }
+
+    [Fact]
+    public void ComputeTinhTrangTienDo_Returns_Skipped_ForSkippedState()
+    {
+        var deadline = new DateTime(2026, 7, 3, 12, 0, 0, DateTimeKind.Utc);
+
+        Assert.Equal("SKIPPED", WorkflowDeadlineStatusHelper.ComputeTinhTrangTienDo(deadline, "SKIPPED", ReferenceNowUtc));
     }
 }

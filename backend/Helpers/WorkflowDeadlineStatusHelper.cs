@@ -9,9 +9,11 @@ public static class WorkflowDeadlineStatusHelper
 
     public static string? ComputeTinhTrangTienDo(DateTime? hanXuLy, string trangThai, DateTime? nowUtc = null)
     {
-        if (trangThai is WorkflowStepTrangThai.HOAN_TAT or WorkflowStepTrangThai.TRA_VE
-            or WorkflowStepTrangThai.SKIPPED)
+        if (trangThai is WorkflowStepTrangThai.HOAN_TAT or WorkflowStepTrangThai.TRA_VE)
             return "HOAN_TAT";
+
+        if (trangThai == WorkflowStepTrangThai.SKIPPED)
+            return "SKIPPED";
 
         if (trangThai is "PENDING" or "CHUA_BAT_DAU")
             return "CHUA_THUC_HIEN";

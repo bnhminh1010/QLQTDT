@@ -188,7 +188,6 @@ export default function WorkflowStepList({
                         </div>
                         <ParallelGroupEditor
                           group={group}
-                          idx={idx}
                           steps={steps}
                           inline
                           onUpdateGroup={(g) => onUpdateGroup(g)}

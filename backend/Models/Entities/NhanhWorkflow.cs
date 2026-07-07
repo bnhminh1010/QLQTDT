@@ -6,6 +6,7 @@ public class NhanhWorkflow
     public int NhomNhanhWorkflowId { get; set; }
     public string MaNhanh { get; set; } = null!;
     public string TenNhanh { get; set; } = null!;
+    public string? BranchName { get; set; }
     public int ThuTu { get; set; }
     public int? DonViXuLyId { get; set; }
     public int? VaiTroXuLyId { get; set; }

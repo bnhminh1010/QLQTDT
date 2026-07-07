@@ -1,12 +1,20 @@
-import type { WorkflowDetailStep } from "./workflowDetailTypes";
-import type { WorkflowParallelBranchStep } from "./workflowDetailTypes";
-import ParallelGroupCard from "./ParallelGroupCard";
+﻿import { useEffect, useRef, useState } from "react";
+import type { TaiLieuDto, DocumentPhase } from "@/services/fileApi";
+import { downloadTaiLieuFile, getTaiLieuFiles, openTaiLieuFile } from "@/services/fileApi";
+import type {
+  WorkflowDetailStep,
+  WorkflowParallelBranchStep,
+} from "./workflowDetailTypes";
+import WorkflowParallelGroupCard from "./WorkflowParallelGroupCard";
+import WorkflowStepItem from "./WorkflowStepItem";
 import { normalizeWorkflowText } from "./workflowDetailUtils";
 
 type Props = {
   loading?: boolean;
+  goiThauId?: number | null;
   steps: WorkflowDetailStep[];
   emptyMessage?: string;
+  enableAutoFocusCurrentStep?: boolean;
   onCurrentStepAction?: (step: WorkflowDetailStep) => void;
   onUpdateCurrentStep?: (step: WorkflowDetailStep) => void;
   canShowCurrentStepAction?: (step: WorkflowDetailStep) => boolean;
@@ -16,29 +24,82 @@ type Props = {
   onBranchStepClick?: (step: WorkflowParallelBranchStep) => void;
   onBranchCurrentStepAction?: (branch: NonNullable<WorkflowDetailStep["parallelInfo"]>["branches"][number]) => void;
   onBranchSkip?: (branch: NonNullable<WorkflowDetailStep["parallelInfo"]>["branches"][number]) => void;
+  focusStepId?: number | null;
+  documentRefreshKey?: string | number;
 };
 
-function Dot({ state }: { state: WorkflowDetailStep["state"] }) {
-  return (
-    <div
-      className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[9px] ${
-        state === "done"
-          ? "bg-emerald-500 text-white"
-          : state === "warn"
-            ? "bg-amber-500 text-white"
-            : "bg-slate-200"
-      }`}
-    >
-      {state === "done" && <i className="fa-solid fa-check" />}
-      {state === "warn" && <i className="fa-solid fa-triangle-exclamation" />}
-    </div>
-  );
+type DocumentPanelState = {
+  stepId: number;
+  stepName: string;
+  phase: DocumentPhase;
+  title: string;
+};
+
+function getStepInstanceId(step?: WorkflowDetailStep | WorkflowParallelBranchStep | null) {
+  return step?.workflowStepInstanceId ?? step?.backendId ?? null;
+}
+
+function collectStepInstanceIds(steps: WorkflowDetailStep[]) {
+  const ids = new Set<number>();
+
+  const visitStep = (step: WorkflowDetailStep) => {
+    const stepId = getStepInstanceId(step);
+    if (stepId != null) {
+      ids.add(stepId);
+    }
+
+    step.parallelInfo?.branches.forEach((branch) => {
+      branch.steps.forEach((branchStep) => {
+        const branchStepId = getStepInstanceId(branchStep);
+        if (branchStepId != null) {
+          ids.add(branchStepId);
+        }
+      });
+    });
+  };
+
+  steps.forEach(visitStep);
+
+  return Array.from(ids);
+}
+
+function formatUploadDate(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function getFileTypeLabel(file: TaiLieuDto) {
+  const ext = file.tenFile.split(".").pop()?.trim().toUpperCase();
+  if (ext) return ext;
+  if (file.contentType) {
+    const shortType = file.contentType.split("/").pop()?.trim().toUpperCase();
+    if (shortType) return shortType;
+  }
+  return "FILE";
+}
+
+function getFileUploaderLabel(file: TaiLieuDto) {
+  return normalizeWorkflowText(file.nguoiUploadTen || (file.nguoiUploadId ? `Người dùng #${file.nguoiUploadId}` : "Hệ thống"));
+}
+
+function getPhaseLabel(phase: DocumentPhase) {
+  return phase === "Processing" ? "Tài liệu xử lý" : "Tài liệu ký duyệt";
 }
 
 export default function WorkflowStepsPanel({
   loading = false,
+  goiThauId,
   steps,
-  emptyMessage = "Chua co du lieu buoc quy trinh tu backend.",
+  emptyMessage = "Chưa có dữ liệu bước quy trình từ backend.",
+  enableAutoFocusCurrentStep = false,
   onCurrentStepAction,
   onUpdateCurrentStep,
   canShowCurrentStepAction,
@@ -48,16 +109,185 @@ export default function WorkflowStepsPanel({
   onBranchStepClick,
   onBranchCurrentStepAction,
   onBranchSkip,
+  focusStepId,
+  documentRefreshKey,
 }: Props) {
   const currentStepAction = onCurrentStepAction ?? onUpdateCurrentStep;
   const canShowCurrentStepActionResolved = canShowCurrentStepAction ?? canUpdateCurrentStep;
+  const stepContainerRefs = useRef(new Map<number, HTMLDetailsElement>());
+  const stepAnchorRefs = useRef(new Map<number, HTMLElement>());
+  const [documentCache, setDocumentCache] = useState<Record<number, TaiLieuDto[]>>({});
+  const [documentsLoadingStepIds, setDocumentsLoadingStepIds] = useState<Record<number, true>>({});
+  const [documentsDeniedStepIds, setDocumentsDeniedStepIds] = useState<Record<number, true>>({});
+  const [documentPanel, setDocumentPanel] = useState<DocumentPanelState | null>(null);
+  const currentStepId = getStepInstanceId(steps.find((step) => step.current ?? step.isCurrent)) ?? null;
+  const resolvedFocusStepId = enableAutoFocusCurrentStep ? (focusStepId ?? currentStepId) : null;
+  const stepIdentityKey = steps
+    .map((step) => [
+      getStepInstanceId(step) ?? step.ten,
+      step.parallelInfo?.branches
+        .flatMap((branch) => branch.steps.map((branchStep) => getStepInstanceId(branchStep) ?? branchStep.ten))
+        .join(",") ?? "",
+    ].join(":"))
+    .join("|");
+
+  useEffect(() => {
+    setDocumentCache({});
+    setDocumentsLoadingStepIds({});
+    setDocumentsDeniedStepIds({});
+    setDocumentPanel(null);
+  }, [goiThauId]);
+
+  useEffect(() => {
+    if (!goiThauId || loading) {
+      return;
+    }
+
+    const stepIds = collectStepInstanceIds(steps);
+
+    if (stepIds.length === 0) {
+      setDocumentCache({});
+      setDocumentsLoadingStepIds({});
+      setDocumentsDeniedStepIds({});
+      return;
+    }
+
+    let cancelled = false;
+    setDocumentCache({});
+    setDocumentsLoadingStepIds(
+      stepIds.reduce<Record<number, true>>((acc, stepId) => {
+        acc[stepId] = true;
+        return acc;
+      }, {}),
+    );
+    setDocumentsDeniedStepIds({});
+
+    const loadDocuments = async () => {
+      await Promise.all(
+        stepIds.map(async (stepId) => {
+          try {
+            const items = await getTaiLieuFiles(
+              {
+                goiThauId,
+                workflowStepInstanceId: stepId,
+              },
+              { skipAuthToast: true },
+            );
+            if (cancelled) return;
+            setDocumentCache((prev) => ({ ...prev, [stepId]: items }));
+            setDocumentsDeniedStepIds((prev) => {
+              if (!prev[stepId]) return prev;
+              const next = { ...prev };
+              delete next[stepId];
+              return next;
+            });
+          } catch (error) {
+            if (cancelled) return;
+            const status = typeof error === "object" && error !== null && "response" in error
+              ? (error as { response?: { status?: number } }).response?.status
+              : undefined;
+            setDocumentCache((prev) => ({ ...prev, [stepId]: [] }));
+            if (status === 403) {
+              setDocumentsDeniedStepIds((prev) => ({ ...prev, [stepId]: true }));
+            }
+          } finally {
+            if (cancelled) return;
+            setDocumentsLoadingStepIds((prev) => {
+              if (!prev[stepId]) return prev;
+              const next = { ...prev };
+              delete next[stepId];
+              return next;
+            });
+          }
+        }),
+      );
+    };
+
+    void loadDocuments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [goiThauId, loading, documentRefreshKey]);
+
+  function registerContainerRef(stepIds: number[]) {
+    return (element: HTMLDetailsElement | null) => {
+      stepIds.forEach((stepId) => {
+        if (element) {
+          stepContainerRefs.current.set(stepId, element);
+        } else {
+          stepContainerRefs.current.delete(stepId);
+        }
+      });
+    };
+  }
+
+  function registerAnchorRef(stepId: number) {
+    return (element: HTMLElement | null) => {
+      if (element) {
+        stepAnchorRefs.current.set(stepId, element);
+      } else {
+        stepAnchorRefs.current.delete(stepId);
+      }
+    };
+  }
+
+  function getStepDocuments(stepId?: number, phase?: DocumentPhase) {
+    if (!stepId) return [];
+    const cachedDocuments = documentCache[stepId] ?? [];
+    return cachedDocuments.filter((file) => {
+      if (file.workflowStepInstanceId !== stepId) return false;
+      const normalizedPhase = file.documentPhase ?? "Processing";
+      if (phase && normalizedPhase !== phase) return false;
+      return true;
+    });
+  }
+
+  function openDocumentPanel(step: WorkflowDetailStep, phase: DocumentPhase) {
+    const stepId = getStepInstanceId(step);
+    if (stepId == null) return;
+    const title = `${step.ten} - ${getPhaseLabel(phase)}`;
+    setDocumentPanel({
+      stepId,
+      stepName: step.ten,
+      phase,
+      title,
+    });
+  }
+
+  useEffect(() => {
+    if (resolvedFocusStepId == null) {
+      return;
+    }
+
+    const container = stepContainerRefs.current.get(resolvedFocusStepId);
+    if (container && !container.open) {
+      container.open = true;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const anchor = stepAnchorRefs.current.get(resolvedFocusStepId) ?? container;
+      anchor?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [enableAutoFocusCurrentStep, resolvedFocusStepId, stepIdentityKey]);
+
+  const documentItems = documentPanel
+    ? getStepDocuments(documentPanel.stepId, documentPanel.phase)
+    : [];
+  const currentDocumentStepId = documentPanel?.stepId ?? null;
+  const documentsPermissionDenied = currentDocumentStepId != null && documentsDeniedStepIds[currentDocumentStepId] === true;
+  const documentsLoading = currentDocumentStepId != null && documentsLoadingStepIds[currentDocumentStepId] === true;
 
   return (
     <div className="space-y-3 mb-5">
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
           <i className="fa-solid fa-circle-notch fa-spin mr-1" />
-          Dang tai cac buoc quy trinh...
+          Đang tải các bước quy trình...
         </div>
       ) : steps.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
@@ -65,133 +295,183 @@ export default function WorkflowStepsPanel({
         </div>
       ) : (
         steps.map((step) => {
-          const isCurrentStep = Boolean(step.current ?? step.isCurrent);
+          const stepId = getStepInstanceId(step);
+          const processingText = normalizeWorkflowText(step.processingUnitName || step.processingRoleName || step.donVi);
+          const approvalText = normalizeWorkflowText(step.approvalUnitName || step.approvalRoleName, "");
+          const approvalSnippet = approvalText && (
+            <span className="sr-only">Đơn vị/Vai trò ký duyệt: {approvalText}</span>
+          );
+          void approvalSnippet;
+          const nestedBranchStepIds = step.parallelInfo?.branches.flatMap((branch) =>
+            branch.steps
+              .map((branchStep) => getStepInstanceId(branchStep))
+              .filter((branchStepId): branchStepId is number => typeof branchStepId === "number"),
+          ) ?? [];
+          const stepIdsInContainer = stepId != null ? [stepId, ...nestedBranchStepIds] : nestedBranchStepIds;
+          const processingDocs = getStepDocuments(stepId ?? undefined, "Processing");
+          const approvalDocs = getStepDocuments(stepId ?? undefined, "Approval");
+          const isDocumentPanelStep = documentPanel?.stepId === stepId;
+          const stepDocumentsPermissionDenied = isDocumentPanelStep && documentsPermissionDenied;
+          const stepDocumentsLoading = isDocumentPanelStep && documentsLoading;
+          // isCurrentStep && currentStepAction && canShowAction
           const canShowAction = !canShowCurrentStepActionResolved || canShowCurrentStepActionResolved(step);
-          const shouldShowCurrentStepAction = isCurrentStep && currentStepAction && canShowAction;
 
           return (
-            <div key={step.backendId ?? step.ten} className="space-y-2">
-              <details className="group">
-                <summary className="flex items-start gap-2.5 rounded-xl cursor-pointer list-none
-                  [&::-webkit-details-marker]:hidden
-                  [&::marker]:hidden
-                  transition-colors
-                  p-1.5 -mx-1.5 hover:bg-slate-50
-                ">
-                  <Dot state={step.state} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {isCurrentStep && (
-                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
-                              BƯỚC HIỆN TẠI
-                            </span>
-                          )}
-                          <div className="text-xs font-medium text-slate-800">{step.ten}</div>
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-slate-400">
-                          Đơn vị/Vai trò xử lý: {" "}
-                          <span className="font-medium text-slate-500">{step.donVi}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {shouldShowCurrentStepAction && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              currentStepAction(step);
-                            }}
-                            title={currentStepActionTooltip?.(step) ?? "Cập nhật bước hiện tại"}
-                            className="rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
-                          >
-                            {currentStepActionLabel}
-                          </button>
-                        )}
-                        <i className="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform group-open:rotate-180" />
-                      </div>
-                    </div>
-                  </div>
-                </summary>
-                <div className="ml-[34px] mt-1.5 space-y-0.5 text-[11px] bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-100">
-                  <div className="text-slate-600 grid gap-1.5">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Người xử lý</span>
-                      <span className="font-semibold text-slate-700 text-right">
-                        {normalizeWorkflowText(step.nguoiXuLy)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Ngày xử lý</span>
-                      <span className="font-semibold text-slate-700 text-right">
-                        {normalizeWorkflowText(step.ngayXuLy)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Người ký duyệt</span>
-                      <span className="font-semibold text-slate-700 text-right">
-                        {normalizeWorkflowText(step.nguoiKy)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Ngày ký duyệt</span>
-                      <span className="font-semibold text-slate-700 text-right">
-                        {normalizeWorkflowText(step.ngayKy)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Kết quả</span>
-                      <span
-                        className={`font-semibold text-right ${
-                          step.ketQua === "Duyệt" || step.ketQua === "Đồng ý"
-                            ? "text-emerald-600"
-                            : step.ketQua === "Không duyệt" || step.ketQua === "Từ chối"
-                              ? "text-red-600"
-                              : "text-slate-700"
-                        }`}
-                      >
-                        {normalizeWorkflowText(step.ketQua)}
-                      </span>
-                    </div>
-                    {step.lyDoKhongDuyet && (
-                      <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
-                        <span className="font-semibold">Lý do không duyệt:</span> {step.lyDoKhongDuyet}
-                      </div>
-                    )}
-                    {step.ghiChu && (
-                      <div className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700 text-[11px]">
-                        <span className="font-semibold">Ghi chú / lý do thực tế:</span> {step.ghiChu}
-                      </div>
-                    )}
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-400">Tình trạng tiến độ</span>
-                      <span
-                        className={`font-semibold text-right ${
-                          step.slaText?.includes("Quá hạn")
-                            ? "text-red-600"
-                            : step.slaText?.includes("Sắp")
-                              ? "text-amber-600"
-                              : "text-emerald-600"
-                        }`}
-                      >
-                        {normalizeWorkflowText(step.slaText, "Đang theo dõi")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </details>
+            <div key={stepId ?? step.ten} className="space-y-2">
+              <WorkflowStepItem
+                step={step}
+                processingText={processingText}
+                approvalText={approvalText}
+                documentCounts={{
+                  processing: processingDocs.length,
+                  approval: approvalDocs.length,
+                }}
+                documentsLoading={stepDocumentsLoading}
+                documentsPermissionDenied={stepDocumentsPermissionDenied}
+                onViewDocuments={(_, phase, targetStep) => {
+                  if (targetStep) {
+                    openDocumentPanel(targetStep as WorkflowDetailStep, phase);
+                  }
+                }}
+                onCurrentStepAction={currentStepAction}
+                canShowCurrentStepAction={() => canShowAction}
+                currentStepActionLabel={currentStepActionLabel}
+                currentStepActionTooltip={currentStepActionTooltip}
+                registerDetailsRef={registerContainerRef(stepIdsInContainer)}
+                registerSummaryRef={stepId != null ? registerAnchorRef(stepId) : undefined}
+                focusStepId={resolvedFocusStepId}
+              />
+
               {step.parallelInfo && (
-                <ParallelGroupCard
+                <WorkflowParallelGroupCard
                   parallelInfo={step.parallelInfo}
-                  onBranchStepClick={onBranchStepClick}
-                  onBranchCurrentStepAction={onBranchCurrentStepAction}
+                  focusStepId={resolvedFocusStepId}
                   onBranchSkip={onBranchSkip}
+                  renderBranchStep={(branch, branchStep) => {
+                    const branchStepId = getStepInstanceId(branchStep);
+                    const branchProcessingText = normalizeWorkflowText(
+                      branchStep.processingUnitName || branchStep.processingRoleName || branchStep.donVi,
+                    );
+                    const branchApprovalText = normalizeWorkflowText(
+                      branchStep.approvalUnitName || branchStep.approvalRoleName,
+                      "",
+                    );
+                    const branchProcessingDocs = getStepDocuments(branchStepId ?? undefined, "Processing");
+                    const branchApprovalDocs = getStepDocuments(branchStepId ?? undefined, "Approval");
+                    const branchIsDocumentPanelStep = documentPanel?.stepId === branchStepId;
+                    const branchDocumentsPermissionDenied = branchIsDocumentPanelStep && documentsPermissionDenied;
+                    const branchDocumentsLoading = branchIsDocumentPanelStep && documentsLoading;
+
+                    return (
+                      <WorkflowStepItem
+                        key={branchStepId ?? branchStep.ten}
+                        step={branchStep}
+                        processingText={branchProcessingText}
+                        approvalText={branchApprovalText}
+                        documentCounts={{
+                          processing: branchProcessingDocs.length,
+                          approval: branchApprovalDocs.length,
+                        }}
+                        documentsLoading={branchDocumentsLoading}
+                        documentsPermissionDenied={branchDocumentsPermissionDenied}
+                        onViewDocuments={(_, phase, targetStep) => {
+                          if (targetStep) {
+                            openDocumentPanel(targetStep as WorkflowDetailStep, phase);
+                          }
+                        }}
+                        onCurrentStepAction={onBranchCurrentStepAction ? () => onBranchCurrentStepAction(branch) : undefined}
+                        currentStepActionLabel={currentStepActionLabel}
+                        currentStepActionTooltip={onBranchCurrentStepAction ? () => "Cập nhật bước hiện tại" : undefined}
+                        onSecondaryAction={onBranchStepClick ? () => onBranchStepClick(branchStep) : undefined}
+                        secondaryActionLabel="Xem"
+                        secondaryActionTooltip={() => "Xem chi tiết bước"}
+                        registerSummaryRef={branchStepId != null ? registerAnchorRef(branchStepId) : undefined}
+                        focusStepId={resolvedFocusStepId}
+                        variant="branch"
+                      />
+                    );
+                  }}
                 />
               )}
             </div>
           );
         })
+      )}
+
+      {documentPanel && (
+        <div
+          className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-3 sm:items-center"
+          onClick={() => setDocumentPanel(null)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl max-h-[85vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div>
+                <p className="text-[10px] font-bold tracking-wide text-slate-400">TÀI LIỆU THEO BƯỚC</p>
+                <h3 className="text-sm font-bold text-slate-900">{documentPanel.title}</h3>
+                <p className="text-xs text-slate-500">{documentItems.length} file</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDocumentPanel(null)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <div className="overflow-auto p-4">
+              {documentsPermissionDenied ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-10 text-center text-sm text-amber-700">
+                  Không có quyền xem tài liệu.
+                </div>
+              ) : documentsLoading ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+                  <i className="fa-solid fa-circle-notch fa-spin mr-2" />
+                  Đang tải tài liệu...
+                </div>
+              ) : documentItems.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-400">
+                  Chưa có tài liệu cho giai đoạn này.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {documentItems.map((file) => (
+                    <div key={file.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-slate-800">{file.tenFile}</div>
+                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                            <span>Loại file: <strong className="text-slate-700">{getFileTypeLabel(file)}</strong></span>
+                            <span>Người upload: <strong className="text-slate-700">{getFileUploaderLabel(file)}</strong></span>
+                            <span>Ngày upload: <strong className="text-slate-700">{formatUploadDate(file.ngayTao)}</strong></span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openTaiLieuFile(file.id)}
+                            className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                          >
+                            Xem
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadTaiLieuFile(file.id, file.tenFile)}
+                            className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Tải xuống
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

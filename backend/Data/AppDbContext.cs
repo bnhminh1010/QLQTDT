@@ -399,6 +399,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NgayBatDau).HasColumnType("datetime2").HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.NgayHoanThanh).HasColumnType("datetime2");
             entity.Property(e => e.GhiChu).HasMaxLength(1000);
+            entity.Property(e => e.GhiChuNguon).HasMaxLength(20);
             entity.Property(e => e.RowVersion).IsRowVersion();
 
             // 2-pha fields
@@ -544,6 +545,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TenFile).HasMaxLength(500).IsRequired();
             entity.Property(e => e.DuongDanFtp).HasMaxLength(1000).IsRequired();
             entity.Property(e => e.LoaiTaiLieu).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.DocumentPhase).HasMaxLength(20);
             entity.Property(e => e.ContentType).HasMaxLength(200).IsRequired();
             entity.Property(e => e.KichThuoc).IsRequired();
             entity.Property(e => e.DaXoa).HasDefaultValue(false);
@@ -552,6 +554,10 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.GoiThauId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<WorkflowStepInstance>()
+                .WithMany()
+                .HasForeignKey(e => e.WorkflowStepInstanceId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasOne<HoSoDuThau>()
                 .WithMany(h => h.TaiLieus)
                 .HasForeignKey(e => e.HoSoDuThauId)
@@ -560,6 +566,7 @@ public class AppDbContext : DbContext
                 .WithMany(h => h.TaiLieus)
                 .HasForeignKey(e => e.HopDongId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.GoiThauId, e.WorkflowStepInstanceId, e.DocumentPhase });
         });
 
         // HoSoDuThau
@@ -668,6 +675,7 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.MaNhanh).HasMaxLength(50).IsRequired();
             entity.Property(e => e.TenNhanh).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.BranchName).HasMaxLength(100);
             entity.Property(e => e.ThoiHanNgay).HasColumnType("decimal(5,2)").HasDefaultValue(0m);
             entity.Property(e => e.LoaiHan).HasMaxLength(20).HasDefaultValue("CANH_BAO");
             entity.HasOne(e => e.NhomNhanhWorkflow)

@@ -1,36 +1,28 @@
 ﻿import type { ReactNode } from "react";
-import type {
-  WorkflowParallelBranch,
-  WorkflowParallelBranchStep,
-  WorkflowParallelInfo,
-} from "./workflowDetailTypes";
 import { DEFAULT_PARALLEL_GROUP_TITLE, normalizeParallelGroupTitle } from "@/constants/parallelGroup";
+import type { WorkflowParallelBranch, WorkflowParallelInfo } from "./workflowDetailTypes";
 import { normalizeWorkflowText, resolveSkippedBranchNoteLabel } from "./workflowDetailUtils";
 import WorkflowStepItem from "./WorkflowStepItem";
 
 type Props = {
   parallelInfo: WorkflowParallelInfo;
-  onBranchStepClick?: (step: WorkflowParallelBranchStep) => void;
-  onBranchCurrentStepAction?: (branch: WorkflowParallelBranch) => void;
-  onBranchSkip?: (branch: WorkflowParallelBranch) => void;
   focusStepId?: number | null;
-  registerStepRef?: (stepId: number) => (element: HTMLElement | null) => void;
-  renderBranchStep?: (branch: WorkflowParallelBranch, branchStep: WorkflowParallelBranchStep) => ReactNode;
+  renderBranchStep?: (branch: WorkflowParallelBranch, branchStep: WorkflowParallelBranch["steps"][number]) => ReactNode;
+  onBranchSkip?: (branch: WorkflowParallelBranch) => void;
 };
 
-function getStepInstanceId(step: WorkflowParallelBranchStep) {
+type BranchCardProps = {
+  branch: WorkflowParallelBranch;
+  focusStepId?: number | null;
+  renderBranchStep?: Props["renderBranchStep"];
+  onBranchSkip?: Props["onBranchSkip"];
+};
+
+function getStepInstanceId(step: WorkflowParallelBranch["steps"][number]) {
   return step.workflowStepInstanceId ?? step.backendId ?? null;
 }
 
-function renderDefaultBranchStep(
-  branch: WorkflowParallelBranch,
-  branchStep: WorkflowParallelBranchStep,
-  focusStepId?: number | null,
-  onBranchStepClick?: (step: WorkflowParallelBranchStep) => void,
-  onBranchCurrentStepAction?: (branch: WorkflowParallelBranch) => void,
-  registerStepRef?: (stepId: number) => (element: HTMLElement | null) => void,
-) {
-  const stepId = getStepInstanceId(branchStep);
+function renderDefaultBranchStep(branchStep: WorkflowParallelBranch["steps"][number], focusStepId?: number | null) {
   const processingText = normalizeWorkflowText(
     branchStep.processingUnitName || branchStep.processingRoleName || branchStep.donVi,
   );
@@ -41,38 +33,13 @@ function renderDefaultBranchStep(
       step={branchStep}
       processingText={processingText}
       approvalText={approvalText}
-      onSecondaryAction={onBranchStepClick ? () => onBranchStepClick(branchStep) : undefined}
-      secondaryActionLabel="Xem"
-      secondaryActionTooltip={() => "Xem chi tiết bước"}
-      onCurrentStepAction={onBranchCurrentStepAction ? () => onBranchCurrentStepAction(branch) : undefined}
-      currentStepActionLabel="Cập nhật"
-      currentStepActionTooltip={onBranchCurrentStepAction ? () => "Cập nhật bước hiện tại" : undefined}
-      registerSummaryRef={stepId != null ? registerStepRef?.(stepId) : undefined}
       focusStepId={focusStepId}
       variant="branch"
     />
   );
 }
 
-type BranchCardProps = {
-  branch: WorkflowParallelBranch;
-  focusStepId?: number | null;
-  onBranchStepClick?: Props["onBranchStepClick"];
-  onBranchCurrentStepAction?: Props["onBranchCurrentStepAction"];
-  onBranchSkip?: Props["onBranchSkip"];
-  registerStepRef?: Props["registerStepRef"];
-  renderBranchStep?: Props["renderBranchStep"];
-};
-
-function BranchCard({
-  branch,
-  focusStepId,
-  onBranchStepClick,
-  onBranchCurrentStepAction,
-  onBranchSkip,
-  registerStepRef,
-  renderBranchStep,
-}: BranchCardProps) {
+function BranchCard({ branch, focusStepId, renderBranchStep, onBranchSkip }: BranchCardProps) {
   const statusClass = branch.status === "Đã hoàn thành"
     ? "text-emerald-700"
     : branch.status === "Đã bỏ qua"
@@ -101,21 +68,12 @@ function BranchCard({
         </div>
       )}
 
-      <div className="mt-2 space-y-2.5">
+      <div className="mt-2 space-y-2">
         {branch.steps.map((branchStep) => {
           const branchStepId = getStepInstanceId(branchStep);
           return (
             <div key={branchStepId ?? branchStep.ten}>
-              {renderBranchStep
-                ? renderBranchStep(branch, branchStep)
-                : renderDefaultBranchStep(
-                    branch,
-                    branchStep,
-                    focusStepId,
-                    onBranchStepClick,
-                    onBranchCurrentStepAction,
-                    registerStepRef,
-                  )}
+              {renderBranchStep ? renderBranchStep(branch, branchStep) : renderDefaultBranchStep(branchStep, focusStepId)}
             </div>
           );
         })}
@@ -139,14 +97,11 @@ function BranchCard({
   );
 }
 
-export default function ParallelGroupCard({
+export default function WorkflowParallelGroupCard({
   parallelInfo,
-  onBranchStepClick,
-  onBranchCurrentStepAction,
-  onBranchSkip,
   focusStepId,
-  registerStepRef,
   renderBranchStep,
+  onBranchSkip,
 }: Props) {
   const title = normalizeParallelGroupTitle(parallelInfo.title);
 
@@ -168,11 +123,8 @@ export default function ParallelGroupCard({
             key={branch.backendId ?? branch.name}
             branch={branch}
             focusStepId={focusStepId}
-            onBranchStepClick={onBranchStepClick}
-            onBranchCurrentStepAction={onBranchCurrentStepAction}
-            onBranchSkip={onBranchSkip}
-            registerStepRef={registerStepRef}
             renderBranchStep={renderBranchStep}
+            onBranchSkip={onBranchSkip}
           />
         ))}
       </div>

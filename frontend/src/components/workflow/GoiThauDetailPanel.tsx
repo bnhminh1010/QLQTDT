@@ -44,6 +44,7 @@ type Props = {
   stepInfoRows?: DetailRow[];
   stepInfoTitle?: string;
   stepsTitle?: string;
+  goiThauId?: number | null;
   steps: WorkflowDetailStep[];
   stepsLoading?: boolean;
   stepsEmptyMessage?: string;
@@ -56,6 +57,9 @@ type Props = {
   onBranchStepClick?: Parameters<typeof WorkflowStepsPanel>[0]["onBranchStepClick"];
   onBranchCurrentStepAction?: Parameters<typeof WorkflowStepsPanel>[0]["onBranchCurrentStepAction"];
   onBranchSkip?: Parameters<typeof WorkflowStepsPanel>[0]["onBranchSkip"];
+  focusStepId?: number | null;
+  enableAutoFocusCurrentStep?: Parameters<typeof WorkflowStepsPanel>[0]["enableAutoFocusCurrentStep"];
+  documentRefreshKey?: Parameters<typeof WorkflowStepsPanel>[0]["documentRefreshKey"];
   actions?: ReactNode;
   footerAction?: DetailFooterAction;
 };
@@ -87,6 +91,7 @@ export default function GoiThauDetailPanel({
   stepInfoRows,
   stepInfoTitle = "THÔNG TIN BƯỚC HIỆN TẠI",
   stepsTitle = "CÁC BƯỚC QUY TRÌNH",
+  goiThauId,
   steps,
   stepsLoading = false,
   stepsEmptyMessage = "Chua co du lieu buoc quy trinh tu backend.",
@@ -99,6 +104,9 @@ export default function GoiThauDetailPanel({
   onBranchStepClick,
   onBranchCurrentStepAction,
   onBranchSkip,
+  focusStepId,
+  enableAutoFocusCurrentStep,
+  documentRefreshKey,
   actions = null,
   footerAction,
 }: Props) {
@@ -184,6 +192,7 @@ export default function GoiThauDetailPanel({
       <div className="text-[10px] font-bold text-slate-400 tracking-wide mb-3">{stepsTitle}</div>
       <WorkflowStepsPanel
         loading={stepsLoading}
+        goiThauId={goiThauId}
         steps={steps}
         emptyMessage={stepsEmptyMessage}
         onCurrentStepAction={onCurrentStepAction ?? onUpdateCurrentStep}
@@ -195,6 +204,9 @@ export default function GoiThauDetailPanel({
         onBranchStepClick={onBranchStepClick}
         onBranchCurrentStepAction={onBranchCurrentStepAction}
         onBranchSkip={onBranchSkip}
+        focusStepId={focusStepId}
+        enableAutoFocusCurrentStep={enableAutoFocusCurrentStep}
+        documentRefreshKey={documentRefreshKey}
       />
 
       {actions && <div className="border-t border-slate-100 pt-4">{actions}</div>}

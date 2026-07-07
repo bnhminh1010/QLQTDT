@@ -21,6 +21,7 @@ import {
   type WorkflowStateDto,
   type WorkflowStepStateDto,
 } from "@/services/workflowApi";
+import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
 
 type TenderSummary = {
   internalId: number;
@@ -248,7 +249,7 @@ function buildWorkflowGraph(
 
       branchSteps.forEach((step, stepIndex) => {
         const x = spanStartX + stepIndex * stepGap;
-        pushNode(step, x, y, branch.tenNhanh);
+        pushNode(step, x, y, resolveParallelBranchLabel(branch, branchIndex));
         if (stepIndex > 0) {
           edges.push(makeEdge(branchSteps[stepIndex - 1].id, step.id, "branch"));
         }

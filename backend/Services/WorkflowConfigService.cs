@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
@@ -259,7 +260,10 @@ public class WorkflowConfigService : IWorkflowConfigService
                 {
                     NhomNhanhWorkflowId = groupEntity.Id,
                     MaNhanh = branch.MaNhanh,
-                    TenNhanh = branch.TenNhanh,
+                    TenNhanh = string.IsNullOrWhiteSpace(branch.TenNhanh)
+                        ? ParallelBranchNameHelper.ResolveDisplayName(branch.BranchName, null, branch.ThuTu - 1)
+                        : branch.TenNhanh.Trim(),
+                    BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(branch.BranchName),
                     ThuTu = branch.ThuTu,
                     DonViXuLyId = branch.DonViXuLyId,
                     VaiTroXuLyId = branch.VaiTroXuLyId,
@@ -596,7 +600,10 @@ public class WorkflowConfigService : IWorkflowConfigService
                     {
                         NhomNhanhWorkflowId = entityGroup.Id,
                         MaNhanh = branch.MaNhanh,
-                        TenNhanh = branch.TenNhanh,
+                        TenNhanh = string.IsNullOrWhiteSpace(branch.TenNhanh)
+                            ? ParallelBranchNameHelper.ResolveDisplayName(branch.BranchName, null, branch.ThuTu - 1)
+                            : branch.TenNhanh.Trim(),
+                        BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(branch.BranchName),
                         ThuTu = branch.ThuTu,
                         DonViXuLyId = branch.DonViXuLyId,
                         VaiTroXuLyId = branch.VaiTroXuLyId,
@@ -1006,12 +1013,13 @@ public class WorkflowConfigService : IWorkflowConfigService
                 DieuKienHopNhat = pg.DieuKienHopNhat,
                 SoNhanhHopNhatToiThieu = pg.SoNhanhHopNhatToiThieu,
                 BuocSauHopNhatId = pg.BuocSauHopNhatId,
-                Branches = pg.Nhanhs.Select(n => new ParallelBranchSnapshotDto
+                Branches = pg.Nhanhs.Select((n, index) => new ParallelBranchSnapshotDto
                 {
                     Id = n.Id,
                     NhomNhanhWorkflowId = n.NhomNhanhWorkflowId,
                     MaNhanh = n.MaNhanh,
-                    TenNhanh = n.TenNhanh,
+                    TenNhanh = ParallelBranchNameHelper.ResolveDisplayName(n.BranchName, n.TenNhanh, index),
+                    BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(n.BranchName),
                     ThuTu = n.ThuTu,
                     DonViXuLyId = n.DonViXuLyId,
                     VaiTroXuLyId = n.VaiTroXuLyId,

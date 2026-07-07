@@ -41,9 +41,10 @@ const CAN_APPROVE = true;
 
 type BadgeStatus = GoiThauTrangThaiLabel;
 type BarColor = GoiThauBarColor;
-type DotState = "done" | "warn" | "idle";
+type DotState = "done" | "warn" | "idle" | "skipped";
 type StepStatus =
   | "Hoàn tất"
+  | "Đã bỏ qua"
   | "Đang xử lý"
   | "Trễ hạn"
   | "Chờ ký duyệt"
@@ -170,6 +171,7 @@ function ProgBar({ color, pct }: { color: BarColor; pct: string }) {
 const STEP_STATUS_LABEL: Record<string, StepStatus> = {
   HOAN_TAT: "Hoàn tất",
   COMPLETED: "Hoàn tất",
+  SKIPPED: "Đã bỏ qua",
   DANG_XU_LY: "Đang xử lý",
   IN_PROGRESS: "Đang xử lý",
   CHO_DUYET: "Chờ ký duyệt",
@@ -185,6 +187,7 @@ const TIEN_DO_LABEL: Record<string, string> = {
   CHUA_THUC_HIEN: "Chưa thực hiện",
   CHUA_CO_HAN: "Chưa có hạn xử lý",
   HOAN_TAT: "Hoàn tất",
+  SKIPPED: "Đã bỏ qua",
 };
 
 const APPROVAL_SLA_STYLE: Record<
@@ -244,6 +247,7 @@ function getApprovalSortDueAt(item: ApprovalItem) {
 }
 
 function mapWorkflowStepStatus(step: WorkflowStepStateDto): StepStatus {
+  if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
   if (step.ngayHoanThanh) return "Hoàn tất";
   if (step.trangThai && STEP_STATUS_LABEL[step.trangThai]) return STEP_STATUS_LABEL[step.trangThai];
   if (step.quaHan || step.tinhTrangTienDo === "QUA_HAN") return "Trễ hạn";
@@ -255,13 +259,17 @@ function mapWorkflowStep(
   step: WorkflowStepStateDto,
   currentStepId?: number,
 ): WorkflowStep {
-  const completed = step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
+  const completed = step.trangThai !== "SKIPPED" && (step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh));
   const current = step.id === currentStepId;
-  const progressStatus = step.tinhTrangTienDo ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo : undefined;
+  const progressStatus = step.trangThai === "SKIPPED"
+    ? TIEN_DO_LABEL.SKIPPED
+    : step.tinhTrangTienDo
+      ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo
+      : undefined;
   const warningStatus = step.tinhTrangTienDo === "SAP_QUA_HAN" || step.tinhTrangTienDo === "QUA_HAN";
 
   return {
-    state: completed ? "done" : current || warningStatus ? "warn" : "idle",
+    state: step.trangThai === "SKIPPED" ? "skipped" : completed ? "done" : current || warningStatus ? "warn" : "idle",
     name: step.tenBuoc,
     processor: step.tenNguoiXuLy || step.tenNguoiKyDuyet || "-",
     status: mapWorkflowStepStatus(step),
@@ -294,6 +302,7 @@ export default function Dashboard() {
   const [workflowState, setWorkflowState] = useState<WorkflowStateDto | null>(null);
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStepStateDto[]>([]);
   const [selectedDetail, setSelectedDetail] = useState<GoiThauDetail | null>(null);
+  const [workflowDocumentRefreshKey, setWorkflowDocumentRefreshKey] = useState(0);
 
   // Load data from API
   useEffect(() => {
@@ -419,22 +428,24 @@ export default function Dashboard() {
         if (!cancelled) setSelectedDetail(detail);
       });
 
-      try {
-        const [state, steps] = await Promise.all([
-          getWorkflowState(numericId),
-          getWorkflowSteps(numericId),
-        ]);
+      const [stateResult, stepsResult] = await Promise.allSettled([
+        getWorkflowState(numericId),
+        getWorkflowSteps(numericId),
+      ]);
 
-        if (cancelled) return;
-        setWorkflowState(state);
-        setWorkflowSteps(steps);
-      } catch {
-        if (cancelled) return;
-        setWorkflowState(null);
-        setWorkflowSteps([]);
-      } finally {
-        if (!cancelled) setWorkflowLoading(false);
+      if (cancelled) return;
+
+      const nextWorkflowState = stateResult.status === "fulfilled" ? stateResult.value : null;
+      const nextWorkflowSteps = stepsResult.status === "fulfilled" ? stepsResult.value : [];
+
+      setWorkflowState(nextWorkflowState);
+      setWorkflowSteps(nextWorkflowSteps);
+
+      if (nextWorkflowState || nextWorkflowSteps.length > 0) {
+        setWorkflowDocumentRefreshKey((key) => key + 1);
       }
+
+      setWorkflowLoading(false);
     }
 
     void loadWorkflowDetail();
@@ -1013,6 +1024,7 @@ export default function Dashboard() {
               code={selected.code}
               title={selected.name}
               subtitle={selected.unit}
+              goiThauId={selected.id}
               badges={[
                 { label: selected.hinhThuc, className: "border border-slate-200 text-slate-600" },
                 { label: selected.status, className: BADGE[selected.status] },
@@ -1032,7 +1044,11 @@ export default function Dashboard() {
                 {
                   label: "Tình trạng tiến độ",
                   value: currentWorkflowSummary.progressStatus,
-                  valueClassName: currentWorkflowSummary.progressStatus === "Quá hạn" ? "text-red-500" : undefined,
+                  valueClassName: currentWorkflowSummary.progressStatus === "Quá hạn"
+                    ? "text-red-500"
+                    : currentWorkflowSummary.progressStatus === "Đã bỏ qua"
+                      ? "text-slate-500"
+                      : undefined,
                 },
               ]}
               stepInfoRows={[
@@ -1045,6 +1061,8 @@ export default function Dashboard() {
               steps={displaySteps}
               stepsLoading={workflowLoading}
               stepsEmptyMessage="Chua co du lieu buoc quy trinh tu backend."
+              documentRefreshKey={workflowDocumentRefreshKey}
+              enableAutoFocusCurrentStep={false}
               footerAction={{
                 label: "Xem chi tiết",
                 onClick: () => navigate("/danh-sach-goi-thau"),

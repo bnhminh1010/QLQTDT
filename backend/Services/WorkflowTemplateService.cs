@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
 
@@ -87,12 +88,13 @@ public class WorkflowTemplateService : IWorkflowTemplateService
                 DieuKienHopNhat = pg.DieuKienHopNhat,
                 SoNhanhHopNhatToiThieu = pg.SoNhanhHopNhatToiThieu,
                 BuocSauHopNhatId = pg.BuocSauHopNhatId,
-                Branches = pg.Nhanhs.Select(n => new ParallelBranchDto
+                Branches = pg.Nhanhs.Select((n, index) => new ParallelBranchDto
                 {
                     Id = n.Id,
                     NhomNhanhWorkflowId = n.NhomNhanhWorkflowId,
                     MaNhanh = n.MaNhanh,
-                    TenNhanh = n.TenNhanh,
+                    TenNhanh = ParallelBranchNameHelper.ResolveDisplayName(n.BranchName, n.TenNhanh, index),
+                    BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(n.BranchName),
                     ThuTu = n.ThuTu,
                     DonViXuLyId = n.DonViXuLyId,
                     VaiTroXuLyId = n.VaiTroXuLyId,
@@ -226,7 +228,10 @@ public class WorkflowTemplateService : IWorkflowTemplateService
                 {
                     NhomNhanhWorkflowId = newGroup.Id,
                     MaNhanh = n.MaNhanh,
-                    TenNhanh = n.TenNhanh,
+                    TenNhanh = string.IsNullOrWhiteSpace(n.TenNhanh)
+                        ? ParallelBranchNameHelper.ResolveDisplayName(n.BranchName, null, n.ThuTu - 1)
+                        : n.TenNhanh.Trim(),
+                    BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(n.BranchName),
                     ThuTu = n.ThuTu,
                     DonViXuLyId = n.DonViXuLyId,
                     VaiTroXuLyId = n.VaiTroXuLyId,

@@ -16,6 +16,7 @@ import type {
   HuongXuLyUI,
   TemplateInfo,
 } from "./workflowDesignerTypes";
+import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
 
 /* ─── LoaiBuoc UI → Backend ─────────────────────────────── */
 const loaiBuocUIMap: Record<LoaiBuocUI, LoaiBuocValue> = {
@@ -163,13 +164,15 @@ export function previewToWorkflowDraft(
   // Third pass: populate branch stepIds and build parallelGroups
   const parallelGroups = preview.parallelGroups.map((pg) => {
     const groupDraftId = nextDraftId();
-    const branches = pg.branches.map((b) => {
+    const branches = pg.branches.map((b, bi) => {
+      const branchTenNhanh = b.tenNhanh ?? b.name ?? "";
       const branchDraftId = branchIdMap.get(b.id)?.branchDraftId ?? nextDraftId();
       return {
         id: branchDraftId,
         backendId: preserveBackendIds ? b.id : undefined,
         maNhanh: b.maNhanh,
-        tenNhanh: b.tenNhanh,
+        tenNhanh: branchTenNhanh,
+        branchName: resolveParallelBranchLabel(b, bi),
         thuTu: b.thuTu,
         thoiHanNgay: b.thoiHanNgay ?? 1,
         loaiHan: b.loaiHan,
