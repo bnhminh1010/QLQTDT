@@ -1631,6 +1631,12 @@ namespace QLQTDT.Api.Migrations
                     b.Property<DateTime?>("HanXuLy")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("HanXuLyHoSo")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("HanKyDuyet")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("KetQua")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -1675,6 +1681,12 @@ namespace QLQTDT.Api.Migrations
                         .HasDefaultValue("LAP_HO_SO");
 
                     b.Property<bool?>("QuaHan")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("QuaHanXuLyHoSo")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("QuaHanKyDuyet")
                         .HasColumnType("bit");
 
                     b.Property<byte[]>("RowVersion")

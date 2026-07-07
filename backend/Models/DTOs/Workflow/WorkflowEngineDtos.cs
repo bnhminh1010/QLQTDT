@@ -113,7 +113,15 @@ public class ProcessStepResponse
     public int TongSoBuoc { get; set; }
     public string? TinhTrangTienDo { get; set; }
     public DateTime? HanXuLy { get; set; }
+    public DateTime? HanXuLyHoSo { get; set; }
+    public DateTime? HanKyDuyet { get; set; }
     public bool? QuaHan { get; set; }
+    public bool? QuaHanXuLyHoSo { get; set; }
+    public bool? QuaHanKyDuyet { get; set; }
+    public int? SoNgayQuaHanXuLyHoSo { get; set; }
+    public int? SoNgayQuaHanKyDuyet { get; set; }
+    public string? LyDoQuaHanXuLyHoSo { get; set; }
+    public string? LyDoQuaHanKyDuyet { get; set; }
 }
 
 /// <summary>
@@ -161,6 +169,14 @@ public class CurrentStepDto
     public string? BranchName { get; set; }
     public string? HanhDongChoPhep { get; set; }
     public DateTime? HanXuLy { get; set; }
+    public DateTime? HanXuLyHoSo { get; set; }
+    public DateTime? HanKyDuyet { get; set; }
+    public bool? QuaHanXuLyHoSo { get; set; }
+    public bool? QuaHanKyDuyet { get; set; }
+    public int? SoNgayQuaHanXuLyHoSo { get; set; }
+    public int? SoNgayQuaHanKyDuyet { get; set; }
+    public string? LyDoQuaHanXuLyHoSo { get; set; }
+    public string? LyDoQuaHanKyDuyet { get; set; }
     public string? TinhTrangTienDo { get; set; }
 }
 
@@ -194,7 +210,15 @@ public class WorkflowStepStateDto
     public string? ApprovalUnitName { get; set; }
     public string? ApprovalRoleName { get; set; }
     public DateTime? HanXuLy { get; set; }
+    public DateTime? HanXuLyHoSo { get; set; }
+    public DateTime? HanKyDuyet { get; set; }
     public bool? QuaHan { get; set; }
+    public bool? QuaHanXuLyHoSo { get; set; }
+    public bool? QuaHanKyDuyet { get; set; }
+    public int? SoNgayQuaHanXuLyHoSo { get; set; }
+    public int? SoNgayQuaHanKyDuyet { get; set; }
+    public string? LyDoQuaHanXuLyHoSo { get; set; }
+    public string? LyDoQuaHanKyDuyet { get; set; }
     public string? TinhTrangTienDo { get; set; }
     public byte[]? RowVersion { get; set; }
 }
@@ -212,9 +236,17 @@ public class WorkflowPendingTaskDto
     public string? TenNguoiXuLy { get; set; }
     public string? TenNguoiKyDuyet { get; set; }
     public DateTime? HanXuLy { get; set; }
+    public DateTime? HanXuLyHoSo { get; set; }
+    public DateTime? HanKyDuyet { get; set; }
     public DateTime? NgayXuLy { get; set; }
     public DateTime? NgayKyDuyet { get; set; }
     public bool QuaHan { get; set; }
+    public bool? QuaHanXuLyHoSo { get; set; }
+    public bool? QuaHanKyDuyet { get; set; }
+    public int? SoNgayQuaHanXuLyHoSo { get; set; }
+    public int? SoNgayQuaHanKyDuyet { get; set; }
+    public string? LyDoQuaHanXuLyHoSo { get; set; }
+    public string? LyDoQuaHanKyDuyet { get; set; }
     public bool ChoKyDuyet { get; set; }
 }
 

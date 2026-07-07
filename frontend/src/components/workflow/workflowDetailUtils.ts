@@ -376,6 +376,10 @@ export function mapWorkflowStepState(
     ghiChu: normalizeWorkflowText(step.ghiChu, ""),
     ghiChuNguon: step.ghiChuNguon ?? (isSkipped && isSystemGeneratedSkipNote(step.ghiChu) ? "SYSTEM" : undefined),
     lyDoKhongDuyet: normalizeWorkflowText(step.lyDoKhongDuyet, ""),
+    lyDoQuaHanXuLyHoSo: normalizeWorkflowText(step.lyDoQuaHanXuLyHoSo, ""),
+    lyDoQuaHanKyDuyet: normalizeWorkflowText(step.lyDoQuaHanKyDuyet, ""),
+    soNgayQuaHanXuLyHoSo: step.soNgayQuaHanXuLyHoSo,
+    soNgayQuaHanKyDuyet: step.soNgayQuaHanKyDuyet,
     slaText: progressStatus,
   };
 }
@@ -541,6 +545,8 @@ export function buildParallelInfoBySplitStep(
               ketQua: undefined,
               ghiChu: undefined,
               lyDoKhongDuyet: undefined,
+              lyDoQuaHanXuLyHoSo: undefined,
+              lyDoQuaHanKyDuyet: undefined,
               slaText: undefined,
             }));
 
@@ -663,6 +669,8 @@ export function buildWorkflowDetailSteps(
         ngayKy: undefined,
         ketQua: undefined,
         lyDoKhongDuyet: undefined,
+        lyDoQuaHanXuLyHoSo: undefined,
+        lyDoQuaHanKyDuyet: undefined,
         slaText: undefined,
         parallelInfo: parallelInfoBySplitStep[step.id],
       }));

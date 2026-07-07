@@ -547,6 +547,14 @@ export type CurrentStepDto = {
   tenNhanh?: string;
   branchName?: string;
   hanXuLy?: string;
+  hanXuLyHoSo?: string;
+  hanKyDuyet?: string;
+  quaHanXuLyHoSo?: boolean;
+  quaHanKyDuyet?: boolean;
+  soNgayQuaHanXuLyHoSo?: number;
+  soNgayQuaHanKyDuyet?: number;
+  lyDoQuaHanXuLyHoSo?: string;
+  lyDoQuaHanKyDuyet?: string;
   tinhTrangTienDo?: string;
 };
 
@@ -579,7 +587,15 @@ export type WorkflowStepStateDto = {
   approvalUnitName?: string;
   approvalRoleName?: string;
   hanXuLy?: string;
+  hanXuLyHoSo?: string;
+  hanKyDuyet?: string;
   quaHan?: boolean;
+  quaHanXuLyHoSo?: boolean;
+  quaHanKyDuyet?: boolean;
+  soNgayQuaHanXuLyHoSo?: number;
+  soNgayQuaHanKyDuyet?: number;
+  lyDoQuaHanXuLyHoSo?: string;
+  lyDoQuaHanKyDuyet?: string;
   tinhTrangTienDo?: string;
   rowVersion?: string;
 };
@@ -596,9 +612,17 @@ export type WorkflowPendingTaskDto = {
   tenNguoiXuLy?: string;
   tenNguoiKyDuyet?: string;
   hanXuLy?: string;
+  hanXuLyHoSo?: string;
+  hanKyDuyet?: string;
   ngayXuLy?: string;
   ngayKyDuyet?: string;
   quaHan: boolean;
+  quaHanXuLyHoSo?: boolean;
+  quaHanKyDuyet?: boolean;
+  soNgayQuaHanXuLyHoSo?: number;
+  soNgayQuaHanKyDuyet?: number;
+  lyDoQuaHanXuLyHoSo?: string;
+  lyDoQuaHanKyDuyet?: string;
   choKyDuyet: boolean;
   tinhTrangTienDo?: string;
   progressStatus?: string;
@@ -646,6 +670,16 @@ export type ProcessStepResponse = {
   soNhanhHoanThanh?: number;
   phaHienTai?: string;
   choKyDuyet: boolean;
+  hanXuLy?: string;
+  hanXuLyHoSo?: string;
+  hanKyDuyet?: string;
+  quaHan?: boolean;
+  quaHanXuLyHoSo?: boolean;
+  quaHanKyDuyet?: boolean;
+  soNgayQuaHanXuLyHoSo?: number;
+  soNgayQuaHanKyDuyet?: number;
+  lyDoQuaHanXuLyHoSo?: string;
+  lyDoQuaHanKyDuyet?: string;
 };
 
 export type LichSuTrangThaiGoiThauDto = {

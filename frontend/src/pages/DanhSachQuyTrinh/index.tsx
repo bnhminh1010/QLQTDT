@@ -74,8 +74,8 @@ export default function DanhSachQuyTrinh() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterHT, setFilterHT] = useState("");
-  const [sortField, setSortField] = useState<SortField>("");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortField, setSortField] = useState<SortField>("ngayTao");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(1);
   const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
   const canManageWorkflow = canManageWorkflowDesign(currentUser);

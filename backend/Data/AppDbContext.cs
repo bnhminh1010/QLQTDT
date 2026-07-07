@@ -407,7 +407,11 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NgayXuLy).HasColumnType("datetime2");
             entity.Property(e => e.NgayKyDuyet).HasColumnType("datetime2");
             entity.Property(e => e.HanXuLy).HasColumnType("datetime2");
+            entity.Property(e => e.HanXuLyHoSo).HasColumnType("datetime2");
+            entity.Property(e => e.HanKyDuyet).HasColumnType("datetime2");
             entity.Property(e => e.QuaHan);
+            entity.Property(e => e.QuaHanXuLyHoSo);
+            entity.Property(e => e.QuaHanKyDuyet);
             entity.Property(e => e.NguoiXuLyText).HasMaxLength(200);
             entity.Property(e => e.NguoiKyDuyetText).HasMaxLength(200);
             entity.Property(e => e.KetQua).HasMaxLength(20);

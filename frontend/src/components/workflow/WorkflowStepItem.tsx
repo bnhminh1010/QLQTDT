@@ -257,6 +257,16 @@ export default function WorkflowStepItem({
               <span className="font-semibold">Lý do không duyệt:</span> {step.lyDoKhongDuyet}
             </div>
           )}
+          {step.lyDoQuaHanXuLyHoSo && (
+            <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
+              <span className="font-semibold">Lý do quá hạn xử lý:</span> {step.lyDoQuaHanXuLyHoSo}
+            </div>
+          )}
+          {step.lyDoQuaHanKyDuyet && (
+            <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
+              <span className="font-semibold">Lý do quá hạn ký duyệt:</span> {step.lyDoQuaHanKyDuyet}
+            </div>
+          )}
           {step.ghiChu && (
             <div className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700 text-[11px]">
               <span className="font-semibold">{resolveWorkflowNoteLabel(step)}:</span> {step.ghiChu}

@@ -28,7 +28,11 @@ public class WorkflowStepInstance
     public string? TaiLieuDinhKem { get; set; }   // JSON array of file paths
 
     public DateTime? HanXuLy { get; set; }
+    public DateTime? HanXuLyHoSo { get; set; }
+    public DateTime? HanKyDuyet { get; set; }
     public bool? QuaHan { get; set; }
+    public bool? QuaHanXuLyHoSo { get; set; }
+    public bool? QuaHanKyDuyet { get; set; }
 
     public string? GhiChu { get; set; }
     public string? GhiChuNguon { get; set; }

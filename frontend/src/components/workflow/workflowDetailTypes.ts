@@ -52,6 +52,10 @@ export type WorkflowDetailStep = {
   ghiChu?: string;
   ghiChuNguon?: "USER" | "SYSTEM";
   lyDoKhongDuyet?: string;
+  lyDoQuaHanXuLyHoSo?: string;
+  lyDoQuaHanKyDuyet?: string;
+  soNgayQuaHanXuLyHoSo?: number;
+  soNgayQuaHanKyDuyet?: number;
   slaText?: string;
   parallelInfo?: WorkflowParallelInfo;
 };
