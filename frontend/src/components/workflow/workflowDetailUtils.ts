@@ -254,6 +254,19 @@ function getStepProgressLabel(step: WorkflowStepStateDto) {
   return "Chưa thực hiện";
 }
 
+function getStepProgressStatus(step: WorkflowStepStateDto) {
+  const overdueDays = Math.max(
+    step.soNgayQuaHanXuLyHoSo ?? 0,
+    step.soNgayQuaHanKyDuyet ?? 0,
+  );
+
+  if (overdueDays > 0) return `Quá hạn ${overdueDays} ngày`;
+
+  return step.tinhTrangTienDo
+    ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo
+    : undefined;
+}
+
 function isStepCompleted(step: WorkflowStepStateDto) {
   return (
     step.trangThai !== "SKIPPED" &&
@@ -343,9 +356,7 @@ export function mapWorkflowStepState(
     (currentWorkflowBuocWorkflowId != null && step.buocWorkflowId === currentWorkflowBuocWorkflowId);
   const progressStatus = isSkipped
     ? TIEN_DO_LABEL.SKIPPED
-    : step.tinhTrangTienDo
-      ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo
-      : undefined;
+    : getStepProgressStatus(step);
   const warningStatus = step.tinhTrangTienDo === "SAP_QUA_HAN" || step.tinhTrangTienDo === "QUA_HAN";
   const processingUnitName = resolveUnitOrRoleName(step.processingUnitName ?? step.tenDonViXuLy, step.processingRoleName ?? step.tenVaiTroXuLy);
   const processingRoleName = normalizeWorkflowText(step.processingRoleName ?? step.tenVaiTroXuLy, "");

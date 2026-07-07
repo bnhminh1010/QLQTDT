@@ -11,8 +11,8 @@ interface Props {
   endCount: number;
   onEdit: (step: WorkflowStepDraft) => void;
   onDelete: (step: WorkflowStepDraft) => void;
-  onMoveUp: (idx: number) => void;
-  onMoveDown: (idx: number) => void;
+  onMoveUp: (stepId: string) => void;
+  onMoveDown: (stepId: string) => void;
   onInsertAfter: (step: WorkflowStepDraft) => void;
   onCreateParallel: (step: WorkflowStepDraft) => void;
   onClone: (step: WorkflowStepDraft) => void;
@@ -156,8 +156,8 @@ export default function WorkflowStepList({
                   idx={idx}
                   isOrphan={isOrphan}
                   onEdit={() => onEdit(s)}
-                  onMoveUp={() => onMoveUp(idx)}
-                  onMoveDown={() => onMoveDown(idx)}
+                  onMoveUp={() => onMoveUp(s.id)}
+                  onMoveDown={() => onMoveDown(s.id)}
                   isFirst={idx === 0}
                   isLast={idx === mainSteps.length - 1}
                   onInsertAfter={() => onInsertAfter(s)}

@@ -50,6 +50,20 @@ public class WorkflowTwoPhaseDeadlineContractTests
     }
 
     [Fact]
+    public void WorkflowEngine_PreservesLegacyProcessingDeadlineWhenStepMovesToApproval()
+    {
+        var source = ReadBackendSource("Services/WorkflowEngineService.cs");
+        var migrationSource = ReadBackendSource("Migrations/20260707215500_BackfillTwoPhaseWorkflowDeadlines.cs");
+
+        Assert.Contains("step.HanXuLyHoSo ??= step.HanXuLy;", source);
+        Assert.Contains("ResolveProcessingDeadline(step)", source);
+        Assert.Contains("ComputeStepProgressStatus(step)", source);
+        Assert.Contains("step.QuaHanXuLyHoSo == true || step.QuaHanKyDuyet == true", source);
+        Assert.Contains("UPDATE WorkflowStepInstance", migrationSource);
+        Assert.Contains("HanXuLyHoSo = COALESCE(HanXuLyHoSo, HanXuLy)", migrationSource);
+    }
+
+    [Fact]
     public void WorkflowDetailUi_RendersTwoPhaseOverdueReasons()
     {
         var itemSource = ReadFrontendSource("components/workflow/WorkflowStepItem.tsx");
@@ -60,6 +74,7 @@ public class WorkflowTwoPhaseDeadlineContractTests
         Assert.Contains("lyDoQuaHanKyDuyet?: string;", typeSource);
         Assert.Contains("lyDoQuaHanXuLyHoSo: normalizeWorkflowText(step.lyDoQuaHanXuLyHoSo, \"\")", mapperSource);
         Assert.Contains("lyDoQuaHanKyDuyet: normalizeWorkflowText(step.lyDoQuaHanKyDuyet, \"\")", mapperSource);
+        Assert.Contains("`Quá hạn ${overdueDays} ngày`", mapperSource);
         Assert.Contains("Lý do quá hạn xử lý", itemSource);
         Assert.Contains("Lý do quá hạn ký duyệt", itemSource);
     }
@@ -71,6 +86,21 @@ public class WorkflowTwoPhaseDeadlineContractTests
 
         Assert.Contains("const [sortField, setSortField] = useState<SortField>(\"ngayTao\");", source);
         Assert.Contains("const [sortDir, setSortDir] = useState<SortDir>(\"desc\");", source);
+    }
+
+    [Fact]
+    public void WorkflowDesigner_MoveAndPreviewArrowUseStableStepIdentity()
+    {
+        var designerSource = ReadFrontendSource("pages/LapQuyTrinh/index.tsx");
+        var stepListSource = ReadFrontendSource("pages/LapQuyTrinh/components/WorkflowStepList.tsx");
+        var previewSource = ReadFrontendSource("pages/LapQuyTrinh/components/WorkflowPreview.tsx");
+
+        Assert.Contains("function moveMainStep(stepId: string, direction: -1 | 1)", designerSource);
+        Assert.Contains("const mainSteps = prev.filter((step) => !step.nhanhId);", designerSource);
+        Assert.Contains("onMoveUp={() => onMoveUp(s.id)}", stepListSource);
+        Assert.Contains("onMoveDown={() => onMoveDown(s.id)}", stepListSource);
+        Assert.Contains("nodes.map((n, nodeIndex)", previewSource);
+        Assert.Contains("idxNotLast(nodeIndex, nodes)", previewSource);
     }
 
     private static string ReadBackendSource(string relativePath)

@@ -48,7 +48,7 @@ export default function WorkflowPreview({ steps, parallelGroups, orphanIds }: Pr
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {nodes.map((n) => {
+      {nodes.map((n, nodeIndex) => {
         if (n.idx === -1 && n.group) {
           // Render branch row
           return (
@@ -110,10 +110,10 @@ export default function WorkflowPreview({ steps, parallelGroups, orphanIds }: Pr
             {n.isSplit && (
               <i className="fa-solid fa-code-branch text-amber-400 text-xs" />
             )}
-            {n.isMerge && !n.isSplit && idxNotLast(n.idx, nodes) && (
+            {n.isMerge && !n.isSplit && idxNotLast(nodeIndex, nodes) && (
               <i className="fa-solid fa-code-merge text-purple-400 text-xs" />
             )}
-            {!n.isSplit && !n.isMerge && idxNotLast(n.idx, nodes) && (
+            {!n.isSplit && !n.isMerge && idxNotLast(nodeIndex, nodes) && (
               <i className="fa-solid fa-arrow-right text-slate-300 text-xs" />
             )}
           </div>
@@ -123,9 +123,9 @@ export default function WorkflowPreview({ steps, parallelGroups, orphanIds }: Pr
   );
 }
 
-function idxNotLast(idx: number, nodes: StepNode[]): boolean {
+function idxNotLast(nodeIndex: number, nodes: StepNode[]): boolean {
   // Check if there is a non-branch-row node after this idx
-  for (let i = idx + 1; i < nodes.length; i++) {
+  for (let i = nodeIndex + 1; i < nodes.length; i++) {
     if (nodes[i].idx >= 0) return true;
   }
   return false;

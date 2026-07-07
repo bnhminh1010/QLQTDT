@@ -507,25 +507,31 @@ export default function LapQuyTrinh() {
     }).catch(() => toast.error("Lưu thứ tự bước thất bại"));
   }
 
-  function handleMoveUp(idx: number) {
-    if (idx === 0) return;
+  function moveMainStep(stepId: string, direction: -1 | 1) {
     setBuocList((prev) => {
+      const mainSteps = prev.filter((step) => !step.nhanhId);
+      const mainIndex = mainSteps.findIndex((step) => step.id === stepId);
+      const targetMainStep = mainSteps[mainIndex + direction];
+      if (mainIndex < 0 || !targetMainStep) return prev;
+
+      const currentIndex = prev.findIndex((step) => step.id === stepId);
+      const targetIndex = prev.findIndex((step) => step.id === targetMainStep.id);
+      if (currentIndex < 0 || targetIndex < 0) return prev;
+
       const n = [...prev];
-      [n[idx-1], n[idx]] = [n[idx], n[idx-1]];
+      [n[currentIndex], n[targetIndex]] = [n[targetIndex], n[currentIndex]];
       syncReorder(n);
       return n;
     });
     markDirty();
   }
-  function handleMoveDown(idx: number) {
-    if (idx === buocList.length - 1) return;
-    setBuocList((prev) => {
-      const n = [...prev];
-      [n[idx], n[idx+1]] = [n[idx+1], n[idx]];
-      syncReorder(n);
-      return n;
-    });
-    markDirty();
+
+  function handleMoveUp(stepId: string) {
+    moveMainStep(stepId, -1);
+  }
+
+  function handleMoveDown(stepId: string) {
+    moveMainStep(stepId, 1);
   }
 
   function handleOpenEdit(idx: number) {
