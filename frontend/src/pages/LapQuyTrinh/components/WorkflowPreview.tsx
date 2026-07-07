@@ -1,4 +1,5 @@
 import type { WorkflowStepDraft, ParallelGroupDraft } from "../workflowDesignerTypes";
+import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
 
 interface Props {
   steps: WorkflowStepDraft[];
@@ -150,7 +151,7 @@ function BranchView({ group, allSteps }: { group: ParallelGroupDraft; allSteps: 
           return (
             <p key={b.id} className="text-[10px] text-slate-600 font-mono leading-relaxed">
               {bi === 0 ? "├─ " : bi === group.branches.length - 1 ? "└─ " : "├─ "}
-              <span className="font-semibold">{b.tenNhanh}:</span>{" "}
+              <span className="font-semibold">{resolveParallelBranchLabel(b, bi)}:</span>{" "}
               <span className="text-slate-500">{branchStepNames || "—"}</span>
             </p>
           );

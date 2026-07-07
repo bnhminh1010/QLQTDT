@@ -295,9 +295,11 @@ builder.Services.AddDataProtection()
     .SetApplicationName("QLQTDT")
     .PersistKeysToFileSystem(new DirectoryInfo("/app/DataProtection-Keys"));
 
+var runBackgroundJobs = bool.TryParse(Environment.GetEnvironmentVariable("RUN_BACKGROUND_JOBS"), out var parsedRunBackgroundJobs)
+    && parsedRunBackgroundJobs;
+
 // DI — Auth Services
 builder.Services.AddScoped<LoginAttemptGuard>();
-builder.Services.AddHostedService<LockoutCleanupService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAuthStateInvalidator, AuthStateInvalidator>();
@@ -328,7 +330,11 @@ builder.Services.AddScoped<IWorkflowTemplateService, WorkflowTemplateService>();
 builder.Services.AddScoped<IParallelGroupService, ParallelGroupService>();
 builder.Services.AddScoped<IBaoCaoService, BaoCaoService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
-builder.Services.AddHostedService<DeadlineNotificationService>();
+if (runBackgroundJobs)
+{
+    builder.Services.AddHostedService<LockoutCleanupService>();
+    builder.Services.AddHostedService<DeadlineNotificationService>();
+}
 // FluentValidation — đăng ký tất cả validators từ assembly + bật auto validation
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -407,8 +413,7 @@ app.MapGet("/health", () => Results.Ok(new
 
 // Seed dữ liệu mặc định chỉ khi được bật rõ ràng.
 // IIS/FTP publish thường không nên tự seed lúc boot vì dễ làm app chết trước cả /health.
-var runStartupSeed = app.Environment.IsDevelopment()
-    || bool.TryParse(Environment.GetEnvironmentVariable("RUN_STARTUP_SEED"), out var parsedRunStartupSeed)
+var runStartupSeed = bool.TryParse(Environment.GetEnvironmentVariable("RUN_STARTUP_SEED"), out var parsedRunStartupSeed)
     && parsedRunStartupSeed;
 
 if (runStartupSeed && !app.Environment.IsEnvironment("Testing"))

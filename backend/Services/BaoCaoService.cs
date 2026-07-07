@@ -306,7 +306,7 @@ public class BaoCaoService : IBaoCaoService
                 TenBuoc = g.Key,
                 TongSo = g.Count(),
                 HoanThanh = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT
-                    || wsi.TrangThai == WorkflowStepTrangThai.SKIPPED),
+                    || (wsi.NgayHoanThanh != null && wsi.TrangThai != WorkflowStepTrangThai.SKIPPED)),
                 DangXuLy = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.DANG_XU_LY),
                 ChoDuyet = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.CHO_DUYET),
                 QuaHanCount = g.Count(wsi => wsi.QuaHan == true),
@@ -432,7 +432,7 @@ public class BaoCaoService : IBaoCaoService
                 userActivity[id] = (0, 0, 0, 0, 0);
             var cur = userActivity[id];
             cur.total++;
-            if (trangThai == WorkflowStepTrangThai.HOAN_TAT || trangThai == WorkflowStepTrangThai.SKIPPED)
+            if (trangThai == WorkflowStepTrangThai.HOAN_TAT)
             {
                 cur.completed++;
                 if (ngayBatDau.HasValue && ngayHoanThanh.HasValue)
@@ -515,7 +515,7 @@ public class BaoCaoService : IBaoCaoService
             .GroupBy(wsi => wsi.BuocWorkflow!.TenBuoc)
             .Select(g =>
             {
-                var completed = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT || wsi.TrangThai == WorkflowStepTrangThai.SKIPPED);
+                var completed = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT);
                 var dangXuLy = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.DANG_XU_LY);
                 var choDuyet = g.Count(wsi => wsi.TrangThai == WorkflowStepTrangThai.CHO_DUYET);
                 var quaHan = g.Count(wsi => wsi.QuaHan == true);
@@ -523,7 +523,7 @@ public class BaoCaoService : IBaoCaoService
 
                 // Average hours for completed steps only
                 var completedWithTime = g.Where(wsi =>
-                    (wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT || wsi.TrangThai == WorkflowStepTrangThai.SKIPPED)
+                    wsi.TrangThai == WorkflowStepTrangThai.HOAN_TAT
                     && wsi.NgayHoanThanh != null);
                 var avgHours = completedWithTime.Any()
                     ? Math.Round(completedWithTime.Average(wsi => (wsi.NgayHoanThanh!.Value - wsi.NgayBatDau).TotalHours), 1)

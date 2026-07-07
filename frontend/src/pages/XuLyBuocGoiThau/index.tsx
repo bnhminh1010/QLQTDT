@@ -5,6 +5,7 @@ import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
 import { getRoleCode } from "@/hooks/useAccessLevel";
 import type { KetQuaXuLy } from "@/pages/DanhSachGoiThau/xuLyBuocService";
 import { getGoiThauChiTiet, type GoiThauDetail } from "@/services/goiThauApi";
+import { uploadTaiLieuFiles, type DocumentPhase } from "@/services/fileApi";
 import {
   formatWorkflowKetQua,
   getWorkflowState,
@@ -17,6 +18,12 @@ import { fileIcon, formatBytes, openFile, downloadFile } from "@/util/fileAttach
 
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function buildWorkflowPanelRefreshState() {
+  return {
+    workflowDocumentRefreshKey: Date.now(),
+  };
 }
 
 const inputCls =
@@ -36,6 +43,49 @@ function normalizeDisplayValue(value?: string | null) {
 function formatMoneyDisplay(value?: number | null) {
   if (value == null) return DISPLAY_DASH;
   return `${new Intl.NumberFormat("vi-VN").format(value)} đ`;
+}
+
+function getHttpStatus(error: unknown) {
+  if (typeof error !== "object" || error === null || !("response" in error)) {
+    return undefined;
+  }
+
+  return (error as { response?: { status?: number } }).response?.status;
+}
+
+function isWaitingForApprovalStep(step?: WorkflowStepStateDto | null) {
+  return Boolean(step && (step.trangThai === "CHO_KY_DUYET" || step.phaHienTai === "KY_DUYET"));
+}
+
+function buildFormFromStep(
+  backendStep: WorkflowStepStateDto,
+  params: {
+    goiThauId: string;
+    viewingStep: string;
+    currentUserName?: string | null;
+    tenderCreatorName?: string | null;
+  },
+): FormData {
+  const waitingForApproval = isWaitingForApprovalStep(backendStep);
+  const ketQua = formatWorkflowKetQua(backendStep.ketQua)
+    || (waitingForApproval
+      ? "Chờ ký duyệt"
+      : backendStep.ngayHoanThanh
+        ? "Duyệt"
+        : "Chờ xử lý");
+
+  return {
+    goiThauId: params.goiThauId,
+    buocWorkflow: backendStep.tenBuoc || params.viewingStep,
+    nguoiXuLy: backendStep.tenNguoiXuLy || params.currentUserName || params.tenderCreatorName || "",
+    ngayXuLy: backendStep.ngayXuLy?.slice(0, 10) || todayInputValue(),
+    nguoiKyDuyet: backendStep.tenNguoiKyDuyet || "",
+    ngayKyDuyet: backendStep.ngayKyDuyet?.slice(0, 10) || "",
+    ketQua,
+    ghiChu: backendStep.ghiChu || "",
+    lyDoKhongDuyet: backendStep.lyDoKhongDuyet || "",
+    taiLieuDinhKem: [],
+  };
 }
 
 type FormData = {
@@ -136,19 +186,15 @@ export default function XuLyBuocGoiThau() {
       const isDone = readonlyMode || Boolean(backendStep.ngayHoanThanh)
         || backendStep.trangThai === "HOAN_TAT" || backendStep.trangThai === "COMPLETED";
 
-      setForm({
+      setForm(buildFormFromStep(backendStep, {
         goiThauId: id,
-        buocWorkflow: backendStep.tenBuoc || viewingStep,
-        nguoiXuLy: backendStep.tenNguoiXuLy || currentUser?.hoTen || workflowStateResult?.tenNguoiTao || "",
-        ngayXuLy: backendStep.ngayXuLy?.slice(0, 10) || todayInputValue(),
-        nguoiKyDuyet: backendStep.tenNguoiKyDuyet || "",
-        ngayKyDuyet: backendStep.ngayKyDuyet?.slice(0, 10) || "",
-        ketQua: formatWorkflowKetQua(backendStep.ketQua) || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý"),
-        ghiChu: backendStep.ghiChu || "",
-        lyDoKhongDuyet: backendStep.lyDoKhongDuyet || "",
-        taiLieuDinhKem: [],
-      });
-      const nextKetQua = formatWorkflowKetQua(backendStep.ketQua) || (backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
+        viewingStep,
+        currentUserName: currentUser?.hoTen,
+        tenderCreatorName: workflowStateResult?.tenNguoiTao,
+      }));
+      const waitingForApproval = isWaitingForApprovalStep(backendStep);
+      const nextKetQua = formatWorkflowKetQua(backendStep.ketQua)
+        || (waitingForApproval ? "Chờ ký duyệt" : backendStep.ngayHoanThanh ? "Duyệt" : "Chờ xử lý");
       setDecision(nextKetQua === "Không duyệt" || nextKetQua === "Duyệt" ? nextKetQua as KetQuaXuLy : "");
       setRejectReason(backendStep.lyDoKhongDuyet || "");
       setLocked(isDone || isAdmin);
@@ -170,20 +216,21 @@ export default function XuLyBuocGoiThau() {
     setErrors((prev) => ({ ...prev, [field]: "" }));
   }
 
-  function validateBase(extra: "approve" | "reject") {
+  function validateProcessingPhase() {
     const next: Record<string, string> = {};
     if (!form.nguoiXuLy.trim()) next.nguoiXuLy = "Vui lòng nhập người xử lý";
     if (!form.ngayXuLy) next.ngayXuLy = "Vui lòng chọn ngày xử lý";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  function validateApprovalPhase() {
+    const next: Record<string, string> = {};
     if (!form.nguoiKyDuyet.trim()) next.nguoiKyDuyet = "Vui lòng nhập người ký duyệt";
     if (!form.ngayKyDuyet) next.ngayKyDuyet = "Vui lòng chọn ngày ký duyệt";
-    if (form.ngayXuLy && form.ngayKyDuyet && form.ngayKyDuyet < form.ngayXuLy) {
-      next.ngayKyDuyet = "Ngày ký duyệt không được trước ngày xử lý";
-    }
-    if (extra === "reject" && !rejectReason.trim()) {
+    if (!decision) next.ketQua = "Vui lòng chọn kết quả duyệt";
+    if (decision === "Không duyệt" && !rejectReason.trim()) {
       next.lyDoKhongDuyet = "Vui lòng nhập lý do không duyệt";
-    }
-    if (!decision) {
-      next.ketQua = "Vui lòng chọn kết quả duyệt";
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -194,12 +241,6 @@ export default function XuLyBuocGoiThau() {
       toast.error("Admin chỉ có quyền quan sát, không được cập nhật bước gói thầu.");
       return;
     }
-    if (!decision) {
-      setErrors((prev) => ({ ...prev, ketQua: "Vui lòng chọn kết quả duyệt" }));
-      return;
-    }
-    const mode = decision === "Không duyệt" ? "reject" : "approve";
-    if (!validateBase(mode)) return;
 
     const goiThauId = Number(id.replace(/^GT/i, ""));
     if (!Number.isFinite(goiThauId) || goiThauId <= 0 || !step?.id || !step.rowVersion) {
@@ -207,24 +248,75 @@ export default function XuLyBuocGoiThau() {
       return;
     }
 
+    const waitingForApproval = isWaitingForApprovalStep(step);
+    if (waitingForApproval) {
+      if (!validateApprovalPhase()) return;
+    } else if (!validateProcessingPhase()) {
+      return;
+    }
+
     setSubmitting(true);
     try {
+      const documentPhase: DocumentPhase = waitingForApproval ? "Approval" : "Processing";
+      let uploadedFileNames = attachments.map((file) => file.name);
+
+      if (attachments.length > 0) {
+        try {
+          const uploaded = await uploadTaiLieuFiles(
+            {
+              files: attachments,
+              goiThauId,
+              workflowStepInstanceId: step.id,
+              loaiTaiLieu: "HOSO_DUTHAU",
+              documentPhase,
+            },
+            { skipAuthToast: true },
+          );
+          uploadedFileNames = uploaded.map((item) => item.fileName);
+        } catch (error) {
+          if (getHttpStatus(error) === 403) {
+            toast.error("Bạn không có quyền upload tài liệu cho bước này.");
+            return;
+          }
+          throw error;
+        }
+      }
+
+      if (!waitingForApproval) {
+        const result = await processStep(goiThauId, {
+          hanhDong: "APPROVE",
+          ghiChu: form.ghiChu,
+          workflowStepInstanceId: step.id,
+          rowVersion: step.rowVersion,
+          taiLieuDinhKem: uploadedFileNames.join(", ") || undefined,
+          ngayXuLy: form.ngayXuLy || undefined,
+        });
+
+        toast.success(result.message || "Đã lưu và gửi ký duyệt. Hồ sơ đang chờ kết quả ký duyệt.");
+        const focusStepId = result.currentStepId ?? result.newStepId ?? step.id;
+        navigate(`/danh-sach-goi-thau?goiThauId=GT${goiThauId}&focusStepId=${focusStepId}`, {
+          state: buildWorkflowPanelRefreshState(),
+        });
+        return;
+      }
+
       const result = await processStep(goiThauId, {
-        hanhDong: decision === "Không duyệt" ? "KHONG_DUYET" : "APPROVE",
+        hanhDong: decision === "Không duyệt" ? "KHONG_DUYET" : "DUYET",
         ghiChu: decision === "Không duyệt" ? rejectReason.trim() : form.ghiChu,
         workflowStepInstanceId: step.id,
         rowVersion: step.rowVersion,
-        taiLieuDinhKem: attachments.map((file) => file.name).join(", ") || undefined,
-        // include form fields so backend/response can reflect them in UI
-        nguoiXuLy: form.nguoiXuLy || undefined,
-        ngayXuLy: form.ngayXuLy || undefined,
+        taiLieuDinhKem: uploadedFileNames.join(", ") || undefined,
         nguoiKyDuyet: form.nguoiKyDuyet || undefined,
         ngayKyDuyet: form.ngayKyDuyet || undefined,
         ketQua: decision === "Không duyệt" ? "KHONG_DUYET" : "DUYET",
       });
 
-      toast.success(result.message || "Cập nhật bước thành công.");
-      navigate(`/danh-sach-goi-thau?goiThauId=GT${goiThauId}`);
+      toast.success(result.message || "Cập nhật kết quả ký duyệt thành công.");
+      setErrors({});
+      const focusStepId = result.currentStepId ?? result.newStepId ?? step.id;
+      navigate(`/danh-sach-goi-thau?goiThauId=GT${goiThauId}&focusStepId=${focusStepId}`, {
+        state: buildWorkflowPanelRefreshState(),
+      });
     } catch (error: any) {
       toast.error(error?.message || "Không thể cập nhật bước.");
     } finally {
@@ -232,7 +324,18 @@ export default function XuLyBuocGoiThau() {
     }
   }
 
-  const disabled = locked;
+  const waitingForApproval = isWaitingForApprovalStep(step);
+  const processFieldsLocked = locked || waitingForApproval;
+  const showApprovalSection = waitingForApproval || Boolean(step?.ngayHoanThanh) || step?.trangThai === "HOAN_TAT" || step?.trangThai === "COMPLETED";
+  const approvalFieldsLocked = locked || !waitingForApproval;
+  const displayedResult = waitingForApproval && decision ? decision : form.ketQua;
+  const primaryButtonLabel = waitingForApproval
+    ? decision === "Duyệt"
+      ? "Hoàn thành bước"
+      : decision === "Không duyệt"
+        ? "Cập nhật kết quả"
+        : "Cập nhật kết quả ký duyệt"
+    : "Lưu và gửi ký duyệt";
 
   return (
     <>
@@ -288,14 +391,14 @@ export default function XuLyBuocGoiThau() {
               <span className="text-slate-400">Kết quả xử lý: </span>
               <span
                 className={`font-semibold ${
-                  form.ketQua === "Duyệt"
+                  displayedResult === "Duyệt"
                     ? "text-emerald-600"
-                    : form.ketQua === "Không duyệt"
+                    : displayedResult === "Không duyệt"
                       ? "text-red-600"
                       : "text-amber-600"
                 }`}
               >
-                {form.ketQua}
+                {displayedResult}
               </span>
             </div>
           </div>
@@ -318,6 +421,11 @@ export default function XuLyBuocGoiThau() {
               Bước này chỉ hiển thị để tra cứu, không cho phép chỉnh sửa kết quả xử lý.
             </div>
           )}
+          {waitingForApproval && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              Hồ sơ đang chờ kết quả ký duyệt. Phần thông tin xử lý cũ đã được khóa, bạn chỉ có thể cập nhật kết quả ký duyệt bên dưới.
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             <div>
@@ -329,10 +437,9 @@ export default function XuLyBuocGoiThau() {
                 Người xử lý hồ sơ <span className="text-red-500">*</span>
               </label>
               <input
-                disabled={disabled}
+                readOnly
                 value={form.nguoiXuLy}
-                onChange={(e) => updateField("nguoiXuLy", e.target.value)}
-                className={errors.nguoiXuLy ? inputErrCls : disabled ? readonlyCls : inputCls}
+                className={errors.nguoiXuLy ? inputErrCls : readonlyCls}
               />
               {errors.nguoiXuLy && <p className="mt-1 text-xs text-red-500">{errors.nguoiXuLy}</p>}
             </div>
@@ -342,111 +449,117 @@ export default function XuLyBuocGoiThau() {
               </label>
               <input
                 type="date"
-                disabled={disabled}
+                disabled={processFieldsLocked}
                 value={form.ngayXuLy}
                 onChange={(e) => updateField("ngayXuLy", e.target.value)}
-                className={errors.ngayXuLy ? inputErrCls : disabled ? readonlyCls : inputCls}
+                className={errors.ngayXuLy ? inputErrCls : processFieldsLocked ? readonlyCls : inputCls}
               />
               {errors.ngayXuLy && <p className="mt-1 text-xs text-red-500">{errors.ngayXuLy}</p>}
-            </div>
-            <div>
-              <label className={labelCls}>
-                Người ký duyệt <span className="text-red-500">*</span>
-              </label>
-              <input
-                disabled={disabled}
-                value={form.nguoiKyDuyet}
-                onChange={(e) => updateField("nguoiKyDuyet", e.target.value)}
-                className={errors.nguoiKyDuyet ? inputErrCls : disabled ? readonlyCls : inputCls}
-                placeholder="VD: Trần Văn B"
-              />
-              {errors.nguoiKyDuyet && <p className="mt-1 text-xs text-red-500">{errors.nguoiKyDuyet}</p>}
-            </div>
-            <div>
-              <label className={labelCls}>
-                Ngày ký duyệt <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                disabled={disabled}
-                value={form.ngayKyDuyet}
-                onChange={(e) => updateField("ngayKyDuyet", e.target.value)}
-                className={errors.ngayKyDuyet ? inputErrCls : disabled ? readonlyCls : inputCls}
-              />
-              {errors.ngayKyDuyet && <p className="mt-1 text-xs text-red-500">{errors.ngayKyDuyet}</p>}
-            </div>
-            <div>
-              <label className={labelCls}>
-                Kết quả duyệt <span className="text-red-500">*</span>
-              </label>
-              {locked ? (
-                <input readOnly value={form.ketQua} className={readonlyCls} />
-              ) : (
-                <div className="min-h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
-                  <div className="flex flex-wrap gap-4 text-sm text-slate-700">
-                    {(["Duyệt", "Không duyệt"] as KetQuaXuLy[]).map((value) => (
-                      <label key={value} className="inline-flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="ketQuaDuyet"
-                          value={value}
-                          checked={decision === value}
-                          onChange={() => {
-                            setDecision(value);
-                            setErrors((prev) => ({ ...prev, ketQua: "", lyDoKhongDuyet: "" }));
-                          }}
-                          className="h-4 w-4 text-blue-600"
-                        />
-                        <span>{value}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {errors.ketQua && <p className="mt-1 text-xs text-red-500">{errors.ketQua}</p>}
             </div>
           </div>
 
           <div>
-            <label className={labelCls}>Ghi chú / lý do thực tế</label>
+            <label className={labelCls}>Ghi chú</label>
             <textarea
               rows={4}
-              disabled={disabled}
+              disabled={processFieldsLocked}
               value={form.ghiChu}
               onChange={(e) => updateField("ghiChu", e.target.value)}
-              className={`${disabled ? readonlyCls : inputCls} resize-none`}
+              className={`${processFieldsLocked ? readonlyCls : inputCls} resize-none`}
               placeholder="Ví dụ: chờ báo giá, chờ họp hội đồng, nhà cung cấp xin gia hạn..."
             />
           </div>
 
-          {form.lyDoKhongDuyet && (
-            <div>
-              <label className={labelCls}>Lý do không duyệt</label>
-              <textarea readOnly rows={3} value={form.lyDoKhongDuyet} className={`${readonlyCls} resize-none`} />
-            </div>
-          )}
+          {showApprovalSection && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 space-y-4">
+              {waitingForApproval && (
+                <div className="rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-amber-700">
+                  Hồ sơ đang chờ kết quả ký duyệt. Sau khi có kết quả, vui lòng cập nhật thông tin ký duyệt bên dưới.
+                </div>
+              )}
 
-          {!locked && decision === "Không duyệt" && (
-            <div>
-              <label className={labelCls}>
-                Lý do không duyệt <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                rows={3}
-                value={rejectReason}
-                onChange={(e) => {
-                  setRejectReason(e.target.value);
-                  setErrors((prev) => ({ ...prev, lyDoKhongDuyet: "" }));
-                }}
-                className={`${errors.lyDoKhongDuyet ? inputErrCls : inputCls} resize-none`}
-                placeholder="Nhập lý do không duyệt..."
-              />
-              {errors.lyDoKhongDuyet && <p className="mt-1 text-xs text-red-500">{errors.lyDoKhongDuyet}</p>}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>
+                    Người ký duyệt <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    disabled={approvalFieldsLocked}
+                    value={form.nguoiKyDuyet}
+                    onChange={(e) => updateField("nguoiKyDuyet", e.target.value)}
+                    className={errors.nguoiKyDuyet ? inputErrCls : approvalFieldsLocked ? readonlyCls : inputCls}
+                    placeholder="VD: Giám đốc / Phó giám đốc / Kế toán trưởng..."
+                  />
+                  {errors.nguoiKyDuyet && <p className="mt-1 text-xs text-red-500">{errors.nguoiKyDuyet}</p>}
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    Ngày ký duyệt <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    disabled={approvalFieldsLocked}
+                    value={form.ngayKyDuyet}
+                    onChange={(e) => updateField("ngayKyDuyet", e.target.value)}
+                    className={errors.ngayKyDuyet ? inputErrCls : approvalFieldsLocked ? readonlyCls : inputCls}
+                  />
+                  {errors.ngayKyDuyet && <p className="mt-1 text-xs text-red-500">{errors.ngayKyDuyet}</p>}
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    Kết quả duyệt <span className="text-red-500">*</span>
+                  </label>
+                  {approvalFieldsLocked ? (
+                    <input readOnly value={form.ketQua} className={readonlyCls} />
+                  ) : (
+                    <div className="min-h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+                      <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+                        {(["Duyệt", "Không duyệt"] as KetQuaXuLy[]).map((value) => (
+                          <label key={value} className="inline-flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="ketQuaDuyet"
+                              value={value}
+                              checked={decision === value}
+                              onChange={() => {
+                                setDecision(value);
+                                setErrors((prev) => ({ ...prev, ketQua: "", lyDoKhongDuyet: "" }));
+                              }}
+                              className="h-4 w-4 text-blue-600"
+                            />
+                            <span>{value}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {errors.ketQua && <p className="mt-1 text-xs text-red-500">{errors.ketQua}</p>}
+                </div>
+              </div>
+
+              {waitingForApproval && decision === "Không duyệt" && (
+                <div>
+                  <label className={labelCls}>
+                    Lý do không duyệt <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={rejectReason}
+                    onChange={(e) => {
+                      setRejectReason(e.target.value);
+                      setErrors((prev) => ({ ...prev, lyDoKhongDuyet: "" }));
+                    }}
+                    className={`${errors.lyDoKhongDuyet ? inputErrCls : inputCls} resize-none`}
+                    placeholder="Nhập lý do không duyệt..."
+                  />
+                  {errors.lyDoKhongDuyet && <p className="mt-1 text-xs text-red-500">{errors.lyDoKhongDuyet}</p>}
+                </div>
+              )}
             </div>
           )}
 
           <div>
-            <label className={labelCls}>Tài liệu đính kèm</label>
+            <label className={labelCls}>{waitingForApproval ? "Tài liệu đã ký" : "Tài liệu đính kèm"}</label>
             {!locked && (
               <div
                 {...getRootProps()}
@@ -465,34 +578,42 @@ export default function XuLyBuocGoiThau() {
             )}
             {attachments.length > 0 && (
               <ul className="mt-3 space-y-2">
-                {!locked &&
-                  attachments.map((file, idx) => {
-                    const { icon, color } = fileIcon(file.name);
-                    return (
-                      <li
-                        key={`${file.name}-${idx}`}
-                        className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5"
-                      >
-                        <i className={`fa-solid ${icon} ${color} text-lg shrink-0`} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-medium text-slate-800">{file.name}</p>
-                          <p className="text-[11px] text-slate-400">{formatBytes(file.size)}</p>
-                        </div>
-                        <button type="button" onClick={() => openFile(file)} className="w-7 h-7 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600">
-                          <i className="fa-solid fa-eye text-xs" />
-                        </button>
-                        <button type="button" onClick={() => downloadFile(file)} className="w-7 h-7 rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600">
-                          <i className="fa-solid fa-download text-xs" />
-                        </button>
+                {attachments.map((file, idx) => {
+                  const { icon, color } = fileIcon(file.name);
+                  return (
+                    <li
+                      key={`${file.name}-${idx}`}
+                      className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5"
+                    >
+                      <i className={`fa-solid ${icon} ${color} text-lg shrink-0`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium text-slate-800">{file.name}</p>
+                        <p className="text-[11px] text-slate-400">{formatBytes(file.size)}</p>
+                      </div>
+                      <button type="button" onClick={() => openFile(file)} className="w-7 h-7 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600">
+                        <i className="fa-solid fa-eye text-xs" />
+                      </button>
+                      <button type="button" onClick={() => downloadFile(file)} className="w-7 h-7 rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600">
+                        <i className="fa-solid fa-download text-xs" />
+                      </button>
+                      {!locked && (
                         <button type="button" onClick={() => removeFile(idx)} className="w-7 h-7 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500">
                           <i className="fa-solid fa-xmark text-xs" />
                         </button>
-                      </li>
-                    );
-                  })}
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
+
+          {form.lyDoKhongDuyet && (
+            <div>
+              <label className={labelCls}>Lý do không duyệt</label>
+              <textarea readOnly rows={3} value={form.lyDoKhongDuyet} className={`${readonlyCls} resize-none`} />
+            </div>
+          )}
 
           {!locked && (
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4">
@@ -509,7 +630,7 @@ export default function XuLyBuocGoiThau() {
                 disabled={submitting}
                 className="h-10 px-5 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? "Đang lưu..." : "Lưu cập nhật"}
+                {submitting ? "Đang lưu..." : primaryButtonLabel}
               </button>
             </div>
           )}

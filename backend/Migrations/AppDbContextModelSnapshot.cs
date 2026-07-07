@@ -894,6 +894,10 @@ namespace QLQTDT.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BranchName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int>("BuocDauTienId")
                         .HasColumnType("int");
 
@@ -1174,6 +1178,10 @@ namespace QLQTDT.Api.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("DocumentPhase")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("DuongDanFtp")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -1209,13 +1217,18 @@ namespace QLQTDT.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.HasKey("Id");
+                    b.Property<long?>("WorkflowStepInstanceId")
+                        .HasColumnType("bigint");
 
-                    b.HasIndex("GoiThauId");
+                    b.HasKey("Id");
 
                     b.HasIndex("HoSoDuThauId");
 
                     b.HasIndex("HopDongId");
+
+                    b.HasIndex("WorkflowStepInstanceId");
+
+                    b.HasIndex("GoiThauId", "WorkflowStepInstanceId", "DocumentPhase");
 
                     b.ToTable("TaiLieuHoSo", (string)null);
                 });
@@ -1610,6 +1623,10 @@ namespace QLQTDT.Api.Migrations
                     b.Property<string>("GhiChu")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("GhiChuNguon")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime?>("HanXuLy")
                         .HasColumnType("datetime2");
@@ -2140,6 +2157,11 @@ namespace QLQTDT.Api.Migrations
                         .WithMany("TaiLieus")
                         .HasForeignKey("HopDongId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("QLQTDT.Api.Models.Entities.WorkflowStepInstance", null)
+                        .WithMany()
+                        .HasForeignKey("WorkflowStepInstanceId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.ThongBao", b =>

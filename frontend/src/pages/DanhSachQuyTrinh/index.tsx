@@ -36,6 +36,36 @@ type LocalQuyTrinh = {
   ngayTao: string;
 };
 
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (typeof error !== "object" || error === null || !("response" in error)) {
+    return fallback;
+  }
+
+  const response = (error as { response?: { data?: unknown } }).response;
+  const data = response?.data;
+  if (typeof data !== "object" || data === null) return fallback;
+
+  if ("message" in data && typeof data.message === "string" && data.message.trim()) {
+    return data.message;
+  }
+
+  if ("error" in data) {
+    const errorValue = data.error;
+    if (typeof errorValue === "string" && errorValue.trim()) return errorValue;
+    if (
+      typeof errorValue === "object" &&
+      errorValue !== null &&
+      "message" in errorValue &&
+      typeof errorValue.message === "string" &&
+      errorValue.message.trim()
+    ) {
+      return errorValue.message;
+    }
+  }
+
+  return fallback;
+}
+
 export default function DanhSachQuyTrinh() {
   const navigate = useNavigate();
   const [list, setList] = useState<LocalQuyTrinh[]>([]);
@@ -96,7 +126,7 @@ export default function DanhSachQuyTrinh() {
         toast.success(nextActive ? "Đã kích hoạt quy trình" : "Đã tắt quy trình");
         reload();
       })
-      .catch(() => toast.error("Cập nhật trạng thái thất bại"));
+      .catch((error) => toast.error(getApiErrorMessage(error, "Cập nhật trạng thái thất bại")));
   }
 
   function handleDelete() {
@@ -107,7 +137,7 @@ export default function DanhSachQuyTrinh() {
         setDeleteTarget(null);
         reload();
       })
-      .catch(() => toast.error("Xóa quy trình thất bại"));
+      .catch((error) => toast.error(getApiErrorMessage(error, "Xóa quy trình thất bại")));
   }
 
   /* ── Filter + Sort ── */

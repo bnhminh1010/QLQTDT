@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+﻿import { useMemo, useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -31,12 +31,9 @@ import { getWorkflowTemplates, previewWorkflowTemplate } from "@/services/workfl
 import type { WorkflowTemplateSummary, ParallelGroupDto, BuocWorkflowDto } from "@/services/workflowApi";
 import { getCurrentUserApi } from "@/services/api";
 import type { LoginUserDto } from "@/services/api";
-import { getRoleCode } from "@/hooks/useAccessLevel";
+import { canAccessCreateTender } from "@/hooks/useAccessLevel";
 import { getKhoaPhongs } from "@/services/adminApi";
 import type { KhoaPhong } from "@/services/adminApi";
-
-/* ─ Auth ─ */
-const CAN_CREATE = true;
 
 function formatDisplayNumber(value?: string | number): string {
   if (!value) return "";
@@ -259,9 +256,9 @@ export default function TaoGoiThau() {
   const watched = watch();
 
   useEffect(() => {
-    if (currentUser && getRoleCode(currentUser) === "ADMIN") {
-      toast.error("Admin chỉ có quyền quan sát gói thầu, không được tạo hoặc chỉnh sửa.");
-      navigate("/danh-sach-goi-thau", { replace: true });
+    if (currentUser && !canAccessCreateTender(currentUser)) {
+      toast.error("Chỉ role Khoa phòng được truy cập trang Tạo gói thầu.");
+      navigate("/dashboard", { replace: true });
     }
   }, [currentUser, navigate]);
 
@@ -1412,12 +1409,12 @@ export default function TaoGoiThau() {
       )}
 
       {/* RBAC guard */}
-      {!CAN_CREATE && (
+      {currentUser && !canAccessCreateTender(currentUser) && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center space-y-4">
             <i className="fa-solid fa-lock text-4xl text-slate-300" />
             <h3 className="font-bold text-slate-800">Không có quyền truy cập</h3>
-            <p className="text-sm text-slate-500">Bạn không có quyền tạo gói thầu.</p>
+            <p className="text-sm text-slate-500">Chỉ role Khoa phòng mới được tạo gói thầu.</p>
             <button
               onClick={() => navigate(-1)}
               className="h-9 px-5 bg-blue-600 text-white text-sm font-semibold rounded-xl"

@@ -6,5 +6,7 @@ public class UploadFormModel
 {
     public List<IFormFile>? Files { get; set; }
     public int? GoiThauId { get; set; }
+    public long? WorkflowStepInstanceId { get; set; }
     public string? LoaiTaiLieu { get; set; }
+    public string? DocumentPhase { get; set; }
 }

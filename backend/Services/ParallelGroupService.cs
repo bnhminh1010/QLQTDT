@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
 
@@ -131,7 +132,10 @@ public class ParallelGroupService : IParallelGroupService
         {
             NhomNhanhWorkflowId = groupId,
             MaNhanh = request.MaNhanh,
-            TenNhanh = request.TenNhanh,
+            TenNhanh = string.IsNullOrWhiteSpace(request.TenNhanh)
+                ? ParallelBranchNameHelper.ResolveDisplayName(request.BranchName, null, request.ThuTu - 1)
+                : request.TenNhanh.Trim(),
+            BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(request.BranchName),
             ThuTu = request.ThuTu,
             DonViXuLyId = request.DonViXuLyId,
             VaiTroXuLyId = request.VaiTroXuLyId,
@@ -146,7 +150,7 @@ public class ParallelGroupService : IParallelGroupService
         _logger.LogInformation("Created branch: id={BranchId}, group={GroupId}, ma={MaNhanh}",
             entity.Id, groupId, entity.MaNhanh);
 
-        return ToBranchDto(entity);
+        return ToBranchDto(entity, Math.Max(request.ThuTu - 1, 0));
     }
 
     public async Task UpdateBranchAsync(int branchId, ParallelBranchUpdateRequest request)
@@ -154,7 +158,15 @@ public class ParallelGroupService : IParallelGroupService
         var branch = await _db.NhanhWorkflows.FindAsync(branchId)
             ?? throw new NotFoundException($"Branch not found: {branchId}");
 
-        if (request.TenNhanh != null) branch.TenNhanh = request.TenNhanh;
+        var nextBranchLabel = request.BranchName ?? request.TenNhanh;
+        if (nextBranchLabel != null)
+        {
+            var normalizedLabel = string.IsNullOrWhiteSpace(nextBranchLabel)
+                ? ParallelBranchNameHelper.ResolveDisplayName(branch.BranchName, branch.TenNhanh)
+                : nextBranchLabel.Trim();
+            branch.TenNhanh = normalizedLabel;
+            branch.BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(nextBranchLabel);
+        }
         if (request.ThuTu.HasValue) branch.ThuTu = request.ThuTu.Value;
         if (request.DonViXuLyId.HasValue) branch.DonViXuLyId = request.DonViXuLyId;
         if (request.VaiTroXuLyId.HasValue) branch.VaiTroXuLyId = request.VaiTroXuLyId;
@@ -186,15 +198,16 @@ public class ParallelGroupService : IParallelGroupService
         DieuKienHopNhat = g.DieuKienHopNhat,
         SoNhanhHopNhatToiThieu = g.SoNhanhHopNhatToiThieu,
         BuocSauHopNhatId = g.BuocSauHopNhatId,
-        Branches = g.Nhanhs.Select(ToBranchDto).ToList()
+        Branches = g.Nhanhs.Select((branch, index) => ToBranchDto(branch, index)).ToList()
     };
 
-    private static ParallelBranchDto ToBranchDto(NhanhWorkflow n) => new()
+    private static ParallelBranchDto ToBranchDto(NhanhWorkflow n, int index) => new()
     {
         Id = n.Id,
         NhomNhanhWorkflowId = n.NhomNhanhWorkflowId,
         MaNhanh = n.MaNhanh,
-        TenNhanh = n.TenNhanh,
+        TenNhanh = ParallelBranchNameHelper.ResolveDisplayName(n.BranchName, n.TenNhanh, index),
+        BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(n.BranchName),
         ThuTu = n.ThuTu,
         DonViXuLyId = n.DonViXuLyId,
         VaiTroXuLyId = n.VaiTroXuLyId,

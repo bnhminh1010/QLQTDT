@@ -79,6 +79,7 @@ export type ParallelBranchDraft = {
   backendId?: number;
   maNhanh?: string;
   tenNhanh: string;
+  branchName?: string;
   thuTu: number;
   thoiHanNgay: number;
   loaiHan: "CANH_BAO" | "BAT_BUOC";

@@ -126,7 +126,9 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             {
                 GoiThauId = g.Key,
                 Total = g.SelectMany(wi => wi.WorkflowStepInstances).Count(),
-                Completed = g.SelectMany(wi => wi.WorkflowStepInstances).Count(wsi => wsi.TrangThai == "HOAN_TAT" || wsi.TrangThai == "COMPLETED" || wsi.NgayHoanThanh != null)
+                Completed = g.SelectMany(wi => wi.WorkflowStepInstances).Count(wsi =>
+                    wsi.TrangThai == "HOAN_TAT" ||
+                    (wsi.NgayHoanThanh != null && wsi.TrangThai != "SKIPPED"))
             })
             .ToListAsync();
 

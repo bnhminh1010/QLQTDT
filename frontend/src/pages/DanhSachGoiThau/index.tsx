@@ -10,9 +10,7 @@ import {
   getWorkflowState,
   getWorkflowSteps,
   formatWorkflowKetQua,
-  processStep,
-  getWorkflowDesignSteps,
-  getParallelGroups,
+  skipBranch,
   getLichSuGoiThau,
 
   type WorkflowStateDto,
@@ -23,15 +21,17 @@ import {
 } from "@/services/workflowApi";
 import type { GoiThau, HinhThuc, TrangThai } from "./goiThauService";
 import { normalizeParallelGroupTitle } from "@/constants/parallelGroup";
-import { canManageWorkflowDesign, getRoleCode, hasAnyPermission } from "@/hooks/useAccessLevel";
+import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
+import { getRoleCode, hasAnyPermission } from "@/hooks/useAccessLevel";
 import {
   buildWorkflowDetailSteps,
   resolveWorkflowCurrentStepSummary,
 } from "@/components/workflow/workflowDetailUtils";
+import type { WorkflowParallelBranch } from "@/components/workflow/workflowDetailTypes";
 import { resolveGoiThauNguonVon } from "@/util/goiThauDisplay";
 
 /* ─── Types ───────────────────────────────────────────── */
-export type DotState = "done" | "warn" | "idle";
+export type DotState = "done" | "warn" | "idle" | "skipped";
 
 export type LichSuGoiThau = {
   id: string;
@@ -41,6 +41,7 @@ export type LichSuGoiThau = {
   loai: string;
   tieuDe: string;
   noiDung: string;
+  metadata?: Record<string, string | null>;
 };
 
 export type QuyTrinhStepDetail = {
@@ -63,14 +64,18 @@ export type QuyTrinhStepDetail = {
 export type ParallelInfo = {
   title: string;
   condition: string;
+  mergeCondition?: "ALL" | "ANY" | "COUNT" | "SKIP_ALL";
   branches: {
     name: string;
+    branchId?: number;
+    parallelGroupId?: number;
     backendId?: number;
     progress: string;
     status: string;
     currentStep: string;
     processor: string;
     ghiChu?: string;
+    canSkipBranch?: boolean;
     steps: {
       name: string;
       backendId?: number;
@@ -174,11 +179,11 @@ function getCurrentStepActionState(
   workflowState: WorkflowStateDto | null,
   currentWorkflowSummary: ReturnType<typeof resolveWorkflowCurrentStepSummary>,
   user: LoginUserDto | null,
-  userLoaded: boolean,
 ) {
   const baseEnabled = Boolean(item && canUpdateCurrentStep(item));
   const activeStep = workflowState?.currentSteps?.[0];
   const activeStepId = activeStep?.stepInstanceId;
+  const userLoaded = true;
 
   if (!baseEnabled) {
     return {
@@ -262,6 +267,7 @@ function mapTimelineHistoryToModalEntry(item: LichSuGoiThauTimelineDto): LichSuG
     loai: item.loai,
     tieuDe: item.tieuDe,
     noiDung: item.noiDung,
+    metadata: item.metadata,
   };
 }
 
@@ -289,6 +295,22 @@ function getHistoryTypeClass(type: string) {
     HE_THONG: "bg-slate-100 text-slate-600",
   };
   return classes[type] ?? "bg-slate-100 text-slate-600";
+}
+
+function getHistoryTimelineTone(entry: LichSuGoiThau) {
+  const action = entry.metadata?.hanhDong;
+  const status = entry.metadata?.trangThaiMoi;
+  if (action === "SKIP" || status === "SKIPPED") {
+    return {
+      wrapperClassName: "bg-slate-100 text-slate-500",
+      iconClassName: "fa-solid fa-minus text-[10px]",
+    };
+  }
+
+  return {
+    wrapperClassName: "bg-blue-100 text-blue-600",
+    iconClassName: "fa-solid fa-clock text-[10px]",
+  };
 }
 
 function getApiErrorMessage(error: unknown, fallback: string) {
@@ -327,6 +349,7 @@ const TIEN_DO_LABEL: Record<string, string> = {
   CHUA_THUC_HIEN: "Chưa thực hiện",
   CHUA_CO_HAN: "Chưa có hạn xử lý",
   HOAN_TAT: "Hoàn tất",
+  SKIPPED: "Đã bỏ qua",
 };
 
 function mapWorkflowStepState(
@@ -334,17 +357,22 @@ function mapWorkflowStepState(
   currentStepId?: number,
   currentWorkflowBuocWorkflowId?: number,
 ): QuyTrinhStepDetail {
-  const completed = step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED";
+  const isSkipped = step.trangThai === "SKIPPED";
+  const completed = !isSkipped && (step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED");
   const current =
     step.id === currentStepId ||
     (currentWorkflowBuocWorkflowId != null && step.buocWorkflowId === currentWorkflowBuocWorkflowId);
-  const progressStatus = step.tinhTrangTienDo ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo : undefined;
+  const progressStatus = isSkipped
+    ? TIEN_DO_LABEL.SKIPPED
+    : step.tinhTrangTienDo
+      ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo
+      : undefined;
   const warningStatus = step.tinhTrangTienDo === "SAP_QUA_HAN" || step.tinhTrangTienDo === "QUA_HAN";
 
   return {
-    state: completed ? "done" : current || warningStatus ? "warn" : "idle",
+    state: isSkipped ? "skipped" : completed ? "done" : current || warningStatus ? "warn" : "idle",
     ten: step.tenBuoc,
-    donVi: step.tenDonViXuLy || step.tenVaiTroXuLy || step.tenVaiTroKyDuyet || "-",
+    donVi: step.tenDonViXuLy || step.tenVaiTroXuLy || "-",
     backendId: step.id,
     buocWorkflowId: step.buocWorkflowId,
     current,
@@ -360,14 +388,17 @@ function mapWorkflowStepState(
 }
 
 export function getStepProgressLabel(step: WorkflowStepStateDto) {
-  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn thành";
   if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn thành";
   if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "Đang xử lý";
   return "Chưa thực hiện";
 }
 
 export function isStepCompleted(step: WorkflowStepStateDto) {
-  return step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh);
+  return (
+    step.trangThai !== "SKIPPED" &&
+    (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh))
+  );
 }
 
 export function isStepSkipped(step: WorkflowStepStateDto) {
@@ -465,7 +496,7 @@ export function buildParallelInfoBySplitStep(
         : group.dieuKienHopNhat === "SKIP_ALL"
           ? "Chỉ cho phép hợp nhất khi tất cả nhánh đều bị bỏ qua."
           : `Cần tối thiểu ${group.soNhanhHopNhatToiThieu ?? 1} nhánh hoàn thành trước khi hợp nhất.`,
-      branches: group.branches.map((branch) => {
+      branches: group.branches.map((branch, branchIndex) => {
         const branchRuntimeSteps = dedupeWorkflowStepsByDesignStep(
           runtimeSteps.filter((step) => step.nhanhWorkflowId != null && branchIds.has(step.nhanhWorkflowId) && step.nhanhWorkflowId === branch.id),
           activeStepIds,
@@ -497,17 +528,21 @@ export function buildParallelInfoBySplitStep(
         const anyCompleted = branchRuntimeSteps.some(isStepCompleted);
         const allCompleted = branchRuntimeSteps.length > 0 && branchRuntimeSteps.every(isStepCompleted);
         const allSkipped = branchRuntimeSteps.length > 0 && branchRuntimeSteps.every(isStepSkipped);
+        const hasSkipped = branchRuntimeSteps.some(isStepSkipped);
+        const hasActive = branchRuntimeSteps.some((step) => !isStepCompleted(step) && !isStepSkipped(step));
         const noteSource = currentBranchStep?.ghiChu?.trim()
           ? currentBranchStep
           : [...branchRuntimeSteps].reverse().find((step) => step.ghiChu?.trim())
           ?? terminalStep;
 
         return {
-          name: branch.tenNhanh,
+          name: resolveParallelBranchLabel(branch, branchIndex),
           backendId: currentBranchStep?.id ?? terminalStep?.id ?? branchRuntimeSteps[branchRuntimeSteps.length - 1]?.id,
           progress: `${completedCount}/${steps.length}`,
           status: allSkipped
             ? "Đã bỏ qua"
+            : hasSkipped && !hasActive
+              ? "Đã bỏ qua"
             : currentBranchStep
               ? getStepProgressLabel(currentBranchStep)
               : (anyCompleted || allCompleted ? "Đã hoàn thành" : "Chưa đến lượt xử lý"),
@@ -617,6 +652,69 @@ function ConfirmModal({
   );
 }
 
+type BranchSkipModalProps = {
+  branchName?: string;
+  reason: string;
+  onReasonChange: (value: string) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+};
+
+function BranchSkipModal({
+  branchName,
+  reason,
+  onReasonChange,
+  onConfirm,
+  onClose,
+}: BranchSkipModalProps) {
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-5">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-rose-100">
+            <i className="fa-solid fa-code-branch text-rose-500" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">Bỏ qua nhánh</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Nhập lý do bỏ qua nếu có. Để trống thì hệ thống sẽ tự sinh ghi chú mặc định.
+              {branchName ? ` Nhánh: ${branchName}` : ""}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-slate-700">
+            Lý do bỏ qua
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            rows={4}
+            placeholder="Ví dụ: Nhánh này không còn cần xử lý do đã hoàn tất ở nhánh khác."
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none transition-colors focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+          />
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="h-9 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={onConfirm}
+            className="h-9 px-5 text-white text-sm font-semibold rounded-xl transition-colors bg-rose-500 hover:bg-rose-600"
+          >
+            Bỏ qua nhánh
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type HistoryModalProps = {
   goiThau: GoiThau;
   entries: LichSuGoiThau[];
@@ -667,8 +765,8 @@ function HistoryModal({ goiThau, entries, loading = false, onClose }: HistoryMod
             <div className="relative space-y-5 before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-px before:bg-slate-200">
               {entries.map((entry) => (
                 <div key={entry.id} className="relative flex gap-4">
-                  <div className="relative z-10 mt-1 h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                    <i className="fa-solid fa-clock text-[10px]" />
+                  <div className={`relative z-10 mt-1 h-6 w-6 rounded-full flex items-center justify-center ${getHistoryTimelineTone(entry).wrapperClassName}`}>
+                    <i className={getHistoryTimelineTone(entry).iconClassName} />
                   </div>
                   <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
@@ -721,7 +819,6 @@ export default function DanhSachGoiThau() {
   const [page, setPage] = useState(1);
   const [detailOpen, setDetailOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
-  const [currentUserLoaded, setCurrentUserLoaded] = useState(false);
 
   // Real loading from API
   const [loading, setLoading] = useState(true);
@@ -730,19 +827,23 @@ export default function DanhSachGoiThau() {
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStepStateDto[] | null>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
-  const [parallelGroups, setParallelGroups] = useState<ParallelGroupDto[]>([]);
-
-  // Design-time step preview (fallback when workflow not started)
-  const [designSteps, setDesignSteps] = useState<BuocWorkflowDto[]>([]);
+  const [workflowDocumentRefreshKey, setWorkflowDocumentRefreshKey] = useState(0);
+  const [workflowFocusStepId, setWorkflowFocusStepId] = useState<number | null>(null);
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GoiThau | null>(null);
+  const [branchSkipTarget, setBranchSkipTarget] = useState<WorkflowParallelBranch | null>(null);
+  const [branchSkipReason, setBranchSkipReason] = useState("");
   const [historyTarget, setHistoryTarget] = useState<GoiThau | null>(null);
   const [historyEntries, setHistoryEntries] = useState<LichSuGoiThau[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const queryGoiThauId = new URLSearchParams(location.search).get("goiThauId");
+  const focusStepIdParam = Number(new URLSearchParams(location.search).get("focusStepId"));
+  const urlFocusStepId = Number.isFinite(focusStepIdParam) && focusStepIdParam > 0 ? focusStepIdParam : null;
+  const locationState = location.state as { workflowDocumentRefreshKey?: number } | null;
+  const workflowPanelRefreshSignal = locationState?.workflowDocumentRefreshKey ?? 0;
   const isAdminObserver = currentUser ? getRoleCode(currentUser) === "ADMIN" : false;
   const canMutateGoiThau = currentUser != null && !isAdminObserver;
   const canProcessWorkflow = currentUser != null && hasAnyPermission(currentUser, CURRENT_STEP_UPDATE_PERMISSIONS);
-  const canViewWorkflowDesign = currentUserLoaded && canManageWorkflowDesign(currentUser);
   const canUserEditGoiThau = (item?: GoiThau | null) =>
     canMutateGoiThau && canEditGoiThau(item);
   const canUserDeleteGoiThau = (item?: GoiThau | null) =>
@@ -785,9 +886,6 @@ export default function DanhSachGoiThau() {
       })
       .catch(() => {
         if (!cancelled) setCurrentUser(null);
-      })
-      .finally(() => {
-        if (!cancelled) setCurrentUserLoaded(true);
       });
 
     return () => {
@@ -817,11 +915,16 @@ export default function DanhSachGoiThau() {
   }
 
   useEffect(() => {
-    const id = new URLSearchParams(location.search).get("goiThauId");
-    if (!id) return;
+    if (!queryGoiThauId) return;
     loadData();
     setWorkflowRefreshKey((k) => k + 1); // Force re-fetch workflowState when navigating back
-  }, [location.search, loadData]);
+  }, [queryGoiThauId, location.search, workflowPanelRefreshSignal, loadData]);
+
+  useEffect(() => {
+    if (selected.id !== queryGoiThauId) {
+      setWorkflowFocusStepId(null);
+    }
+  }, [selected.id, queryGoiThauId]);
 
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("goiThauId");
@@ -865,8 +968,7 @@ export default function DanhSachGoiThau() {
     if (!numericId) {
       setWorkflowState(null);
       setWorkflowSteps(null);
-      setDesignSteps([]);
-      setParallelGroups([]);
+      setWorkflowFocusStepId(null);
       return;
     }
 
@@ -874,60 +976,26 @@ export default function DanhSachGoiThau() {
     const loadWorkflow = async () => {
       setWorkflowLoading(true);
 
-      try {
-        const [state, steps] = await Promise.all([
-          getWorkflowState(numericId),
-          getWorkflowSteps(numericId),
-        ]);
+      const [stateResult, stepsResult] = await Promise.allSettled([
+        getWorkflowState(numericId),
+        getWorkflowSteps(numericId),
+      ]);
 
-        if (cancelled) return;
-        setWorkflowState(state);
-        setWorkflowSteps(steps);
+      if (cancelled) return;
 
-        const workflowId = selected.workflowId ?? state.workflowId;
-        if (!workflowId || !canViewWorkflowDesign) {
-          setDesignSteps([]);
-          setParallelGroups([]);
-          return;
-        }
+      const nextWorkflowState = stateResult.status === "fulfilled" ? stateResult.value : null;
+      const nextWorkflowSteps = stepsResult.status === "fulfilled" ? stepsResult.value : null;
 
-        const [design, groups] = await Promise.all([
-          getWorkflowDesignSteps(workflowId, { skipAuthToast: true }).catch(() => [] as BuocWorkflowDto[]),
-          getParallelGroups(workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
-        ]);
+      setWorkflowState(nextWorkflowState);
+      setWorkflowSteps(nextWorkflowSteps);
 
-        if (cancelled) return;
-        setDesignSteps(design);
-        setParallelGroups(groups);
-      } catch {
-        if (cancelled) return;
-        setWorkflowState(null);
-        setWorkflowSteps(null);
-        setDesignSteps([]);
-        setParallelGroups([]);
-
-        if (!selected.workflowId || !canViewWorkflowDesign) {
-          return;
-        }
-
-        try {
-          const [steps, groups] = await Promise.all([
-            getWorkflowDesignSteps(selected.workflowId, { skipAuthToast: true }),
-            getParallelGroups(selected.workflowId, { skipAuthToast: true }).catch(() => [] as ParallelGroupDto[]),
-          ]);
-          if (!cancelled) {
-            setDesignSteps(steps);
-            setParallelGroups(groups);
-          }
-        } catch {
-          if (!cancelled) {
-            setDesignSteps([]);
-            setParallelGroups([]);
-          }
-        }
-      } finally {
-        if (!cancelled) setWorkflowLoading(false);
+      if (nextWorkflowState || nextWorkflowSteps) {
+        setWorkflowDocumentRefreshKey((key) => key + 1);
+      } else {
+        setWorkflowFocusStepId(null);
       }
+
+      setWorkflowLoading(false);
     };
 
     void loadWorkflow();
@@ -935,7 +1003,7 @@ export default function DanhSachGoiThau() {
     return () => {
       cancelled = true;
     };
-  }, [selected.id, selected.workflowId, workflowRefreshKey, canViewWorkflowDesign]);
+  }, [selected.id, selected.workflowId, workflowRefreshKey]);
 
   /* ─ Derived list ─ */
   const filtered = useMemo(() => {
@@ -1012,6 +1080,49 @@ export default function DanhSachGoiThau() {
     }).catch((error) => toast.error(getApiErrorMessage(error, "Không thể xóa gói thầu")));
   }
 
+  async function handleBranchSkipConfirm() {
+    if (!branchSkipTarget) return;
+
+    const goiThauId = parseGoiThauNumericId(selected.id);
+    if (!goiThauId) {
+      toast.error("ID gói thầu không hợp lệ");
+      return;
+    }
+
+    if (!branchSkipTarget.branchId) {
+      toast.error("Không tìm thấy thông tin nhánh để bỏ qua.");
+      return;
+    }
+
+    const targetBranch = branchSkipTarget;
+    const note = branchSkipReason.trim();
+    setBranchSkipTarget(null);
+    setBranchSkipReason("");
+
+    try {
+      const result = await skipBranch(goiThauId, {
+        branchId: targetBranch.branchId,
+        parallelBranchId: targetBranch.branchId,
+        workflowInstanceId: workflowState?.workflowInstanceId ?? undefined,
+        ghiChu: note || undefined,
+      });
+
+      toast.success(result.message || "Đã bỏ qua nhánh.");
+      setWorkflowFocusStepId(result.currentStepId ?? result.newStepId ?? targetBranch.backendId ?? null);
+      const [stateResult, stepsResult] = await Promise.allSettled([
+        getWorkflowState(goiThauId),
+        getWorkflowSteps(goiThauId),
+      ]);
+
+      setWorkflowState(stateResult.status === "fulfilled" ? stateResult.value : null);
+      setWorkflowSteps(stepsResult.status === "fulfilled" ? stepsResult.value : null);
+      setWorkflowDocumentRefreshKey((key) => key + 1);
+      setWorkflowRefreshKey((k) => k + 1);
+    } catch (error: any) {
+      toast.error(error?.message || "Không thể bỏ qua nhánh.");
+    }
+  }
+
   function goToEdit(item: GoiThau) {
     if (!canUserEditGoiThau(item)) {
       toast.error("Chỉ được chỉnh sửa gói thầu ở trạng thái Nháp");
@@ -1057,7 +1168,6 @@ export default function DanhSachGoiThau() {
       workflowState,
       currentWorkflowSummary,
       currentUser,
-      currentUserLoaded,
     );
     if (!actionState.enabled) {
       toast.error(actionState.reason);
@@ -1078,31 +1188,32 @@ export default function DanhSachGoiThau() {
     const detailInfo = currentWorkflowSummary.detailInfo || DETAIL_INFO_BY_ID[selected.id] || DEFAULT_DETAIL_INFO;
     const currentStepName = currentWorkflowSummary.currentStepName;
     const progressStatus = currentWorkflowSummary.progressStatus;
+    const focusStepId =
+      workflowFocusStepId ??
+      (selected.id === queryGoiThauId ? urlFocusStepId : null) ??
+      currentWorkflowSummary.currentStep?.stepInstanceId ??
+      null;
     const baseSteps = buildWorkflowDetailSteps(
       workflowState,
       workflowSteps ?? [],
-      designSteps,
-      parallelGroups,
-      { allowWorkflowDesign: canViewWorkflowDesign },
+      [],
+      workflowState?.parallelGroups ?? [],
     );
     const completedSteps = baseSteps.filter((step) => step.state === "done").length;
     const progressText = workflowState
-      ? canViewWorkflowDesign && baseSteps.length > 0
+      ? baseSteps.length > 0
         ? `${completedSteps}/${baseSteps.length}`
         : `${workflowState.soBuocHoanThanh}/${workflowState.tongSoBuoc}`
       : selected.detail.buoc;
     const progressPct =
       workflowState && baseSteps.length > 0
-        ? canViewWorkflowDesign
-          ? `${Math.round((completedSteps / baseSteps.length) * 100)}%`
-          : `${workflowState.tongSoBuoc > 0 ? Math.round((workflowState.soBuocHoanThanh / workflowState.tongSoBuoc) * 100) : 0}%`
+        ? `${Math.round((completedSteps / baseSteps.length) * 100)}%`
         : selected.detail.pct;
     const currentStepActionState = getCurrentStepActionState(
       selected,
       workflowState,
       currentWorkflowSummary,
       currentUser,
-      currentUserLoaded,
     );
     const canProcessWorkflowStep = () => canMutateGoiThau && currentStepActionState.enabled;
 
@@ -1125,6 +1236,7 @@ export default function DanhSachGoiThau() {
         code={selected.id}
         title={selected.ten}
         subtitle={selected.donVi}
+        goiThauId={parseGoiThauNumericId(selected.id) ?? undefined}
         badges={[
           { label: selected.hinhThuc, className: "border border-slate-200 text-slate-600" },
           { label: selected.trangThai, className: BADGE[selected.trangThai] },
@@ -1146,7 +1258,11 @@ export default function DanhSachGoiThau() {
           {
             label: "Tình trạng tiến độ",
             value: progressStatus,
-            valueClassName: selected.trangThai === "Trễ hạn" ? "text-red-500" : undefined,
+            valueClassName: progressStatus === "Quá hạn"
+              ? "text-red-500"
+              : progressStatus === "Đã bỏ qua"
+                ? "text-slate-500"
+                : undefined,
           },
         ]}
         noteTagsLabel="ĐƠN VỊ THEO DÕI"
@@ -1170,43 +1286,21 @@ export default function DanhSachGoiThau() {
         steps={displaySteps}
         stepsLoading={workflowLoading}
         stepsEmptyMessage="Chua co du lieu buoc quy trinh tu backend."
+        focusStepId={focusStepId}
+        enableAutoFocusCurrentStep={true}
+        documentRefreshKey={workflowDocumentRefreshKey}
         onUpdateCurrentStep={canMutateGoiThau ? () => goToCurrentStep(selected) : undefined}
         canUpdateCurrentStep={canProcessWorkflowStep}
         currentStepActionTooltip={() => currentStepActionState.reason}
-        onBranchStepClick={(branchStep) => goToStepResult(selected, branchStep.name, branchStep.backendId)}
+        onBranchStepClick={(branchStep) => goToStepResult(selected, branchStep.ten, branchStep.backendId)}
         onBranchCurrentStepAction={canMutateGoiThau ? (branch) => {
           navigate(
             `/xu-ly-buoc/${selected.id}?step=${encodeURIComponent(branch.currentStep)}${branch.backendId ? `&stepId=${branch.backendId}` : ""}`,
           );
         } : undefined}
-        onBranchSkip={canMutateGoiThau ? async (branch) => {
-          const stepInstance = workflowState?.steps.find((s) => s.id === branch.backendId);
-          if (!stepInstance?.id || !stepInstance.rowVersion) {
-            toast.error("Khong tim thay thong tin buoc de bo qua.");
-            return;
-          }
-          const goiThauId = parseGoiThauNumericId(selected.id);
-          if (!goiThauId) {
-            toast.error("ID goi thau khong hop le.");
-            return;
-          }
-          try {
-            const result = await processStep(goiThauId, {
-              hanhDong: "SKIP",
-              workflowStepInstanceId: stepInstance.id,
-              rowVersion: stepInstance.rowVersion,
-            });
-            toast.success(result.message || "Da bo qua buoc.");
-            const [state, steps] = await Promise.all([
-              getWorkflowState(goiThauId),
-              getWorkflowSteps(goiThauId),
-            ]);
-            setWorkflowState(state);
-            setWorkflowSteps(steps);
-            setWorkflowRefreshKey((k) => k + 1);
-          } catch (error: any) {
-            toast.error(error?.message || "Khong the bo qua buoc.");
-          }
+        onBranchSkip={canMutateGoiThau ? (branch) => {
+          setBranchSkipTarget(branch);
+          setBranchSkipReason("");
         } : undefined}
         actions={
           <div className="flex flex-col gap-2">
@@ -1627,6 +1721,18 @@ export default function DanhSachGoiThau() {
           confirmLabel="Xóa"
           onConfirm={handleDelete}
           onClose={() => setDeleteTarget(null)}
+        />
+      )}
+      {branchSkipTarget && (
+        <BranchSkipModal
+          branchName={branchSkipTarget.name}
+          reason={branchSkipReason}
+          onReasonChange={setBranchSkipReason}
+          onConfirm={handleBranchSkipConfirm}
+          onClose={() => {
+            setBranchSkipTarget(null);
+            setBranchSkipReason("");
+          }}
         />
       )}
       {historyTarget && (

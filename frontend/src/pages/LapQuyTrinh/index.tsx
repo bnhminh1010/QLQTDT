@@ -26,6 +26,7 @@ import LeaveConfirmModal from "./components/LeaveConfirmModal";
 import type { TemplateInfo } from "./workflowDesignerTypes";
 import { getAllRoles, getKhoaPhongs, type KhoaPhong, type RoleItem } from "@/services/adminApi";
 import { normalizeParallelGroupTitle } from "@/constants/parallelGroup";
+import { getDefaultParallelBranchLabel, resolveParallelBranchLabel } from "@/constants/parallelBranch";
 
 function getErrorMessage(error: unknown, fallback: string): string {
   const responseData = (error as any)?.response?.data;
@@ -77,6 +78,25 @@ function loaiHinhToId(ten: string): number | undefined {
   const idx = LOAI_HINH_DAU_THAU.indexOf(ten as any);
   return idx >= 0 ? idx + 1 : undefined;
 }
+
+function resolveDraftBranchName(branch: ParallelBranchDraft, index: number) {
+  return resolveParallelBranchLabel(branch, index);
+}
+
+function buildBranchPayload(branch: ParallelBranchDraft, index: number, groupId: string) {
+  const branchName = resolveDraftBranchName(branch, index);
+  return {
+    id: branch.id,
+    maNhanh: branch.maNhanh || `BR_${groupId}_${index + 1}`,
+    tenNhanh: branchName,
+    branchName,
+    thuTu: index + 1,
+    thoiHanNgay: branch.thoiHanNgay ?? 1,
+    loaiHan: branch.loaiHan,
+    stepIds: branch.stepIds.length > 0 ? branch.stepIds : [],
+  };
+}
+
 let _idCounter = 0;
 function nextId(): string {
   _idCounter += 1;
@@ -248,7 +268,8 @@ export default function LapQuyTrinh() {
                 id: `branch_${b.id}`,
                 backendId: b.id,
                 maNhanh: b.maNhanh,
-                tenNhanh: b.tenNhanh,
+                tenNhanh: b.tenNhanh ?? b.name ?? "",
+                branchName: resolveParallelBranchLabel(b, bi),
                 thuTu: b.thuTu || bi + 1,
                 thoiHanNgay: b.thoiHanNgay ?? 1,
                 loaiHan: b.loaiHan ?? "CANH_BAO",
@@ -355,12 +376,7 @@ export default function LapQuyTrinh() {
         soNhanhHopNhatToiThieu: group.soNhanhHopNhatToiThieu,
         buocSauHopNhatId: group.buocSauHopNhatId,
         branches: group.branches.map((branch, bi) => ({
-          id: branch.id,
-          maNhanh: branch.maNhanh || `BR_${group.id}_${bi + 1}`,
-          tenNhanh: branch.tenNhanh,
-          thuTu: bi + 1,
-          thoiHanNgay: branch.thoiHanNgay ?? 1,
-          loaiHan: branch.loaiHan,
+          ...buildBranchPayload(branch, bi, group.id),
           stepIds: branch.stepIds.length > 0 ? branch.stepIds : getOrderedBranchSteps(branch.id).map((s) => s.id),
         })),
       }));
@@ -676,10 +692,12 @@ export default function LapQuyTrinh() {
     if (!group) return;
     const bi = group.branches.length;
     const branchId = nextId();
+    const defaultBranchName = getDefaultParallelBranchLabel(bi);
     const newBranch: ParallelBranchDraft = {
       id: branchId,
       maNhanh: `BR_${groupId}_${bi + 1}`,
-      tenNhanh: `Nhánh ${bi + 1}`,
+      tenNhanh: defaultBranchName,
+      branchName: defaultBranchName,
       thuTu: bi + 1,
       thoiHanNgay: 1,
       loaiHan: "CANH_BAO",
@@ -858,12 +876,7 @@ export default function LapQuyTrinh() {
       soNhanhHopNhatToiThieu: group.soNhanhHopNhatToiThieu,
       buocSauHopNhatId: group.buocSauHopNhatId,
       branches: group.branches.map((branch, bi) => ({
-        id: branch.id,
-        maNhanh: branch.maNhanh || `BR_${group.id}_${bi + 1}`,
-        tenNhanh: branch.tenNhanh,
-        thuTu: bi + 1,
-        thoiHanNgay: branch.thoiHanNgay ?? 1,
-        loaiHan: branch.loaiHan,
+        ...buildBranchPayload(branch, bi, group.id),
         stepIds: branch.stepIds.length > 0 ? branch.stepIds : getOrderedBranchSteps(branch.id).map((s) => s.id),
       })),
     }));

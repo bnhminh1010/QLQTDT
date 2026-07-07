@@ -36,6 +36,14 @@ public class WorkflowAssignmentDto
     public bool DaXuLy { get; set; }
 }
 
+public class SkipBranchRequest
+{
+    public int? BranchId { get; set; }
+    public int? ParallelBranchId { get; set; }
+    public long? WorkflowInstanceId { get; set; }
+    public string? GhiChu { get; set; }
+}
+
 public class ProcessStepRequest
 {
     public string HanhDong { get; set; } = null!;
@@ -99,6 +107,7 @@ public class ProcessStepResponse
     public DateTime? NgayKyDuyet { get; set; }
     public string? KetQua { get; set; }
     public string? GhiChu { get; set; }
+    public string? GhiChuNguon { get; set; }
     public string? LyDoKhongDuyet { get; set; }
     public int SoBuocHoanThanh { get; set; }
     public int TongSoBuoc { get; set; }
@@ -130,6 +139,9 @@ public class WorkflowStateDto
     /// <summary>Tên khoa/phòng của gói thầu (KhoaPhong.TenKhoaPhong)</summary>
     public string? TenKhoaPhong { get; set; }
 
+    /// <summary>Nhóm nhánh song song của workflow template để render detail đồng nhất theo mọi role.</summary>
+    public List<ParallelGroupDto> ParallelGroups { get; set; } = [];
+
     /// <summary>Collection of currently active step instances. Multiple when in parallel branches.</summary>
     public List<CurrentStepDto> CurrentSteps { get; set; } = [];
 
@@ -146,6 +158,7 @@ public class CurrentStepDto
     public string PhaHienTai { get; set; } = null!;
     public long? WorkflowInstanceId { get; set; }
     public string? TenNhanh { get; set; }
+    public string? BranchName { get; set; }
     public string? HanhDongChoPhep { get; set; }
     public DateTime? HanXuLy { get; set; }
     public string? TinhTrangTienDo { get; set; }
@@ -154,9 +167,11 @@ public class CurrentStepDto
 public class WorkflowStepStateDto
 {
     public long Id { get; set; }
+    public long WorkflowStepInstanceId { get; set; }
     public int BuocWorkflowId { get; set; }
     public int? NhanhWorkflowId { get; set; }
     public string? TenNhanh { get; set; }
+    public string? BranchName { get; set; }
     public string TenBuoc { get; set; } = null!;
     public string TrangThai { get; set; } = null!;
     public string? PhaHienTai { get; set; }
@@ -168,10 +183,16 @@ public class WorkflowStepStateDto
     public DateTime? NgayKyDuyet { get; set; }
     public string? KetQua { get; set; }
     public string? GhiChu { get; set; }
+    public string? GhiChuNguon { get; set; }
     public string? LyDoKhongDuyet { get; set; }
     public string? TenVaiTroXuLy { get; set; }
     public string? TenVaiTroKyDuyet { get; set; }
     public string? TenDonViXuLy { get; set; }
+    public string? TenDonViKyDuyet { get; set; }
+    public string? ProcessingUnitName { get; set; }
+    public string? ProcessingRoleName { get; set; }
+    public string? ApprovalUnitName { get; set; }
+    public string? ApprovalRoleName { get; set; }
     public DateTime? HanXuLy { get; set; }
     public bool? QuaHan { get; set; }
     public string? TinhTrangTienDo { get; set; }

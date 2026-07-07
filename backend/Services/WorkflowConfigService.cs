@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
@@ -259,7 +260,10 @@ public class WorkflowConfigService : IWorkflowConfigService
                 {
                     NhomNhanhWorkflowId = groupEntity.Id,
                     MaNhanh = branch.MaNhanh,
-                    TenNhanh = branch.TenNhanh,
+                    TenNhanh = string.IsNullOrWhiteSpace(branch.TenNhanh)
+                        ? ParallelBranchNameHelper.ResolveDisplayName(branch.BranchName, null, branch.ThuTu - 1)
+                        : branch.TenNhanh.Trim(),
+                    BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(branch.BranchName),
                     ThuTu = branch.ThuTu,
                     DonViXuLyId = branch.DonViXuLyId,
                     VaiTroXuLyId = branch.VaiTroXuLyId,
@@ -596,7 +600,10 @@ public class WorkflowConfigService : IWorkflowConfigService
                     {
                         NhomNhanhWorkflowId = entityGroup.Id,
                         MaNhanh = branch.MaNhanh,
-                        TenNhanh = branch.TenNhanh,
+                        TenNhanh = string.IsNullOrWhiteSpace(branch.TenNhanh)
+                            ? ParallelBranchNameHelper.ResolveDisplayName(branch.BranchName, null, branch.ThuTu - 1)
+                            : branch.TenNhanh.Trim(),
+                        BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(branch.BranchName),
                         ThuTu = branch.ThuTu,
                         DonViXuLyId = branch.DonViXuLyId,
                         VaiTroXuLyId = branch.VaiTroXuLyId,
@@ -716,40 +723,141 @@ public class WorkflowConfigService : IWorkflowConfigService
         var entity = await _context.Workflows.FindAsync(id)
             ?? throw new NotFoundException($"Workflow not found: {id}");
 
-        var hasActiveInstance = await _context.WorkflowInstances
-            .AnyAsync(i => i.WorkflowId == id && i.TrangThai == "ACTIVE");
-        if (hasActiveInstance)
-            throw new AppException(400, "HAS_INSTANCE", "Workflow co instance active nen khong the xoa.");
+        var runningInstanceCount = await _context.WorkflowInstances.CountAsync(i => i.WorkflowId == id && i.TrangThai == WorkflowTrangThai.ACTIVE);
+        _logger.LogInformation(
+            "Workflow delete precheck: workflowId={WorkflowId}, workflowInstanceCount={WorkflowInstanceCount}",
+            id, runningInstanceCount);
 
-        // Xoá toàn bộ dữ liệu liên quan để tránh FK violation
-        var buocIds = await _context.BuocWorkflows
-            .Where(b => b.WorkflowId == id)
-            .Select(b => b.Id)
-            .ToListAsync();
-
-        if (buocIds.Count > 0)
+        if (runningInstanceCount > 0)
         {
-            await _context.ChuyenTiepWorkflows
-                .Where(t => buocIds.Contains(t.TuBuocId) || buocIds.Contains(t.DenBuocId))
-                .ExecuteDeleteAsync();
-
-            await _context.BuocWorkflows
-                .Where(b => b.WorkflowId == id)
-                .ExecuteDeleteAsync();
+            _logger.LogWarning(
+                "Delete blocked for workflowId={WorkflowId}. workflowInstanceCount={WorkflowInstanceCount}",
+                id, runningInstanceCount);
+            throw new AppException(409, "WORKFLOW_IN_USE", "Quy trình đã được sử dụng, không thể xóa.");
         }
 
-        await _context.NhomNhanhWorkflows
-            .Where(pg => pg.WorkflowId == id)
-            .ExecuteDeleteAsync();
+        await using var tx = await _context.Database.BeginTransactionAsync();
 
-        await _context.WorkflowVersionHistories
-            .Where(v => v.WorkflowId == id)
-            .ExecuteDeleteAsync();
+        try
+        {
+            var workflowInstanceIds = await _context.WorkflowInstances
+                .Where(i => i.WorkflowId == id)
+                .Select(i => i.Id)
+                .ToListAsync();
 
-        _context.Workflows.Remove(entity);
-        await _context.SaveChangesAsync();
+            if (workflowInstanceIds.Count > 0)
+            {
+                var workflowStepInstanceIds = await _context.WorkflowStepInstances
+                    .Where(s => workflowInstanceIds.Contains(s.WorkflowInstanceId))
+                    .Select(s => s.Id)
+                    .ToListAsync();
 
-        _logger.LogInformation("Deleted workflow: id={WorkflowId}", id);
+                await _context.WorkflowActionHistories
+                    .Where(h => workflowInstanceIds.Contains(h.WorkflowInstanceId))
+                    .ExecuteDeleteAsync();
+
+                if (workflowStepInstanceIds.Count > 0)
+                {
+                    await _context.WorkflowAssignments
+                        .Where(a => workflowStepInstanceIds.Contains(a.WorkflowStepInstanceId))
+                        .ExecuteDeleteAsync();
+
+                    await _context.WorkflowStepInstances
+                        .Where(s => workflowStepInstanceIds.Contains(s.Id))
+                        .ExecuteDeleteAsync();
+                }
+
+                await _context.WorkflowInstances
+                    .Where(i => workflowInstanceIds.Contains(i.Id))
+                    .ExecuteDeleteAsync();
+            }
+
+            var parallelGroupIds = await _context.NhomNhanhWorkflows
+                .Where(g => g.WorkflowId == id)
+                .Select(g => g.Id)
+                .ToListAsync();
+
+            if (parallelGroupIds.Count > 0)
+            {
+                var parallelBranchIds = await _context.NhanhWorkflows
+                    .Where(n => parallelGroupIds.Contains(n.NhomNhanhWorkflowId))
+                    .Select(n => n.Id)
+                    .ToListAsync();
+
+                if (parallelBranchIds.Count > 0)
+                {
+                    await _context.BuocWorkflows
+                        .Where(b => b.WorkflowId == id
+                            && b.NhanhWorkflowId.HasValue
+                            && parallelBranchIds.Contains(b.NhanhWorkflowId.Value))
+                        .ExecuteUpdateAsync(setters => setters.SetProperty(b => b.NhanhWorkflowId, (int?)null));
+
+                    await _context.NhanhWorkflows
+                        .Where(n => parallelBranchIds.Contains(n.Id))
+                        .ExecuteDeleteAsync();
+                }
+
+                await _context.NhomNhanhWorkflows
+                    .Where(g => g.WorkflowId == id)
+                    .ExecuteDeleteAsync();
+            }
+
+            var stepIds = await _context.BuocWorkflows
+                .Where(b => b.WorkflowId == id)
+                .Select(b => b.Id)
+                .ToListAsync();
+
+            if (stepIds.Count > 0)
+            {
+                await _context.ChuyenTiepWorkflows
+                    .Where(t => stepIds.Contains(t.TuBuocId) || stepIds.Contains(t.DenBuocId))
+                    .ExecuteDeleteAsync();
+
+                await _context.BuocWorkflows
+                    .Where(b => b.WorkflowId == id)
+                    .ExecuteDeleteAsync();
+            }
+
+            await _context.Set<WorkflowRule>()
+                .Where(r => r.WorkflowId == id)
+                .ExecuteDeleteAsync();
+
+            await _context.WorkflowVersionHistories
+                .Where(v => v.WorkflowId == id)
+                .ExecuteDeleteAsync();
+
+            _context.Workflows.Remove(entity);
+            await _context.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            _logger.LogInformation("Deleted workflow: id={WorkflowId}", id);
+            return;
+        }
+        catch (DbUpdateException ex)
+        {
+            await tx.RollbackAsync();
+            _logger.LogError(
+                ex,
+                "Failed to delete workflow: id={WorkflowId}, ex.Message={ExceptionMessage}, innerException={InnerExceptionMessage}",
+                id,
+                ex.Message,
+                ex.InnerException?.Message ?? "<none>");
+            throw new AppException(409, "WORKFLOW_DELETE_CONFLICT",
+                "Không thể xóa quy trình do còn dữ liệu cấu hình liên quan.");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            _logger.LogError(
+                ex,
+                "Unexpected error while deleting workflow: id={WorkflowId}, ex.Message={ExceptionMessage}, innerException={InnerExceptionMessage}",
+                id,
+                ex.Message,
+                ex.InnerException?.Message ?? "<none>");
+            throw new AppException(500, "WORKFLOW_DELETE_FAILED",
+                "Không thể xóa quy trình do lỗi hệ thống.");
+        }
+
     }
 
     public async Task<List<WorkflowVersionListItemDto>> GetVersionsAsync(int workflowId)
@@ -905,12 +1013,13 @@ public class WorkflowConfigService : IWorkflowConfigService
                 DieuKienHopNhat = pg.DieuKienHopNhat,
                 SoNhanhHopNhatToiThieu = pg.SoNhanhHopNhatToiThieu,
                 BuocSauHopNhatId = pg.BuocSauHopNhatId,
-                Branches = pg.Nhanhs.Select(n => new ParallelBranchSnapshotDto
+                Branches = pg.Nhanhs.Select((n, index) => new ParallelBranchSnapshotDto
                 {
                     Id = n.Id,
                     NhomNhanhWorkflowId = n.NhomNhanhWorkflowId,
                     MaNhanh = n.MaNhanh,
-                    TenNhanh = n.TenNhanh,
+                    TenNhanh = ParallelBranchNameHelper.ResolveDisplayName(n.BranchName, n.TenNhanh, index),
+                    BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(n.BranchName),
                     ThuTu = n.ThuTu,
                     DonViXuLyId = n.DonViXuLyId,
                     VaiTroXuLyId = n.VaiTroXuLyId,

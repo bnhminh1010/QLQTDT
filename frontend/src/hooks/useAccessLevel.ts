@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import type { LoginUserDto } from "@/services/api";
 
 /**
@@ -10,8 +10,10 @@ import type { LoginUserDto } from "@/services/api";
 export type AccessLevel = 1 | 3 | 5 | null;
 export type RoleCode = "ADMIN" | "CAP_CAO" | "TRUNG_BINH" | "THAP";
 export const WORKFLOW_DESIGN_PERMISSIONS = ["WORKFLOW.CREATE", "WORKFLOW.CONFIG"];
+const KHOA_PHONG_ONLY_PATH = "/tao-goi-thau";
+const KHOA_PHONG_DENIED_PATH = "/bao-cao";
 
-/* Route → permissions mapping (OR logic — 1 trong số đó là đủ) */
+/* Route → permissions mapping (OR logic - 1 trong số đó là đủ) */
 const ROUTE_PERMISSION_MAP: Record<string, string[]> = {
   "/dashboard": [],
   "/danh-sach-goi-thau": ["GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.VIEW_INTERNAL"],
@@ -51,21 +53,45 @@ const PAGE_POLICY: Record<RoleCode, "*" | string[]> = {
   THAP: ["/dashboard", "/tao-goi-thau", "/danh-sach-goi-thau", "/profile"],
 };
 
-/* ─── Permission helpers ─────────────────────────────────── */
+/* Permission helpers */
 
 /** Check if user has at least 1 permission in the list (OR) */
 export function hasAnyPermission(user: LoginUserDto | null | undefined, permissions: string[]): boolean {
   if (!user?.quyen?.length) return false;
-  if (permissions.length === 0) return true; // no permission required → allow
+  if (permissions.length === 0) return true; // no permission required -> allow
   return permissions.some((p) => user.quyen.includes(p));
+}
+function normalizeRoleIdentifier(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s_-]+/g, "")
+    .toUpperCase();
 }
 
 export function hasRoleCode(user: LoginUserDto | null | undefined, roleCode: string): boolean {
-  return user?.roles?.some((r) => (r.maVaiTro ?? r.tenVaiTro ?? "").toUpperCase() === roleCode.toUpperCase()) ?? false;
+  const normalizedTarget = normalizeRoleIdentifier(roleCode);
+  return user?.roles?.some((r) => {
+    const candidates = [r.maVaiTro, r.tenVaiTro].filter((value): value is string => Boolean(value));
+    return candidates.some((value) => normalizeRoleIdentifier(value) === normalizedTarget);
+  }) ?? false;
 }
 
 export function isKhoaPhongUser(user: LoginUserDto | null | undefined): boolean {
   return hasRoleCode(user, "KHOA_PHONG");
+}
+
+export function canAccessCreateTender(user: LoginUserDto | null | undefined): boolean {
+  return isKhoaPhongUser(user);
+}
+
+export function canAccessTaoGoiThau(user: LoginUserDto | null | undefined): boolean {
+  return canAccessCreateTender(user);
+}
+
+export function canAccessBaoCao(user: LoginUserDto | null | undefined): boolean {
+  if (isKhoaPhongUser(user)) return false;
+  return hasAnyPermission(user, ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"]);
 }
 
 function getPrimaryPath(path: string) {
@@ -77,10 +103,10 @@ function getPrimaryPath(path: string) {
 export function getRoleCode(user?: LoginUserDto | null): RoleCode {
   if (!user?.roles?.length) return "THAP";
 
-  const hasAdmin = user.roles.some((r) => r.tenVaiTro?.toUpperCase() === "ADMIN");
+  const hasAdmin = hasRoleCode(user, "ADMIN");
   if (hasAdmin) return "ADMIN";
 
-  // User gắn với khoa/phòng → at least TRUNG_BINH (có quyền xem dashboard, DS gói thầu, báo cáo theo khoa)
+  // User gắn với khoa/phòng -> at least TRUNG_BINH (có quyền xem dashboard, DS gói thầu, báo cáo theo khoa)
   const belongsToDepartment = user.roles.some(r => r.khoaPhongId != null);
 
   const priorities = user.roles
@@ -101,6 +127,12 @@ export function getDefaultPath(user?: LoginUserDto | null) {
 export function canAccessPath(path: string, user?: LoginUserDto | null): boolean {
   // Try permission-based first
   const primaryPath = getPrimaryPath(path);
+  if (primaryPath === KHOA_PHONG_ONLY_PATH) {
+    return canAccessCreateTender(user);
+  }
+  if (primaryPath === KHOA_PHONG_DENIED_PATH) {
+    if (isKhoaPhongUser(user)) return false;
+  }
   if (primaryPath === "/danh-muc-thuc-hien" && isKhoaPhongUser(user)) {
     return false;
   }
@@ -118,7 +150,11 @@ export function canAccessPath(path: string, user?: LoginUserDto | null): boolean
 }
 
 export function canAccessReport(user: LoginUserDto | null | undefined, ...permissions: string[]): boolean {
-  return hasAnyPermission(user, permissions.length > 0 ? permissions : ["REPORT.VIEW", "REPORT.VIEW_INTERNAL", "REPORT.VIEW_ALL"]);
+  if (isKhoaPhongUser(user)) return false;
+  if (permissions.length > 0) {
+    return hasAnyPermission(user, permissions);
+  }
+  return canAccessPath("/bao-cao", user);
 }
 
 export function canManageWorkflowDesign(user: LoginUserDto | null | undefined): boolean {

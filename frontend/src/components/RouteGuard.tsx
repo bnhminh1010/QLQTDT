@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { getCurrentUserApi } from "@/services/api";
-import { canAccessPath, getDefaultPath } from "@/hooks/useAccessLevel";
+import { canAccessCreateTender, canAccessPath, canAccessReport, getDefaultPath } from "@/hooks/useAccessLevel";
 import type { LoginUserDto } from "@/services/api";
 
 interface Props {
@@ -32,6 +32,12 @@ export default function RouteGuard({ children }: Props) {
   const path = location.pathname;
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  if (path === "/tao-goi-thau" && !canAccessCreateTender(user)) {
+    return <Navigate to={getDefaultPath(user)} replace />;
+  }
+  if (path === "/bao-cao" && !canAccessReport(user)) {
+    return <Navigate to={getDefaultPath(user)} replace />;
   }
   if (!canAccessPath(path, user)) {
     return <Navigate to={getDefaultPath(user)} replace />;
