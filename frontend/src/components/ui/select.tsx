@@ -42,7 +42,7 @@ function SelectContent({
       <SelectPrimitive.Content
         position={position}
         className={cn(
-          "relative z-[300] max-h-72 min-w-[8rem] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-lg",
+          "relative z-[9999] max-h-72 min-w-[8rem] overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-lg",
           "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className,
         )}

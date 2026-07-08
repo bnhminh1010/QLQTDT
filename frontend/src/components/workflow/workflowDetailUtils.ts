@@ -177,10 +177,92 @@ export function normalizeWorkflowText(value?: string | null, fallback = WORKFLOW
   return normalized || fallback;
 }
 
+export type WorkflowDisplayRow = {
+  label: string;
+  value: string;
+  valueClassName?: string;
+};
+
+export type WorkflowDisplaySection = {
+  title: string;
+  rows: WorkflowDisplayRow[];
+};
+
+export function areWorkflowTextValuesEqual(left?: string | null, right?: string | null) {
+  return normalizeWorkflowText(left, "") === normalizeWorkflowText(right, "");
+}
+
+export function formatWorkflowDateTime(value?: string | null) {
+  if (!value) return WORKFLOW_DISPLAY_DASH;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return WORKFLOW_DISPLAY_DASH;
+
+  const dateText = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: VIETNAM_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+  const timeText = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: VIETNAM_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+
+  return `${dateText} ${timeText}`;
+}
+
+export function formatWorkflowDate(value?: string | null) {
+  if (!value) return WORKFLOW_DISPLAY_DASH;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return WORKFLOW_DISPLAY_DASH;
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: VIETNAM_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+export function formatWorkflowStepDisplayName(
+  value?: string | null,
+  step?: {
+    trangThai?: string | null;
+    ketQua?: string | null;
+  } | null,
+) {
+  const stepName = normalizeWorkflowText(value);
+  if (step && isWorkflowStepReturned(step)) {
+    return `${stepName} (Đã trả về)`;
+  }
+
+  return stepName;
+}
+
 function isSystemGeneratedSkipNote(note?: string | null) {
   if (!note) return false;
   const normalized = normalizeWorkflowText(note, "");
   return normalized.startsWith("Đã bỏ qua toàn bộ nhánh ") || normalized.startsWith("Bỏ qua nhánh ");
+}
+
+export function isWorkflowStepReturned(step: {
+  trangThai?: string | null;
+  ketQua?: string | null;
+}) {
+  const trangThai = normalizeWorkflowText(step.trangThai, "").toUpperCase();
+  const ketQua = normalizeWorkflowText(step.ketQua, "").toUpperCase();
+  return (
+    trangThai === "TRA_VE" ||
+    trangThai === "TRẢ VỀ" ||
+    trangThai === "ĐÃ TRẢ VỀ" ||
+    ketQua === "TRA_VE" ||
+    ketQua === "TRẢ VỀ" ||
+    ketQua === "ĐÃ TRẢ VỀ"
+  );
 }
 
 export function resolveWorkflowNoteLabel(
@@ -188,12 +270,21 @@ export function resolveWorkflowNoteLabel(
     ghiChu?: string | null;
     ghiChuNguon?: string | null;
     trangThai?: string | null;
+    ketQua?: string | null;
     state?: string | null;
+    intervenedByName?: string | null;
+    intervenedAt?: string | null;
+    interventionReason?: string | null;
   },
 ) {
   if (!step.ghiChu?.trim()) return "Ghi chú";
 
   const isSkipped = step.trangThai === "SKIPPED" || step.state === "skipped";
+  const isReturned = isWorkflowStepReturned(step);
+  const hasInterventionInfo =
+    Boolean(step.intervenedByName?.trim()) ||
+    Boolean(step.intervenedAt?.trim()) ||
+    Boolean(step.interventionReason?.trim());
 
   if (isSkipped) {
     if (step.ghiChuNguon === "SYSTEM") return "Ghi chú hệ thống";
@@ -201,12 +292,103 @@ export function resolveWorkflowNoteLabel(
     return isSystemGeneratedSkipNote(step.ghiChu) ? "Ghi chú hệ thống" : "Lý do bỏ qua";
   }
 
+  if (isReturned && (step.ghiChuNguon === "USER" || hasInterventionInfo)) return "Ghi chú can thiệp";
+
   return "Ghi chú";
 }
 
-export function resolveSkippedBranchNoteLabel(ghiChuNguon?: string | null, ghiChu?: string | null) {
+export function resolveWorkflowReasonLabel(step: {
+  lyDoKhongDuyet?: string | null;
+  ghiChuNguon?: string | null;
+  trangThai?: string | null;
+  ketQua?: string | null;
+  intervenedByName?: string | null;
+  intervenedAt?: string | null;
+  interventionReason?: string | null;
+}) {
+  if (!step.lyDoKhongDuyet?.trim()) return "Lý do không duyệt";
+
+  const isReturned = isWorkflowStepReturned(step);
+  const hasInterventionInfo =
+    Boolean(step.intervenedByName?.trim()) ||
+    Boolean(step.intervenedAt?.trim()) ||
+    Boolean(step.interventionReason?.trim());
+  if (isReturned && (step.ghiChuNguon === "USER" || hasInterventionInfo)) return "Lý do can thiệp";
+  if (isReturned) return "Lý do trả về";
+
+  return "Lý do không duyệt";
+}
+
+export function buildWorkflowInterventionSection(step?: {
+  ghiChu?: string | null;
+  ghiChuNguon?: string | null;
+  trangThai?: string | null;
+  ketQua?: string | null;
+  state?: string | null;
+  intervenedByName?: string | null;
+  intervenedAt?: string | null;
+  interventionReason?: string | null;
+} | null) {
+  if (!step) return null;
+
+  const isReturned = isWorkflowStepReturned(step);
+  if (!isReturned) return null;
+
+  const intervenedByName = normalizeWorkflowText(step.intervenedByName);
+  const intervenedAt = normalizeWorkflowText(step.intervenedAt);
+  const interventionReason = normalizeWorkflowText(step.interventionReason, "");
+  const noteLabel = resolveWorkflowNoteLabel(step);
+  const note = normalizeWorkflowText(step.ghiChu, "");
+  const noteIsInterventionNote = noteLabel === "Ghi chú can thiệp" && Boolean(note);
+  const hasInterventionInfo =
+    Boolean(step.intervenedByName?.trim()) ||
+    Boolean(step.intervenedAt?.trim()) ||
+    Boolean(step.interventionReason?.trim()) ||
+    noteIsInterventionNote;
+
+  if (!hasInterventionInfo) return null;
+
+  const rows: WorkflowDisplayRow[] = [
+    { label: "Can thiệp bởi", value: intervenedByName },
+    { label: "Thời gian can thiệp", value: intervenedAt },
+    { label: "Lý do can thiệp", value: interventionReason },
+  ];
+
+  if (noteIsInterventionNote && !areWorkflowTextValuesEqual(note, interventionReason)) {
+    rows.push({ label: noteLabel, value: note });
+  }
+
+  return {
+    title: "Thông tin can thiệp",
+    rows,
+  } satisfies WorkflowDisplaySection;
+}
+
+export function resolveSkippedBranchNoteLabel(
+  ghiChuNguon?: string | null,
+  ghiChu?: string | null,
+  trangThai?: string | null,
+  ketQua?: string | null,
+  interventionInfo?: { intervenedByName?: string | null; intervenedAt?: string | null; interventionReason?: string | null },
+) {
+  if (isWorkflowStepReturned({ trangThai, ketQua })) {
+    const hasInterventionInfo =
+      Boolean(interventionInfo?.intervenedByName?.trim()) ||
+      Boolean(interventionInfo?.intervenedAt?.trim()) ||
+      Boolean(interventionInfo?.interventionReason?.trim());
+    return ghiChuNguon === "USER" || hasInterventionInfo ? "Lý do can thiệp" : "Lý do trả về";
+  }
+
+  const normalizedStatus = normalizeWorkflowText(trangThai, "").toUpperCase();
+  const normalizedKetQua = normalizeWorkflowText(ketQua, "").toUpperCase();
+  const isSkipped =
+    normalizedStatus === "SKIPPED" ||
+    normalizedStatus === "ĐÃ BỎ QUA" ||
+    normalizedKetQua === "BO_QUA" ||
+    normalizedKetQua === "BỎ QUA";
+
   if (ghiChuNguon === "SYSTEM") return "Ghi chú hệ thống";
-  if (ghiChuNguon === "USER") return "Lý do bỏ qua";
+  if (ghiChuNguon === "USER" && isSkipped) return "Lý do bỏ qua";
   return isSystemGeneratedSkipNote(ghiChu) ? "Ghi chú hệ thống" : "Lý do bỏ qua";
 }
 
@@ -249,6 +431,7 @@ function resolveCurrentProcessorName(stepName?: string | null, creatorName?: str
 
 function getStepProgressLabel(step: WorkflowStepStateDto) {
   if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
+  if (isWorkflowStepReturned(step)) return "Đã trả về";
   if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn thành";
   if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "Đang xử lý";
   return "Chưa thực hiện";
@@ -270,6 +453,7 @@ function getStepProgressStatus(step: WorkflowStepStateDto) {
 function isStepCompleted(step: WorkflowStepStateDto) {
   return (
     step.trangThai !== "SKIPPED" &&
+    !isWorkflowStepReturned(step) &&
     (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh))
   );
 }
@@ -285,6 +469,7 @@ function rankWorkflowStepInstance(
 ) {
   if (activeStepIds.has(step.id) || currentWorkflowBuocWorkflowIds.has(step.buocWorkflowId)) return 5;
   if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return 4;
+  if (isWorkflowStepReturned(step)) return 3.5;
   if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return 3;
   if (step.trangThai === "SKIPPED") return 2;
   return 1;
@@ -317,6 +502,7 @@ function rankDetailStep(
 ) {
   if (step.backendId != null && activeStepIds.has(step.backendId)) return 3;
   if (step.buocWorkflowId != null && currentWorkflowBuocWorkflowIds.has(step.buocWorkflowId)) return 3;
+  if (step.trangThai === "TRA_VE" || step.ketQua === "Trả về") return 2.5;
   if (step.ngayXuLy || step.ketQua || step.state === "done") return 2;
   return 1;
 }
@@ -350,12 +536,15 @@ export function mapWorkflowStepState(
   currentWorkflowBuocWorkflowId?: number,
 ): WorkflowDetailStep {
   const isSkipped = step.trangThai === "SKIPPED";
-  const completed = !isSkipped && (step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED");
+  const isReturned = isWorkflowStepReturned(step);
+  const completed = !isSkipped && !isReturned && (step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED");
   const current =
     step.id === currentStepId ||
     (currentWorkflowBuocWorkflowId != null && step.buocWorkflowId === currentWorkflowBuocWorkflowId);
   const progressStatus = isSkipped
     ? TIEN_DO_LABEL.SKIPPED
+    : isReturned
+      ? "Đã trả về"
     : getStepProgressStatus(step);
   const warningStatus = step.tinhTrangTienDo === "SAP_QUA_HAN" || step.tinhTrangTienDo === "QUA_HAN";
   const processingUnitName = resolveUnitOrRoleName(step.processingUnitName ?? step.tenDonViXuLy, step.processingRoleName ?? step.tenVaiTroXuLy);
@@ -366,7 +555,7 @@ export function mapWorkflowStepState(
   const approvalText = approvalUnitName || approvalRoleName;
 
   return {
-    state: isSkipped ? "skipped" : completed ? "done" : current || warningStatus ? "warn" : "idle",
+    state: isSkipped ? "skipped" : isReturned ? "warn" : completed ? "done" : current || warningStatus ? "warn" : "idle",
     ten: normalizeWorkflowText(step.tenBuoc),
     donVi: normalizeWorkflowText(processingText),
     donViKyDuyet: normalizeWorkflowText(approvalText, ""),
@@ -377,16 +566,27 @@ export function mapWorkflowStepState(
     backendId: step.id,
     workflowStepInstanceId: step.id,
     buocWorkflowId: step.buocWorkflowId,
+    trangThai: step.trangThai,
     current,
     isCurrent: current,
     nguoiXuLy: normalizeWorkflowText(step.tenNguoiXuLy),
-    ngayXuLy: normalizeWorkflowText(step.ngayXuLy?.slice(0, 10)),
+    ngayXuLy: normalizeWorkflowText(formatWorkflowDate(step.ngayXuLy)),
     nguoiKy: normalizeWorkflowText(step.tenNguoiKyDuyet),
-    ngayKy: normalizeWorkflowText(step.ngayKyDuyet?.slice(0, 10)),
+    ngayKy: normalizeWorkflowText(formatWorkflowDate(step.ngayKyDuyet)),
     ketQua: formatWorkflowKetQua(step.ketQua),
     ghiChu: normalizeWorkflowText(step.ghiChu, ""),
     ghiChuNguon: step.ghiChuNguon ?? (isSkipped && isSystemGeneratedSkipNote(step.ghiChu) ? "SYSTEM" : undefined),
     lyDoKhongDuyet: normalizeWorkflowText(step.lyDoKhongDuyet, ""),
+    intervenedByName: normalizeWorkflowText(
+      step.intervenedByName ||
+        (isReturned && step.phaHienTai === "KY_DUYET" ? step.tenNguoiKyDuyet : step.tenNguoiXuLy),
+      "",
+    ),
+    intervenedAt: formatWorkflowDateTime(
+      step.intervenedAt ||
+        (isReturned && step.phaHienTai === "KY_DUYET" ? step.ngayKyDuyet : step.ngayXuLy),
+    ),
+    interventionReason: normalizeWorkflowText(step.interventionReason || step.lyDoKhongDuyet || step.ghiChu, ""),
     lyDoQuaHanXuLyHoSo: normalizeWorkflowText(step.lyDoQuaHanXuLyHoSo, ""),
     lyDoQuaHanKyDuyet: normalizeWorkflowText(step.lyDoQuaHanKyDuyet, ""),
     soNgayQuaHanXuLyHoSo: step.soNgayQuaHanXuLyHoSo,
@@ -458,6 +658,9 @@ export type WorkflowCurrentStepSummary = {
   currentProcessDate: string;
   currentSigner: string;
   currentSignedDate: string;
+  currentIntervenedBy: string;
+  currentIntervenedAt: string;
+  currentInterventionReason: string;
   currentResult: string;
   currentDueDate: string;
   progressStatus: string;
@@ -467,6 +670,9 @@ function resolveWorkflowProgressStatus(
   state?: WorkflowStateDto | null,
   currentStepDetail?: WorkflowStepStateDto,
 ) {
+  if (currentStepDetail && isWorkflowStepReturned(currentStepDetail)) {
+    return "Đã trả về";
+  }
   const rawStatus = currentStepDetail?.tinhTrangTienDo || state?.tinhTrangTienDo;
   if (!rawStatus) return WORKFLOW_DISPLAY_DASH;
   return TIEN_DO_LABEL[rawStatus] || rawStatus;
@@ -478,27 +684,57 @@ export function resolveWorkflowCurrentStepSummary(
 ): WorkflowCurrentStepSummary {
   const detailInfo = mapWorkflowStateToDetailInfo(state, fallbackSteps);
   const { currentStep, currentStepDetail } = resolveCurrentWorkflowStepContext(state, fallbackSteps);
+  const currentIntervenedBy = normalizeWorkflowText(
+    currentStepDetail?.intervenedByName ||
+      (currentStepDetail && isWorkflowStepReturned(currentStepDetail)
+        ? currentStepDetail.tenNguoiKyDuyet || currentStepDetail.tenNguoiXuLy
+        : undefined),
+  );
+  const currentIntervenedAt = normalizeWorkflowText(
+    currentStepDetail && isWorkflowStepReturned(currentStepDetail)
+      ? formatWorkflowDateTime(currentStepDetail.intervenedAt || currentStepDetail.ngayKyDuyet || currentStepDetail.ngayXuLy)
+      : WORKFLOW_DISPLAY_DASH,
+  );
+  const currentInterventionReason = normalizeWorkflowText(
+    currentStepDetail?.interventionReason || currentStepDetail?.lyDoKhongDuyet || currentStepDetail?.ghiChu,
+    "",
+  );
 
   return {
     detailInfo,
     currentStep,
     currentStepDetail,
-    currentStepName: normalizeWorkflowText(currentStepDetail?.tenBuoc || detailInfo.buocHienTai),
+    currentStepName: formatWorkflowStepDisplayName(currentStepDetail?.tenBuoc || detailInfo.buocHienTai, currentStepDetail),
     currentProcessor: normalizeWorkflowText(
-      resolveCurrentProcessorName(currentStepDetail?.tenNguoiXuLy, state?.tenNguoiTao),
+      currentStepDetail && isWorkflowStepReturned(currentStepDetail)
+        ? currentIntervenedBy
+        : resolveCurrentProcessorName(currentStepDetail?.tenNguoiXuLy, state?.tenNguoiTao),
     ),
-    currentProcessDate: normalizeWorkflowText(currentStepDetail?.ngayXuLy?.slice(0, 10)),
+    currentProcessDate: normalizeWorkflowText(
+      currentStepDetail && isWorkflowStepReturned(currentStepDetail)
+        ? currentIntervenedAt
+        : formatWorkflowDate(currentStepDetail?.ngayXuLy),
+    ),
     currentSigner: normalizeWorkflowText(currentStepDetail?.tenNguoiKyDuyet),
-    currentSignedDate: normalizeWorkflowText(currentStepDetail?.ngayKyDuyet?.slice(0, 10)),
+    currentSignedDate: normalizeWorkflowText(
+      currentStepDetail && isWorkflowStepReturned(currentStepDetail)
+        ? currentIntervenedAt
+        : formatWorkflowDate(currentStepDetail?.ngayKyDuyet),
+    ),
+    currentIntervenedBy,
+    currentIntervenedAt,
+    currentInterventionReason,
     currentResult: currentStepDetail
       ? formatWorkflowKetQua(currentStepDetail.ketQua) ||
         (currentStepDetail.trangThai === "SKIPPED"
           ? "Bỏ qua"
+          : isWorkflowStepReturned(currentStepDetail)
+            ? "Trả về"
           : currentStepDetail.trangThai === "HOAN_TAT"
             ? "Duyệt"
             : currentStepDetail.trangThai || WORKFLOW_DISPLAY_DASH)
       : WORKFLOW_DISPLAY_DASH,
-    currentDueDate: normalizeWorkflowText(currentStepDetail?.hanXuLy?.slice(0, 10)),
+    currentDueDate: normalizeWorkflowText(formatWorkflowDate(currentStepDetail?.hanXuLy)),
     progressStatus: resolveWorkflowProgressStatus(state, currentStepDetail),
   };
 }
@@ -577,7 +813,8 @@ export function buildParallelInfoBySplitStep(
         const allCompleted = branchRuntimeSteps.length > 0 && branchRuntimeSteps.every(isStepCompleted);
         const allSkipped = branchRuntimeSteps.length > 0 && branchRuntimeSteps.every(isStepSkipped);
         const hasSkipped = branchRuntimeSteps.some(isStepSkipped);
-        const hasActive = branchRuntimeSteps.some((step) => !isStepCompleted(step) && !isStepSkipped(step));
+        const hasReturned = branchRuntimeSteps.some(isWorkflowStepReturned);
+        const hasActive = branchRuntimeSteps.some((step) => !isStepCompleted(step) && !isStepSkipped(step) && !isWorkflowStepReturned(step));
         const noteSource = currentBranchStep?.ghiChu?.trim()
           ? currentBranchStep
           : [...branchRuntimeSteps].reverse().find((step) => step.ghiChu?.trim())
@@ -594,12 +831,17 @@ export function buildParallelInfoBySplitStep(
               ? "Đã bỏ qua"
             : currentBranchStep
               ? getStepProgressLabel(currentBranchStep)
-              : (anyCompleted || allCompleted ? "Đã hoàn thành" : "Chưa đến lượt xử lý"),
-          currentStep: normalizeWorkflowText(currentBranchStep?.tenBuoc || terminalStep?.tenBuoc || steps[0]?.ten),
+              : hasReturned
+                ? "Đã trả về"
+                : (anyCompleted || allCompleted ? "Đã hoàn thành" : "Chưa đến lượt xử lý"),
+          currentStep: formatWorkflowStepDisplayName(
+            currentBranchStep?.tenBuoc || terminalStep?.tenBuoc || steps[0]?.ten,
+            currentBranchStep ?? terminalStep,
+          ),
           processor: normalizeWorkflowText(currentBranchStep?.tenNguoiXuLy || terminalStep?.tenNguoiXuLy || tenderCreatorName),
           ghiChu: normalizeWorkflowText(noteSource?.ghiChu, ""),
           ghiChuNguon: noteSource?.ghiChuNguon ?? (noteSource?.ghiChu && isSystemGeneratedSkipNote(noteSource.ghiChu) ? "SYSTEM" : undefined),
-          canSkipBranch: group.dieuKienHopNhat !== "ALL" && branchRuntimeSteps.some((step) => !isStepCompleted(step) && !isStepSkipped(step)),
+          canSkipBranch: group.dieuKienHopNhat !== "ALL" && branchRuntimeSteps.some((step) => !isStepCompleted(step) && !isStepSkipped(step) && !isWorkflowStepReturned(step)),
           steps,
         };
       }),

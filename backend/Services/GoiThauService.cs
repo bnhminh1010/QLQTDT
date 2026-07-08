@@ -245,7 +245,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 TrangThaiMoi = l.History.TrangThaiMoi,
                 NguoiThayDoiId = l.History.NguoiThayDoiId,
                 TenNguoiThayDoi = l.User != null ? l.User.HoTen : null,
-                ThoiGianThayDoi = l.History.ThoiGianThayDoi
+                ThoiGianThayDoi = BusinessClock.ToUtcFromVietnam(l.History.ThoiGianThayDoi)
             })
             .ToListAsync();
     }
@@ -304,7 +304,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
             NoiDung = $"{FormatStatus(h.TrangThaiCu) ?? "Khởi tạo"} -> {FormatStatus(h.TrangThaiMoi)}",
             NguoiThucHienId = h.NguoiThayDoiId,
             TenNguoiThucHien = h.NguoiThayDoiId.HasValue && users.TryGetValue(h.NguoiThayDoiId.Value, out var name) ? name : null,
-            ThoiGian = h.ThoiGianThayDoi,
+            ThoiGian = BusinessClock.ToUtcFromVietnam(h.ThoiGianThayDoi),
             Metadata = new Dictionary<string, string?>
             {
                 ["trangThaiCu"] = h.TrangThaiCu,
@@ -333,7 +333,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 NoiDung = string.Join(". ", details),
                 NguoiThucHienId = a.NguoiThucHienId,
                 TenNguoiThucHien = users.TryGetValue(a.NguoiThucHienId, out var name) ? name : null,
-                ThoiGian = a.ThoiGian,
+                ThoiGian = BusinessClock.ToUtcFromVietnam(a.ThoiGian),
                 Metadata = new Dictionary<string, string?>
                 {
                     ["hanhDong"] = a.HanhDong,
@@ -356,7 +356,7 @@ public class GoiThauService : BaseService<GoiThau>, IGoiThauService
                 NoiDung = BuildAuditContent(a),
                 NguoiThucHienId = a.NguoiThucHienId,
                 TenNguoiThucHien = users.TryGetValue(a.NguoiThucHienId, out var name) ? name : null,
-                ThoiGian = a.ThoiGianThucHien,
+                ThoiGian = BusinessClock.ToUtcFromVietnam(a.ThoiGianThucHien),
                 Metadata = new Dictionary<string, string?>
                 {
                     ["hanhDong"] = a.HanhDong,

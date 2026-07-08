@@ -64,6 +64,28 @@ public class WorkflowTwoPhaseDeadlineContractTests
     }
 
     [Fact]
+    public void WorkflowInterventionNotification_UsesSpecificRecipientsAndWorkflowPanelLink()
+    {
+        var workflowSource = ReadBackendSource("Services/WorkflowEngineService.cs");
+        var thongBaoSource = ReadBackendSource("Services/ThongBaoService.cs");
+        var method = ExtractBetween(
+            thongBaoSource,
+            "public async Task NotifyWorkflowInterveneAsync",
+            "public async Task NotifyStepDeadlineAsync");
+
+        Assert.Contains("await _thongBaoService.NotifyWorkflowInterveneAsync(", workflowSource);
+        Assert.Contains("Include(s => s.WorkflowAssignments)", workflowSource);
+        Assert.Contains("AddStepActorRecipients(recipients, currentStep);", method);
+        Assert.Contains("AddStepActorRecipients(recipients, rollbackStep);", method);
+        Assert.Contains("ResolveStepApprovalRecipientIdsAsync(currentStep.BuocWorkflow)", method);
+        Assert.Contains("ResolveStepApprovalRecipientIdsAsync(rollbackStep.BuocWorkflow)", method);
+        Assert.Contains("Quy trình gói thầu", method);
+        Assert.Contains("Lý do:", method);
+        Assert.Contains("BuildStepUrl(goiThau.Id, notificationStepId)", method);
+        Assert.DoesNotContain("ResolveHighLevelUserIdsAsync()", method);
+    }
+
+    [Fact]
     public void WorkflowDetailUi_RendersTwoPhaseOverdueReasons()
     {
         var itemSource = ReadFrontendSource("components/workflow/WorkflowStepItem.tsx");
@@ -161,5 +183,16 @@ public class WorkflowTwoPhaseDeadlineContractTests
         }
 
         throw new DirectoryNotFoundException("Could not locate frontend source root.");
+    }
+
+    private static string ExtractBetween(string source, string start, string end)
+    {
+        var startIndex = source.IndexOf(start, StringComparison.Ordinal);
+        Assert.True(startIndex >= 0, $"Could not find start marker: {start}");
+
+        var endIndex = source.IndexOf(end, startIndex + start.Length, StringComparison.Ordinal);
+        Assert.True(endIndex > startIndex, $"Could not find end marker: {end}");
+
+        return source[startIndex..endIndex];
     }
 }

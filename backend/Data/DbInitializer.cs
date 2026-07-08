@@ -73,6 +73,7 @@ public static class DbInitializer
         ("WORKFLOW.CONFIG",   "Cấu hình workflow"),
         ("WORKFLOW.PROCESS",  "Xử lý workflow"),
         ("WORKFLOW.ROLLBACK", "Hoàn tác bước"),
+        ("WORKFLOW.INTERVENE", "Can thiệp workflow"),
         ("WORKFLOW.REASSIGN", "Gán lại công việc"),
         // Nhà thầu
         ("NHATHAU.CREATE", "Tạo nhà thầu"),
@@ -304,41 +305,49 @@ public static class DbInitializer
                 "Hãy set ADMIN_DEFAULT_PASSWORD trong môi trường production.");
         }
 
-        var adminExists = await context.NguoiDungs.AnyAsync(u => u.TenDangNhap == adminUsername);
-        if (adminExists)
-        {
-            logger.LogInformation("Seed: Tài khoản admin đã tồn tại, bỏ qua.");
-            return;
-        }
-
         var defaultKhoaPhong = await context.KhoaPhongs.FirstAsync();
+        var admin = await context.NguoiDungs
+            .FirstOrDefaultAsync(u => u.TenDangNhap == adminUsername);
 
-        var admin = new NguoiDung
+        if (admin == null)
         {
-            TenDangNhap = adminUsername,
-            MatKhauHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
-            HoTen = adminFullName,
-            Email = adminEmail,
-            TrangThaiHoatDong = true,
-            NgayTao = DateTime.UtcNow
-        };
-        context.NguoiDungs.Add(admin);
-        await context.SaveChangesAsync();
+            admin = new NguoiDung
+            {
+                TenDangNhap = adminUsername,
+                MatKhauHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+                HoTen = adminFullName,
+                Email = adminEmail,
+                TrangThaiHoatDong = true,
+                NgayTao = DateTime.UtcNow
+            };
+            context.NguoiDungs.Add(admin);
+            await context.SaveChangesAsync();
+            logger.LogInformation("Seed: Tạo tài khoản admin mặc định (username: {Username})", adminUsername);
+        }
+        else
+        {
+            logger.LogInformation("Seed: Tài khoản admin đã tồn tại, kiểm tra lại gán vai trò.");
+        }
 
         var adminRole = await context.VaiTros.FirstOrDefaultAsync(v => v.MaVaiTro == "ADMIN");
         if (adminRole != null)
         {
-            context.NguoiDungKhoaPhongVaiTros.Add(new NguoiDungKhoaPhongVaiTro
-            {
-                NguoiDungId = admin.Id,
-                KhoaPhongId = defaultKhoaPhong.Id,
-                VaiTroId = adminRole.Id,
-                LaChinh = true
-            });
-            await context.SaveChangesAsync();
-        }
+            var hasAdminAssignment = await context.NguoiDungKhoaPhongVaiTros.AnyAsync(nkv =>
+                nkv.NguoiDungId == admin.Id && nkv.VaiTroId == adminRole.Id);
 
-        logger.LogInformation("Seed: Tạo tài khoản admin mặc định (username: {Username})", adminUsername);
+            if (!hasAdminAssignment)
+            {
+                context.NguoiDungKhoaPhongVaiTros.Add(new NguoiDungKhoaPhongVaiTro
+                {
+                    NguoiDungId = admin.Id,
+                    KhoaPhongId = defaultKhoaPhong.Id,
+                    VaiTroId = adminRole.Id,
+                    LaChinh = true
+                });
+                await context.SaveChangesAsync();
+                logger.LogInformation("Seed: Gán vai trò ADMIN cho tài khoản admin (ID: {UserId})", admin.Id);
+            }
+        }
     }
 
     private static async Task RenamePermissionsAsync(AppDbContext context, ILogger logger)

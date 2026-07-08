@@ -5,11 +5,12 @@ import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
 import GoiThauDetailPanel from "@/components/workflow/GoiThauDetailPanel";
 import { SelectField } from "@/components/ui/select";
 import { getUserGoiThauList } from "./goiThauService";
-import { cancelGoiThau, deleteGoiThau, getGoiThauChiTiet, type GoiThauDetail } from "@/services/goiThauApi";
+import { cancelGoiThau, deleteGoiThau, getGoiThauChiTiet, resolveTrangThaiLabel, type GoiThauDetail } from "@/services/goiThauApi";
 import {
   getWorkflowState,
   getWorkflowSteps,
   formatWorkflowKetQua,
+  interveneWorkflow,
   skipBranch,
   getLichSuGoiThau,
 
@@ -25,7 +26,12 @@ import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
 import { getRoleCode, hasAnyPermission } from "@/hooks/useAccessLevel";
 import {
   buildWorkflowDetailSteps,
+  buildWorkflowInterventionSection,
+  formatWorkflowDate,
+  formatWorkflowDateTime,
+  normalizeWorkflowText,
   resolveWorkflowCurrentStepSummary,
+  isWorkflowStepReturned,
 } from "@/components/workflow/workflowDetailUtils";
 import type { WorkflowParallelBranch } from "@/components/workflow/workflowDetailTypes";
 import { resolveGoiThauNguonVon } from "@/util/goiThauDisplay";
@@ -42,6 +48,17 @@ export type LichSuGoiThau = {
   tieuDe: string;
   noiDung: string;
   metadata?: Record<string, string | null>;
+};
+
+type InterventionTargetStep = {
+  stepInstanceId: number;
+  stepName: string;
+  branchName?: string;
+  isParallelStep: boolean;
+  status: string;
+  result: string;
+  completedAt?: string;
+  displayLabel: string;
 };
 
 export type QuyTrinhStepDetail = {
@@ -147,12 +164,17 @@ function formatCurrencyDisplay(value: string) {
   return value.replace(/,/g, ".") + " đ";
 }
 
+function formatWorkflowStepDate(value?: string | null) {
+  return formatWorkflowDateTime(value);
+}
+
 const PAGE_SIZE = 8;
 type SortCol = "id" | "ten" | "giaTriNum" | "trangThai";
 
 const EDITABLE_STATUSES: TrangThai[] = ["Nháp"];
 const STEP_UPDATE_STATUSES: TrangThai[] = ["Đang xử lý", "Chờ duyệt", "Trễ hạn"];
 const CURRENT_STEP_UPDATE_PERMISSIONS = ["WORKFLOW.PROCESS"];
+const WORKFLOW_INTERVENE_PERMISSIONS = ["WORKFLOW.INTERVENE"];
 const canEditGoiThau = (item?: GoiThau | null) =>
   item ? EDITABLE_STATUSES.includes(item.trangThai) : false;
 const canDeleteGoiThau = canEditGoiThau;
@@ -241,21 +263,122 @@ function getCurrentStepActionState(
   };
 }
 
+function isInterventionTargetEligible(step: WorkflowStepStateDto) {
+  return (
+    step.trangThai === "SKIPPED" ||
+    isWorkflowStepReturned(step) ||
+    step.trangThai === "HOAN_TAT" ||
+    step.trangThai === "COMPLETED" ||
+    Boolean(step.ngayHoanThanh)
+  );
+}
+
+function getInterventionTargetStatus(step: WorkflowStepStateDto) {
+  if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
+  if (isWorkflowStepReturned(step)) return "Đã trả về";
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) {
+    return "Đã hoàn thành";
+  }
+  return getStepProgressLabel(step);
+}
+
+function getInterventionTargetResult(step: WorkflowStepStateDto) {
+  const result = formatWorkflowKetQua(step.ketQua);
+  if (result) return result;
+  if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
+  if (isWorkflowStepReturned(step)) return "Trả về";
+  if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) {
+    return "Hoàn thành";
+  }
+  return "—";
+}
+
+function getInterventionTargetLabel(step: WorkflowStepStateDto, isParallelStep: boolean) {
+  const branchName = normalizeWorkflowText(step.branchName || step.tenNhanh, "");
+  const stepName = normalizeWorkflowText(step.tenBuoc);
+  return isParallelStep && branchName ? `${branchName} / ${stepName}` : stepName;
+}
+
+function getInterventionTargets(
+  workflowState: WorkflowStateDto | null,
+  currentWorkflowSummary: ReturnType<typeof resolveWorkflowCurrentStepSummary>,
+) : InterventionTargetStep[] {
+  if (!workflowState) return [];
+
+  const currentStepDetail = currentWorkflowSummary.currentStepDetail;
+  const currentStepInstanceId = currentStepDetail?.id;
+
+  return (workflowState.steps ?? [])
+    .filter((step) => step.id !== currentStepInstanceId && isInterventionTargetEligible(step))
+    .sort((a, b) => {
+      const aTime = a.ngayHoanThanh ? new Date(a.ngayHoanThanh).getTime() : 0;
+      const bTime = b.ngayHoanThanh ? new Date(b.ngayHoanThanh).getTime() : 0;
+      if (aTime !== bTime) return bTime - aTime;
+      return b.id - a.id;
+    })
+    .map((step) => {
+      const isParallelStep = step.nhanhWorkflowId != null;
+      return {
+        stepInstanceId: step.id,
+        stepName: step.tenBuoc,
+        branchName: isParallelStep
+          ? normalizeWorkflowText(step.branchName || step.tenNhanh, "") || undefined
+          : undefined,
+        isParallelStep,
+        status: getInterventionTargetStatus(step),
+        result: getInterventionTargetResult(step),
+        completedAt: step.ngayHoanThanh,
+        displayLabel: getInterventionTargetLabel(step, isParallelStep),
+      };
+    });
+}
+
 function parseGoiThauNumericId(id: string) {
   const parsed = Number(id.replace(/^GT/i, ""));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function mapDetailToGoiThau(detail: GoiThauDetail): GoiThau {
+  let theoDoi: string[] | undefined;
+  if (detail.theoDoi) {
+    try {
+      const parsed = JSON.parse(detail.theoDoi);
+      if (Array.isArray(parsed)) {
+        theoDoi = parsed.filter((item): item is string => typeof item === "string");
+      }
+    } catch {
+      theoDoi = undefined;
+    }
+  }
+
+  return {
+    id: `GT${detail.id}`,
+    maGoiThau: detail.maGoiThau,
+    ten: detail.tenGoiThau,
+    tenGoiThau: detail.tenGoiThau,
+    loaiGoiThau: detail.loaiGoiThau,
+    hinhThuc: detail.tenHinhThuc ?? "",
+    hinhThucId: detail.hinhThucId,
+    ghiChu: detail.moTa ?? "",
+    canCuApDungRutGon: detail.canCuApDungRutGon,
+    theoDoi,
+    workflowId: detail.workflowId,
+    giaTriStr: (detail.nganSach ?? 0).toLocaleString("vi-VN"),
+    giaTriNum: Number(detail.nganSach ?? 0),
+    donVi: detail.tenKhoaPhong ?? "",
+    trangThai: resolveTrangThaiLabel(detail.trangThai) as TrangThai,
+    detail: {
+      nguonVon: resolveGoiThauNguonVon(detail.nguonVon),
+      ngayTao: detail.ngayTao?.slice(0, 10) ?? "",
+      hanHT: "â€”",
+      pct: "0%",
+      buoc: "0/0",
+    },
+  };
+}
+
 function formatHistoryDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatWorkflowDateTime(value);
 }
 
 function mapTimelineHistoryToModalEntry(item: LichSuGoiThauTimelineDto): LichSuGoiThau {
@@ -280,6 +403,7 @@ function getHistoryTypeLabel(type: string) {
     HOP_DONG: "Hợp đồng",
     CAP_NHAT: "Cập nhật",
     HE_THONG: "Hệ thống",
+    INTERVENE: "Can thiệp",
   };
   return labels[type] ?? type;
 }
@@ -293,6 +417,7 @@ function getHistoryTypeClass(type: string) {
     HOP_DONG: "bg-emerald-100 text-emerald-700",
     CAP_NHAT: "bg-slate-100 text-slate-700",
     HE_THONG: "bg-slate-100 text-slate-600",
+    INTERVENE: "bg-rose-100 text-rose-700",
   };
   return classes[type] ?? "bg-slate-100 text-slate-600";
 }
@@ -300,6 +425,12 @@ function getHistoryTypeClass(type: string) {
 function getHistoryTimelineTone(entry: LichSuGoiThau) {
   const action = entry.metadata?.hanhDong;
   const status = entry.metadata?.trangThaiMoi;
+  if (action === "INTERVENE") {
+    return {
+      wrapperClassName: "bg-rose-100 text-rose-600",
+      iconClassName: "fa-solid fa-rotate-left text-[10px]",
+    };
+  }
   if (action === "SKIP" || status === "SKIPPED") {
     return {
       wrapperClassName: "bg-slate-100 text-slate-500",
@@ -358,28 +489,31 @@ function mapWorkflowStepState(
   currentWorkflowBuocWorkflowId?: number,
 ): QuyTrinhStepDetail {
   const isSkipped = step.trangThai === "SKIPPED";
-  const completed = !isSkipped && (step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED");
+  const returned = isWorkflowStepReturned(step);
+  const completed = !isSkipped && !returned && (step.ngayHoanThanh || step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED");
   const current =
     step.id === currentStepId ||
     (currentWorkflowBuocWorkflowId != null && step.buocWorkflowId === currentWorkflowBuocWorkflowId);
   const progressStatus = isSkipped
     ? TIEN_DO_LABEL.SKIPPED
+    : returned
+      ? "Đã trả về"
     : step.tinhTrangTienDo
       ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo
       : undefined;
   const warningStatus = step.tinhTrangTienDo === "SAP_QUA_HAN" || step.tinhTrangTienDo === "QUA_HAN";
 
   return {
-    state: isSkipped ? "skipped" : completed ? "done" : current || warningStatus ? "warn" : "idle",
+    state: isSkipped ? "skipped" : returned ? "warn" : completed ? "done" : current || warningStatus ? "warn" : "idle",
     ten: step.tenBuoc,
     donVi: step.tenDonViXuLy || step.tenVaiTroXuLy || "-",
     backendId: step.id,
     buocWorkflowId: step.buocWorkflowId,
     current,
     nguoiXuLy: step.tenNguoiXuLy,
-    ngayXuLy: step.ngayXuLy?.slice(0, 10),
+    ngayXuLy: formatWorkflowDate(step.ngayXuLy),
     nguoiKy: step.tenNguoiKyDuyet,
-    ngayKy: step.ngayKyDuyet?.slice(0, 10),
+    ngayKy: formatWorkflowDate(step.ngayKyDuyet),
     ketQua: formatWorkflowKetQua(step.ketQua),
     ghiChu: step.ghiChu,
     lyDoKhongDuyet: step.lyDoKhongDuyet,
@@ -389,6 +523,7 @@ function mapWorkflowStepState(
 
 export function getStepProgressLabel(step: WorkflowStepStateDto) {
   if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
+  if (isWorkflowStepReturned(step)) return "Đã trả về";
   if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "Đã hoàn thành";
   if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "Đang xử lý";
   return "Chưa thực hiện";
@@ -397,6 +532,7 @@ export function getStepProgressLabel(step: WorkflowStepStateDto) {
 export function isStepCompleted(step: WorkflowStepStateDto) {
   return (
     step.trangThai !== "SKIPPED" &&
+    !isWorkflowStepReturned(step) &&
     (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh))
   );
 }
@@ -410,6 +546,7 @@ export function getBranchStepState(
   activeStepIds: Set<number>,
 ): "done" | "current" | "idle" | "skipped" {
   if (step.trangThai === "SKIPPED") return "skipped";
+  if (isWorkflowStepReturned(step)) return "current";
   if (activeStepIds.has(step.id)) return "current";
   if (step.trangThai === "DANG_XU_LY" || step.trangThai === "CHO_DUYET") return "current";
   if (step.trangThai === "HOAN_TAT" || step.trangThai === "COMPLETED" || step.ngayHoanThanh) return "done";
@@ -715,6 +852,135 @@ function BranchSkipModal({
   );
 }
 
+type InterveneModalProps = {
+  currentStepName: string;
+  currentStepActor: string;
+  currentStepTime: string;
+  targetSteps: InterventionTargetStep[];
+  selectedTargetId: number | null;
+  reason: string;
+  submitting?: boolean;
+  onTargetChange: (value: number) => void;
+  onReasonChange: (value: string) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+};
+
+function InterveneModal({
+  currentStepName,
+  currentStepActor,
+  currentStepTime,
+  targetSteps,
+  selectedTargetId,
+  reason,
+  submitting = false,
+  onTargetChange,
+  onReasonChange,
+  onConfirm,
+  onClose,
+}: InterveneModalProps) {
+  const selectedTarget = targetSteps.find((step) => step.stepInstanceId === selectedTargetId) ?? targetSteps[0] ?? null;
+  const canConfirm = Boolean(selectedTarget && reason.trim() && !submitting);
+
+  return (
+    <div className="fixed inset-0 z-[310] flex items-center justify-center bg-black/45 p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+          <div>
+            <p className="text-xs font-bold tracking-wide text-rose-500">CAN THIỆP QUY TRÌNH</p>
+            <h3 className="mt-1 text-base font-bold text-slate-900">Quay lại bước đã xử lý</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Chỉ dùng khi có tình huống ngoại lệ. Thao tác này sẽ reset các bước phía sau về trạng thái chờ xử lý.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          >
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        <div className="grid gap-4 px-6 py-5 md:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-[10px] font-bold tracking-wide text-slate-400">BƯỚC HIỆN TẠI</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">{currentStepName || "—"}</div>
+            <div className="mt-3 space-y-1 text-sm text-slate-600">
+              <div>
+                <span className="text-slate-400">Người xử lý: </span>
+                <span className="font-medium text-slate-800">{currentStepActor || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Thời gian: </span>
+                <span className="font-medium text-slate-800">{currentStepTime || "—"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-4">
+            <div className="text-[10px] font-bold tracking-wide text-rose-500">CHỌN BƯỚC MUỐN QUAY VỀ</div>
+            <SelectField
+              value={selectedTarget ? String(selectedTarget.stepInstanceId) : ""}
+              onValueChange={(value) => onTargetChange(Number(value))}
+              options={targetSteps.map((step) => ({
+                value: String(step.stepInstanceId),
+                label: step.displayLabel,
+              }))}
+              triggerClassName="mt-3 h-11 rounded-xl border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              Danh sách đã gồm cả bước chính và các bước trong nhánh song song. Chỉ chọn các bước đã kết thúc hợp lệ.
+            </p>
+            {selectedTarget && (
+              <div className="mt-3 rounded-xl border border-rose-100 bg-white px-3 py-2 text-xs text-slate-600">
+                <div className="font-semibold text-slate-700">{selectedTarget.displayLabel}</div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>Trạng thái: {selectedTarget.status}</span>
+                  <span>Kết quả: {selectedTarget.result}</span>
+                  {selectedTarget.branchName && <span>Nhánh: {selectedTarget.branchName}</span>}
+                  {selectedTarget.completedAt && <span>Hoàn thành: {formatWorkflowStepDate(selectedTarget.completedAt)}</span>}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 pb-5">
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
+            Lý do can thiệp <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            rows={4}
+            placeholder="Nhập lý do can thiệp..."
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none transition-colors focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            Hủy
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!canConfirm}
+            className="h-10 rounded-xl bg-rose-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            {submitting ? "Đang xử lý..." : "Xác nhận quay lại bước"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type HistoryModalProps = {
   goiThau: GoiThau;
   entries: LichSuGoiThau[];
@@ -829,6 +1095,9 @@ export default function DanhSachGoiThau() {
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
   const [workflowDocumentRefreshKey, setWorkflowDocumentRefreshKey] = useState(0);
   const [workflowFocusStepId, setWorkflowFocusStepId] = useState<number | null>(null);
+  const [interveneTargetId, setInterveneTargetId] = useState<number | null>(null);
+  const [interveneReason, setInterveneReason] = useState("");
+  const [intervening, setIntervening] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<GoiThau | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GoiThau | null>(null);
   const [branchSkipTarget, setBranchSkipTarget] = useState<WorkflowParallelBranch | null>(null);
@@ -837,6 +1106,8 @@ export default function DanhSachGoiThau() {
   const [historyEntries, setHistoryEntries] = useState<LichSuGoiThau[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const queryGoiThauId = new URLSearchParams(location.search).get("goiThauId");
+  const queryFocusGoiThauId = parseGoiThauNumericId(queryGoiThauId ?? "");
+  const queryFocusGoiThauKey = queryFocusGoiThauId ? `GT${queryFocusGoiThauId}` : null;
   const focusStepIdParam = Number(new URLSearchParams(location.search).get("focusStepId"));
   const urlFocusStepId = Number.isFinite(focusStepIdParam) && focusStepIdParam > 0 ? focusStepIdParam : null;
   const locationState = location.state as { workflowDocumentRefreshKey?: number } | null;
@@ -844,6 +1115,7 @@ export default function DanhSachGoiThau() {
   const isAdminObserver = currentUser ? getRoleCode(currentUser) === "ADMIN" : false;
   const canMutateGoiThau = currentUser != null && !isAdminObserver;
   const canProcessWorkflow = currentUser != null && hasAnyPermission(currentUser, CURRENT_STEP_UPDATE_PERMISSIONS);
+  const canInterveneWorkflow = currentUser != null && hasAnyPermission(currentUser, WORKFLOW_INTERVENE_PERMISSIONS);
   const canUserEditGoiThau = (item?: GoiThau | null) =>
     canMutateGoiThau && canEditGoiThau(item);
   const canUserDeleteGoiThau = (item?: GoiThau | null) =>
@@ -852,12 +1124,35 @@ export default function DanhSachGoiThau() {
     canMutateGoiThau && canProcessWorkflow && canUpdateCurrentStep(item);
 
   // Load data from API
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (preferredGoiThauId?: number | null) => {
     setLoading(true);
     setError(null);
     try {
       const list = await getUserGoiThauList();
       setData(list);
+
+      if (preferredGoiThauId) {
+        const target = list.find((item) => parseGoiThauNumericId(item.id) === preferredGoiThauId);
+        if (target) {
+          const targetIndex = list.findIndex((item) => item.id === target.id);
+          if (targetIndex >= 0) {
+            setPage(Math.floor(targetIndex / PAGE_SIZE) + 1);
+          }
+          setSelected(target);
+          setDetailOpen(true);
+          return;
+        }
+
+        try {
+          const detail = await getGoiThauChiTiet(preferredGoiThauId);
+          setSelected(mapDetailToGoiThau(detail));
+          setDetailOpen(true);
+          return;
+        } catch (detailError: any) {
+          toast.error(detailError?.message || "Không thể tải gói thầu được yêu cầu.");
+        }
+      }
+
       setSelected((prev) => {
         if (prev && prev.id) {
           const refreshed = list.find((item) => item.id === prev.id);
@@ -875,8 +1170,8 @@ export default function DanhSachGoiThau() {
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void loadData(queryFocusGoiThauId);
+  }, [loadData, queryFocusGoiThauId, workflowPanelRefreshSignal]);
 
   useEffect(() => {
     let cancelled = false;
@@ -915,26 +1210,21 @@ export default function DanhSachGoiThau() {
   }
 
   useEffect(() => {
-    if (!queryGoiThauId) return;
-    loadData();
-    setWorkflowRefreshKey((k) => k + 1); // Force re-fetch workflowState when navigating back
-  }, [queryGoiThauId, location.search, workflowPanelRefreshSignal, loadData]);
-
-  useEffect(() => {
-    if (selected.id !== queryGoiThauId) {
+    if (selected.id !== queryFocusGoiThauKey) {
       setWorkflowFocusStepId(null);
+      setInterveneTargetId(null);
+      setInterveneReason("");
     }
-  }, [selected.id, queryGoiThauId]);
+  }, [selected.id, queryFocusGoiThauKey]);
 
   useEffect(() => {
-    const id = new URLSearchParams(location.search).get("goiThauId");
-    if (!id) return;
-    const target = data.find((item) => item.id === id);
+    if (!queryFocusGoiThauKey) return;
+    const target = data.find((item) => item.id === queryFocusGoiThauKey);
     if (target) {
       setSelected(target);
       setDetailOpen(true);
     }
-  }, [data, location.search]);
+  }, [data, queryFocusGoiThauKey]);
 
   useEffect(() => {
     const numericId = parseGoiThauNumericId(selected.id);
@@ -1123,6 +1413,79 @@ export default function DanhSachGoiThau() {
     }
   }
 
+  function openInterveneModal() {
+    const currentWorkflowSummary = resolveWorkflowCurrentStepSummary(workflowState, workflowSteps ?? []);
+    const targets = getInterventionTargets(workflowState, currentWorkflowSummary);
+    if (targets.length === 0) {
+      toast.error("Không có bước đã hoàn thành hợp lệ để quay lại.");
+      return;
+    }
+
+    setInterveneTargetId(targets[0].stepInstanceId);
+    setInterveneReason("");
+  }
+
+  async function handleInterveneConfirm() {
+    if (!workflowState?.workflowInstanceId || !interveneTargetId) {
+      toast.error("Thiếu dữ liệu để can thiệp quy trình.");
+      return;
+    }
+
+    const currentWorkflowSummary = resolveWorkflowCurrentStepSummary(workflowState, workflowSteps ?? []);
+    const currentStep = currentWorkflowSummary.currentStepDetail;
+    if (!currentStep?.id || !currentStep.rowVersion) {
+      toast.error("Không xác định được bước hiện tại để can thiệp.");
+      return;
+    }
+
+    const targets = getInterventionTargets(workflowState, currentWorkflowSummary);
+    const target = targets.find((step) => step.stepInstanceId === interveneTargetId);
+    if (!target) {
+      toast.error("Bước quay về không còn hợp lệ. Vui lòng tải lại trang.");
+      return;
+    }
+
+    const reason = interveneReason.trim();
+    if (!reason) {
+      toast.error("Vui lòng nhập lý do can thiệp.");
+      return;
+    }
+
+    const goiThauId = parseGoiThauNumericId(selected.id);
+    if (!goiThauId) {
+      toast.error("ID gói thầu không hợp lệ");
+      return;
+    }
+
+    setIntervening(true);
+    try {
+      const result = await interveneWorkflow(goiThauId, {
+        currentWorkflowStepInstanceId: currentStep.id,
+        targetWorkflowStepInstanceId: target.stepInstanceId,
+        lyDo: reason,
+        rowVersion: currentStep.rowVersion,
+      });
+
+      toast.success(result.message || "Đã can thiệp quy trình.");
+      setInterveneTargetId(null);
+      setInterveneReason("");
+      const focusStepId = result.newStepId ?? result.currentStepId ?? target.stepInstanceId;
+      setWorkflowFocusStepId(focusStepId ?? null);
+      const [stateResult, stepsResult] = await Promise.allSettled([
+        getWorkflowState(goiThauId),
+        getWorkflowSteps(goiThauId),
+      ]);
+      setWorkflowState(stateResult.status === "fulfilled" ? stateResult.value : null);
+      setWorkflowSteps(stepsResult.status === "fulfilled" ? stepsResult.value : null);
+      setWorkflowDocumentRefreshKey((key) => key + 1);
+      setWorkflowRefreshKey((key) => key + 1);
+    } catch (error: any) {
+      toast.error(error?.message || "Không thể can thiệp quy trình.");
+    } finally {
+      setIntervening(false);
+    }
+  }
+
   function goToEdit(item: GoiThau) {
     if (!canUserEditGoiThau(item)) {
       toast.error("Chỉ được chỉnh sửa gói thầu ở trạng thái Nháp");
@@ -1190,7 +1553,7 @@ export default function DanhSachGoiThau() {
     const progressStatus = currentWorkflowSummary.progressStatus;
     const focusStepId =
       workflowFocusStepId ??
-      (selected.id === queryGoiThauId ? urlFocusStepId : null) ??
+      (selected.id === queryFocusGoiThauKey ? urlFocusStepId : null) ??
       currentWorkflowSummary.currentStep?.stepInstanceId ??
       null;
     const baseSteps = buildWorkflowDetailSteps(
@@ -1215,6 +1578,13 @@ export default function DanhSachGoiThau() {
       currentWorkflowSummary,
       currentUser,
     );
+    const interventionTargets = getInterventionTargets(workflowState, currentWorkflowSummary);
+    const canShowInterveneAction =
+      canInterveneWorkflow &&
+      selected.trangThai === "Đang xử lý" &&
+      workflowState?.workflowTrangThai === "ACTIVE" &&
+      interventionTargets.length > 0 &&
+      Boolean(currentWorkflowSummary.currentStepDetail?.id && currentWorkflowSummary.currentStepDetail?.rowVersion);
     const canProcessWorkflowStep = () => canMutateGoiThau && currentStepActionState.enabled;
 
     const displaySteps = baseSteps.map((step) =>
@@ -1283,6 +1653,7 @@ export default function DanhSachGoiThau() {
             value: currentWorkflowSummary.currentResult,
           },
         ]}
+        stepInfoSections={currentInterventionSection ? [currentInterventionSection] : []}
         steps={displaySteps}
         stepsLoading={workflowLoading}
         stepsEmptyMessage="Chua co du lieu buoc quy trinh tu backend."
@@ -1312,6 +1683,16 @@ export default function DanhSachGoiThau() {
               >
                 <i className="fa-solid fa-clipboard-list text-xs" />
                 Xử lý bước hiện tại
+              </button>
+            )}
+            {canShowInterveneAction && (
+              <button
+                type="button"
+                onClick={openInterveneModal}
+                className="w-full flex items-center justify-center gap-2 text-sm text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl py-2.5 transition-colors"
+              >
+                <i className="fa-solid fa-rotate-left text-xs" />
+                Can thiệp quy trình
               </button>
             )}
             <button
@@ -1345,6 +1726,20 @@ export default function DanhSachGoiThau() {
       />
     );
   }
+
+  const currentWorkflowSummary = resolveWorkflowCurrentStepSummary(workflowState, workflowSteps ?? []);
+  const currentInterventionSection = buildWorkflowInterventionSection(currentWorkflowSummary.currentStepDetail);
+  const interventionTargets = getInterventionTargets(workflowState, currentWorkflowSummary);
+  const selectedInterventionTarget =
+    interventionTargets.find((step) => step.stepInstanceId === interveneTargetId) ?? interventionTargets[0] ?? null;
+
+  useEffect(() => {
+    if (interveneTargetId == null || interventionTargets.length === 0) return;
+    const targetExists = interventionTargets.some((step) => step.stepInstanceId === interveneTargetId);
+    if (!targetExists) {
+      setInterveneTargetId(interventionTargets[0].stepInstanceId);
+    }
+  }, [interveneTargetId, interventionTargets]);
 
   return (
     <>
@@ -1732,6 +2127,24 @@ export default function DanhSachGoiThau() {
           onClose={() => {
             setBranchSkipTarget(null);
             setBranchSkipReason("");
+          }}
+        />
+      )}
+      {interveneTargetId != null && currentWorkflowSummary.currentStepDetail && selectedInterventionTarget && (
+        <InterveneModal
+          currentStepName={currentWorkflowSummary.currentStepName}
+          currentStepActor={currentWorkflowSummary.currentIntervenedBy || currentWorkflowSummary.currentSigner || currentWorkflowSummary.currentProcessor}
+          currentStepTime={currentWorkflowSummary.currentIntervenedAt || currentWorkflowSummary.currentSignedDate || currentWorkflowSummary.currentProcessDate}
+          targetSteps={interventionTargets}
+          selectedTargetId={selectedInterventionTarget.stepInstanceId}
+          reason={interveneReason}
+          submitting={intervening}
+          onTargetChange={setInterveneTargetId}
+          onReasonChange={setInterveneReason}
+          onConfirm={handleInterveneConfirm}
+          onClose={() => {
+            setInterveneTargetId(null);
+            setInterveneReason("");
           }}
         />
       )}

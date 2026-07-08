@@ -9,6 +9,11 @@ type DetailRow = {
   valueClassName?: string;
 };
 
+type DetailSection = {
+  title: string;
+  rows: DetailRow[];
+};
+
 type DetailBadge = {
   label: string;
   className: string;
@@ -42,6 +47,7 @@ type Props = {
   noteTagsClassName?: string;
   alert?: DetailAlert;
   stepInfoRows?: DetailRow[];
+  stepInfoSections?: DetailSection[];
   stepInfoTitle?: string;
   stepsTitle?: string;
   goiThauId?: number | null;
@@ -89,6 +95,7 @@ export default function GoiThauDetailPanel({
   noteTagsClassName = "bg-sky-50 text-sky-700 border border-sky-200",
   alert,
   stepInfoRows,
+  stepInfoSections,
   stepInfoTitle = "THÔNG TIN BƯỚC HIỆN TẠI",
   stepsTitle = "CÁC BƯỚC QUY TRÌNH",
   goiThauId,
@@ -185,6 +192,28 @@ export default function GoiThauDetailPanel({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {stepInfoSections && stepInfoSections.length > 0 && (
+          <div className="space-y-2">
+            {stepInfoSections.map((section) => (
+              <div key={section.title} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                <p className="mb-2 text-[10px] font-bold tracking-wide text-slate-400">
+                  {section.title}
+                </p>
+                <div className="space-y-2 text-xs">
+                  {section.rows.map((row) => (
+                    <div key={row.label} className="flex justify-between gap-3">
+                      <span className="text-slate-400">{row.label}</span>
+                      <span className={`text-right font-semibold ${row.valueClassName ?? "text-slate-800"}`}>
+                        {normalizeWorkflowText(row.value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

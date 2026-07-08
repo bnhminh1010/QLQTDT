@@ -112,6 +112,21 @@ public class GoiThauController : BaseController<GoiThau, IGoiThauService>
         return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Xử lý bước workflow thành công"));
     }
 
+    [HttpPost("{id}/workflow/intervene")]
+    [HasPermission("WORKFLOW.INTERVENE")]
+    public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> InterveneWorkflow(
+        int id,
+        [FromBody] WorkflowInterveneRequest request,
+        [FromServices] IValidator<WorkflowInterveneRequest> validator)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return BadRequest(ToErrorResponse(validation));
+
+        var result = await _workflowEngine.InterveneWorkflowAsync(id, request);
+        return Ok(ApiResponse<ProcessStepResponse>.Ok(result, "Can thiệp quy trình thành công"));
+    }
+
     [HttpPost("{id}/skip-branch")]
     [HasPermission("WORKFLOW.PROCESS")]
     public async Task<ActionResult<ApiResponse<ProcessStepResponse>>> SkipBranch(

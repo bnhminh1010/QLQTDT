@@ -18,6 +18,7 @@ public static class WorkflowHanhDong
     public const string APPROVE = "APPROVE";
     public const string REJECT = "REJECT";
     public const string ROLLBACK = "ROLLBACK";
+    public const string INTERVENE = "INTERVENE";
     public const string SKIP = "SKIP";
     public const string REASSIGN = "REASSIGN";
     public const string RETRY = "RETRY";

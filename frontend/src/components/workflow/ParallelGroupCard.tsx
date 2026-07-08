@@ -94,10 +94,19 @@ function BranchCard({
       <div className="text-[11px] text-slate-500">
         Người xử lý: <span className="font-semibold text-slate-700">{normalizeWorkflowText(branch.processor)}</span>
       </div>
-      <div className={`mt-1 text-[11px] font-semibold ${statusClass}`}>{branch.status}</div>
+      <div className={`mt-1 text-[11px] font-semibold ${statusClass}`}>
+        Trạng thái bước: {branch.status}
+      </div>
       {branch.ghiChu && (
         <div className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700">
-          <span className="font-semibold">{resolveSkippedBranchNoteLabel(branch.ghiChuNguon, branch.ghiChu)}:</span> {normalizeWorkflowText(branch.ghiChu, "")}
+          <span className="font-semibold">
+            {resolveSkippedBranchNoteLabel(branch.ghiChuNguon, branch.ghiChu, branch.status, undefined, {
+              intervenedByName: branch.intervenedByName,
+              intervenedAt: branch.intervenedAt,
+              interventionReason: branch.interventionReason,
+            })}:
+          </span>{" "}
+          {normalizeWorkflowText(branch.ghiChu, "")}
         </div>
       )}
 
