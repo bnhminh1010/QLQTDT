@@ -18,5 +18,6 @@ public class Workflow : IBaseEntity
     public int? BuocKetThucId { get; set; }
 
     public ICollection<BuocWorkflow> BuocWorkflows { get; set; } = [];
+    public ICollection<WorkflowRule> WorkflowRules { get; set; } = [];
     public ICollection<NhomNhanhWorkflow> NhomNhanhWorkflows { get; set; } = [];
 }
