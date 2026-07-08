@@ -55,14 +55,19 @@ export default function StepLibraryModal({ open, onClose, onSelect }: Props) {
                   onSelect(entry);
                 }}
                 className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200"
-              >
-                <p className="text-sm font-medium text-slate-800">
-                  {entry.tenBuoc}
-                </p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {entry.donViPhuTrach} · {entry.slaNgay} ngày
-                </p>
-              </button>
+                >
+                  <p className="text-sm font-medium text-slate-800">
+                    {entry.tenBuoc}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {entry.donViPhuTrach || entry.donViPhuTrachDisplay || "—"} · {entry.slaNgay} ngày
+                  </p>
+                  {(entry.vaiTroXuLy || entry.vaiTroXuLyDisplay) && (
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      {entry.vaiTroXuLy || entry.vaiTroXuLyDisplay}
+                    </p>
+                  )}
+                </button>
             ))
           )}
         </div>

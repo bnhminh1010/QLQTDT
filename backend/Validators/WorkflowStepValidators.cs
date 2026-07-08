@@ -30,6 +30,11 @@ public class BuocWorkflowCreateRequestValidator : AbstractValidator<BuocWorkflow
             .Must(v => v == "BAT_BUOC" || v == "CANH_BAO")
             .WithMessage("LoaiHan phai la 'BAT_BUOC' hoac 'CANH_BAO'");
 
+        RuleFor(x => x.LoaiHanKyDuyet)
+            .NotEmpty().WithMessage("LoaiHanKyDuyet khong duoc de trong")
+            .Must(v => v == "BAT_BUOC" || v == "CANH_BAO")
+            .WithMessage("LoaiHanKyDuyet phai la 'BAT_BUOC' hoac 'CANH_BAO'");
+
         RuleFor(x => x.NhomSongSong)
             .MaximumLength(50).WithMessage("NhomSongSong toi da 50 ky tu");
 
@@ -82,6 +87,13 @@ public class BuocWorkflowUpdateRequestValidator : AbstractValidator<BuocWorkflow
             RuleFor(x => x.LoaiHan)
                 .Must(v => v == "BAT_BUOC" || v == "CANH_BAO")
                 .WithMessage("LoaiHan phai la 'BAT_BUOC' hoac 'CANH_BAO'");
+        });
+
+        When(x => x.LoaiHanKyDuyet != null, () =>
+        {
+            RuleFor(x => x.LoaiHanKyDuyet)
+                .Must(v => v == "BAT_BUOC" || v == "CANH_BAO")
+                .WithMessage("LoaiHanKyDuyet phai la 'BAT_BUOC' hoac 'CANH_BAO'");
         });
 
         When(x => x.NhomSongSong != null, () =>

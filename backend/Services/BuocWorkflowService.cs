@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using QLQTDT.Api.Data;
 using QLQTDT.Api.Exceptions;
+using QLQTDT.Api.Helpers;
 using QLQTDT.Api.Models;
 using QLQTDT.Api.Models.DTOs.Workflow;
 using QLQTDT.Api.Models.Entities;
@@ -21,6 +22,17 @@ public class BuocWorkflowService : IBuocWorkflowService
     {
         _context = context;
         _logger = logger;
+    }
+
+    private async Task<VaiTro?> LoadVaiTroWithGroupAsync(int? vaiTroId)
+    {
+        if (!vaiTroId.HasValue)
+            return null;
+
+        return await _context.VaiTros
+            .Include(v => v.NhomVaiTro)
+            .FirstOrDefaultAsync(v => v.Id == vaiTroId.Value)
+            ?? throw new NotFoundException($"VaiTro not found: {vaiTroId.Value}");
     }
 
     private static string SanitizeForLog(string? input)
@@ -56,6 +68,7 @@ public class BuocWorkflowService : IBuocWorkflowService
         VaiTroKyDuyetId = step.VaiTroKyDuyetId,
         SoNgayXuLy = step.SoNgayXuLy,
         LoaiHan = step.LoaiHan,
+        LoaiHanKyDuyet = step.LoaiHanKyDuyet,
         NhomSongSong = step.NhomSongSong,
         LaBuocJoin = step.LaBuocJoin,
         ThuTu = step.ThuTu,
@@ -138,19 +151,8 @@ public class BuocWorkflowService : IBuocWorkflowService
         if (!workflowExists)
             throw new NotFoundException($"Workflow not found: {workflowId}");
 
-        if (request.VaiTroXuLyHoSoId.HasValue)
-        {
-            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyHoSoId.Value);
-            if (!roleExists)
-                throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyHoSoId.Value}");
-        }
-
-        if (request.VaiTroKyDuyetId.HasValue)
-        {
-            var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroKyDuyetId.Value);
-            if (!roleExists)
-                throw new NotFoundException($"VaiTro not found: {request.VaiTroKyDuyetId.Value}");
-        }
+        var processingRole = await LoadVaiTroWithGroupAsync(request.VaiTroXuLyHoSoId);
+        var approvalRole = await LoadVaiTroWithGroupAsync(request.VaiTroKyDuyetId);
 
         var duplicate = await _context.BuocWorkflows.AnyAsync(b =>
             b.WorkflowId == workflowId && b.MaBuoc == request.MaBuoc);
@@ -178,7 +180,8 @@ public class BuocWorkflowService : IBuocWorkflowService
             SoNgayLapHoSo = request.SoNgayLapHoSo,
             VaiTroKyDuyetId = request.VaiTroKyDuyetId,
             SoNgayXuLy = request.SoNgayXuLy,
-            LoaiHan = request.LoaiHan,
+            LoaiHan = WorkflowDeadlinePolicyHelper.NormalizeDeadlineTypeForRole(request.LoaiHan, processingRole),
+            LoaiHanKyDuyet = WorkflowDeadlinePolicyHelper.NormalizeDeadlineTypeForRole(request.LoaiHanKyDuyet, approvalRole),
             NhomSongSong = request.NhomSongSong,
             LaBuocJoin = request.LaBuocJoin,
             ChoPhepTuChoi = request.ChoPhepTuChoi,
@@ -227,6 +230,16 @@ public class BuocWorkflowService : IBuocWorkflowService
             entity.LoaiBuoc = request.LoaiBuoc;
         }
 
+        var processingRoleId = request.VaiTroXuLyHoSoId.HasValue
+            ? (request.VaiTroXuLyHoSoId.Value == 0 ? null : request.VaiTroXuLyHoSoId.Value)
+            : entity.VaiTroXuLyHoSoId;
+        var approvalRoleId = request.VaiTroKyDuyetId.HasValue
+            ? (request.VaiTroKyDuyetId.Value == 0 ? null : request.VaiTroKyDuyetId.Value)
+            : entity.VaiTroKyDuyetId;
+
+        var processingRole = await LoadVaiTroWithGroupAsync(processingRoleId);
+        var approvalRole = await LoadVaiTroWithGroupAsync(approvalRoleId);
+
         if (request.VaiTroXuLyHoSoId.HasValue)
         {
             if (request.VaiTroXuLyHoSoId.Value == 0)
@@ -235,9 +248,6 @@ public class BuocWorkflowService : IBuocWorkflowService
             }
             else
             {
-                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroXuLyHoSoId.Value);
-                if (!roleExists)
-                    throw new NotFoundException($"VaiTro not found: {request.VaiTroXuLyHoSoId.Value}");
                 entity.VaiTroXuLyHoSoId = request.VaiTroXuLyHoSoId;
             }
         }
@@ -250,9 +260,6 @@ public class BuocWorkflowService : IBuocWorkflowService
             }
             else
             {
-                var roleExists = await _context.VaiTros.AnyAsync(r => r.Id == request.VaiTroKyDuyetId.Value);
-                if (!roleExists)
-                    throw new NotFoundException($"VaiTro not found: {request.VaiTroKyDuyetId.Value}");
                 entity.VaiTroKyDuyetId = request.VaiTroKyDuyetId;
             }
         }
@@ -263,8 +270,15 @@ public class BuocWorkflowService : IBuocWorkflowService
         if (request.SoNgayXuLy.HasValue)
             entity.SoNgayXuLy = request.SoNgayXuLy.Value;
 
-        if (request.LoaiHan != null)
-            entity.LoaiHan = request.LoaiHan;
+        if (request.LoaiHan != null || processingRole != null)
+            entity.LoaiHan = WorkflowDeadlinePolicyHelper.NormalizeDeadlineTypeForRole(
+                request.LoaiHan ?? entity.LoaiHan,
+                processingRole);
+
+        if (request.LoaiHanKyDuyet != null || approvalRole != null)
+            entity.LoaiHanKyDuyet = WorkflowDeadlinePolicyHelper.NormalizeDeadlineTypeForRole(
+                request.LoaiHanKyDuyet ?? entity.LoaiHanKyDuyet,
+                approvalRole);
 
         if (request.NhomSongSong != null)
             entity.NhomSongSong = request.NhomSongSong;
@@ -535,6 +549,7 @@ public class BuocWorkflowService : IBuocWorkflowService
             VaiTroKyDuyetId = request.VaiTroKyDuyetId,
             SoNgayXuLy = request.SoNgayXuLy,
             LoaiHan = request.LoaiHan,
+            LoaiHanKyDuyet = request.LoaiHanKyDuyet,
             ChoPhepTuChoi = true,
             ChoPhepBoQua = false,
             BatBuocGhiChu = request.BatBuocGhiChu,
@@ -614,6 +629,7 @@ public class BuocWorkflowService : IBuocWorkflowService
             VaiTroKyDuyetId = source.VaiTroKyDuyetId,
             SoNgayXuLy = source.SoNgayXuLy,
             LoaiHan = source.LoaiHan,
+            LoaiHanKyDuyet = source.LoaiHanKyDuyet,
             NhomSongSong = source.NhomSongSong,
             LaBuocJoin = source.LaBuocJoin,
             ChoPhepTuChoi = source.ChoPhepTuChoi,

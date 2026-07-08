@@ -1,9 +1,10 @@
 import { SelectField } from "@/components/ui/select";
 import type { LoaiBuocUI, LoaiThoiHanUI, HuongXuLyUI, StepModalContext } from "../workflowDesignerTypes";
 import { LOAI_BUOC_UI_VALUES } from "../workflowDesignerTypes";
+import type { RoleItem } from "@/services/adminApi";
 
 const DON_VI_OPTIONS = [
-  "K/P mua sắm", "K/P sử dụng", "Tổ kiểm tra giá",
+  "K/P sử dụng", "Tổ kiểm tra giá",
   "Tổ chuyên gia", "Tổ thẩm định", "Tư vấn LCNT",
   "Tư vấn thẩm định", "Chủ đầu tư", "CĐT + Nhà thầu",
   "Nhà thầu", "Nhà thầu tư vấn LCNT",
@@ -11,14 +12,14 @@ const DON_VI_OPTIONS = [
 ];
 
 const VAI_TRO_OPTIONS = [
-  "Nhân viên K/P mua sắm", "Nhân viên K/P sử dụng",
+  "Nhân viên K/P sử dụng",
   "Tổ kiểm tra giá", "Tổ chuyên gia", "Tổ thẩm định",
   "Tư vấn LCNT", "Tư vấn thẩm định", "Chủ đầu tư",
   "Nhà thầu", "CĐT + Nhà thầu",
 ];
 
 const DON_VI_KY_OPTIONS = [
-  "K/P mua sắm", "K/P mua sắm và Giám đốc BV",
+  "K/P mua sắm và Giám đốc BV",
   "Giám đốc BV", "PGĐ được ủy quyền",
   "Giám đốc BV hoặc PGĐ được ủy quyền",
   "Kế toán trưởng", "Tổ kiểm tra giá", "Tổ chuyên gia",
@@ -48,11 +49,16 @@ export type StepFormData = {
   moTa: string;
   donViPhuTrach: string;
   vaiTroXuLy: string;
+  donViXuLyId?: number | string;
+  vaiTroXuLyId?: number | string;
   slaNgay: number;
   loaiThoiHan: LoaiThoiHanUI;
   coKyDuyet: boolean;
+  loaiThoiHanKyDuyet: LoaiThoiHanUI;
   donViKyHoSo: string;
   vaiTroKyDuyet: string;
+  donViKyDuyetId?: number | string;
+  vaiTroKyDuyetId?: number | string;
   soNgayKyDuyet: number | undefined;
   huongXuLyKhongDuyet: HuongXuLyUI;
   batBuocGhiChu: boolean;
@@ -68,11 +74,16 @@ export function emptyStepForm(): StepFormData {
     moTa: "",
     donViPhuTrach: "",
     vaiTroXuLy: "",
+    donViXuLyId: undefined,
+    vaiTroXuLyId: undefined,
     slaNgay: 1,
     loaiThoiHan: "Chỉ cảnh báo quá hạn",
     coKyDuyet: false,
+    loaiThoiHanKyDuyet: "Chỉ cảnh báo quá hạn",
     donViKyHoSo: "",
     vaiTroKyDuyet: "",
+    donViKyDuyetId: undefined,
+    vaiTroKyDuyetId: undefined,
     soNgayKyDuyet: undefined,
     huongXuLyKhongDuyet: "Trả về bước trước",
     batBuocGhiChu: false,
@@ -92,6 +103,7 @@ interface Props {
   allowSpecialLoaiBuoc?: boolean;
   donViOptions?: string[];
   vaiTroOptions?: string[];
+  roleOptions?: RoleItem[];
   onChange: (data: StepFormData) => void;
   onSave: () => void;
   onClose: () => void;
@@ -107,6 +119,7 @@ export default function StepFormModal({
   allowSpecialLoaiBuoc = true,
   donViOptions,
   vaiTroOptions,
+  roleOptions,
   onChange,
   onSave,
   onClose,
@@ -120,10 +133,23 @@ export default function StepFormModal({
   const effectiveVaiTroOptions = vaiTroOptions?.length ? vaiTroOptions : VAI_TRO_OPTIONS;
   const effectiveDonViKyOptions = donViOptions?.length ? donViOptions : DON_VI_KY_OPTIONS;
   const effectiveVaiTroKyOptions = vaiTroOptions?.length ? vaiTroOptions : VAI_TRO_KY_OPTIONS;
+  const approvalRoleId = typeof form.vaiTroKyDuyetId === "number"
+    ? form.vaiTroKyDuyetId
+    : Number(form.vaiTroKyDuyetId);
+  const selectedApprovalRole = roleOptions?.find((role) => role.id === approvalRoleId)
+    ?? roleOptions?.find((role) => role.tenVaiTro === form.vaiTroKyDuyet);
+  const isCapCaoApprovalRole = selectedApprovalRole?.nhomVaiTroMaNhom === "CAP_CAO";
+  const effectiveLoaiHanKyDuyet = isCapCaoApprovalRole
+    ? "Chỉ cảnh báo quá hạn"
+    : form.loaiThoiHanKyDuyet;
   const availableLoaiBuoc = mode === "edit" || allowSpecialLoaiBuoc
     ? LOAI_BUOC_UI_VALUES
     : (["Thường"] as const);
   const saveLabel = mode === "add" ? (isBranch ? "Thêm vào nhánh" : "Thêm bước") : "Lưu thay đổi";
+  const invalidDonViPhuTrach = !!form.donViPhuTrach && !effectiveDonViOptions.includes(form.donViPhuTrach);
+  const invalidVaiTroXuLy = !!form.vaiTroXuLy && !effectiveVaiTroOptions.includes(form.vaiTroXuLy);
+  const invalidDonViKyHoSo = !!form.coKyDuyet && !!form.donViKyHoSo && !effectiveDonViKyOptions.includes(form.donViKyHoSo);
+  const invalidVaiTroKyDuyet = !!form.coKyDuyet && !!form.vaiTroKyDuyet && !effectiveVaiTroKyOptions.includes(form.vaiTroKyDuyet);
 
   function set<K extends keyof StepFormData>(key: K, value: StepFormData[K]) {
     onChange({ ...form, [key]: value });
@@ -211,6 +237,11 @@ export default function StepFormModal({
                 triggerClassName={effectiveErrors.donViPhuTrach ? inputErrCls : inputCls}
               />
               {effectiveErrors.donViPhuTrach && <p className="text-xs text-red-500 mt-1">{effectiveErrors.donViPhuTrach}</p>}
+              {!effectiveErrors.donViPhuTrach && invalidDonViPhuTrach && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Giá trị từ thư viện không khớp với danh sách đơn vị hiện tại.
+                </p>
+              )}
             </div>
             <div>
               <label className={labelCls}>Vai trò xử lý <span className="text-red-500">*</span></label>
@@ -221,6 +252,11 @@ export default function StepFormModal({
                 triggerClassName={effectiveErrors.vaiTroXuLy ? inputErrCls : inputCls}
               />
               {effectiveErrors.vaiTroXuLy && <p className="text-xs text-red-500 mt-1">{effectiveErrors.vaiTroXuLy}</p>}
+              {!effectiveErrors.vaiTroXuLy && invalidVaiTroXuLy && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Giá trị từ thư viện không khớp với danh sách vai trò hiện tại.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -240,7 +276,7 @@ export default function StepFormModal({
             {effectiveErrors.slaNgay && <p className="text-xs text-red-500 mt-1">{effectiveErrors.slaNgay}</p>}
           </div>
           <div>
-            <label className={labelCls}>Loại thời hạn <span className="text-red-500">*</span></label>
+            <label className={labelCls}>Loại thời hạn xử lý <span className="text-red-500">*</span></label>
             <div className="flex flex-col gap-2">
               {(["Chỉ cảnh báo quá hạn", "Bắt buộc hoàn thành trước hạn"] as LoaiThoiHanUI[]).map((opt) => (
                 <label key={opt} className="flex items-start gap-2 cursor-pointer">
@@ -276,6 +312,34 @@ export default function StepFormModal({
           </div>
           {form.coKyDuyet && (
             <div className="space-y-3 pt-1 border-t border-slate-100">
+              <div>
+                <label className={labelCls}>Loại thời hạn ký duyệt <span className="text-red-500">*</span></label>
+                <div className="flex flex-col gap-2">
+                  {(["Chỉ cảnh báo quá hạn", "Bắt buộc hoàn thành trước hạn"] as LoaiThoiHanUI[]).map((opt) => {
+                    const disabled = isCapCaoApprovalRole && opt === "Bắt buộc hoàn thành trước hạn";
+                    return (
+                      <label key={opt} className={`flex items-start gap-2 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                        <input type="radio" name="loaiThoiHanKyDuyet" value={opt}
+                          checked={effectiveLoaiHanKyDuyet === opt}
+                          disabled={disabled}
+                          onChange={() => {
+                            if (!disabled) {
+                              set("loaiThoiHanKyDuyet", opt);
+                            }
+                          }}
+                          className="mt-0.5"
+                        />
+                        <span className="text-xs text-slate-700">{opt}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {isCapCaoApprovalRole && (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    Vai trò cấp cao chỉ áp dụng cảnh báo quá hạn.
+                  </p>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Đơn vị kiểm tra/ký hồ sơ <span className="text-red-500">*</span></label>
@@ -285,6 +349,11 @@ export default function StepFormModal({
                     options={[{ value: "__empty", label: "-- Chọn đơn vị --" }, ...effectiveDonViKyOptions.map((d) => ({ value: d, label: d }))]}
                     triggerClassName={inputCls}
                   />
+                  {invalidDonViKyHoSo && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Giá trị từ thư viện không khớp với danh sách đơn vị ký duyệt hiện tại.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>Vai trò ký duyệt <span className="text-red-500">*</span></label>
@@ -294,6 +363,11 @@ export default function StepFormModal({
                     options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...effectiveVaiTroKyOptions.map((v) => ({ value: v, label: v }))]}
                     triggerClassName={inputCls}
                   />
+                  {invalidVaiTroKyDuyet && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Giá trị từ thư viện không khớp với danh sách vai trò ký duyệt hiện tại.
+                    </p>
+                  )}
                 </div>
               </div>
               <div>

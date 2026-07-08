@@ -19,6 +19,10 @@ public static class DbInitializer
         ("VIEN_TRUONG", "VIEN_TRUONG", "Viện trưởng — theo dõi báo cáo tổng hợp"),
         ("BCN_HCQT", "BCN_HCQT", "Ban chủ nhiệm phòng HCQT — tạo workflow, xem hồ sơ toàn BV"),
         ("BAN_GIAM_DOC", "BAN_GIAM_DOC", "Ban Giám Đốc — theo dõi, phê duyệt và quản lý toàn diện"),
+        ("TU_VAN_LCNT", "Tư vấn LCNT", "Vai trò tư vấn hỗ trợ lập và triển khai lựa chọn nhà thầu"),
+        ("TO_CHUYEN_GIA", "Tổ chuyên gia", "Vai trò đánh giá hồ sơ và kết quả lựa chọn nhà thầu"),
+        ("TO_THAM_DINH", "Tổ thẩm định", "Vai trò thẩm định hồ sơ, phương án và kết quả"),
+        ("TO_KIEM_TRA_GIA", "Tổ kiểm tra giá", "Vai trò kiểm tra, đối chiếu và xác minh báo giá"),
     ];
 
     // Union của DbInitializer + PermissionSeeder lists
@@ -249,7 +253,8 @@ public static class DbInitializer
     {
         foreach (var (maVaiTro, tenVaiTro, moTa) in DefaultRoles)
         {
-            var exists = await context.VaiTros.AnyAsync(v => v.MaVaiTro == maVaiTro);
+            var exists = await context.VaiTros.AnyAsync(v =>
+                v.MaVaiTro == maVaiTro || v.TenVaiTro == tenVaiTro);
             if (!exists)
             {
                 context.VaiTros.Add(new VaiTro
@@ -267,19 +272,35 @@ public static class DbInitializer
 
     private static async Task SeedKhoaPhongAsync(AppDbContext context, ILogger logger)
     {
-        if (await context.KhoaPhongs.AnyAsync())
+        var defaultKhoaPhongs = new (string MaKhoaPhong, string TenKhoaPhong)[]
         {
-            logger.LogInformation("Seed: Khoa/phòng đã tồn tại, bỏ qua.");
-            return;
+            ("KTTH", "Phòng Kỹ thuật tổng hợp"),
+            ("TU_VAN_LCNT", "Tư vấn LCNT"),
+            ("TO_CHUYEN_GIA", "Tổ chuyên gia"),
+            ("TO_THAM_DINH", "Tổ thẩm định"),
+            ("TO_KIEM_TRA_GIA", "Tổ kiểm tra giá"),
+        };
+
+        foreach (var (maKhoaPhong, tenKhoaPhong) in defaultKhoaPhongs)
+        {
+            var exists = await context.KhoaPhongs.AnyAsync(k =>
+                k.MaKhoaPhong == maKhoaPhong || k.TenKhoaPhong == tenKhoaPhong);
+
+            if (exists)
+            {
+                continue;
+            }
+
+            context.KhoaPhongs.Add(new KhoaPhong
+            {
+                MaKhoaPhong = maKhoaPhong,
+                TenKhoaPhong = tenKhoaPhong,
+                DaXoa = false
+            });
+            logger.LogInformation("Seed: Tạo khoa/phòng {MaKhoaPhong}", maKhoaPhong);
         }
 
-        context.KhoaPhongs.Add(new KhoaPhong
-        {
-            MaKhoaPhong = "KTTH",
-            TenKhoaPhong = "Phòng Kỹ thuật tổng hợp"
-        });
         await context.SaveChangesAsync();
-        logger.LogInformation("Seed: Tạo khoa/phòng mặc định (MaKhoaPhong: KTTH)");
     }
 
     private static async Task SeedAdminAccountAsync(AppDbContext context, ILogger logger)
@@ -305,7 +326,8 @@ public static class DbInitializer
                 "Hãy set ADMIN_DEFAULT_PASSWORD trong môi trường production.");
         }
 
-        var defaultKhoaPhong = await context.KhoaPhongs.FirstAsync();
+        var defaultKhoaPhong = await context.KhoaPhongs.FirstOrDefaultAsync(k => k.MaKhoaPhong == "KTTH")
+            ?? await context.KhoaPhongs.FirstAsync();
         var admin = await context.NguoiDungs
             .FirstOrDefaultAsync(u => u.TenDangNhap == adminUsername);
 

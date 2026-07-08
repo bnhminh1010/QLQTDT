@@ -25,9 +25,14 @@ import DeleteStepConfirmModal from "./components/DeleteStepConfirmModal";
 import LeaveConfirmModal from "./components/LeaveConfirmModal";
 import type { TemplateInfo } from "./workflowDesignerTypes";
 import { getMainWorkflowSteps } from "./workflowDesignerUtils";
+import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
 import { getAllRoles, getKhoaPhongs, type KhoaPhong, type RoleItem } from "@/services/adminApi";
 import { normalizeParallelGroupTitle } from "@/constants/parallelGroup";
 import { getDefaultParallelBranchLabel, resolveParallelBranchLabel } from "@/constants/parallelBranch";
+import {
+  isDynamicPurchasingDepartmentLabel,
+  isDynamicPurchasingRoleLabel,
+} from "./stepLibrary";
 
 function getErrorMessage(error: unknown, fallback: string): string {
   const responseData = (error as any)?.response?.data;
@@ -75,6 +80,67 @@ function findNameById<T>(items: T[], id: number | undefined | null, getId: (item
   return item ? getName(item) : String(id);
 }
 
+function resolveSelectionValue<T>(
+  items: T[],
+  candidate: string | number | undefined | null,
+  getId: (item: T) => number,
+  getName: (item: T) => string,
+) {
+  const raw = candidate == null ? "" : String(candidate).trim();
+  if (!raw) {
+    return {
+      value: "",
+      id: undefined as number | undefined,
+      matched: false,
+    };
+  }
+
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    const byId = items.find((item) => getId(item) === numeric);
+    if (byId) {
+      return {
+        value: getName(byId),
+        id: getId(byId),
+        matched: true,
+      };
+    }
+  }
+
+  const normalized = normalizeLookup(raw);
+  const item = items.find((candidateItem) => {
+    const name = getName(candidateItem);
+    return name === raw || normalizeLookup(name) === normalized;
+  });
+
+  if (item) {
+    return {
+      value: getName(item),
+      id: getId(item),
+      matched: true,
+    };
+  }
+
+  return {
+    value: "",
+    id: undefined as number | undefined,
+    matched: false,
+  };
+}
+
+function formatSelectionSource(candidate: string | number | undefined | null) {
+  if (candidate == null) return "";
+  return String(candidate).trim();
+}
+
+function buildMissingSelectionError(fieldLabel: string, candidate: string | number | undefined | null) {
+  const source = formatSelectionSource(candidate);
+  if (source) {
+    return `Giá trị "${source}" từ thư viện không có trong danh sách hiện tại. Vui lòng chọn ${fieldLabel}.`;
+  }
+  return `Vui lòng chọn ${fieldLabel}.`;
+}
+
 function loaiHinhToId(ten: string): number | undefined {
   const idx = LOAI_HINH_DAU_THAU.indexOf(ten as any);
   return idx >= 0 ? idx + 1 : undefined;
@@ -120,6 +186,7 @@ export default function LapQuyTrinh() {
   const [saveErr, setSaveErr] = useState("");
   const [khoaPhongOptions, setKhoaPhongOptions] = useState<KhoaPhong[]>([]);
   const [roleOptions, setRoleOptions] = useState<RoleItem[]>([]);
+  const [currentUser, setCurrentUser] = useState<LoginUserDto | null>(null);
 
   /* ── Template state ── */
   const [templateList, setTemplateList] = useState<WorkflowTemplateSummary[]>([]);
@@ -170,6 +237,22 @@ export default function LapQuyTrinh() {
     };
   }, []);
 
+  useEffect(() => {
+    let ignore = false;
+
+    getCurrentUserApi()
+      .then((user) => {
+        if (!ignore) setCurrentUser(user);
+      })
+      .catch(() => {
+        if (!ignore) setCurrentUser(null);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const resolveKhoaPhongId = useCallback(
     (name?: string) => findIdByName(khoaPhongOptions, name, (item) => item.id, (item) => item.tenKhoaPhong),
     [khoaPhongOptions],
@@ -190,12 +273,79 @@ export default function LapQuyTrinh() {
     [roleOptions],
   );
 
+  const currentUserPrimaryKhoaPhongName = currentUser?.roles?.find((r) => r.laChinh && r.tenKhoaPhong)?.tenKhoaPhong
+    || currentUser?.roles?.find((r) => r.tenKhoaPhong)?.tenKhoaPhong
+    || "";
+
+  function syncAssignmentErrors(nextForm: StepFormData) {
+    setNewStepErrs((prev) => {
+      const nextErrs = { ...prev };
+
+      const donViPhuTrachMatch = resolveSelectionValue(
+        khoaPhongOptions,
+        nextForm.donViPhuTrach,
+        (item) => item.id,
+        (item) => item.tenKhoaPhong,
+      );
+      if (!nextForm.donViPhuTrach || !donViPhuTrachMatch.matched) {
+        nextErrs.donViPhuTrach = buildMissingSelectionError("khoa/phòng mua sắm", nextForm.donViPhuTrach);
+      } else {
+        delete nextErrs.donViPhuTrach;
+      }
+
+      const vaiTroXuLyMatch = resolveSelectionValue(
+        roleOptions,
+        nextForm.vaiTroXuLy,
+        (item) => item.id,
+        (item) => item.tenVaiTro,
+      );
+      if (!nextForm.vaiTroXuLy || !vaiTroXuLyMatch.matched) {
+        nextErrs.vaiTroXuLy = buildMissingSelectionError("vai trò xử lý", nextForm.vaiTroXuLy);
+      } else {
+        delete nextErrs.vaiTroXuLy;
+      }
+
+      return nextErrs;
+    });
+  }
+
   const buildStepAssignmentPayload = useCallback(
-    (step: Pick<WorkflowStepDraft | StepFormData, "donViPhuTrach" | "vaiTroXuLy" | "coKyDuyet" | "donViKyHoSo" | "vaiTroKyDuyet">) => ({
-      donViXuLyId: resolveKhoaPhongId(step.donViPhuTrach),
-      vaiTroXuLyHoSoId: resolveRoleId(step.vaiTroXuLy),
-      donViKyHoSoId: step.coKyDuyet ? resolveKhoaPhongId(step.donViKyHoSo) : undefined,
-      vaiTroKyDuyetId: step.coKyDuyet ? resolveRoleId(step.vaiTroKyDuyet) : undefined,
+    (
+      step: {
+        donViPhuTrach: string;
+        vaiTroXuLy: string;
+        coKyDuyet: boolean;
+        donViKyHoSo?: string;
+        vaiTroKyDuyet?: string;
+        donViXuLyId?: number | string;
+        vaiTroXuLyId?: number | string;
+        donViKyDuyetId?: number | string;
+        vaiTroKyDuyetId?: number | string;
+      },
+    ) => ({
+      donViXuLyId: (() => {
+        const parsed = step.donViXuLyId != null ? Number(step.donViXuLyId) : undefined;
+        if (Number.isFinite(parsed ?? NaN) && (parsed ?? 0) > 0) return parsed;
+        if (isDynamicPurchasingDepartmentLabel(step.donViPhuTrach)) return undefined;
+        return resolveKhoaPhongId(step.donViPhuTrach);
+      })(),
+      vaiTroXuLyHoSoId: (() => {
+        const parsed = step.vaiTroXuLyId != null ? Number(step.vaiTroXuLyId) : undefined;
+        if (Number.isFinite(parsed ?? NaN) && (parsed ?? 0) > 0) return parsed;
+        return resolveRoleId(step.vaiTroXuLy);
+      })(),
+      donViKyHoSoId: step.coKyDuyet
+        ? (() => {
+          const parsed = step.donViKyDuyetId != null ? Number(step.donViKyDuyetId) : undefined;
+          return Number.isFinite(parsed ?? NaN) && (parsed ?? 0) > 0 ? parsed : resolveKhoaPhongId(step.donViKyHoSo);
+        })()
+        : undefined,
+      vaiTroKyDuyetId: step.coKyDuyet
+        ? (() => {
+          const parsed = step.vaiTroKyDuyetId != null ? Number(step.vaiTroKyDuyetId) : undefined;
+          return Number.isFinite(parsed ?? NaN) && (parsed ?? 0) > 0 ? parsed : resolveRoleId(step.vaiTroKyDuyet);
+        })()
+        : undefined,
     }),
     [resolveKhoaPhongId, resolveRoleId],
   );
@@ -246,11 +396,16 @@ export default function LapQuyTrinh() {
               moTa: dto.moTa ?? undefined,
               donViPhuTrach: resolveKhoaPhongName(dto.donViXuLyId),
               vaiTroXuLy: resolveRoleName(dto.vaiTroXuLyHoSoId),
+              donViXuLyId: dto.donViXuLyId ?? undefined,
+              vaiTroXuLyId: dto.vaiTroXuLyHoSoId ?? undefined,
               slaNgay: dto.soNgayLapHoSo,
               loaiThoiHan: mapLoaiHanToUi(dto.loaiHan),
+              loaiThoiHanKyDuyet: mapLoaiHanToUi(dto.loaiHanKyDuyet),
               coKyDuyet: dto.vaiTroKyDuyetId != null,
               donViKyHoSo: resolveKhoaPhongName(dto.donViKyHoSoId) || undefined,
               vaiTroKyDuyet: resolveRoleName(dto.vaiTroKyDuyetId),
+              donViKyDuyetId: dto.donViKyHoSoId ?? undefined,
+              vaiTroKyDuyetId: dto.vaiTroKyDuyetId ?? undefined,
               soNgayKyDuyet: dto.soNgayXuLy > 0 ? dto.soNgayXuLy : undefined,
               buocTiepTheoId: nextByStep.get(dto.id) ?? "",
               huongXuLyKhongDuyet: mapHuongXuLyToUi(),
@@ -351,6 +506,7 @@ export default function LapQuyTrinh() {
           soNgayLapHoSo: step.slaNgay || 0,
           soNgayXuLy: step.soNgayKyDuyet ?? 0,
           loaiHan: mapLoaiHanToBackend(step.loaiThoiHan),
+          loaiHanKyDuyet: mapLoaiHanToBackend(step.loaiThoiHanKyDuyet),
           laBuocJoin: false,
           nhomGiaiDoan: step.nhomGiaiDoan || undefined,
           moTa: step.moTa || undefined,
@@ -538,19 +694,48 @@ export default function LapQuyTrinh() {
   function handleOpenEdit(idx: number) {
     const step = buocList[idx];
     if (!step) return;
+    const resolvedDonVi = resolveSelectionValue(
+      khoaPhongOptions,
+      step.donViXuLyId ?? step.donViPhuTrach,
+      (item) => item.id,
+      (item) => item.tenKhoaPhong,
+    );
+    const resolvedVaiTro = resolveSelectionValue(
+      roleOptions,
+      step.vaiTroXuLyId ?? step.vaiTroXuLy,
+      (item) => item.id,
+      (item) => item.tenVaiTro,
+    );
+    const resolvedDonViKy = resolveSelectionValue(
+      khoaPhongOptions,
+      step.donViKyDuyetId ?? step.donViKyHoSo,
+      (item) => item.id,
+      (item) => item.tenKhoaPhong,
+    );
+    const resolvedVaiTroKy = resolveSelectionValue(
+      roleOptions,
+      step.vaiTroKyDuyetId ?? step.vaiTroKyDuyet,
+      (item) => item.id,
+      (item) => item.tenVaiTro,
+    );
     setEditTargetIdx(idx);
     setModalContext(step.nhanhId ? { type: "branch", branchId: step.nhanhId } : { type: "main" });
     setNewStepForm({
       tenBuoc: step.tenBuoc,
       loaiBuoc: step.loaiBuoc,
       moTa: step.moTa ?? "",
-      donViPhuTrach: step.donViPhuTrach,
-      vaiTroXuLy: step.vaiTroXuLy,
+      donViPhuTrach: resolvedDonVi.value || step.donViPhuTrach,
+      vaiTroXuLy: resolvedVaiTro.value || step.vaiTroXuLy,
+      donViXuLyId: resolvedDonVi.id ?? step.donViXuLyId ?? resolveKhoaPhongId(step.donViPhuTrach),
+      vaiTroXuLyId: resolvedVaiTro.id ?? step.vaiTroXuLyId ?? resolveRoleId(step.vaiTroXuLy),
       slaNgay: step.slaNgay,
       loaiThoiHan: step.loaiThoiHan,
+      loaiThoiHanKyDuyet: step.loaiThoiHanKyDuyet,
       coKyDuyet: step.coKyDuyet,
-      donViKyHoSo: step.donViKyHoSo ?? "",
-      vaiTroKyDuyet: step.vaiTroKyDuyet ?? "",
+      donViKyHoSo: resolvedDonViKy.value || (step.donViKyHoSo ?? ""),
+      vaiTroKyDuyet: resolvedVaiTroKy.value || (step.vaiTroKyDuyet ?? ""),
+      donViKyDuyetId: resolvedDonViKy.id ?? step.donViKyDuyetId ?? resolveKhoaPhongId(step.donViKyHoSo),
+      vaiTroKyDuyetId: resolvedVaiTroKy.id ?? step.vaiTroKyDuyetId ?? resolveRoleId(step.vaiTroKyDuyet),
       soNgayKyDuyet: step.soNgayKyDuyet,
       huongXuLyKhongDuyet: step.huongXuLyKhongDuyet,
       batBuocGhiChu: step.batBuocGhiChu,
@@ -733,11 +918,39 @@ export default function LapQuyTrinh() {
 
   function handleNewStepSave() {
     const errs: Partial<Record<keyof StepFormData, string>> = {};
+    const donViPhuTrachMatch = resolveSelectionValue(khoaPhongOptions, newStepForm.donViPhuTrach, (item) => item.id, (item) => item.tenKhoaPhong);
+    const vaiTroXuLyMatch = resolveSelectionValue(roleOptions, newStepForm.vaiTroXuLy, (item) => item.id, (item) => item.tenVaiTro);
+    const donViKyHoSoMatch = resolveSelectionValue(khoaPhongOptions, newStepForm.donViKyHoSo, (item) => item.id, (item) => item.tenKhoaPhong);
+    const vaiTroKyDuyetMatch = resolveSelectionValue(roleOptions, newStepForm.vaiTroKyDuyet, (item) => item.id, (item) => item.tenVaiTro);
+    const approvalRole = roleOptions.find((item) => item.id === vaiTroKyDuyetMatch.id);
+    const effectiveLoaiHanKyDuyet = approvalRole?.nhomVaiTroMaNhom === "CAP_CAO"
+      ? "Chỉ cảnh báo quá hạn"
+      : newStepForm.loaiThoiHanKyDuyet;
+
     if (!newStepForm.tenBuoc.trim()) errs.tenBuoc = "Vui lòng nhập tên bước";
-    if (!newStepForm.donViPhuTrach) errs.donViPhuTrach = "Vui lòng chọn đơn vị phụ trách";
-    if (!newStepForm.vaiTroXuLy) errs.vaiTroXuLy = "Vui lòng chọn vai trò xử lý";
+    if (!newStepForm.donViPhuTrach) {
+      errs.donViPhuTrach = "Vui lòng chọn đơn vị phụ trách";
+    } else if (!donViPhuTrachMatch.matched) {
+      errs.donViPhuTrach = `Không tìm thấy đơn vị "${newStepForm.donViPhuTrach}" trong danh sách hiện tại`;
+    }
+    if (!newStepForm.vaiTroXuLy) {
+      errs.vaiTroXuLy = "Vui lòng chọn vai trò xử lý thực hiện bước này.";
+    } else if (!vaiTroXuLyMatch.matched) {
+      errs.vaiTroXuLy = `Không tìm thấy vai trò "${newStepForm.vaiTroXuLy}" trong danh sách hiện tại`;
+    }
     if (newStepForm.slaNgay < 0) errs.slaNgay = ">= 0";
-    if (newStepForm.coKyDuyet && !newStepForm.vaiTroKyDuyet) errs.vaiTroKyDuyet = "Chọn vai trò ký duyệt";
+    if (newStepForm.coKyDuyet) {
+      if (!newStepForm.donViKyHoSo) {
+        errs.donViKyHoSo = "Chọn đơn vị ký duyệt";
+      } else if (!donViKyHoSoMatch.matched) {
+        errs.donViKyHoSo = `Không tìm thấy đơn vị "${newStepForm.donViKyHoSo}" trong danh sách hiện tại`;
+      }
+      if (!newStepForm.vaiTroKyDuyet) {
+        errs.vaiTroKyDuyet = "Chọn vai trò ký duyệt";
+      } else if (!vaiTroKyDuyetMatch.matched) {
+        errs.vaiTroKyDuyet = `Không tìm thấy vai trò "${newStepForm.vaiTroKyDuyet}" trong danh sách hiện tại`;
+      }
+    }
     setNewStepErrs(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -747,12 +960,19 @@ export default function LapQuyTrinh() {
     const newStep: WorkflowStepDraft = {
       id: nextId(), maBuoc: "", tenBuoc: newStepForm.tenBuoc, loaiBuoc: loaiBuocUI,
       thuTu: 0, moTa: newStepForm.moTa || undefined, nhomGiaiDoan: undefined,
-      donViPhuTrach: newStepForm.donViPhuTrach, vaiTroXuLy: newStepForm.vaiTroXuLy,
+      donViPhuTrach: donViPhuTrachMatch.value,
+      vaiTroXuLy: vaiTroXuLyMatch.value,
+      donViXuLyId: donViPhuTrachMatch.id,
+      vaiTroXuLyId: vaiTroXuLyMatch.id,
       slaNgay: newStepForm.slaNgay, loaiThoiHan: newStepForm.loaiThoiHan,
       coKyDuyet: newStepForm.coKyDuyet,
-      donViKyHoSo: newStepForm.donViKyHoSo || undefined,
-      vaiTroKyDuyet: newStepForm.vaiTroKyDuyet || undefined,
-      soNgayKyDuyet: newStepForm.soNgayKyDuyet, buocTiepTheoId: "",
+      donViKyHoSo: newStepForm.coKyDuyet ? donViKyHoSoMatch.value : undefined,
+      vaiTroKyDuyet: newStepForm.coKyDuyet ? vaiTroKyDuyetMatch.value : undefined,
+      donViKyDuyetId: newStepForm.coKyDuyet ? donViKyHoSoMatch.id : undefined,
+      vaiTroKyDuyetId: newStepForm.coKyDuyet ? vaiTroKyDuyetMatch.id : undefined,
+      soNgayKyDuyet: newStepForm.soNgayKyDuyet,
+      loaiThoiHanKyDuyet: effectiveLoaiHanKyDuyet,
+      buocTiepTheoId: "",
       huongXuLyKhongDuyet: newStepForm.huongXuLyKhongDuyet,
       batBuocGhiChu: newStepForm.batBuocGhiChu, batBuocTaiLieu: newStepForm.batBuocTaiLieu,
       batBuocKyTruocChuyenBuoc: newStepForm.batBuocKyTruocChuyenBuoc,
@@ -864,6 +1084,7 @@ export default function LapQuyTrinh() {
         soNgayLapHoSo: step.slaNgay || 0,
         soNgayXuLy: step.soNgayKyDuyet ?? 0,
         loaiHan: mapLoaiHanToBackend(step.loaiThoiHan),
+        loaiHanKyDuyet: mapLoaiHanToBackend(step.loaiThoiHanKyDuyet),
         laBuocJoin: false,
         nhomGiaiDoan: step.nhomGiaiDoan || undefined,
         moTa: step.moTa || undefined,
@@ -909,18 +1130,82 @@ export default function LapQuyTrinh() {
   }
 
   function handleLibrarySelect(entry: StepLibraryEntry) {
+    const donViSource = entry.donViXuLyId ?? entry.donViPhuTrach;
+    const vaiTroSource = entry.vaiTroXuLyId ?? entry.vaiTroXuLy;
+    const donViKySource = entry.donViKyDuyetId ?? entry.donViKyHoSo;
+    const vaiTroKySource = entry.vaiTroKyDuyetId ?? entry.vaiTroKyDuyet;
+    const isDynamicDonVi = isDynamicPurchasingDepartmentLabel(donViSource) || isDynamicPurchasingDepartmentLabel(entry.donViPhuTrachDisplay);
+    const isDynamicVaiTro = isDynamicPurchasingRoleLabel(vaiTroSource) || isDynamicPurchasingRoleLabel(entry.vaiTroXuLyDisplay);
+    const resolvedDonVi = isDynamicDonVi
+      ? (currentUserPrimaryKhoaPhongName
+        ? resolveSelectionValue(
+          khoaPhongOptions,
+          currentUserPrimaryKhoaPhongName,
+          (item) => item.id,
+          (item) => item.tenKhoaPhong,
+        )
+        : { value: "", id: undefined as number | undefined, matched: false })
+      : resolveSelectionValue(khoaPhongOptions, donViSource, (item) => item.id, (item) => item.tenKhoaPhong);
+    const resolvedVaiTro = isDynamicVaiTro
+      ? { value: "", id: undefined as number | undefined, matched: false }
+      : resolveSelectionValue(roleOptions, vaiTroSource, (item) => item.id, (item) => item.tenVaiTro);
+    const resolvedDonViKy = resolveSelectionValue(khoaPhongOptions, donViKySource, (item) => item.id, (item) => item.tenKhoaPhong);
+    const resolvedVaiTroKy = resolveSelectionValue(roleOptions, vaiTroKySource, (item) => item.id, (item) => item.tenVaiTro);
+
     const loaiBuoc: LoaiBuocUI = (["Bắt đầu", "Thường", "Kết thúc"] as const).includes(entry.loaiBuoc as any)
       ? entry.loaiBuoc as LoaiBuocUI
       : "Thường";
     const canChooseSpecialLoaiBuoc = editTargetIdx !== undefined || (!generatedWorkflowId && modalContext.type === "main" && !modalContext.afterStepId);
+    const errs: Partial<Record<keyof StepFormData, string>> = {};
+    if (isDynamicDonVi) {
+      toast.info("Vui lòng chọn khoa/phòng mua sắm thực hiện bước này.");
+      if (!resolvedDonVi.matched) {
+        errs.donViPhuTrach = "Vui lòng chọn khoa/phòng mua sắm thực hiện bước này.";
+      }
+    } else if (donViSource != null && !resolvedDonVi.matched) {
+      errs.donViPhuTrach = buildMissingSelectionError("đơn vị phụ trách", donViSource);
+    }
+    if (isDynamicVaiTro) {
+      errs.vaiTroXuLy = "Vui lòng chọn vai trò xử lý thực hiện bước này.";
+    } else if (vaiTroSource != null && !resolvedVaiTro.matched) {
+      errs.vaiTroXuLy = buildMissingSelectionError("vai trò xử lý", vaiTroSource);
+    }
+    const hasSigningFields = entry.coKyDuyet || entry.donViKyDuyetId != null || entry.vaiTroKyDuyetId != null || !!entry.donViKyHoSo || !!entry.vaiTroKyDuyet;
+    if (hasSigningFields) {
+      if (donViKySource != null && !resolvedDonViKy.matched) {
+        errs.donViKyHoSo = buildMissingSelectionError("đơn vị ký duyệt", donViKySource);
+      }
+      if (vaiTroKySource != null && !resolvedVaiTroKy.matched) {
+        errs.vaiTroKyDuyet = buildMissingSelectionError("vai trò ký duyệt", vaiTroKySource);
+      }
+    }
+
     setNewStepForm({
-      ...emptyStepForm(), tenBuoc: entry.tenBuoc, loaiBuoc: canChooseSpecialLoaiBuoc ? loaiBuoc : "Thường",
-      donViPhuTrach: entry.donViPhuTrach ?? "", vaiTroXuLy: entry.vaiTroXuLy ?? "",
-      slaNgay: entry.slaNgay ?? 1, loaiThoiHan: entry.loaiThoiHan ?? "Chỉ cảnh báo quá hạn",
-      coKyDuyet: entry.coKyDuyet ?? false, donViKyHoSo: entry.donViKyHoSo ?? "",
-      vaiTroKyDuyet: entry.vaiTroKyDuyet ?? "",
+      ...emptyStepForm(),
+      tenBuoc: entry.tenBuoc,
+      loaiBuoc: canChooseSpecialLoaiBuoc ? loaiBuoc : "Thường",
+      moTa: entry.moTa ?? "",
+      donViPhuTrach: resolvedDonVi.value,
+      vaiTroXuLy: resolvedVaiTro.value,
+      donViXuLyId: resolvedDonVi.id,
+      vaiTroXuLyId: resolvedVaiTro.id,
+      slaNgay: entry.slaNgay ?? 1,
+      loaiThoiHan: entry.loaiThoiHan ?? "Chỉ cảnh báo quá hạn",
+      loaiThoiHanKyDuyet: "Chỉ cảnh báo quá hạn",
+      coKyDuyet: hasSigningFields,
+      donViKyHoSo: hasSigningFields ? resolvedDonViKy.value : "",
+      vaiTroKyDuyet: hasSigningFields ? resolvedVaiTroKy.value : "",
+      donViKyDuyetId: hasSigningFields ? resolvedDonViKy.id : undefined,
+      vaiTroKyDuyetId: hasSigningFields ? resolvedVaiTroKy.id : undefined,
+      batBuocGhiChu: entry.batBuocGhiChu ?? false,
+      batBuocTaiLieu: entry.batBuocTaiLieu ?? false,
+      batBuocKyTruocChuyenBuoc: entry.batBuocKyTruocChuyenBuoc ?? true,
+      batBuocDungSLA: entry.batBuocDungSLA ?? false,
     });
-    setNewStepErrs({}); setEditTargetIdx(undefined); setLibraryOpen(false); setStepModalOpen(true);
+    setNewStepErrs(errs);
+    setEditTargetIdx(undefined);
+    setLibraryOpen(false);
+    setStepModalOpen(true);
   }
 
   /* ── Computed ── */
@@ -1013,12 +1298,13 @@ export default function LapQuyTrinh() {
 
       {/* Modals */}
       <StepFormModal
-        open={stepModalOpen} mode={editTargetIdx !== undefined ? "edit" : "add"} context={modalContext}
+      open={stepModalOpen} mode={editTargetIdx !== undefined ? "edit" : "add"} context={modalContext}
         form={newStepForm} errors={newStepErrs} nextStepName={editNextStepName}
         allowSpecialLoaiBuoc={allowSpecialLoaiBuoc}
         donViOptions={donViOptionLabels}
         vaiTroOptions={vaiTroOptionLabels}
-        onChange={(d) => setNewStepForm(d)} onSave={handleNewStepSave}
+        roleOptions={roleOptions}
+        onChange={(d) => { setNewStepForm(d); syncAssignmentErrors(d); }} onSave={handleNewStepSave}
         onClose={() => { setStepModalOpen(false); setEditTargetIdx(undefined); setModalContext({ type: "main" }); }}
       />
 

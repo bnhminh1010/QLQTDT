@@ -16,6 +16,7 @@ public class BuocWorkflow : IBaseEntity
 
     // Deadline check: BAT_BUOC / CANH_BAO
     public string LoaiHan { get; set; } = "CANH_BAO";
+    public string LoaiHanKyDuyet { get; set; } = "CANH_BAO";
 
     // Parallel / join branches
     public string? NhomSongSong { get; set; }

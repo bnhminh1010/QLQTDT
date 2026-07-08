@@ -21,7 +21,7 @@ public class VaiTroController : ControllerBase
 
     /// <summary>Lấy danh sách tất cả vai trò (trừ NHA_THAU — chỉ dùng tham chiếu, không gán cho user)</summary>
     [HttpGet]
-    [ProducesResponseType(typeof(List<VaiTro>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(List<VaiTroListItemDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
         var items = await _vaiTroService.GetAllAsync();

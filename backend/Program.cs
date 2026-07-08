@@ -411,10 +411,11 @@ app.MapGet("/health", () => Results.Ok(new
     time = DateTimeOffset.UtcNow
 })).AllowAnonymous();
 
-// Seed dữ liệu mặc định chỉ khi được bật rõ ràng.
-// IIS/FTP publish thường không nên tự seed lúc boot vì dễ làm app chết trước cả /health.
-var runStartupSeed = bool.TryParse(Environment.GetEnvironmentVariable("RUN_STARTUP_SEED"), out var parsedRunStartupSeed)
-    && parsedRunStartupSeed;
+// Seed mặc định chạy trong Development để tránh lệch dữ liệu lookup khi seed bị tắt bằng config.
+// Production/staging vẫn cần bật rõ ràng qua RUN_STARTUP_SEED nếu muốn chạy lúc boot.
+var runStartupSeed = builder.Environment.IsDevelopment()
+    || (bool.TryParse(Environment.GetEnvironmentVariable("RUN_STARTUP_SEED"), out var parsedRunStartupSeed)
+        && parsedRunStartupSeed);
 
 if (runStartupSeed && !app.Environment.IsEnvironment("Testing"))
 {

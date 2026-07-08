@@ -83,6 +83,13 @@ namespace QLQTDT.Api.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("CANH_BAO");
 
+                    b.Property<string>("LoaiHanKyDuyet")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("CANH_BAO");
+
                     b.Property<string>("LyDoChonWorkflow")
                         .HasColumnType("nvarchar(max)");
 
@@ -1609,6 +1616,37 @@ namespace QLQTDT.Api.Migrations
                     b.ToTable("WorkflowInstance", (string)null);
                 });
 
+            modelBuilder.Entity("QLQTDT.Api.Models.Entities.WorkflowRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("ChoPhepTuChon")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("DieuKien")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DoUuTien")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("WorkflowId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkflowId");
+
+                    b.ToTable("WorkflowRule", (string)null);
+                });
+
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.WorkflowStepInstance", b =>
                 {
                     b.Property<long>("Id")
@@ -2314,6 +2352,17 @@ namespace QLQTDT.Api.Migrations
                     b.Navigation("Workflow");
                 });
 
+            modelBuilder.Entity("QLQTDT.Api.Models.Entities.WorkflowRule", b =>
+                {
+                    b.HasOne("QLQTDT.Api.Models.Entities.Workflow", "Workflow")
+                        .WithMany("WorkflowRules")
+                        .HasForeignKey("WorkflowId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Workflow");
+                });
+
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.WorkflowStepInstance", b =>
                 {
                     b.HasOne("QLQTDT.Api.Models.Entities.BuocWorkflow", "BuocWorkflow")
@@ -2461,6 +2510,8 @@ namespace QLQTDT.Api.Migrations
                     b.Navigation("BuocWorkflows");
 
                     b.Navigation("NhomNhanhWorkflows");
+
+                    b.Navigation("WorkflowRules");
                 });
 
             modelBuilder.Entity("QLQTDT.Api.Models.Entities.WorkflowInstance", b =>

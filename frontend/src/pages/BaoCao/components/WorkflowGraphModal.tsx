@@ -197,6 +197,7 @@ function buildWorkflowGraph(
         soNgayLapHoSo: 0,
         soNgayXuLy: 0,
         loaiHan: "CANH_BAO",
+        loaiHanKyDuyet: "CANH_BAO",
         laBuocJoin: false,
         batBuocGhiChu: false,
         batBuocTaiLieu: false,

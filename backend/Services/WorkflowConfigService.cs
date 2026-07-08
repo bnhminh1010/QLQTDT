@@ -22,6 +22,20 @@ public class WorkflowConfigService : IWorkflowConfigService
         _logger = logger;
     }
 
+    private async Task<VaiTro?> LoadVaiTroWithGroupAsync(int? vaiTroId)
+    {
+        if (!vaiTroId.HasValue)
+            return null;
+
+        return await _context.VaiTros
+            .Include(v => v.NhomVaiTro)
+            .FirstOrDefaultAsync(v => v.Id == vaiTroId.Value)
+            ?? throw new NotFoundException($"VaiTro not found: {vaiTroId.Value}");
+    }
+
+    private static string NormalizeDeadlineTypeForRole(string? value, VaiTro? role)
+        => WorkflowDeadlinePolicyHelper.NormalizeDeadlineTypeForRole(value, role);
+
     public async Task<PagedResult<WorkflowListItemDto>> GetWorkflowsAsync(string? search, int page, int pageSize)
     {
         var query = _context.Workflows.AsNoTracking().AsQueryable();
@@ -174,6 +188,8 @@ public class WorkflowConfigService : IWorkflowConfigService
         foreach (var item in normalizedSteps)
         {
             var step = item.Step;
+            var processingRole = await LoadVaiTroWithGroupAsync(step.VaiTroXuLyHoSoId);
+            var approvalRole = await LoadVaiTroWithGroupAsync(step.VaiTroKyDuyetId);
             var stepEntity = new BuocWorkflow
             {
                 WorkflowId = entity.Id,
@@ -185,7 +201,8 @@ public class WorkflowConfigService : IWorkflowConfigService
                 SoNgayLapHoSo = step.SoNgayLapHoSo,
                 VaiTroKyDuyetId = step.VaiTroKyDuyetId,
                 SoNgayXuLy = step.SoNgayXuLy,
-                LoaiHan = step.LoaiHan,
+                LoaiHan = NormalizeDeadlineTypeForRole(step.LoaiHan, processingRole),
+                LoaiHanKyDuyet = NormalizeDeadlineTypeForRole(step.LoaiHanKyDuyet, approvalRole),
                 NhomSongSong = step.NhomSongSong,
                 LaBuocJoin = step.LaBuocJoin,
                 NhomGiaiDoan = step.NhomGiaiDoan,
@@ -486,6 +503,8 @@ public class WorkflowConfigService : IWorkflowConfigService
                 var stepEntity = existingStepId.HasValue && oldStepById.TryGetValue(existingStepId.Value, out var oldStep)
                     ? oldStep
                     : new BuocWorkflow { WorkflowId = entity.Id };
+                var processingRole = await LoadVaiTroWithGroupAsync(step.VaiTroXuLyHoSoId);
+                var approvalRole = await LoadVaiTroWithGroupAsync(step.VaiTroKyDuyetId);
 
                 stepEntity.WorkflowId = entity.Id;
                 stepEntity.MaBuoc = step.MaBuoc;
@@ -496,7 +515,8 @@ public class WorkflowConfigService : IWorkflowConfigService
                 stepEntity.SoNgayLapHoSo = step.SoNgayLapHoSo;
                 stepEntity.VaiTroKyDuyetId = step.VaiTroKyDuyetId;
                 stepEntity.SoNgayXuLy = step.SoNgayXuLy;
-                stepEntity.LoaiHan = step.LoaiHan;
+                stepEntity.LoaiHan = NormalizeDeadlineTypeForRole(step.LoaiHan, processingRole);
+                stepEntity.LoaiHanKyDuyet = NormalizeDeadlineTypeForRole(step.LoaiHanKyDuyet, approvalRole);
                 stepEntity.NhomSongSong = step.NhomSongSong;
                 stepEntity.LaBuocJoin = step.LaBuocJoin;
                 stepEntity.NhomGiaiDoan = step.NhomGiaiDoan;
@@ -987,6 +1007,7 @@ public class WorkflowConfigService : IWorkflowConfigService
                 VaiTroKyDuyetId = b.VaiTroKyDuyetId,
                 SoNgayXuLy = b.SoNgayXuLy,
                 LoaiHan = b.LoaiHan,
+                LoaiHanKyDuyet = b.LoaiHanKyDuyet,
                 NhomSongSong = b.NhomSongSong,
                 LaBuocJoin = b.LaBuocJoin,
                 ThuTu = b.ThuTu,

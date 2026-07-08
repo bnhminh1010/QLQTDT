@@ -14,3 +14,14 @@ public class QuyenDto
     public string MaQuyen { get; set; } = null!;
     public string TenQuyen { get; set; } = null!;
 }
+
+public class VaiTroListItemDto
+{
+    public int Id { get; set; }
+    public string MaVaiTro { get; set; } = null!;
+    public string TenVaiTro { get; set; } = null!;
+    public string? MoTa { get; set; }
+    public int? NhomVaiTroId { get; set; }
+    public string? NhomVaiTroMaNhom { get; set; }
+    public string? NhomVaiTroTenNhom { get; set; }
+}

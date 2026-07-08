@@ -49,6 +49,8 @@ export type WorkflowStepDraft = {
   // Đơn vị xử lý
   donViPhuTrach: string; // tên hiển thị
   vaiTroXuLy: string;
+  donViXuLyId?: number | string;
+  vaiTroXuLyId?: number | string;
   slaNgay: number;
 
   // Thời hạn
@@ -56,8 +58,11 @@ export type WorkflowStepDraft = {
 
   // Ký duyệt
   coKyDuyet: boolean;
+  loaiThoiHanKyDuyet: LoaiThoiHanUI;
   donViKyHoSo?: string;
   vaiTroKyDuyet?: string;
+  donViKyDuyetId?: number | string;
+  vaiTroKyDuyetId?: number | string;
   soNgayKyDuyet?: number;
 
   // Transition

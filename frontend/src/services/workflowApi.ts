@@ -80,6 +80,7 @@ export type WorkflowDesignStepRequest = {
   vaiTroKyDuyetId?: number;
   soNgayXuLy: number;
   loaiHan: LoaiHanValue;
+  loaiHanKyDuyet: LoaiHanValue;
   nhomSongSong?: string;
   laBuocJoin: boolean;
   nhomGiaiDoan?: string;
@@ -166,6 +167,7 @@ export type BuocWorkflowDto = {
   vaiTroKyDuyetId?: number;
   soNgayXuLy: number;
   loaiHan: LoaiHanValue;
+  loaiHanKyDuyet: LoaiHanValue;
   nhomSongSong?: string;
   laBuocJoin: boolean;
   nhomGiaiDoan?: string;
@@ -272,6 +274,7 @@ export type StepCreateRequest = {
   vaiTroKyDuyetId?: number;
   soNgayXuLy: number;
   loaiHan: LoaiHanValue;
+  loaiHanKyDuyet: LoaiHanValue;
   nhomSongSong?: string;
   laBuocJoin: boolean;
   nhomGiaiDoan?: string;
@@ -296,6 +299,7 @@ export type StepUpdateRequest = {
   vaiTroKyDuyetId?: number | null;
   soNgayXuLy?: number;
   loaiHan?: LoaiHanValue;
+  loaiHanKyDuyet?: LoaiHanValue;
   nhomGiaiDoan?: string | null;
   moTa?: string | null;
   donViXuLyId?: number | null;
@@ -318,6 +322,7 @@ export type InsertStepAfterRequest = {
   vaiTroKyDuyetId?: number;
   soNgayXuLy: number;
   loaiHan: LoaiHanValue;
+  loaiHanKyDuyet: LoaiHanValue;
   createDefaultTransition: boolean;
   batBuocGhiChu: boolean;
   batBuocTaiLieu: boolean;

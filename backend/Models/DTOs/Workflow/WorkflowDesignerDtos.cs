@@ -55,6 +55,7 @@ public class WorkflowDesignStepRequest
     public int? VaiTroKyDuyetId { get; set; }
     public int SoNgayXuLy { get; set; }
     public string LoaiHan { get; set; } = "CANH_BAO";
+    public string LoaiHanKyDuyet { get; set; } = "CANH_BAO";
     public string? NhomSongSong { get; set; }
     public bool LaBuocJoin { get; set; }
     public string? NhomGiaiDoan { get; set; }
@@ -107,6 +108,7 @@ public class InsertStepAfterRequest
     public int? VaiTroKyDuyetId { get; set; }
     public int SoNgayXuLy { get; set; }
     public string LoaiHan { get; set; } = "CANH_BAO";
+    public string LoaiHanKyDuyet { get; set; } = "CANH_BAO";
     public bool CreateDefaultTransition { get; set; } = true;
     public bool BatBuocGhiChu { get; set; }
     public bool BatBuocTaiLieu { get; set; }

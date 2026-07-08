@@ -316,6 +316,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SoNgayLapHoSo).HasDefaultValue(0);
             entity.Property(e => e.SoNgayXuLy).HasDefaultValue(0);
             entity.Property(e => e.LoaiHan).HasMaxLength(20).IsRequired().HasDefaultValue("CANH_BAO");
+            entity.Property(e => e.LoaiHanKyDuyet).HasMaxLength(20).IsRequired().HasDefaultValue("CANH_BAO");
             entity.Property(e => e.NhomSongSong).HasMaxLength(50);
             entity.Property(e => e.LaBuocJoin).HasDefaultValue(false);
 

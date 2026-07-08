@@ -14,6 +14,39 @@ public class WorkflowTwoPhaseDeadlineContractTests
     }
 
     [Fact]
+    public void WorkflowDesigner_ExposesSeparateDeadlineTypesAndCapCaoGuardrails()
+    {
+        var entitySource = ReadBackendSource("Models/Entities/BuocWorkflow.cs");
+        var stepDtoSource = ReadBackendSource("Models/DTOs/Workflow/StepDtos.cs");
+        var designerDtoSource = ReadBackendSource("Models/DTOs/Workflow/WorkflowDesignerDtos.cs");
+        var versionDtoSource = ReadBackendSource("Models/DTOs/Workflow/WorkflowVersionDtos.cs");
+        var roleDtoSource = ReadBackendSource("Models/DTOs/Admin/VaiTroDtos.cs");
+        var roleServiceSource = ReadBackendSource("Services/VaiTroService.cs");
+        var roleControllerSource = ReadBackendSource("Controllers/VaiTroController.cs");
+        var apiSource = ReadFrontendSource("services/workflowApi.ts");
+        var adminApiSource = ReadFrontendSource("services/adminApi.ts");
+        var modalSource = ReadFrontendSource("pages/LapQuyTrinh/components/StepFormModal.tsx");
+        var designerPageSource = ReadFrontendSource("pages/LapQuyTrinh/index.tsx");
+
+        Assert.Contains("public string LoaiHanKyDuyet { get; set; } = \"CANH_BAO\";", entitySource);
+        Assert.Contains("public string LoaiHanKyDuyet { get; set; } = \"CANH_BAO\";", stepDtoSource);
+        Assert.Contains("public string? LoaiHanKyDuyet { get; set; }", stepDtoSource);
+        Assert.Contains("public string LoaiHanKyDuyet { get; set; } = \"CANH_BAO\";", designerDtoSource);
+        Assert.Contains("public string LoaiHanKyDuyet { get; set; } = \"CANH_BAO\";", versionDtoSource);
+        Assert.Contains("public string? NhomVaiTroMaNhom { get; set; }", roleDtoSource);
+        Assert.Contains("NhomVaiTroMaNhom = v.NhomVaiTro != null ? v.NhomVaiTro.MaNhom : null", roleServiceSource);
+        Assert.Contains("List<VaiTroListItemDto>", roleControllerSource);
+        Assert.Contains("loaiHanKyDuyet: LoaiHanValue;", apiSource);
+        Assert.Contains("loaiHanKyDuyet: LoaiHanValue;", adminApiSource);
+        Assert.Contains("roleOptions?: RoleItem[];", modalSource);
+        Assert.Contains("Loại thời hạn xử lý", modalSource);
+        Assert.Contains("Loại thời hạn ký duyệt", modalSource);
+        Assert.Contains("Vai trò cấp cao chỉ áp dụng cảnh báo quá hạn.", modalSource);
+        Assert.Contains("roleOptions={roleOptions}", designerPageSource);
+        Assert.Contains("loaiThoiHanKyDuyet", designerPageSource);
+    }
+
+    [Fact]
     public void WorkflowDtos_ExposeSeparateOverdueReasonForEachPhase()
     {
         var dtoSource = ReadBackendSource("Models/DTOs/Workflow/WorkflowEngineDtos.cs");

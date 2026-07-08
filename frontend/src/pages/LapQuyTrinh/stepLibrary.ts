@@ -8,22 +8,35 @@ export type StepLibraryEntry = {
   tenBuoc: string;
   loaiBuoc: string;
   donViPhuTrach?: string;
+  donViPhuTrachDisplay?: string;
   vaiTroXuLy?: string;
+  vaiTroXuLyDisplay?: string;
+  donViXuLyId?: number | string;
+  vaiTroXuLyId?: number | string;
   slaNgay?: number;
   loaiThoiHan?: "Chỉ cảnh báo quá hạn" | "Bắt buộc hoàn thành trước hạn";
   coKyDuyet?: boolean;
   donViKyHoSo?: string;
   vaiTroKyDuyet?: string;
+  donViKyDuyetId?: number | string;
+  vaiTroKyDuyetId?: number | string;
   moTa?: string;
+  batBuocGhiChu?: boolean;
+  batBuocTaiLieu?: boolean;
+  batBuocKyTruocChuyenBuoc?: boolean;
+  batBuocDungSLA?: boolean;
 };
+
+export const DYNAMIC_PURCHASING_DEPARTMENT_LABEL = "K/P mua sắm";
+export const DYNAMIC_PURCHASING_ROLE_LABEL = "Nhân viên K/P mua sắm";
 
 const STEP_LIBRARY: StepLibraryEntry[] = [
   {
     id: "lib_dxms",
     tenBuoc: "Đề xuất mua sắm/sửa chữa",
     loaiBuoc: "Thường",
-    donViPhuTrach: "K/P mua sắm",
-    vaiTroXuLy: "Nhân viên K/P mua sắm",
+    donViPhuTrachDisplay: DYNAMIC_PURCHASING_DEPARTMENT_LABEL,
+    vaiTroXuLyDisplay: DYNAMIC_PURCHASING_ROLE_LABEL,
     slaNgay: 1,
     loaiThoiHan: "Chỉ cảnh báo quá hạn",
   },
@@ -31,8 +44,8 @@ const STEP_LIBRARY: StepLibraryEntry[] = [
     id: "lib_ttct",
     tenBuoc: "Tờ trình chủ trương",
     loaiBuoc: "Thường",
-    donViPhuTrach: "K/P mua sắm",
-    vaiTroXuLy: "Nhân viên K/P mua sắm",
+    donViPhuTrachDisplay: DYNAMIC_PURCHASING_DEPARTMENT_LABEL,
+    vaiTroXuLyDisplay: DYNAMIC_PURCHASING_ROLE_LABEL,
     slaNgay: 2,
     loaiThoiHan: "Chỉ cảnh báo quá hạn",
     coKyDuyet: true,
@@ -43,8 +56,8 @@ const STEP_LIBRARY: StepLibraryEntry[] = [
     id: "lib_dtycbg",
     tenBuoc: "Đăng tải yêu cầu báo giá",
     loaiBuoc: "Đăng tải",
-    donViPhuTrach: "K/P mua sắm",
-    vaiTroXuLy: "Nhân viên K/P mua sắm",
+    donViPhuTrachDisplay: DYNAMIC_PURCHASING_DEPARTMENT_LABEL,
+    vaiTroXuLyDisplay: DYNAMIC_PURCHASING_ROLE_LABEL,
     slaNgay: 0.5,
     loaiThoiHan: "Chỉ cảnh báo quá hạn",
   },
@@ -70,8 +83,8 @@ const STEP_LIBRARY: StepLibraryEntry[] = [
     id: "lib_phathsm",
     tenBuoc: "Phát hành HSMT",
     loaiBuoc: "Đăng tải",
-    donViPhuTrach: "K/P mua sắm",
-    vaiTroXuLy: "Nhân viên K/P mua sắm",
+    donViPhuTrachDisplay: DYNAMIC_PURCHASING_DEPARTMENT_LABEL,
+    vaiTroXuLyDisplay: DYNAMIC_PURCHASING_ROLE_LABEL,
     slaNgay: 0.5,
     loaiThoiHan: "Bắt buộc hoàn thành trước hạn",
   },
@@ -79,8 +92,8 @@ const STEP_LIBRARY: StepLibraryEntry[] = [
     id: "lib_mothau",
     tenBuoc: "Mở thầu Online",
     loaiBuoc: "Thường",
-    donViPhuTrach: "K/P mua sắm",
-    vaiTroXuLy: "Nhân viên K/P mua sắm",
+    donViPhuTrachDisplay: DYNAMIC_PURCHASING_DEPARTMENT_LABEL,
+    vaiTroXuLyDisplay: DYNAMIC_PURCHASING_ROLE_LABEL,
     slaNgay: 0.5,
     loaiThoiHan: "Bắt buộc hoàn thành trước hạn",
   },
@@ -97,8 +110,8 @@ const STEP_LIBRARY: StepLibraryEntry[] = [
     id: "lib_hd",
     tenBuoc: "Hợp đồng",
     loaiBuoc: "Hợp đồng",
-    donViPhuTrach: "K/P mua sắm",
-    vaiTroXuLy: "Nhân viên K/P mua sắm",
+    donViPhuTrachDisplay: DYNAMIC_PURCHASING_DEPARTMENT_LABEL,
+    vaiTroXuLyDisplay: DYNAMIC_PURCHASING_ROLE_LABEL,
     slaNgay: 5,
     loaiThoiHan: "Chỉ cảnh báo quá hạn",
     coKyDuyet: true,
@@ -107,6 +120,35 @@ const STEP_LIBRARY: StepLibraryEntry[] = [
   },
 ];
 
+function normalizeLookup(value?: string | null) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getStepSearchText(entry: StepLibraryEntry) {
+  return [
+    entry.tenBuoc,
+    entry.loaiBuoc,
+    entry.moTa,
+    entry.donViPhuTrach,
+    entry.donViPhuTrachDisplay,
+    entry.vaiTroXuLy,
+    entry.vaiTroXuLyDisplay,
+    entry.donViKyHoSo,
+    entry.vaiTroKyDuyet,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+export function isDynamicPurchasingDepartmentLabel(value?: string | number | null) {
+  return normalizeLookup(value == null ? null : String(value)) === normalizeLookup(DYNAMIC_PURCHASING_DEPARTMENT_LABEL);
+}
+
+export function isDynamicPurchasingRoleLabel(value?: string | number | null) {
+  return normalizeLookup(value == null ? null : String(value)) === normalizeLookup(DYNAMIC_PURCHASING_ROLE_LABEL);
+}
+
 export function getStepLibrary(): StepLibraryEntry[] {
   return STEP_LIBRARY;
 }
@@ -114,11 +156,7 @@ export function getStepLibrary(): StepLibraryEntry[] {
 export function searchStepLibrary(query: string): StepLibraryEntry[] {
   const q = query.toLowerCase().trim();
   if (!q) return STEP_LIBRARY;
-  return STEP_LIBRARY.filter(
-    (s) =>
-      s.tenBuoc.toLowerCase().includes(q) ||
-      s.donViPhuTrach?.toLowerCase().includes(q)
-  );
+  return STEP_LIBRARY.filter((s) => getStepSearchText(s).includes(q));
 }
 
 export function getStepById(id: string): StepLibraryEntry | undefined {

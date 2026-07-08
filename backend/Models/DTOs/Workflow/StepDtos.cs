@@ -13,6 +13,7 @@ public class BuocWorkflowListItemDto
     public int? VaiTroKyDuyetId { get; set; }
     public int SoNgayXuLy { get; set; }
     public string LoaiHan { get; set; } = "CANH_BAO";
+    public string LoaiHanKyDuyet { get; set; } = "CANH_BAO";
     public string? NhomSongSong { get; set; }
     public bool LaBuocJoin { get; set; }
 
@@ -44,6 +45,7 @@ public class BuocWorkflowCreateRequest
     public int? VaiTroKyDuyetId { get; set; }
     public int SoNgayXuLy { get; set; }
     public string LoaiHan { get; set; } = "CANH_BAO";
+    public string LoaiHanKyDuyet { get; set; } = "CANH_BAO";
     public string? NhomSongSong { get; set; }
     public bool LaBuocJoin { get; set; }
 
@@ -74,6 +76,7 @@ public class BuocWorkflowUpdateRequest
     public int? VaiTroKyDuyetId { get; set; }
     public int? SoNgayXuLy { get; set; }
     public string? LoaiHan { get; set; }
+    public string? LoaiHanKyDuyet { get; set; }
     public string? NhomSongSong { get; set; }
     public bool? LaBuocJoin { get; set; }
 

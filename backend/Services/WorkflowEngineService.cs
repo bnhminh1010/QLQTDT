@@ -1503,25 +1503,27 @@ public class WorkflowEngineService : IWorkflowEngineService
 
     private async Task<string> CheckDeadlineAsync(BuocWorkflow buoc)
     {
-        // Check NhomVaiTro priority for override
-        string? tinhTrang = "DUNG_TIEN_DO";
+        var processingRole = buoc.VaiTroXuLyHoSoId.HasValue
+            ? await _db.VaiTros
+                .AsNoTracking()
+                .Include(v => v.NhomVaiTro)
+                .FirstOrDefaultAsync(v => v.Id == buoc.VaiTroXuLyHoSoId.Value)
+            : null;
 
-        if (buoc.LoaiHan == "BAT_BUOC" && buoc.VaiTroXuLyHoSoId.HasValue)
-        {
-            var nhom = await _db.VaiTros
-                .Where(v => v.Id == buoc.VaiTroXuLyHoSoId.Value)
-                .Select(v => v.NhomVaiTro)
-                .FirstOrDefaultAsync();
+        if (buoc.LoaiHan == "BAT_BUOC" && WorkflowDeadlinePolicyHelper.IsHighLevelRole(processingRole))
+            return "SAP_QUA_HAN";
 
-            if (nhom is not null && nhom.DoUuTien <= 2)
-            {
-                // Role thuộc nhóm cấp cao → tự động CANH_BAO
-                buoc.LoaiHan = "CANH_BAO";
-                tinhTrang = "SAP_QUA_HAN";
-            }
-        }
+        var approvalRole = buoc.VaiTroKyDuyetId.HasValue
+            ? await _db.VaiTros
+                .AsNoTracking()
+                .Include(v => v.NhomVaiTro)
+                .FirstOrDefaultAsync(v => v.Id == buoc.VaiTroKyDuyetId.Value)
+            : null;
 
-        return tinhTrang;
+        if (buoc.LoaiHanKyDuyet == "BAT_BUOC" && WorkflowDeadlinePolicyHelper.IsHighLevelRole(approvalRole))
+            return "SAP_QUA_HAN";
+
+        return "DUNG_TIEN_DO";
     }
 
     // ════════════════════════════════════════════════════════════════════

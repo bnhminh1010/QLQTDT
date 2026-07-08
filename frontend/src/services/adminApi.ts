@@ -126,6 +126,9 @@ export type RoleItem = {
   maVaiTro: string;
   tenVaiTro: string;
   moTa?: string;
+  nhomVaiTroId?: number | null;
+  nhomVaiTroMaNhom?: string | null;
+  nhomVaiTroTenNhom?: string | null;
 };
 
 export type UserRoleAssign = {
