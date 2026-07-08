@@ -35,4 +35,8 @@
     <Compile Remove="artifacts/**/*.cs" />
   </ItemGroup>
 
+  <Target Name="CreateStdoutLogDirectory" AfterTargets="Publish">
+    <MakeDir Directories="$(PublishDir)logs" />
+  </Target>
+
 </Project>
