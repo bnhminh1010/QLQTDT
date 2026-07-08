@@ -46,22 +46,31 @@ public class DeadlineNotificationService : BackgroundService
 
             var candidates = await db.WorkflowStepInstances
                 .Where(s =>
-                    s.HanXuLy != null &&
                     ActiveStepStatuses.Contains(s.TrangThai) &&
                     s.WorkflowInstance != null &&
                     s.WorkflowInstance.TrangThai == WorkflowTrangThai.ACTIVE)
                 .Select(s => new
                 {
                     s.Id,
-                    s.HanXuLy
+                    s.PhaHienTai,
+                    s.HanXuLy,
+                    s.HanXuLyHoSo,
+                    s.HanKyDuyet
                 })
                 .ToListAsync(cancellationToken);
 
             foreach (var step in candidates)
             {
-                if (step.HanXuLy <= now)
+                var deadline = step.PhaHienTai == "KY_DUYET"
+                    ? step.HanKyDuyet ?? step.HanXuLy
+                    : step.HanXuLyHoSo ?? step.HanXuLy;
+
+                if (!deadline.HasValue)
+                    continue;
+
+                if (deadline <= now)
                     await thongBaoService.NotifyStepDeadlineAsync(step.Id, overdue: true);
-                else if (step.HanXuLy <= dueSoonTo)
+                else if (deadline <= dueSoonTo)
                     await thongBaoService.NotifyStepDeadlineAsync(step.Id, overdue: false);
             }
         }

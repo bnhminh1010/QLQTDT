@@ -1752,15 +1752,15 @@ public class WorkflowEngineService : IWorkflowEngineService
                 PhaHienTai = s.PhaHienTai,
                 TenNhanh = s.BuocWorkflow?.NhanhWorkflow?.TenNhanh?.Trim(),
                 BranchName = ParallelBranchNameHelper.NormalizeOptionalLabel(s.BuocWorkflow?.NhanhWorkflow?.BranchName),
-                HanXuLy = BusinessClock.ToUtc(s.HanXuLy),
+                HanXuLy = BusinessClock.ToUtc(ResolveCurrentDeadline(s)),
                 HanXuLyHoSo = BusinessClock.ToUtc(ResolveProcessingDeadline(s)),
                 HanKyDuyet = BusinessClock.ToUtc(ResolveApprovalDeadline(s)),
-                QuaHanXuLyHoSo = s.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(s).HasValue,
-                QuaHanKyDuyet = s.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(s).HasValue,
-                SoNgayQuaHanXuLyHoSo = ComputeProcessingOverdueDays(s),
-                SoNgayQuaHanKyDuyet = ComputeApprovalOverdueDays(s),
-                LyDoQuaHanXuLyHoSo = BuildProcessingOverdueReason(s),
-                LyDoQuaHanKyDuyet = BuildApprovalOverdueReason(s),
+                QuaHanXuLyHoSo = s.PhaHienTai == "LAP_HO_SO" && (s.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(s).HasValue),
+                QuaHanKyDuyet = s.PhaHienTai == "KY_DUYET" && (s.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(s).HasValue),
+                SoNgayQuaHanXuLyHoSo = s.PhaHienTai == "LAP_HO_SO" ? ComputeProcessingOverdueDays(s) : null,
+                SoNgayQuaHanKyDuyet = s.PhaHienTai == "KY_DUYET" ? ComputeApprovalOverdueDays(s) : null,
+                LyDoQuaHanXuLyHoSo = s.PhaHienTai == "LAP_HO_SO" ? BuildProcessingOverdueReason(s) : null,
+                LyDoQuaHanKyDuyet = s.PhaHienTai == "KY_DUYET" ? BuildApprovalOverdueReason(s) : null,
                 TinhTrangTienDo = ComputeStepProgressStatus(s),
             }).ToList();
 
@@ -1928,13 +1928,13 @@ public class WorkflowEngineService : IWorkflowEngineService
                 step.WorkflowInstance != null &&
                 step.WorkflowInstance.TrangThai == WorkflowTrangThai.ACTIVE &&
                 step.WorkflowAssignments.Any(a => a.NguoiDuocGiaoId == currentUserId && !a.DaXuLy))
-            .OrderByDescending(step =>
-                step.QuaHan == true ||
-                step.QuaHanXuLyHoSo == true ||
-                step.QuaHanKyDuyet == true)
-            .ThenBy(step => step.HanXuLy ?? step.NgayKyDuyet ?? step.NgayXuLy ?? step.NgayBatDau)
-            .ThenByDescending(step => step.TrangThai == WorkflowStepTrangThai.CHO_KY_DUYET || step.PhaHienTai == "KY_DUYET")
             .ToListAsync();
+
+        pendingSteps = pendingSteps
+            .OrderByDescending(step => ComputeStepProgressStatus(step) == "QUA_HAN")
+            .ThenBy(step => ResolveCurrentDeadline(step) ?? step.NgayKyDuyet ?? step.NgayXuLy ?? step.NgayBatDau)
+            .ThenByDescending(step => step.TrangThai == WorkflowStepTrangThai.CHO_KY_DUYET || step.PhaHienTai == "KY_DUYET")
+            .ToList();
 
         if (pendingSteps.Count == 0)
             return [];
@@ -1978,18 +1978,18 @@ public class WorkflowEngineService : IWorkflowEngineService
                     : step.NguoiKyDuyet != null
                         ? step.NguoiKyDuyet.HoTen
                         : null,
-                HanXuLy = BusinessClock.ToUtc(step.HanXuLy),
+                HanXuLy = BusinessClock.ToUtc(ResolveCurrentDeadline(step)),
                 HanXuLyHoSo = BusinessClock.ToUtc(ResolveProcessingDeadline(step)),
                 HanKyDuyet = BusinessClock.ToUtc(ResolveApprovalDeadline(step)),
                 NgayXuLy = BusinessClock.ToUtc(step.NgayXuLy),
                 NgayKyDuyet = BusinessClock.ToUtc(step.NgayKyDuyet),
-                QuaHan = step.QuaHan ?? (step.QuaHanXuLyHoSo == true || step.QuaHanKyDuyet == true),
-                QuaHanXuLyHoSo = step.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(step).HasValue,
-                QuaHanKyDuyet = step.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(step).HasValue,
-                SoNgayQuaHanXuLyHoSo = ComputeProcessingOverdueDays(step),
-                SoNgayQuaHanKyDuyet = ComputeApprovalOverdueDays(step),
-                LyDoQuaHanXuLyHoSo = BuildProcessingOverdueReason(step),
-                LyDoQuaHanKyDuyet = BuildApprovalOverdueReason(step),
+                QuaHan = ComputeStepProgressStatus(step) == "QUA_HAN",
+                QuaHanXuLyHoSo = step.PhaHienTai == "LAP_HO_SO" && (step.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(step).HasValue),
+                QuaHanKyDuyet = step.PhaHienTai == "KY_DUYET" && (step.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(step).HasValue),
+                SoNgayQuaHanXuLyHoSo = step.PhaHienTai == "LAP_HO_SO" ? ComputeProcessingOverdueDays(step) : null,
+                SoNgayQuaHanKyDuyet = step.PhaHienTai == "KY_DUYET" ? ComputeApprovalOverdueDays(step) : null,
+                LyDoQuaHanXuLyHoSo = step.PhaHienTai == "LAP_HO_SO" ? BuildProcessingOverdueReason(step) : null,
+                LyDoQuaHanKyDuyet = step.PhaHienTai == "KY_DUYET" ? BuildApprovalOverdueReason(step) : null,
                 ChoKyDuyet = step.TrangThai == WorkflowStepTrangThai.CHO_DUYET ||
                     step.TrangThai == WorkflowStepTrangThai.CHO_KY_DUYET ||
                     step.PhaHienTai == "KY_DUYET"
@@ -2111,16 +2111,16 @@ public class WorkflowEngineService : IWorkflowEngineService
             LyDoKhongDuyet = currentStep.LyDoKhongDuyet,
             SoBuocHoanThanh = 0,
             TongSoBuoc = 0,
-            HanXuLy = BusinessClock.ToUtc(currentStep.HanXuLy),
+            HanXuLy = BusinessClock.ToUtc(ResolveCurrentDeadline(currentStep)),
             HanXuLyHoSo = BusinessClock.ToUtc(ResolveProcessingDeadline(currentStep)),
             HanKyDuyet = BusinessClock.ToUtc(ResolveApprovalDeadline(currentStep)),
-            QuaHan = currentStep.QuaHan ?? (currentStep.QuaHanXuLyHoSo == true || currentStep.QuaHanKyDuyet == true),
-            QuaHanXuLyHoSo = currentStep.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(currentStep).HasValue,
-            QuaHanKyDuyet = currentStep.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(currentStep).HasValue,
-            SoNgayQuaHanXuLyHoSo = ComputeProcessingOverdueDays(currentStep),
-            SoNgayQuaHanKyDuyet = ComputeApprovalOverdueDays(currentStep),
-            LyDoQuaHanXuLyHoSo = BuildProcessingOverdueReason(currentStep),
-            LyDoQuaHanKyDuyet = BuildApprovalOverdueReason(currentStep)
+            QuaHan = ComputeStepProgressStatus(currentStep) == "QUA_HAN",
+            QuaHanXuLyHoSo = currentStep.PhaHienTai == "LAP_HO_SO" && (currentStep.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(currentStep).HasValue),
+            QuaHanKyDuyet = currentStep.PhaHienTai == "KY_DUYET" && (currentStep.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(currentStep).HasValue),
+            SoNgayQuaHanXuLyHoSo = currentStep.PhaHienTai == "LAP_HO_SO" ? ComputeProcessingOverdueDays(currentStep) : null,
+            SoNgayQuaHanKyDuyet = currentStep.PhaHienTai == "KY_DUYET" ? ComputeApprovalOverdueDays(currentStep) : null,
+            LyDoQuaHanXuLyHoSo = currentStep.PhaHienTai == "LAP_HO_SO" ? BuildProcessingOverdueReason(currentStep) : null,
+            LyDoQuaHanKyDuyet = currentStep.PhaHienTai == "KY_DUYET" ? BuildApprovalOverdueReason(currentStep) : null
         };
     }
 
@@ -2151,19 +2151,23 @@ public class WorkflowEngineService : IWorkflowEngineService
 
     private static string? ComputeStepProgressStatus(WorkflowStepInstance step)
     {
-        if (step.QuaHanXuLyHoSo == true ||
-            step.QuaHanKyDuyet == true ||
-            ComputeProcessingOverdueDays(step).HasValue ||
-            ComputeApprovalOverdueDays(step).HasValue)
+        if (step.PhaHienTai == "KY_DUYET"
+            ? step.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(step).HasValue
+            : step.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(step).HasValue)
         {
             return "QUA_HAN";
         }
 
-        return ComputeTinhTrangTienDo(step.HanXuLy, step.TrangThai);
+        return ComputeTinhTrangTienDo(ResolveCurrentDeadline(step), step.TrangThai);
     }
 
     private static DateTime? BuildDeadline(DateTime fromUtc, int days)
         => days > 0 ? fromUtc.AddDays(days) : null;
+
+    private static DateTime? ResolveCurrentDeadline(WorkflowStepInstance step)
+        => step.PhaHienTai == "KY_DUYET"
+            ? ResolveApprovalDeadline(step)
+            : ResolveProcessingDeadline(step);
 
     private static DateTime? ResolveProcessingDeadline(WorkflowStepInstance step)
     {
@@ -2218,8 +2222,9 @@ public class WorkflowEngineService : IWorkflowEngineService
         var deadline = BuildDeadline(nowUtc, buoc?.SoNgayXuLy ?? 0);
         step.HanKyDuyet = deadline;
         step.HanXuLy = deadline;
+        step.QuaHanXuLyHoSo = false;
         step.QuaHanKyDuyet = false;
-        step.QuaHan = step.QuaHanXuLyHoSo == true || step.QuaHanKyDuyet == true;
+        step.QuaHan = false;
     }
 
     private static void UpdatePhaseOverdueState(WorkflowStepInstance currentStep, string? phase, DateTime actualAt)
@@ -2228,14 +2233,14 @@ public class WorkflowEngineService : IWorkflowEngineService
         {
             var approvalDeadline = currentStep.HanKyDuyet ?? currentStep.HanXuLy;
             currentStep.QuaHanKyDuyet = approvalDeadline.HasValue && actualAt > approvalDeadline.Value;
+            currentStep.QuaHan = currentStep.QuaHanKyDuyet == true;
         }
         else
         {
             var processingDeadline = currentStep.HanXuLyHoSo ?? currentStep.HanXuLy;
             currentStep.QuaHanXuLyHoSo = processingDeadline.HasValue && actualAt > processingDeadline.Value;
+            currentStep.QuaHan = currentStep.QuaHanXuLyHoSo == true;
         }
-
-        currentStep.QuaHan = currentStep.QuaHanXuLyHoSo == true || currentStep.QuaHanKyDuyet == true;
     }
 
     private static TimeZoneInfo ResolveVietnamTimeZone()
@@ -2280,6 +2285,9 @@ public class WorkflowEngineService : IWorkflowEngineService
 
     private static int? ComputeProcessingOverdueDays(WorkflowStepInstance step)
     {
+        if (step.PhaHienTai != "LAP_HO_SO")
+            return null;
+
         var comparedAt = step.NgayXuLy ??
             (ActiveStepStatuses.Contains(step.TrangThai) && step.PhaHienTai == "LAP_HO_SO"
                 ? DateTime.UtcNow
@@ -2290,6 +2298,9 @@ public class WorkflowEngineService : IWorkflowEngineService
 
     private static int? ComputeApprovalOverdueDays(WorkflowStepInstance step)
     {
+        if (step.PhaHienTai != "KY_DUYET")
+            return null;
+
         var comparedAt = step.NgayKyDuyet ??
             (ActiveStepStatuses.Contains(step.TrangThai) && step.PhaHienTai == "KY_DUYET"
                 ? DateTime.UtcNow
@@ -2424,16 +2435,16 @@ public class WorkflowEngineService : IWorkflowEngineService
             ProcessingRoleName = processingRoleName,
             ApprovalUnitName = approvalUnitName,
             ApprovalRoleName = approvalRoleName,
-            HanXuLy = BusinessClock.ToUtc(step.HanXuLy),
+            HanXuLy = BusinessClock.ToUtc(ResolveCurrentDeadline(step)),
             HanXuLyHoSo = BusinessClock.ToUtc(ResolveProcessingDeadline(step)),
             HanKyDuyet = BusinessClock.ToUtc(ResolveApprovalDeadline(step)),
-            QuaHan = step.QuaHan ?? (step.QuaHanXuLyHoSo == true || step.QuaHanKyDuyet == true),
-            QuaHanXuLyHoSo = step.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(step).HasValue,
-            QuaHanKyDuyet = step.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(step).HasValue,
-            SoNgayQuaHanXuLyHoSo = ComputeProcessingOverdueDays(step),
-            SoNgayQuaHanKyDuyet = ComputeApprovalOverdueDays(step),
-            LyDoQuaHanXuLyHoSo = BuildProcessingOverdueReason(step),
-            LyDoQuaHanKyDuyet = BuildApprovalOverdueReason(step),
+            QuaHan = ComputeStepProgressStatus(step) == "QUA_HAN",
+            QuaHanXuLyHoSo = step.PhaHienTai == "LAP_HO_SO" && (step.QuaHanXuLyHoSo == true || ComputeProcessingOverdueDays(step).HasValue),
+            QuaHanKyDuyet = step.PhaHienTai == "KY_DUYET" && (step.QuaHanKyDuyet == true || ComputeApprovalOverdueDays(step).HasValue),
+            SoNgayQuaHanXuLyHoSo = step.PhaHienTai == "LAP_HO_SO" ? ComputeProcessingOverdueDays(step) : null,
+            SoNgayQuaHanKyDuyet = step.PhaHienTai == "KY_DUYET" ? ComputeApprovalOverdueDays(step) : null,
+            LyDoQuaHanXuLyHoSo = step.PhaHienTai == "LAP_HO_SO" ? BuildProcessingOverdueReason(step) : null,
+            LyDoQuaHanKyDuyet = step.PhaHienTai == "KY_DUYET" ? BuildApprovalOverdueReason(step) : null,
             TinhTrangTienDo = ComputeStepProgressStatus(step),
             RowVersion = step.RowVersion
         };

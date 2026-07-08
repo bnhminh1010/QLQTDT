@@ -46,7 +46,8 @@ public class WorkflowTwoPhaseDeadlineContractTests
         Assert.Contains("SetProcessingDeadline(", source);
         Assert.Contains("SetApprovalDeadline(", source);
         Assert.Contains("UpdatePhaseOverdueState(", source);
-        Assert.Contains("currentStep.QuaHan = currentStep.QuaHanXuLyHoSo == true || currentStep.QuaHanKyDuyet == true;", source);
+        Assert.Contains("ResolveCurrentDeadline(", source);
+        Assert.Contains("ComputeStepProgressStatus(", source);
     }
 
     [Fact]
@@ -56,11 +57,32 @@ public class WorkflowTwoPhaseDeadlineContractTests
         var migrationSource = ReadBackendSource("Migrations/20260707215500_BackfillTwoPhaseWorkflowDeadlines.cs");
 
         Assert.Contains("step.HanXuLyHoSo ??= step.HanXuLy;", source);
+        Assert.Contains("step.QuaHanXuLyHoSo = false;", source);
+        Assert.Contains("step.QuaHan = false;", source);
         Assert.Contains("ResolveProcessingDeadline(step)", source);
         Assert.Contains("ComputeStepProgressStatus(step)", source);
-        Assert.Contains("step.QuaHanXuLyHoSo == true || step.QuaHanKyDuyet == true", source);
+        Assert.Contains("step.PhaHienTai == \"KY_DUYET\" &&", source);
         Assert.Contains("UPDATE WorkflowStepInstance", migrationSource);
         Assert.Contains("HanXuLyHoSo = COALESCE(HanXuLyHoSo, HanXuLy)", migrationSource);
+    }
+
+    [Fact]
+    public void DeadlineNotification_IsSeparatedByWorkflowPhase()
+    {
+        var notificationSource = ReadBackendSource("Services/ThongBaoService.cs");
+        var scannerSource = ReadBackendSource("Services/DeadlineNotificationService.cs");
+
+        Assert.Contains("var isApprovalPhase = step.PhaHienTai == \"KY_DUYET\";", notificationSource);
+        Assert.Contains("var phaseKey = isApprovalPhase ? \"KY_DUYET\" : \"LAP_HO_SO\";", notificationSource);
+        Assert.Contains("var phaseLabel = isApprovalPhase ? \"ký duyệt\" : \"xử lý\";", notificationSource);
+        Assert.Contains(":{phaseKey}:{step.Id}", notificationSource);
+
+        Assert.Contains("s.PhaHienTai", scannerSource);
+        Assert.Contains("s.HanXuLyHoSo", scannerSource);
+        Assert.Contains("s.HanKyDuyet", scannerSource);
+        Assert.Contains("step.PhaHienTai == \"KY_DUYET\"", scannerSource);
+        Assert.Contains("step.HanKyDuyet ?? step.HanXuLy", scannerSource);
+        Assert.Contains("step.HanXuLyHoSo ?? step.HanXuLy", scannerSource);
     }
 
     [Fact]

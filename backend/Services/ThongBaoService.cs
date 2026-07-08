@@ -192,18 +192,23 @@ public class ThongBaoService : IThongBaoService
 
         var goiThau = step.WorkflowInstance.GoiThau;
         var recipients = await ResolveStepRecipientIdsAsync(step);
+        var isApprovalPhase = step.PhaHienTai == "KY_DUYET";
+        var phaseKey = isApprovalPhase ? "KY_DUYET" : "LAP_HO_SO";
+        var phaseLabel = isApprovalPhase ? "ký duyệt" : "xử lý";
         var prefix = overdue ? "Quá hạn" : "Sắp tới hạn";
         var keyPrefix = overdue ? "STEP_QUA_HAN" : "STEP_SAP_TOI_HAN";
+        var title = $"{prefix} {phaseLabel}: {step.BuocWorkflow.TenBuoc}";
+        var noiDung = $"Gói thầu {BuildMaGoiThau(goiThau)} - {goiThau.TenGoiThau} đang ở pha {phaseLabel} và {(overdue ? "đã quá hạn" : "sắp tới hạn")}.";
 
         await CreateForUsersAsync(
             recipients,
             LoaiDeadline,
-            $"{prefix}: {step.BuocWorkflow.TenBuoc}",
-            $"Gói thầu {BuildMaGoiThau(goiThau)} - {goiThau.TenGoiThau}",
+            title,
+            noiDung,
             BuildStepUrl(goiThau.Id, step.Id),
             goiThau.Id,
             step.Id,
-            $"{keyPrefix}:{step.Id}");
+            $"{keyPrefix}:{phaseKey}:{step.Id}");
     }
 
     public async Task<int> SendAdminAsync(CreateAdminThongBaoRequest request)
