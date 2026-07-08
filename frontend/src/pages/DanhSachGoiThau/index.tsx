@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getCurrentUserApi, type LoginUserDto } from "@/services/api";
@@ -307,9 +307,15 @@ function getInterventionTargets(
 
   const currentStepDetail = currentWorkflowSummary.currentStepDetail;
   const currentStepInstanceId = currentStepDetail?.id;
+  const currentWorkflowBuocWorkflowId = currentStepDetail?.buocWorkflowId;
 
   return (workflowState.steps ?? [])
-    .filter((step) => step.id !== currentStepInstanceId && isInterventionTargetEligible(step))
+    .filter(
+      (step) =>
+        step.id !== currentStepInstanceId &&
+        step.buocWorkflowId !== currentWorkflowBuocWorkflowId &&
+        isInterventionTargetEligible(step),
+    )
     .sort((a, b) => {
       const aTime = a.ngayHoanThanh ? new Date(a.ngayHoanThanh).getTime() : 0;
       const bTime = b.ngayHoanThanh ? new Date(b.ngayHoanThanh).getTime() : 0;
@@ -471,6 +477,34 @@ function getApiErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+async function refreshWorkflowDetail(
+  goiThauId: number,
+  setWorkflowState: Dispatch<SetStateAction<WorkflowStateDto | null>>,
+  setWorkflowSteps: Dispatch<SetStateAction<WorkflowStepStateDto[] | null>>,
+  setWorkflowDocumentRefreshKey: Dispatch<SetStateAction<number>>,
+  setWorkflowRefreshKey: Dispatch<SetStateAction<number>>,
+  focusStepId?: number | null,
+  setWorkflowFocusStepId?: Dispatch<SetStateAction<number | null>>,
+) {
+  const [stateResult, stepsResult] = await Promise.allSettled([
+    getWorkflowState(goiThauId),
+    getWorkflowSteps(goiThauId),
+  ]);
+
+  if (stateResult.status === "fulfilled") {
+    setWorkflowState(stateResult.value);
+  }
+  if (stepsResult.status === "fulfilled") {
+    setWorkflowSteps(stepsResult.value);
+  }
+  if (setWorkflowFocusStepId && focusStepId != null) {
+    setWorkflowFocusStepId(focusStepId);
+  }
+
+  setWorkflowDocumentRefreshKey((key) => key + 1);
+  setWorkflowRefreshKey((key) => key + 1);
 }
 
 const TIEN_DO_LABEL: Record<string, string> = {
@@ -1398,16 +1432,15 @@ export default function DanhSachGoiThau() {
       });
 
       toast.success(result.message || "Đã bỏ qua nhánh.");
-      setWorkflowFocusStepId(result.currentStepId ?? result.newStepId ?? targetBranch.backendId ?? null);
-      const [stateResult, stepsResult] = await Promise.allSettled([
-        getWorkflowState(goiThauId),
-        getWorkflowSteps(goiThauId),
-      ]);
-
-      setWorkflowState(stateResult.status === "fulfilled" ? stateResult.value : null);
-      setWorkflowSteps(stepsResult.status === "fulfilled" ? stepsResult.value : null);
-      setWorkflowDocumentRefreshKey((key) => key + 1);
-      setWorkflowRefreshKey((k) => k + 1);
+      await refreshWorkflowDetail(
+        goiThauId,
+        setWorkflowState,
+        setWorkflowSteps,
+        setWorkflowDocumentRefreshKey,
+        setWorkflowRefreshKey,
+        result.currentStepId ?? result.newStepId ?? targetBranch.backendId ?? null,
+        setWorkflowFocusStepId,
+      );
     } catch (error: any) {
       toast.error(error?.message || "Không thể bỏ qua nhánh.");
     }
@@ -1470,17 +1503,17 @@ export default function DanhSachGoiThau() {
       setInterveneTargetId(null);
       setInterveneReason("");
       const focusStepId = result.newStepId ?? result.currentStepId ?? target.stepInstanceId;
-      setWorkflowFocusStepId(focusStepId ?? null);
-      const [stateResult, stepsResult] = await Promise.allSettled([
-        getWorkflowState(goiThauId),
-        getWorkflowSteps(goiThauId),
-      ]);
-      setWorkflowState(stateResult.status === "fulfilled" ? stateResult.value : null);
-      setWorkflowSteps(stepsResult.status === "fulfilled" ? stepsResult.value : null);
-      setWorkflowDocumentRefreshKey((key) => key + 1);
-      setWorkflowRefreshKey((key) => key + 1);
+      await refreshWorkflowDetail(
+        goiThauId,
+        setWorkflowState,
+        setWorkflowSteps,
+        setWorkflowDocumentRefreshKey,
+        setWorkflowRefreshKey,
+        focusStepId ?? null,
+        setWorkflowFocusStepId,
+      );
     } catch (error: any) {
-      toast.error(error?.message || "Không thể can thiệp quy trình.");
+      toast.error(getApiErrorMessage(error, "Không thể can thiệp quy trình."));
     } finally {
       setIntervening(false);
     }

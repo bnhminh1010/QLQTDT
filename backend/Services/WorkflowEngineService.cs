@@ -251,6 +251,9 @@ public class WorkflowEngineService : IWorkflowEngineService
             if (currentStep.BuocWorkflow is null)
                 throw new ConflictException("Không xác định được bước hiện tại để can thiệp.");
 
+            if (targetStep.BuocWorkflowId == currentStep.BuocWorkflowId)
+                throw new ConflictException("Không thể chọn lại chính bước hiện tại làm bước quay về. Vui lòng chọn một bước trước đó.");
+
             if (targetStep.BuocWorkflow.ThuTu >= currentStep.BuocWorkflow.ThuTu)
                 throw new ConflictException("Bước quay về phải nằm trước bước hiện tại.");
 
