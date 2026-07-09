@@ -361,12 +361,6 @@ export default function StepFormModal({
               />
               <span className="text-xs text-slate-600">Bắt buộc ký duyệt</span>
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={form.batBuocDungSLA}
-                onChange={(e) => set("batBuocDungSLA", e.target.checked)}
-              />
-              <span className="text-xs text-slate-600">Bắt buộc hoàn thành trước SLA</span>
-            </label>
           </div>
         </div>
 
