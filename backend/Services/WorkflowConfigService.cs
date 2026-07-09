@@ -723,16 +723,16 @@ public class WorkflowConfigService : IWorkflowConfigService
         var entity = await _context.Workflows.FindAsync(id)
             ?? throw new NotFoundException($"Workflow not found: {id}");
 
-        var runningInstanceCount = await _context.WorkflowInstances.CountAsync(i => i.WorkflowId == id && i.TrangThai == WorkflowTrangThai.ACTIVE);
+        var workflowInstanceCount = await _context.WorkflowInstances.CountAsync(i => i.WorkflowId == id);
         _logger.LogInformation(
             "Workflow delete precheck: workflowId={WorkflowId}, workflowInstanceCount={WorkflowInstanceCount}",
-            id, runningInstanceCount);
+            id, workflowInstanceCount);
 
-        if (runningInstanceCount > 0)
+        if (workflowInstanceCount > 0)
         {
             _logger.LogWarning(
                 "Workflow delete blocked: workflowId={WorkflowId}, workflowInstanceCount={WorkflowInstanceCount}",
-                id, runningInstanceCount);
+                id, workflowInstanceCount);
             throw new AppException(409, "WORKFLOW_IN_USE", "Quy trình đã được sử dụng, không thể xóa.");
         }
 
@@ -822,7 +822,7 @@ public class WorkflowConfigService : IWorkflowConfigService
                     .ExecuteDeleteAsync();
             }
 
-            await _context.Set<WorkflowRule>()
+            await _context.WorkflowRules
                 .Where(r => r.WorkflowId == id)
                 .ExecuteDeleteAsync();
 
@@ -830,8 +830,10 @@ public class WorkflowConfigService : IWorkflowConfigService
                 .Where(v => v.WorkflowId == id)
                 .ExecuteDeleteAsync();
 
-            _context.Workflows.Remove(entity);
-            await _context.SaveChangesAsync();
+            await _context.Workflows
+                .Where(w => w.Id == id)
+                .ExecuteDeleteAsync();
+
             await tx.CommitAsync();
 
             _logger.LogInformation("Deleted workflow: id={WorkflowId}", id);

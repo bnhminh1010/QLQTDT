@@ -578,6 +578,9 @@ export type WorkflowStepStateDto = {
   ghiChu?: string;
   ghiChuNguon?: "USER" | "SYSTEM";
   lyDoKhongDuyet?: string;
+  intervenedByName?: string;
+  intervenedAt?: string;
+  interventionReason?: string;
   tenVaiTroXuLy?: string;
   tenVaiTroKyDuyet?: string;
   tenDonViXuLy?: string;
@@ -643,6 +646,13 @@ export type ProcessStepRequest = {
   nguoiXuLy?: string;
   nguoiKyDuyet?: string;
   ketQua?: string;
+};
+
+export type WorkflowInterveneRequest = {
+  currentWorkflowStepInstanceId: number;
+  targetWorkflowStepInstanceId: number;
+  lyDo: string;
+  rowVersion?: string;
 };
 
 export type SkipBranchRequest = {
@@ -749,6 +759,17 @@ export async function processStep(
   const res = await http.post<ApiResponse<ProcessStepResponse>>(
     `/goi-thau/${goiThauId}/process-step`,
     request
+  );
+  return res.data;
+}
+
+export async function interveneWorkflow(
+  goiThauId: number,
+  request: WorkflowInterveneRequest,
+): Promise<ProcessStepResponse> {
+  const res = await http.post<ApiResponse<ProcessStepResponse>>(
+    `/goi-thau/${goiThauId}/workflow/intervene`,
+    request,
   );
   return res.data;
 }

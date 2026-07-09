@@ -21,6 +21,12 @@ import {
   type WorkflowStateDto,
   type WorkflowStepStateDto,
 } from "@/services/workflowApi";
+import {
+  isWorkflowStepReturned,
+  formatWorkflowDate,
+  resolveWorkflowNoteLabel,
+  resolveWorkflowReasonLabel,
+} from "@/components/workflow/workflowDetailUtils";
 import { resolveParallelBranchLabel } from "@/constants/parallelBranch";
 
 type TenderSummary = {
@@ -29,7 +35,7 @@ type TenderSummary = {
   tenGoiThau: string;
 };
 
-type GraphNodeStatus = "DONE" | "CURRENT" | "PENDING" | "SKIPPED" | "REJECTED" | "OVERDUE" | "STOPPED";
+type GraphNodeStatus = "DONE" | "CURRENT" | "PENDING" | "SKIPPED" | "REJECTED" | "OVERDUE" | "STOPPED" | "RETURNED";
 
 type WorkflowGraphNodeData = {
   label: string;
@@ -68,6 +74,11 @@ const STATUS_STYLES: Record<GraphNodeStatus, { cls: string; dot: string; label: 
     cls: "border-slate-300 bg-slate-50 text-slate-500",
     dot: "bg-slate-400",
     label: "Bỏ qua",
+  },
+  RETURNED: {
+    cls: "border-amber-300 bg-amber-50 text-amber-900",
+    dot: "bg-amber-500",
+    label: "Đã trả về",
   },
   REJECTED: {
     cls: "border-red-300 bg-red-50 text-red-900",
@@ -137,6 +148,7 @@ function normalizeStatus(value?: string) {
 
 function resolveNodeStatus(runtime: WorkflowStepStateDto | undefined, state: WorkflowStateDto): GraphNodeStatus {
   if (!runtime) return "PENDING";
+  if (isWorkflowStepReturned(runtime)) return "RETURNED";
   if (runtime.quaHan || normalizeStatus(runtime.tinhTrangTienDo) === "QUA_HAN") return "OVERDUE";
 
   const status = normalizeStatus(runtime.trangThai);
@@ -157,6 +169,7 @@ function getStatusLabel(runtime: WorkflowStepStateDto | undefined, status: Graph
   if (!runtime) return STATUS_STYLES[status].label;
   const raw = normalizeStatus(runtime.trangThai);
   const result = formatWorkflowKetQua(runtime.ketQua);
+  if (isWorkflowStepReturned(runtime)) return "Đã trả về";
   if (result) return result;
   return STATUS_LABELS[raw] ?? STATUS_STYLES[status].label;
 }
@@ -288,10 +301,7 @@ function makeEdge(source: number, target: number, kind: "main" | "branch"): Edge
 }
 
 function formatDate(value?: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("vi-VN");
+  return formatWorkflowDate(value);
 }
 
 export function WorkflowGraphModal({
@@ -443,14 +453,28 @@ export function WorkflowGraphModal({
                   <div className="rounded-lg bg-slate-50 p-3 text-xs">
                     {selectedRuntime?.ghiChu && (
                       <div>
-                        <div className="mb-1 font-semibold text-slate-500">Ghi chú</div>
+                        <div className="mb-1 font-semibold text-slate-500">
+                          {resolveWorkflowNoteLabel({
+                            ghiChu: selectedRuntime.ghiChu,
+                            ghiChuNguon: selectedRuntime.ghiChuNguon,
+                            trangThai: selectedRuntime.trangThai,
+                            ketQua: selectedRuntime.ketQua,
+                          })}
+                        </div>
                         <div className="whitespace-pre-wrap text-slate-700">{selectedRuntime.ghiChu}</div>
                       </div>
                     )}
                     {selectedRuntime?.lyDoKhongDuyet && (
                       <div className={selectedRuntime.ghiChu ? "mt-3" : ""}>
-                        <div className="mb-1 font-semibold text-red-500">Lý do không duyệt</div>
-                        <div className="whitespace-pre-wrap text-red-700">{selectedRuntime.lyDoKhongDuyet}</div>
+                        <div className="mb-1 font-semibold text-amber-700">
+                          {resolveWorkflowReasonLabel({
+                            lyDoKhongDuyet: selectedRuntime.lyDoKhongDuyet,
+                            ghiChuNguon: selectedRuntime.ghiChuNguon,
+                            trangThai: selectedRuntime.trangThai,
+                            ketQua: selectedRuntime.ketQua,
+                          })}
+                        </div>
+                        <div className="whitespace-pre-wrap text-amber-800">{selectedRuntime.lyDoKhongDuyet}</div>
                       </div>
                     )}
                   </div>

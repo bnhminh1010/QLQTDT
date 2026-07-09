@@ -17,6 +17,9 @@ export type WorkflowParallelBranch = {
   processor: string;
   ghiChu?: string;
   ghiChuNguon?: "USER" | "SYSTEM";
+  intervenedByName?: string;
+  intervenedAt?: string;
+  interventionReason?: string;
   canSkipBranch?: boolean;
   steps: WorkflowParallelBranchStep[];
 };
@@ -34,6 +37,7 @@ export type WorkflowDetailStep = {
   state: WorkflowDotState;
   ten: string;
   donVi: string;
+  trangThai?: string;
   donViKyDuyet?: string;
   processingUnitName?: string;
   processingRoleName?: string;
@@ -52,6 +56,9 @@ export type WorkflowDetailStep = {
   ghiChu?: string;
   ghiChuNguon?: "USER" | "SYSTEM";
   lyDoKhongDuyet?: string;
+  intervenedByName?: string;
+  intervenedAt?: string;
+  interventionReason?: string;
   lyDoQuaHanXuLyHoSo?: string;
   lyDoQuaHanKyDuyet?: string;
   soNgayQuaHanXuLyHoSo?: number;

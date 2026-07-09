@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom";
 import GoiThauDetailPanel from "@/components/workflow/GoiThauDetailPanel";
 import {
   buildWorkflowDetailSteps,
+  buildWorkflowInterventionSection,
+  formatWorkflowDate,
   resolveWorkflowCurrentStepSummary,
   resolveWorkflowSlaState,
+  isWorkflowStepReturned,
   type WorkflowSlaState,
 } from "@/components/workflow/workflowDetailUtils";
 import { SelectField } from "@/components/ui/select";
@@ -44,6 +47,7 @@ type BarColor = GoiThauBarColor;
 type DotState = "done" | "warn" | "idle" | "skipped";
 type StepStatus =
   | "Hoàn tất"
+  | "Đã trả về"
   | "Đã bỏ qua"
   | "Đang xử lý"
   | "Trễ hạn"
@@ -248,6 +252,7 @@ function getApprovalSortDueAt(item: ApprovalItem) {
 
 function mapWorkflowStepStatus(step: WorkflowStepStateDto): StepStatus {
   if (step.trangThai === "SKIPPED") return "Đã bỏ qua";
+  if (isWorkflowStepReturned(step)) return "Đã trả về";
   if (step.ngayHoanThanh) return "Hoàn tất";
   if (step.trangThai && STEP_STATUS_LABEL[step.trangThai]) return STEP_STATUS_LABEL[step.trangThai];
   if (step.quaHan || step.tinhTrangTienDo === "QUA_HAN") return "Trễ hạn";
@@ -259,24 +264,27 @@ function mapWorkflowStep(
   step: WorkflowStepStateDto,
   currentStepId?: number,
 ): WorkflowStep {
-  const completed = step.trangThai !== "SKIPPED" && (step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh));
+  const returned = isWorkflowStepReturned(step);
+  const completed = step.trangThai !== "SKIPPED" && !returned && (step.trangThai === "COMPLETED" || Boolean(step.ngayHoanThanh));
   const current = step.id === currentStepId;
   const progressStatus = step.trangThai === "SKIPPED"
     ? TIEN_DO_LABEL.SKIPPED
+    : returned
+      ? "Đã trả về"
     : step.tinhTrangTienDo
       ? TIEN_DO_LABEL[step.tinhTrangTienDo] || step.tinhTrangTienDo
       : undefined;
   const warningStatus = step.tinhTrangTienDo === "SAP_QUA_HAN" || step.tinhTrangTienDo === "QUA_HAN";
 
   return {
-    state: step.trangThai === "SKIPPED" ? "skipped" : completed ? "done" : current || warningStatus ? "warn" : "idle",
+    state: step.trangThai === "SKIPPED" ? "skipped" : returned ? "warn" : completed ? "done" : current || warningStatus ? "warn" : "idle",
     name: step.tenBuoc,
     processor: step.tenNguoiXuLy || step.tenNguoiKyDuyet || "-",
     status: mapWorkflowStepStatus(step),
-    sla: progressStatus || step.hanXuLy?.slice(0, 10) || "-",
-    ngayXuLy: step.ngayXuLy?.slice(0, 10),
+    sla: progressStatus || formatWorkflowDate(step.hanXuLy) || "-",
+    ngayXuLy: formatWorkflowDate(step.ngayXuLy),
     nguoiKy: step.tenNguoiKyDuyet,
-    ngayKy: step.ngayKyDuyet?.slice(0, 10),
+    ngayKy: formatWorkflowDate(step.ngayKyDuyet),
     ketQua: formatWorkflowKetQua(step.ketQua),
     reason: step.lyDoKhongDuyet,
   };
@@ -331,7 +339,6 @@ export default function Dashboard() {
             pct: `${item.phanTramHoanThanh}%`,
             txt: `${item.soBuocHoanThanh}/${item.tongSoBuoc}`,
             nguonVon: "",
-            ngayTao: item.ngayTao?.slice(0, 10) || "",
             hanHT: workflowSummary.currentDueDate,
             hinhThuc: item.tenHinhThuc || "",
             workflowId: item.workflowId ?? workflowState?.workflowId,
@@ -345,6 +352,7 @@ export default function Dashboard() {
             steps: workflowState?.steps.map((step) =>
               mapWorkflowStep(step, currentStepId),
             ) ?? [],
+            ngayTao: formatWorkflowDate(item.ngayTao) || "",
           };
         }));
         setTableRows(rows);
@@ -513,6 +521,10 @@ export default function Dashboard() {
   const currentWorkflowSummary = useMemo(
     () => resolveWorkflowCurrentStepSummary(workflowState, workflowSteps),
     [workflowState, workflowSteps],
+  );
+  const currentInterventionSection = useMemo(
+    () => buildWorkflowInterventionSection(currentWorkflowSummary.currentStepDetail),
+    [currentWorkflowSummary.currentStepDetail],
   );
   const displaySteps = useMemo(
     () =>
@@ -1035,7 +1047,7 @@ export default function Dashboard() {
               metaRows={[
                 { label: "Bước hiện tại", value: currentStepName || "—" },
               { label: "Nguồn vốn", value: resolveGoiThauNguonVon(selectedDetail?.nguonVon) },
-              { label: "Ngày tạo", value: selectedDetail?.ngayTao?.slice(0, 10) || selected.ngayTao || "—" },
+              { label: "Ngày tạo", value: formatWorkflowDate(selectedDetail?.ngayTao || selected.ngayTao) || "—" },
               {
                   label: "Hạn xử lý",
                   value: currentWorkflowSummary.currentDueDate || "—",
@@ -1058,6 +1070,7 @@ export default function Dashboard() {
                 { label: "Ngày ký", value: currentWorkflowSummary.currentSignedDate },
                 { label: "Kết quả", value: currentWorkflowSummary.currentResult },
               ]}
+              stepInfoSections={currentInterventionSection ? [currentInterventionSection] : []}
               steps={displaySteps}
               stepsLoading={workflowLoading}
               stepsEmptyMessage="Chua co du lieu buoc quy trinh tu backend."
@@ -1065,7 +1078,7 @@ export default function Dashboard() {
               enableAutoFocusCurrentStep={false}
               footerAction={{
                 label: "Xem chi tiết",
-                onClick: () => navigate("/danh-sach-goi-thau"),
+                onClick: () => navigate(`/danh-sach-goi-thau?goiThauId=${selected.id}`),
               }}
             />
           )}

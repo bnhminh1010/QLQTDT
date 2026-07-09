@@ -6,7 +6,13 @@ import type {
   WorkflowStepDocumentCounts,
   WorkflowDotState,
 } from "./workflowDetailTypes";
-import { normalizeWorkflowText, resolveWorkflowNoteLabel } from "./workflowDetailUtils";
+import {
+  normalizeWorkflowText,
+  formatWorkflowStepDisplayName,
+  buildWorkflowInterventionSection,
+  resolveWorkflowNoteLabel,
+  resolveWorkflowReasonLabel,
+} from "./workflowDetailUtils";
 
 type StepLike = WorkflowDetailStep | WorkflowParallelBranchStep;
 
@@ -121,11 +127,19 @@ export default function WorkflowStepItem({
   const approvalDocs = documentCounts?.approval ?? 0;
   const isSkippedStep = step.state === "skipped";
   const normalizedSlaText = normalizeWorkflowText(step.slaText, "");
+  const isReturnedStep = normalizedSlaText === "Đã trả về" || step.ketQua === "Trả về" || step.trangThai === "TRA_VE";
+  const resolvedStepTitle = formatWorkflowStepDisplayName(step.ten, step);
   const resolvedResultText = isSkippedStep
     ? normalizeWorkflowText(step.ketQua ?? "Bỏ qua", "")
     : normalizeWorkflowText(step.ketQua);
+  const interventionSection = buildWorkflowInterventionSection(step);
+  const noteLabel = resolveWorkflowNoteLabel(step);
+  const noteValue = normalizeWorkflowText(step.ghiChu, "");
+  const shouldRenderSeparateNote = Boolean(step.ghiChu?.trim()) && noteLabel !== "Ghi chú can thiệp";
   const progressStatusTone = isSkippedStep
     ? "text-slate-600"
+    : isReturnedStep
+      ? "text-amber-600"
     : normalizedSlaText.includes("Sắp")
         ? "text-amber-600"
         : normalizedSlaText.includes("Quá hạn")
@@ -171,7 +185,7 @@ export default function WorkflowStepItem({
                     BƯỚC HIỆN TẠI
                   </span>
                 )}
-                <div className="text-xs font-medium text-slate-800">{step.ten}</div>
+                <div className="text-xs font-medium text-slate-800">{resolvedStepTitle}</div>
               </div>
               <div className="mt-0.5 text-[11px] text-slate-400">
                 Đơn vị/Vai trò xử lý: {" "}
@@ -242,6 +256,8 @@ export default function WorkflowStepItem({
               className={`font-semibold text-right ${
                 resolvedResultText === "Bỏ qua"
                   ? "text-slate-600"
+                  : isReturnedStep
+                  ? "text-amber-600"
                   : step.ketQua === "Duyet" || step.ketQua === "Dong y"
                   ? "text-emerald-600"
                   : step.ketQua === "Khong duyet" || step.ketQua === "Tu choi"
@@ -252,9 +268,26 @@ export default function WorkflowStepItem({
               {resolvedResultText}
             </span>
           </div>
+          {interventionSection && (
+            <div className="rounded-lg bg-amber-50 px-2.5 py-2 text-amber-700">
+              <div className="mb-1.5 text-[10px] font-bold tracking-wide text-amber-500">
+                {interventionSection.title}
+              </div>
+              <div className="space-y-1">
+                {interventionSection.rows.map((row) => (
+                  <div key={row.label} className="flex justify-between gap-3">
+                    <span className="text-amber-500">{row.label}</span>
+                    <span className="max-w-[145px] text-right font-semibold text-amber-700">
+                      {normalizeWorkflowText(row.value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {step.lyDoKhongDuyet && (
-            <div className="rounded-lg bg-red-50 px-2.5 py-1.5 text-red-600 text-[11px]">
-              <span className="font-semibold">Lý do không duyệt:</span> {step.lyDoKhongDuyet}
+            <div className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700 text-[11px]">
+              <span className="font-semibold">{resolveWorkflowReasonLabel(step)}:</span> {step.lyDoKhongDuyet}
             </div>
           )}
           {step.lyDoQuaHanXuLyHoSo && (
@@ -267,13 +300,13 @@ export default function WorkflowStepItem({
               <span className="font-semibold">Lý do quá hạn ký duyệt:</span> {step.lyDoQuaHanKyDuyet}
             </div>
           )}
-          {step.ghiChu && (
+          {shouldRenderSeparateNote && (
             <div className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700 text-[11px]">
-              <span className="font-semibold">{resolveWorkflowNoteLabel(step)}:</span> {step.ghiChu}
+              <span className="font-semibold">{noteLabel}:</span> {noteValue}
             </div>
           )}
           <div className="flex justify-between gap-3">
-            <span className="text-slate-400">Tình trạng tiến độ</span>
+            <span className="text-slate-400">{isReturnedStep ? "Trạng thái bước" : "Tình trạng tiến độ"}</span>
             <span className={`font-semibold text-right ${progressStatusTone}`}>
               {normalizeWorkflowText(step.slaText, "Đang theo dõi")}
             </span>

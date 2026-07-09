@@ -24,6 +24,7 @@ public class AppDbContext : DbContext
     public DbSet<HinhThucDauThau> HinhThucDauThaus => Set<HinhThucDauThau>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
     public DbSet<BuocWorkflow> BuocWorkflows => Set<BuocWorkflow>();
+    public DbSet<WorkflowRule> WorkflowRules => Set<WorkflowRule>();
     public DbSet<ChuyenTiepWorkflow> ChuyenTiepWorkflows => Set<ChuyenTiepWorkflow>();
     public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
     public DbSet<GoiThau> GoiThaus => Set<GoiThau>();
@@ -282,6 +283,21 @@ public class AppDbContext : DbContext
                   .WithMany(h => h.Workflows)
                   .HasForeignKey(e => e.HinhThucId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // WorkflowRule
+        modelBuilder.Entity<WorkflowRule>(entity =>
+        {
+            entity.ToTable("WorkflowRule");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DieuKien).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.DoUuTien).HasDefaultValue(0);
+            entity.Property(e => e.ChoPhepTuChon).HasDefaultValue(true);
+            entity.HasOne(e => e.Workflow)
+                .WithMany(w => w.WorkflowRules)
+                .HasForeignKey(e => e.WorkflowId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.WorkflowId);
         });
 
         // Workflow shadow properties

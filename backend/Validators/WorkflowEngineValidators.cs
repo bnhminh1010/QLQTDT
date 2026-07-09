@@ -119,3 +119,22 @@ public class ProcessStepValidator : AbstractValidator<ProcessStepRequest>
             .When(x => IsApprovalDecisionAction(x.HanhDong));
     }
 }
+
+public class WorkflowInterveneRequestValidator : AbstractValidator<WorkflowInterveneRequest>
+{
+    public WorkflowInterveneRequestValidator()
+    {
+        RuleFor(x => x.CurrentWorkflowStepInstanceId)
+            .GreaterThan(0).WithMessage("CurrentWorkflowStepInstanceId phải lớn hơn 0.");
+
+        RuleFor(x => x.TargetWorkflowStepInstanceId)
+            .GreaterThan(0).WithMessage("TargetWorkflowStepInstanceId phải lớn hơn 0.");
+
+        RuleFor(x => x.RowVersion)
+            .NotNull().WithMessage("RowVersion là bắt buộc để đảm bảo xử lý đồng thời.");
+
+        RuleFor(x => x.LyDo)
+            .NotEmpty().WithMessage("Lý do can thiệp là bắt buộc.")
+            .MaximumLength(1000).WithMessage("Lý do can thiệp không được vượt quá 1000 ký tự.");
+    }
+}

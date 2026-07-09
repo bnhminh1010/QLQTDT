@@ -7,7 +7,7 @@ public class WorkflowDeletionContractTests
     {
         var source = ReadBackendSource("Services/WorkflowConfigService.cs");
 
-        Assert.Contains("var runningInstanceCount = await _context.WorkflowInstances.CountAsync(i => i.WorkflowId == id && i.TrangThai == WorkflowTrangThai.ACTIVE);", source);
+        Assert.Contains("var workflowInstanceCount = await _context.WorkflowInstances.CountAsync(i => i.WorkflowId == id);", source);
         Assert.Contains("Workflow delete precheck: workflowId={WorkflowId}, workflowInstanceCount={WorkflowInstanceCount}", source);
         Assert.DoesNotContain("_context.GoiThaus.CountAsync(g => g.WorkflowId == id)", source);
         Assert.Contains("throw new AppException(409, \"WORKFLOW_IN_USE\", \"Quy trình đã được sử dụng, không thể xóa.\");", source);
@@ -30,6 +30,19 @@ public class WorkflowDeletionContractTests
         Assert.Contains("await _context.NhanhWorkflows", source);
         Assert.Contains("await _context.ChuyenTiepWorkflows", source);
         Assert.Contains("await _context.BuocWorkflows", source);
+        Assert.Contains("await _context.WorkflowRules", source);
+        Assert.Contains("await _context.Workflows", source);
+    }
+
+    [Fact]
+    public void WorkflowRuleIsModeledExplicitlyForCleanup()
+    {
+        var source = ReadBackendSource("Data/AppDbContext.cs");
+
+        Assert.Contains("public DbSet<WorkflowRule> WorkflowRules => Set<WorkflowRule>();", source);
+        Assert.Contains("modelBuilder.Entity<WorkflowRule>(entity =>", source);
+        Assert.Contains(".WithMany(w => w.WorkflowRules)", source);
+        Assert.Contains(".OnDelete(DeleteBehavior.Cascade);", source);
     }
 
     [Fact]

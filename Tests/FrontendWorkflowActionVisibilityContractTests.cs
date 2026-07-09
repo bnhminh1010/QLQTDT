@@ -15,6 +15,17 @@ public class FrontendWorkflowActionVisibilityContractTests
     }
 
     [Fact]
+    public void WorkflowIntervention_UsesDedicatedPermissionAndLabel()
+    {
+        var source = ReadFrontendSource("pages/DanhSachGoiThau/index.tsx");
+
+        Assert.Contains("const WORKFLOW_INTERVENE_PERMISSIONS = [\"WORKFLOW.INTERVENE\"];", source);
+        Assert.Contains("Can thiệp quy trình", source);
+        Assert.Contains("Quay lại bước đã xử lý", source);
+        Assert.Contains("Xác nhận quay lại bước", source);
+    }
+
+    [Fact]
     public void WorkflowStepsPanel_HidesCurrentStepActionWhenNotAllowed()
     {
         var source = ReadFrontendSource("components/workflow/WorkflowStepsPanel.tsx");

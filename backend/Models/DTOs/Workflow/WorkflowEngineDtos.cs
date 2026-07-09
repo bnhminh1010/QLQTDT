@@ -201,6 +201,9 @@ public class WorkflowStepStateDto
     public string? GhiChu { get; set; }
     public string? GhiChuNguon { get; set; }
     public string? LyDoKhongDuyet { get; set; }
+    public string? IntervenedByName { get; set; }
+    public DateTime? IntervenedAt { get; set; }
+    public string? InterventionReason { get; set; }
     public string? TenVaiTroXuLy { get; set; }
     public string? TenVaiTroKyDuyet { get; set; }
     public string? TenDonViXuLy { get; set; }
@@ -271,5 +274,13 @@ public class TraVeStepRequest
 {
     public string GhiChu { get; set; } = null!;
     public string? TaiLieuDinhKem { get; set; }
+    public byte[]? RowVersion { get; set; }
+}
+
+public class WorkflowInterveneRequest
+{
+    public long CurrentWorkflowStepInstanceId { get; set; }
+    public long TargetWorkflowStepInstanceId { get; set; }
+    public string LyDo { get; set; } = null!;
     public byte[]? RowVersion { get; set; }
 }

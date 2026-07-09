@@ -141,6 +141,43 @@ public class ThongBaoService : IThongBaoService
             $"GOI_THAU_HUY:{goiThau.Id}");
     }
 
+    public async Task NotifyWorkflowInterveneAsync(
+        GoiThau goiThau,
+        WorkflowStepInstance currentStep,
+        WorkflowStepInstance rollbackStep,
+        long notificationStepId,
+        string reason)
+    {
+        var recipients = new HashSet<int>();
+
+        if (goiThau.NguoiTaoId.HasValue)
+            recipients.Add(goiThau.NguoiTaoId.Value);
+
+        AddStepActorRecipients(recipients, currentStep);
+        AddStepActorRecipients(recipients, rollbackStep);
+
+        foreach (var id in await ResolveStepApprovalRecipientIdsAsync(currentStep.BuocWorkflow))
+            recipients.Add(id);
+
+        foreach (var id in await ResolveStepApprovalRecipientIdsAsync(rollbackStep.BuocWorkflow))
+            recipients.Add(id);
+
+        var maGoiThau = BuildMaGoiThau(goiThau);
+        var tenBuoc = rollbackStep.BuocWorkflow?.TenBuoc?.Trim() ?? "không xác định";
+        var normalizedReason = reason.Trim();
+        var noiDung = $"Quy trình gói thầu {maGoiThau} đã được Admin can thiệp và quay lại bước {tenBuoc}. Lý do: {normalizedReason}.";
+
+        await CreateForUsersAsync(
+            recipients,
+            LoaiWorkflow,
+            $"Admin can thiệp quy trình {maGoiThau}",
+            noiDung,
+            BuildStepUrl(goiThau.Id, notificationStepId),
+            goiThau.Id,
+            notificationStepId,
+            $"WORKFLOW_INTERVENE:{goiThau.Id}:{currentStep.Id}:{rollbackStep.Id}:{notificationStepId}");
+    }
+
     public async Task NotifyStepDeadlineAsync(long workflowStepInstanceId, bool overdue)
     {
         var step = await _db.WorkflowStepInstances
@@ -209,6 +246,40 @@ public class ThongBaoService : IThongBaoService
                 !x.NguoiDung.DaXoa &&
                 x.VaiTro.NhomVaiTro != null &&
                 (x.VaiTro.NhomVaiTro.MaNhom == "CAP_CAO" || x.VaiTro.NhomVaiTro.DoUuTien == 1))
+            .Select(x => x.NguoiDungId)
+            .Distinct()
+            .ToListAsync();
+    }
+
+    private static void AddStepActorRecipients(HashSet<int> recipients, WorkflowStepInstance step)
+    {
+        if (step.NguoiXuLyId is int nguoiXuLyId)
+            recipients.Add(nguoiXuLyId);
+
+        if (step.NguoiKyDuyetId is int nguoiKyDuyetId)
+            recipients.Add(nguoiKyDuyetId);
+
+        foreach (var assignment in step.WorkflowAssignments)
+            recipients.Add(assignment.NguoiDuocGiaoId);
+    }
+
+    private async Task<List<int>> ResolveStepApprovalRecipientIdsAsync(BuocWorkflow? buoc)
+    {
+        if (buoc?.VaiTroKyDuyetId is not int vaiTroKyDuyetId)
+            return [];
+
+        var query = _db.NguoiDungKhoaPhongVaiTros
+            .Where(x =>
+                x.NguoiDung.TrangThaiHoatDong &&
+                !x.NguoiDung.DaXoa &&
+                x.VaiTroId == vaiTroKyDuyetId &&
+                x.VaiTro.NhomVaiTro != null &&
+                (x.VaiTro.NhomVaiTro.MaNhom == "CAP_CAO" || x.VaiTro.NhomVaiTro.DoUuTien == 1));
+
+        if (buoc.DonViKyHoSoId.HasValue)
+            query = query.Where(x => x.KhoaPhongId == buoc.DonViKyHoSoId.Value);
+
+        return await query
             .Select(x => x.NguoiDungId)
             .Distinct()
             .ToListAsync();

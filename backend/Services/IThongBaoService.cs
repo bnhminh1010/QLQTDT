@@ -12,6 +12,12 @@ public interface IThongBaoService
     Task NotifyGoiThauMoiAsync(GoiThau goiThau);
     Task NotifyGoiThauHoanThanhAsync(GoiThau goiThau);
     Task NotifyGoiThauHuyAsync(GoiThau goiThau);
+    Task NotifyWorkflowInterveneAsync(
+        GoiThau goiThau,
+        WorkflowStepInstance currentStep,
+        WorkflowStepInstance rollbackStep,
+        long notificationStepId,
+        string reason);
     Task NotifyStepDeadlineAsync(long workflowStepInstanceId, bool overdue);
     Task<int> SendAdminAsync(CreateAdminThongBaoRequest request);
 }
