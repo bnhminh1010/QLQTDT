@@ -15,7 +15,7 @@ public static class DbInitializer
         ("KHOA_PHONG", "KHOA_PHONG", "Nhân viên hành chính khoa/phòng — khởi tạo đề xuất, upload hồ sơ"),
         ("BCN_KHOA_PHONG", "BCN_KHOA_PHONG", "Ban chủ nhiệm khoa/phòng — xem/duyệt hồ sơ nội bộ"),
         ("KE_TOAN_TRUONG", "KE_TOAN_TRUONG", "Kế toán trưởng — kiểm tra nguồn vốn, xác nhận dự toán"),
-        ("TONG_PHAP_CHE", "TONG_PHAP_CHE", "Tổ pháp chế — kiểm tra tính pháp lý, điều phối quy trình"),
+        ("TO_PHAP_CHE", "Tổ pháp chế", "Tổ pháp chế — kiểm tra tính pháp lý, điều phối quy trình"),
         ("VIEN_TRUONG", "VIEN_TRUONG", "Viện trưởng — theo dõi báo cáo tổng hợp"),
         ("BCN_HCQT", "BCN_HCQT", "Ban chủ nhiệm phòng HCQT — tạo workflow, xem hồ sơ toàn BV"),
         ("BAN_GIAM_DOC", "BAN_GIAM_DOC", "Ban Giám Đốc — theo dõi, phê duyệt và quản lý toàn diện"),
@@ -132,6 +132,11 @@ public static class DbInitializer
         ("DANHMUC.CONFIG",   "Tùy chỉnh nội dung danh mục"),
     ];
 
+    private static readonly Dictionary<string, string> RoleRenames = new()
+    {
+        ["TONG_PHAP_CHE"] = "TO_PHAP_CHE",
+    };
+
     private static readonly Dictionary<string, string> PermissionRenames = new()
     {
         ["USER.EDIT"] = "USER.UPDATE",
@@ -175,7 +180,7 @@ public static class DbInitializer
             "AUDIT.VIEW_ALL"
         ],
 
-        ["TONG_PHAP_CHE"] =
+        ["TO_PHAP_CHE"] =
         [
             "DEXUAT.ATTACH_FILE",
             "GOITHAU.CREATE", "GOITHAU.VIEW", "GOITHAU.VIEW_ALL", "GOITHAU.EDIT", "GOITHAU.DELETE",
@@ -234,6 +239,7 @@ public static class DbInitializer
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
 
+        await RenameRolesAsync(context, logger);
         await SeedRolesAsync(context, logger);
         await SeedKhoaPhongAsync(context, logger);
         await SeedData.HinhThucDauThauSeeder.SeedAsync(context, logger);
@@ -243,6 +249,30 @@ public static class DbInitializer
         await SeedPermissionsAsync(context, logger);
         await SeedRolePermissionsAsync(context, logger);
         await SeedData.WorkflowTemplateSeeder.SeedAsync(context, logger);
+    }
+
+    private static async Task RenameRolesAsync(AppDbContext context, ILogger logger)
+    {
+        foreach (var (oldCode, newCode) in RoleRenames)
+        {
+            var existing = await context.VaiTros
+                .FirstOrDefaultAsync(v => v.MaVaiTro == oldCode && !v.DaXoa);
+            if (existing == null) continue;
+
+            var newExists = await context.VaiTros.AnyAsync(v => v.MaVaiTro == newCode && !v.DaXoa);
+            if (newExists)
+            {
+                logger.LogInformation("Seed: {NewCode} đã tồn tại, xóa bản vai trò cũ {OldCode}", newCode, oldCode);
+                existing.DaXoa = true;
+            }
+            else
+            {
+                existing.MaVaiTro = newCode;
+                existing.TenVaiTro = "Tổ pháp chế";
+                logger.LogInformation("Seed: Đổi mã vai trò {Old} -> {New}", oldCode, newCode);
+            }
+        }
+        await context.SaveChangesAsync();
     }
 
     private static async Task SeedRolesAsync(AppDbContext context, ILogger logger)

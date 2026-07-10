@@ -14,6 +14,12 @@ export type StepLibraryEntry = {
   coKyDuyet?: boolean;
   donViKyHoSo?: string;
   vaiTroKyDuyet?: string;
+  soNgayKyDuyet?: number;
+  huongXuLyKhongDuyet?: "Trả về bước trước" | "Dừng quy trình";
+  batBuocGhiChu?: boolean;
+  batBuocTaiLieu?: boolean;
+  batBuocKyTruocChuyenBuoc?: boolean;
+  batBuocDungSLA?: boolean;
   moTa?: string;
 };
 

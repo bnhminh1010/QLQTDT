@@ -9,6 +9,27 @@ declare module "axios" {
   }
 }
 
+function getApiErrorMessage(data: unknown, fallback: string) {
+  if (!data || typeof data !== "object") return fallback;
+
+  const error = (data as { error?: unknown }).error;
+  const message = (data as { message?: unknown }).message;
+
+  if (typeof error === "string" && error.trim()) return error;
+  if (error && typeof error === "object") {
+    const nestedMessage = (error as { message?: unknown }).message;
+    if (typeof nestedMessage === "string" && nestedMessage.trim()) return nestedMessage;
+  }
+
+  if (typeof message === "string" && message.trim()) return message;
+  if (message && typeof message === "object") {
+    const nestedMessage = (message as { message?: unknown }).message;
+    if (typeof nestedMessage === "string" && nestedMessage.trim()) return nestedMessage;
+  }
+
+  return fallback;
+}
+
 const httpClient = axios.create({
   baseURL: import.meta.env.VITE_BASE_API ?? "http://localhost:5208/api",
   withCredentials: true,
@@ -57,11 +78,12 @@ httpClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 403 — toast nếu caller ko yêu cầu skip
+    // 403 — toast nếu caller không yêu cầu skip
     if (error.response?.status === 403 && !error.config?._skipAuthToast) {
-      const msg =
-        error.response?.data?.error ||
-        "Bạn không có quyền thực hiện thao tác này.";
+      const msg = getApiErrorMessage(
+        error.response?.data,
+        "Bạn không có quyền thực hiện thao tác này.",
+      );
       toast.error(msg);
     }
 

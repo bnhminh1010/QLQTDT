@@ -22,10 +22,15 @@ public class CsrfProtectionMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var isLogoutRequest = context.Request.Path.Equals("/api/auth/logout", StringComparison.OrdinalIgnoreCase);
+        var isAuthBootstrapRequest =
+            context.Request.Path.Equals("/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
+            context.Request.Path.Equals("/api/auth/refresh", StringComparison.OrdinalIgnoreCase) ||
+            context.Request.Path.Equals("/api/auth/logout", StringComparison.OrdinalIgnoreCase) ||
+            context.Request.Path.Equals("/api/auth/forgot-password", StringComparison.OrdinalIgnoreCase) ||
+            context.Request.Path.Equals("/api/auth/reset-password", StringComparison.OrdinalIgnoreCase);
 
-        // Only validate authenticated unsafe requests
-        if (!isLogoutRequest
+        // Only validate authenticated unsafe requests after the auth bootstrap endpoints.
+        if (!isAuthBootstrapRequest
             && !SafeMethods.Contains(context.Request.Method)
             && context.User?.Identity?.IsAuthenticated == true)
         {

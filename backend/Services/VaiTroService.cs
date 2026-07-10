@@ -17,11 +17,23 @@ public class VaiTroService : IVaiTroService
         _logger = logger;
     }
 
-    public async Task<List<VaiTro>> GetAllAsync()
+    public async Task<List<VaiTroListItemDto>> GetAllAsync()
     {
         return await _context.VaiTros
+            .AsNoTracking()
             .Where(v => !v.DaXoa)
             .OrderBy(v => v.MaVaiTro)
+            .Select(v => new VaiTroListItemDto
+            {
+                Id = v.Id,
+                MaVaiTro = v.MaVaiTro,
+                TenVaiTro = v.TenVaiTro,
+                MoTa = v.MoTa,
+                NhomVaiTroId = v.NhomVaiTroId,
+                MaNhomVaiTro = v.NhomVaiTro != null ? v.NhomVaiTro.MaNhom : null,
+                TenNhomVaiTro = v.NhomVaiTro != null ? v.NhomVaiTro.TenNhom : null,
+                DoUuTienNhomVaiTro = v.NhomVaiTro != null ? v.NhomVaiTro.DoUuTien : null,
+            })
             .ToListAsync();
     }
 

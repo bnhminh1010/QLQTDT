@@ -38,6 +38,21 @@ const HUONG_XU_LY_OPTIONS = [
   "Trả về bước trước", "Dừng quy trình",
 ] as const;
 
+const CAP_CAO_APPROVAL_ROLES = new Set([
+  "Ban Giám đốc",
+  "Giám đốc BV",
+  "PGĐ được ủy quyền",
+  "Giám đốc BV hoặc PGĐ được ủy quyền",
+  "Kế toán trưởng",
+  "Viện trưởng",
+  "Tổ pháp chế",
+  "ADMIN",
+]);
+
+function isCapCaoApprovalRole(roleName?: string) {
+  return Boolean(roleName && CAP_CAO_APPROVAL_ROLES.has(roleName));
+}
+
 const inputCls = "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 const inputErrCls = "w-full px-3.5 py-2.5 border border-red-400 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent";
 const labelCls = "block text-xs font-semibold text-slate-500 mb-1.5";
@@ -92,6 +107,7 @@ interface Props {
   allowSpecialLoaiBuoc?: boolean;
   donViOptions?: string[];
   vaiTroOptions?: string[];
+  roleGroupByName?: Record<string, string | null | undefined>;
   onChange: (data: StepFormData) => void;
   onSave: () => void;
   onClose: () => void;
@@ -107,6 +123,7 @@ export default function StepFormModal({
   allowSpecialLoaiBuoc = true,
   donViOptions,
   vaiTroOptions,
+  roleGroupByName,
   onChange,
   onSave,
   onClose,
@@ -124,9 +141,23 @@ export default function StepFormModal({
     ? LOAI_BUOC_UI_VALUES
     : (["Thường"] as const);
   const saveLabel = mode === "add" ? (isBranch ? "Thêm vào nhánh" : "Thêm bước") : "Lưu thay đổi";
+  const selectedApprovalRoleGroup = form.vaiTroKyDuyet ? roleGroupByName?.[form.vaiTroKyDuyet] : undefined;
+  const isCapCaoApproval = selectedApprovalRoleGroup === "CAP_CAO" || (!selectedApprovalRoleGroup && isCapCaoApprovalRole(form.vaiTroKyDuyet));
 
   function set<K extends keyof StepFormData>(key: K, value: StepFormData[K]) {
     onChange({ ...form, [key]: value });
+  }
+
+  function setApprovalRole(value: string) {
+    const nextRole = value === "__empty" ? "" : value;
+    const nextRoleGroup = nextRole ? roleGroupByName?.[nextRole] : undefined;
+    onChange({
+      ...form,
+      vaiTroKyDuyet: nextRole,
+      soNgayKyDuyet: nextRoleGroup === "CAP_CAO" || (!nextRoleGroup && isCapCaoApprovalRole(nextRole))
+        ? undefined
+        : form.soNgayKyDuyet,
+    });
   }
 
   return (
@@ -290,19 +321,25 @@ export default function StepFormModal({
                   <label className={labelCls}>Vai trò ký duyệt <span className="text-red-500">*</span></label>
                   <SelectField
                     value={form.vaiTroKyDuyet || "__empty"}
-                    onValueChange={(v) => set("vaiTroKyDuyet", v === "__empty" ? "" : v)}
+                    onValueChange={setApprovalRole}
                     options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...effectiveVaiTroKyOptions.map((v) => ({ value: v, label: v }))]}
                     triggerClassName={inputCls}
                   />
                 </div>
               </div>
-              <div>
-                <label className={labelCls}>Số ngày ký duyệt</label>
-                <input type="number" min={0} step={0.5} className={inputCls}
-                  value={form.soNgayKyDuyet ?? ""}
-                  onChange={(e) => set("soNgayKyDuyet", parseFloat(e.target.value) || undefined)}
-                />
-              </div>
+              {isCapCaoApproval ? (
+                <p className="rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-2.5 text-xs text-blue-700">
+                  Vai trò cấp cao chỉ cảnh báo quá hạn, không yêu cầu nhập số ngày ký duyệt.
+                </p>
+              ) : (
+                <div>
+                  <label className={labelCls}>Số ngày ký duyệt</label>
+                  <input type="number" min={0} step={0.5} className={inputCls}
+                    value={form.soNgayKyDuyet ?? ""}
+                    onChange={(e) => set("soNgayKyDuyet", parseFloat(e.target.value) || undefined)}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

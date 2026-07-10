@@ -34,7 +34,12 @@ export default function Login() {
       toast.success("Đăng nhập thành công");
       navigate("/dashboard");
     } catch (err: any) {
-      const msg = err?.response?.data?.error || "Tên đăng nhập hoặc mật khẩu không đúng";
+      const errorData = err?.response?.data;
+      const rawMessage = errorData?.error ?? errorData?.message;
+      const msg =
+        typeof rawMessage === "string"
+          ? rawMessage
+          : rawMessage?.message || "Tên đăng nhập hoặc mật khẩu không đúng";
       toast.error(msg);
     }
   }

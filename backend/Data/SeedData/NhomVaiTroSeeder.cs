@@ -8,7 +8,7 @@ public static class NhomVaiTroSeeder
     private static readonly (string MaNhom, string TenNhom, int DoUuTien, string MoTa, string[] VaiTroMaCodes)[] DefaultGroups =
     [
         ("CAP_CAO", "Cấp cao", 1, "Lãnh đạo cấp cao: Ban Giám đốc, Kế toán trưởng — ưu tiên cao nhất",
-         ["VIEN_TRUONG", "KE_TOAN_TRUONG", "TONG_PHAP_CHE", "BAN_GIAM_DOC", "ADMIN"]),
+         ["VIEN_TRUONG", "KE_TOAN_TRUONG", "TO_PHAP_CHE", "BAN_GIAM_DOC", "ADMIN"]),
         ("TRUNG_BINH", "Trung bình", 3, "Trưởng khoa, Trưởng phòng, quản lý cấp phòng",
          ["BCN_KHOA_PHONG", "BCN_HCQT", "QUAN_LY"]),
         ("THAP", "Thấp", 5, "Chuyên viên, nhân viên thừa hành",

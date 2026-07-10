@@ -914,11 +914,23 @@ export default function LapQuyTrinh() {
       : "Thường";
     const canChooseSpecialLoaiBuoc = editTargetIdx !== undefined || (!generatedWorkflowId && modalContext.type === "main" && !modalContext.afterStepId);
     setNewStepForm({
-      ...emptyStepForm(), tenBuoc: entry.tenBuoc, loaiBuoc: canChooseSpecialLoaiBuoc ? loaiBuoc : "Thường",
-      donViPhuTrach: entry.donViPhuTrach ?? "", vaiTroXuLy: entry.vaiTroXuLy ?? "",
-      slaNgay: entry.slaNgay ?? 1, loaiThoiHan: entry.loaiThoiHan ?? "Chỉ cảnh báo quá hạn",
-      coKyDuyet: entry.coKyDuyet ?? false, donViKyHoSo: entry.donViKyHoSo ?? "",
+      ...emptyStepForm(),
+      tenBuoc: entry.tenBuoc,
+      loaiBuoc: canChooseSpecialLoaiBuoc ? loaiBuoc : "Thường",
+      moTa: entry.moTa ?? "",
+      donViPhuTrach: entry.donViPhuTrach ?? "",
+      vaiTroXuLy: entry.vaiTroXuLy ?? "",
+      slaNgay: entry.slaNgay ?? 1,
+      loaiThoiHan: entry.loaiThoiHan ?? "Chỉ cảnh báo quá hạn",
+      coKyDuyet: entry.coKyDuyet ?? false,
+      donViKyHoSo: entry.donViKyHoSo ?? "",
       vaiTroKyDuyet: entry.vaiTroKyDuyet ?? "",
+      soNgayKyDuyet: entry.soNgayKyDuyet,
+      huongXuLyKhongDuyet: entry.huongXuLyKhongDuyet ?? "Trả về bước trước",
+      batBuocGhiChu: entry.batBuocGhiChu ?? false,
+      batBuocTaiLieu: entry.batBuocTaiLieu ?? false,
+      batBuocKyTruocChuyenBuoc: entry.batBuocKyTruocChuyenBuoc ?? true,
+      batBuocDungSLA: entry.batBuocDungSLA ?? false,
     });
     setNewStepErrs({}); setEditTargetIdx(undefined); setLibraryOpen(false); setStepModalOpen(true);
   }
@@ -934,6 +946,10 @@ export default function LapQuyTrinh() {
   const editNextStepName = nextStepId ? buocList.find((s) => s.id === nextStepId)?.tenBuoc : undefined;
   const donViOptionLabels = khoaPhongOptions.map((item) => item.tenKhoaPhong);
   const vaiTroOptionLabels = roleOptions.map((item) => item.tenVaiTro);
+  const roleGroupByName = roleOptions.reduce<Record<string, string | null | undefined>>((acc, role) => {
+    acc[role.tenVaiTro] = role.maNhomVaiTro;
+    return acc;
+  }, {});
 
   /* ── Render ── */
   return (
@@ -1018,6 +1034,7 @@ export default function LapQuyTrinh() {
         allowSpecialLoaiBuoc={allowSpecialLoaiBuoc}
         donViOptions={donViOptionLabels}
         vaiTroOptions={vaiTroOptionLabels}
+        roleGroupByName={roleGroupByName}
         onChange={(d) => setNewStepForm(d)} onSave={handleNewStepSave}
         onClose={() => { setStepModalOpen(false); setEditTargetIdx(undefined); setModalContext({ type: "main" }); }}
       />

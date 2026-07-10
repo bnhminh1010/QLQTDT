@@ -105,6 +105,7 @@ export default function BaoCao() {
   const [bottleneckData, setBottleneckData] = useState<WorkflowBottleneck[]>([]);
   const [extraLoading, setExtraLoading] = useState(false);
   const [graphTarget, setGraphTarget] = useState<PackageReport | null>(null);
+  const [stepReportPage, setStepReportPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -214,6 +215,10 @@ export default function BaoCao() {
     { icon: "fa-clock-rotate-left", color: "purple" as IconColor, label: "TỈ LỆ ĐÚNG HẠN", val: `${filteredPackages.length ? Math.round((onTime / filteredPackages.length) * 100) : 0}%`, sub: "gói đúng tiến độ", valCls: "text-purple-700" },
     { icon: "fa-calendar-days", color: "amber" as IconColor, label: "TRUNG BÌNH / GÓI", val: `${avgDays} ngày`, sub: "thời gian xử lý TB", valCls: "text-amber-600" },
   ];
+  const stepReportPageSize = 10;
+  const stepReportTotalPages = Math.max(1, Math.ceil(stepReport.length / stepReportPageSize));
+  const safeStepReportPage = Math.min(stepReportPage, stepReportTotalPages);
+  const paginatedStepReport = stepReport.slice((safeStepReportPage - 1) * stepReportPageSize, safeStepReportPage * stepReportPageSize);
 
   function resetFilters() {
     setUnitFilter("Tất cả");
@@ -238,10 +243,9 @@ export default function BaoCao() {
     toast.success("Đã áp dụng bộ lọc");
   }
 
-  // Drill-down: click KPI → filter gói tương ứng
+  // Drill-down: chỉ KPI tổng giá trị reset bộ lọc; KPI tiến độ không dùng status filter.
   function drillKpi(idx: number) {
-    if (idx === 0) resetFilters(); // tổng giá trị → xem tất cả
-    if (idx === 2) applyFilter("Trễ hạn"); // tỉ lệ đúng hạn → lọc Trễ hạn
+    if (idx === 0) resetFilters();
   }
 
   if (loading) {
@@ -346,8 +350,10 @@ export default function BaoCao() {
           </section>
 
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-            {kpi.map((item, ki) => (
-              <button key={item.label} onClick={() => drillKpi(ki)} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4 text-left hover:shadow-md transition-shadow cursor-pointer">
+            {kpi.map((item, ki) => {
+              const clickable = ki === 0;
+              return (
+              <button key={item.label} onClick={() => drillKpi(ki)} className={`bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4 text-left transition-shadow ${clickable ? "hover:shadow-md cursor-pointer" : "cursor-default"}`}>
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-lg ${ICON_BG[item.color]}`}>
                   <i className={`fa-solid ${item.icon}`} />
                 </div>
@@ -357,7 +363,8 @@ export default function BaoCao() {
                   <div className="text-xs text-slate-400">{item.sub}</div>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
@@ -428,11 +435,11 @@ export default function BaoCao() {
                       <th className="px-5 py-3 text-right">Đang xử lý</th>
                       <th className="px-5 py-3 text-right">Chờ duyệt</th>
                       <th className="px-5 py-3 text-right">Quá hạn</th>
-                      <th className="px-5 py-3 text-right">Tỉ lệ</th>
+                      <th className="px-5 py-3 text-right">Tỉ lệ hoàn thành</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {stepReport.map((s) => (
+                    {paginatedStepReport.map((s) => (
                       <tr key={s.tenBuoc} className="hover:bg-slate-50">
                         <td className="px-5 py-3 text-slate-800 font-medium">{s.tenBuoc}</td>
                         <td className="px-5 py-3 text-right text-slate-700">{s.tongSo}</td>
@@ -442,9 +449,11 @@ export default function BaoCao() {
                         <td className="px-5 py-3 text-right text-red-500 font-semibold">{s.quaHan}</td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${s.tiLeHoanThanh}%` }} />
-                            </div>
+                            {s.tiLeHoanThanh > 0 && (
+                              <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden" title={`Tỉ lệ hoàn thành: ${s.tiLeHoanThanh}%`}>
+                                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${s.tiLeHoanThanh}%` }} />
+                              </div>
+                            )}
                             <span className="text-xs font-semibold text-slate-700 w-9 text-right">{s.tiLeHoanThanh}%</span>
                           </div>
                         </td>
@@ -452,6 +461,39 @@ export default function BaoCao() {
                     ))}
                   </tbody>
                 </table>
+                <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs text-slate-400">
+                  <span>
+                    Hiển thị {stepReport.length === 0 ? 0 : (safeStepReportPage - 1) * stepReportPageSize + 1}–{Math.min(safeStepReportPage * stepReportPageSize, stepReport.length)} / {stepReport.length} bước
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={safeStepReportPage === 1}
+                      onClick={() => setStepReportPage((p) => Math.max(1, p - 1))}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      <i className="fa-solid fa-chevron-left text-[10px]" />
+                    </button>
+                    {Array.from({ length: stepReportTotalPages }, (_, i) => i + 1).map((pageNo) => (
+                      <button
+                        key={pageNo}
+                        type="button"
+                        onClick={() => setStepReportPage(pageNo)}
+                        className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${safeStepReportPage === pageNo ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                      >
+                        {pageNo}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={safeStepReportPage === stepReportTotalPages}
+                      onClick={() => setStepReportPage((p) => Math.min(stepReportTotalPages, p + 1))}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      <i className="fa-solid fa-chevron-right text-[10px]" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </details>

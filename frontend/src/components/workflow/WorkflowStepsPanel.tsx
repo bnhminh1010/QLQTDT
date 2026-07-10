@@ -39,30 +39,6 @@ function getStepInstanceId(step?: WorkflowDetailStep | WorkflowParallelBranchSte
   return step?.workflowStepInstanceId ?? step?.backendId ?? null;
 }
 
-function collectStepInstanceIds(steps: WorkflowDetailStep[]) {
-  const ids = new Set<number>();
-
-  const visitStep = (step: WorkflowDetailStep) => {
-    const stepId = getStepInstanceId(step);
-    if (stepId != null) {
-      ids.add(stepId);
-    }
-
-    step.parallelInfo?.branches.forEach((branch) => {
-      branch.steps.forEach((branchStep) => {
-        const branchStepId = getStepInstanceId(branchStep);
-        if (branchStepId != null) {
-          ids.add(branchStepId);
-        }
-      });
-    });
-  };
-
-  steps.forEach(visitStep);
-
-  return Array.from(ids);
-}
-
 function formatUploadDate(value?: string | null) {
   if (!value) return "-";
   const date = new Date(value);
@@ -130,6 +106,15 @@ export default function WorkflowStepsPanel({
         .join(",") ?? "",
     ].join(":"))
     .join("|");
+  const stepIds = steps.flatMap((step) => {
+    const stepId = getStepInstanceId(step);
+    const branchStepIds = step.parallelInfo?.branches.flatMap((branch) =>
+      branch.steps
+        .map((branchStep) => getStepInstanceId(branchStep))
+        .filter((branchStepId): branchStepId is number => typeof branchStepId === "number"),
+    ) ?? [];
+    return stepId != null ? [stepId, ...branchStepIds] : branchStepIds;
+  });
 
   useEffect(() => {
     setDocumentCache({});
@@ -139,76 +124,61 @@ export default function WorkflowStepsPanel({
   }, [goiThauId]);
 
   useEffect(() => {
-    if (!goiThauId || loading) {
-      return;
-    }
+    setDocumentCache({});
+    setDocumentsLoadingStepIds({});
+    setDocumentsDeniedStepIds({});
+  }, [goiThauId, stepIdentityKey, documentRefreshKey]);
 
-    const stepIds = collectStepInstanceIds(steps);
-
-    if (stepIds.length === 0) {
-      setDocumentCache({});
-      setDocumentsLoadingStepIds({});
-      setDocumentsDeniedStepIds({});
-      return;
-    }
+  useEffect(() => {
+    if (!goiThauId || stepIds.length === 0) return;
 
     let cancelled = false;
-    setDocumentCache({});
-    setDocumentsLoadingStepIds(
-      stepIds.reduce<Record<number, true>>((acc, stepId) => {
-        acc[stepId] = true;
-        return acc;
-      }, {}),
-    );
-    setDocumentsDeniedStepIds({});
+    const uniqueStepIds = Array.from(new Set(stepIds));
+    setDocumentsLoadingStepIds((prev) => ({
+      ...prev,
+      ...Object.fromEntries(uniqueStepIds.map((stepId) => [stepId, true])),
+    }));
 
-    const loadDocuments = async () => {
-      await Promise.all(
-        stepIds.map(async (stepId) => {
-          try {
-            const items = await getTaiLieuFiles(
-              {
-                goiThauId,
-                workflowStepInstanceId: stepId,
-              },
-              { skipAuthToast: true },
-            );
-            if (cancelled) return;
-            setDocumentCache((prev) => ({ ...prev, [stepId]: items }));
-            setDocumentsDeniedStepIds((prev) => {
-              if (!prev[stepId]) return prev;
-              const next = { ...prev };
-              delete next[stepId];
-              return next;
-            });
-          } catch (error) {
-            if (cancelled) return;
-            const status = typeof error === "object" && error !== null && "response" in error
-              ? (error as { response?: { status?: number } }).response?.status
-              : undefined;
-            setDocumentCache((prev) => ({ ...prev, [stepId]: [] }));
-            if (status === 403) {
-              setDocumentsDeniedStepIds((prev) => ({ ...prev, [stepId]: true }));
-            }
-          } finally {
-            if (cancelled) return;
-            setDocumentsLoadingStepIds((prev) => {
-              if (!prev[stepId]) return prev;
-              const next = { ...prev };
-              delete next[stepId];
-              return next;
-            });
-          }
-        }),
-      );
-    };
+    void Promise.all(
+      uniqueStepIds.map(async (stepId) => {
+        try {
+          const items = await getTaiLieuFiles(
+            { goiThauId, workflowStepInstanceId: stepId },
+            { skipAuthToast: true },
+          );
+          return { stepId, items, denied: false };
+        } catch (error) {
+          const status = typeof error === "object" && error !== null && "response" in error
+            ? (error as { response?: { status?: number } }).response?.status
+            : undefined;
+          return { stepId, items: [] as TaiLieuDto[], denied: status === 403 };
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      setDocumentCache((prev) => ({
+        ...prev,
+        ...Object.fromEntries(results.map(({ stepId, items }) => [stepId, items])),
+      }));
+      setDocumentsDeniedStepIds((prev) => {
+        const next = { ...prev };
+        results.forEach(({ stepId, denied }) => {
+          if (denied) next[stepId] = true;
+          else delete next[stepId];
+        });
+        return next;
+      });
+    }).finally(() => {
+      if (cancelled) return;
+      setDocumentsLoadingStepIds((prev) => {
+        const next = { ...prev };
+        uniqueStepIds.forEach((stepId) => delete next[stepId]);
+        return next;
+      });
+    });
 
-    void loadDocuments();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [goiThauId, loading, documentRefreshKey]);
+    return () => { cancelled = true; };
+  }, [goiThauId, stepIdentityKey, documentRefreshKey]);
 
   function registerContainerRef(stepIds: number[]) {
     return (element: HTMLDetailsElement | null) => {
@@ -253,6 +223,45 @@ export default function WorkflowStepsPanel({
       phase,
       title,
     });
+
+    if (!goiThauId || documentCache[stepId] || documentsLoadingStepIds[stepId] || documentsDeniedStepIds[stepId]) {
+      return;
+    }
+
+    setDocumentsLoadingStepIds((prev) => ({ ...prev, [stepId]: true }));
+    void getTaiLieuFiles(
+      {
+        goiThauId,
+        workflowStepInstanceId: stepId,
+      },
+      { skipAuthToast: true },
+    )
+      .then((items) => {
+        setDocumentCache((prev) => ({ ...prev, [stepId]: items }));
+        setDocumentsDeniedStepIds((prev) => {
+          if (!prev[stepId]) return prev;
+          const next = { ...prev };
+          delete next[stepId];
+          return next;
+        });
+      })
+      .catch((error) => {
+        const status = typeof error === "object" && error !== null && "response" in error
+          ? (error as { response?: { status?: number } }).response?.status
+          : undefined;
+        setDocumentCache((prev) => ({ ...prev, [stepId]: [] }));
+        if (status === 403) {
+          setDocumentsDeniedStepIds((prev) => ({ ...prev, [stepId]: true }));
+        }
+      })
+      .finally(() => {
+        setDocumentsLoadingStepIds((prev) => {
+          if (!prev[stepId]) return prev;
+          const next = { ...prev };
+          delete next[stepId];
+          return next;
+        });
+      });
   }
 
   useEffect(() => {

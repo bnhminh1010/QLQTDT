@@ -102,6 +102,23 @@ function formatAuditDescription(raw: string): string {
   }
 }
 
+function normalizeRoleName(name: string): string {
+  return name
+    .replaceAll("Tổng pháp chế", "Tổ pháp chế")
+    .replaceAll("TONG_PHAP_CHE", "Tổ pháp chế")
+    .replaceAll("TO_PHAP_CHE", "Tổ pháp chế");
+}
+
+function getRoleDisplayName(role: Pick<RoleItem, "maVaiTro" | "tenVaiTro">): string {
+  return role.maVaiTro === "TO_PHAP_CHE" || role.maVaiTro === "TONG_PHAP_CHE"
+    ? "Tổ pháp chế"
+    : normalizeRoleName(role.tenVaiTro);
+}
+
+function sameUserRole(a: UserRoleInfo, b: { vaiTroId: number; khoaPhongId?: number }) {
+  return a.vaiTroId === b.vaiTroId && (a.khoaPhongId ?? 0) === (b.khoaPhongId ?? 0);
+}
+
 /* ─── Confirm modal ───────────────────────────────────── */
 type ConfirmProps = {
   title: string;
@@ -175,7 +192,7 @@ export default function NguoiDung() {
   const [profileRequests, setProfileRequests] = useState<ProfileChangeRequest[]>([]);
   const [profileRequestsLoading, setProfileRequestsLoading] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (preferredSelectedId?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -187,13 +204,16 @@ export default function NguoiDung() {
         email: u.email,
         sdt: u.soDienThoai || "",
         phong: u.roles?.find((r: any) => r.laChinh)?.tenKhoaPhong ?? u.roles?.[0]?.tenKhoaPhong ?? "",
-        vaiTro: u.roles?.map((r: any) => r.tenVaiTro).filter(Boolean).join(", ") || "Không có vai trò",
+        vaiTro: u.roles?.map((r: any) => getRoleDisplayName(r)).filter(Boolean).join(", ") || "Không có vai trò",
         quyen: u.quyen ?? [],
         trangThai: u.trangThaiHoatDong ? "Hoạt động" as TrangThai : "Ngưng hoạt động" as TrangThai,
         ngayTao: formatDate(u.ngayTao),
       }));
       setData(mapped);
-      if (mapped.length > 0) setSelected(mapped[0]);
+      if (mapped.length > 0) {
+        const nextSelected = mapped.find((u) => u.id === preferredSelectedId) ?? mapped[0];
+        setSelected(nextSelected);
+      }
     } catch (e: any) {
       setError(e?.message || "Không thể tải dữ liệu");
     } finally {
@@ -303,7 +323,7 @@ export default function NguoiDung() {
       ngayTao: new Date().toLocaleDateString("vi-VN"),
     };
     const khoaPhongId = khoaPhongList.find((k) => k.tenKhoaPhong === v.phong)?.id;
-    const vaiTroId = allRoles.find((r) => r.tenVaiTro === v.vaiTro)?.id;
+    const vaiTroId = allRoles.find((r) => getRoleDisplayName(r) === v.vaiTro || r.tenVaiTro === v.vaiTro)?.id;
     createUser({
       hoTen: newUser.hoTen, email: newUser.email,
       tenDangNhap: newUser.username, matKhau: v.matKhau || "Default@123",
@@ -319,22 +339,52 @@ export default function NguoiDung() {
     }).catch(() => toast.error("Không thể tạo người dùng"));
   }
 
-  function handleEdit(values: UserEditFormValues) {
+  async function syncPrimaryUserRole(userId: number, roleName: string, departmentName: string) {
+    const role = allRoles.find((r) => getRoleDisplayName(r) === roleName || r.tenVaiTro === roleName);
+    const department = khoaPhongList.find((k) => k.tenKhoaPhong === departmentName);
+    if (!role) throw new Error("ROLE_NOT_FOUND");
+    if (!department) throw new Error("DEPARTMENT_NOT_FOUND");
+
+    const currentRoles = await getUserRoles(userId);
+    const target = { vaiTroId: role.id, khoaPhongId: department.id };
+    if (currentRoles.some((r) => sameUserRole(r, target))) return currentRoles;
+
+    await Promise.all(currentRoles.map((r) => removeUserRole(r.id)));
+    await assignUserRole(userId, { ...target, laChinh: true });
+    return getUserRoles(userId);
+  }
+
+  async function handleEdit(values: UserEditFormValues) {
     if (!editTarget) return;
-    updateUser(parseInt(editTarget.id), {
-      hoTen: values.hoTen.trim(),
-      email: values.email.trim().toLowerCase(),
-      soDienThoai: values.sdt.trim() || undefined,
-    }).then(() => {
-      const updated: User = { ...editTarget, ...values };
+    const userId = parseInt(editTarget.id);
+    try {
+      await updateUser(userId, {
+        hoTen: values.hoTen.trim(),
+        email: values.email.trim().toLowerCase(),
+        soDienThoai: values.sdt.trim() || undefined,
+      });
+      const hasRoleChange = values.vaiTro !== editTarget.vaiTro || values.phong !== editTarget.phong;
+      const roles = hasRoleChange ? await syncPrimaryUserRole(userId, values.vaiTro, values.phong) : userRoles;
+      const updated: User = {
+        ...editTarget,
+        ...values,
+        email: values.email.trim().toLowerCase(),
+        sdt: values.sdt.trim(),
+        vaiTro: hasRoleChange ? roles.map((r) => getRoleDisplayName(r)).filter(Boolean).join(", ") || values.vaiTro : editTarget.vaiTro,
+        phong: hasRoleChange ? roles.find((r) => r.laChinh)?.tenKhoaPhong ?? roles[0]?.tenKhoaPhong ?? values.phong : editTarget.phong,
+      };
       setData((prev) => prev.map((u) => (u.id === editTarget.id ? updated : u)));
       if (selected.id === editTarget.id) {
         setSelected(updated);
+        setUserRoles(roles);
         loadAuditLogs(editTarget.id);
       }
+      await loadData(editTarget.id);
       toast.success(`Đã cập nhật "${updated.hoTen}"`);
       setEditTarget(null);
-    }).catch(() => toast.error("Không thể cập nhật người dùng"));
+    } catch {
+      toast.error("Không thể cập nhật người dùng");
+    }
   }
 
   function updateTrangThai(target: User, _next: TrangThai, msg: string) {
@@ -504,9 +554,9 @@ export default function NguoiDung() {
               <SelectField value={filterVaiTro || "__all"} onValueChange={(value) => setFilterVaiTro(value === "__all" ? "" : value)}
                 options={[
                   { value: "__all", label: "Tất cả vai trò" },
-                  ...Array.from(new Set(data.map(u => u.vaiTro).filter(Boolean)))
+                  ...Array.from(new Set(data.map((u) => normalizeRoleName(u.vaiTro)).filter(Boolean)))
                     .sort()
-                    .map(v => ({ value: v, label: v }))
+                    .map((v) => ({ value: v, label: v }))
                 ]}
                 triggerClassName="h-10 min-w-[150px] bg-white" />
               <SelectField value={filterTT || "__all"} onValueChange={(value) => setFilterTT(value === "__all" ? "" : value)}
@@ -669,7 +719,7 @@ export default function NguoiDung() {
                             </div>
                             <button onClick={() => removeUserRole(r.id).then(() => {
                               setUserRoles((prev) => prev.filter((x) => x.id !== r.id));
-                              loadData();
+                              loadData(selected.id);
                               loadAuditLogs(selected.id);
                               toast.success("Đã gỡ vai trò");
                             }).catch(() => toast.error("Gỡ vai trò thất bại"))}
@@ -682,21 +732,25 @@ export default function NguoiDung() {
                     )}
                     <p className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-2">Thêm vai trò</p>
                     <div className="flex flex-col gap-2">
-                      <SelectField value={selectedRoleId} onValueChange={setSelectedRoleId}
-                        options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...allRoles.map((r) => ({ value: String(r.id), label: `${r.tenVaiTro} (${r.maVaiTro})` }))]}
+                      <SelectField value={selectedRoleId || "__empty"} onValueChange={(value) => setSelectedRoleId(value === "__empty" ? "" : value)}
+                        options={[{ value: "__empty", label: "-- Chọn vai trò --" }, ...allRoles.map((r) => ({ value: String(r.id), label: `${getRoleDisplayName(r)} (${r.maVaiTro})` }))]}
                         triggerClassName="h-9 w-full bg-white text-xs" />
-                      <SelectField value={selectedKhoaPhongId} onValueChange={setSelectedKhoaPhongId}
+                      <SelectField value={selectedKhoaPhongId || "__empty"} onValueChange={(value) => setSelectedKhoaPhongId(value === "__empty" ? "" : value)}
                         options={[{ value: "__empty", label: "-- Chọn khoa/phòng --" }, ...khoaPhongList.filter(k => k.trangThaiHoatDong).map((k) => ({ value: String(k.id), label: k.tenKhoaPhong }))]}
                         triggerClassName="h-9 w-full bg-white text-xs" />
                       <button onClick={() => {
                         const roleId = parseInt(selectedRoleId);
+                        const khoaPhongId = parseInt(selectedKhoaPhongId);
                         if (!roleId) { toast.error("Chọn vai trò"); return; }
+                        if (!khoaPhongId) { toast.error("Chọn khoa/phòng"); return; }
                         const userIdNum = parseInt(selected.id);
                         if (!userIdNum) { toast.error("User ID không hợp lệ"); return; }
-                        assignUserRole(userIdNum, { khoaPhongId: parseInt(selectedKhoaPhongId), vaiTroId: roleId })
+                        if (userRoles.some((r) => sameUserRole(r, { vaiTroId: roleId, khoaPhongId }))) { toast.error("User đã có vai trò này"); return; }
+                        assignUserRole(userIdNum, { khoaPhongId, vaiTroId: roleId })
                           .then(() => {
                             toast.success("Đã thêm vai trò");
                             setSelectedRoleId("");
+                            setSelectedKhoaPhongId("");
                             return getUserRoles(userIdNum);
                           })
                           .then((roles) => {
@@ -795,7 +849,7 @@ export default function NguoiDung() {
           existingUsernames={existingUsernames}
           existingEmails={existingEmails}
           khoaPhongOptions={khoaPhongList.filter(k => k.trangThaiHoatDong).map(k => k.tenKhoaPhong)}
-          vaiTroOptions={allRoles.map(r => r.tenVaiTro)}
+          vaiTroOptions={allRoles.map((r) => getRoleDisplayName(r))}
           onSave={handleAdd}
           onClose={() => setAddOpen(false)}
         />
@@ -805,7 +859,7 @@ export default function NguoiDung() {
           user={editTarget}
           existingEmails={existingEmails.filter((e) => e !== editTarget.email.toLowerCase())}
           khoaPhongOptions={khoaPhongList.filter(k => k.trangThaiHoatDong).map(k => k.tenKhoaPhong)}
-          vaiTroOptions={allRoles.map(r => r.tenVaiTro)}
+          vaiTroOptions={allRoles.map((r) => getRoleDisplayName(r))}
           onSave={handleEdit}
           onClose={() => setEditTarget(null)}
         />

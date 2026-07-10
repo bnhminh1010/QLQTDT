@@ -155,16 +155,6 @@ export default function Sidebar() {
             >
               <i className="fa-solid fa-user-circle text-slate-400 w-4 text-center" /> Hồ sơ cá nhân
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setUserMenuOpen(false);
-                navigate("/profile");
-              }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              <i className="fa-solid fa-lock text-slate-400 w-4 text-center" /> Đổi mật khẩu
-            </button>
             <div className="border-t border-slate-100" />
             <button
               type="button"

@@ -41,6 +41,13 @@ function hasSameProfileForm(a: ProfileFormState, b: ProfileFormState) {
   );
 }
 
+function normalizeRoleName(name?: string | null): string {
+  return (name || "—")
+    .replaceAll("Tổng pháp chế", "Tổ pháp chế")
+    .replaceAll("TONG_PHAP_CHE", "Tổ pháp chế")
+    .replaceAll("TO_PHAP_CHE", "Tổ pháp chế");
+}
+
 const BADGE_CLS: Record<string, string> = {
   "Hoạt động": "bg-emerald-100 text-emerald-700",
   "Bị khóa": "bg-red-100 text-red-600",
@@ -146,7 +153,7 @@ export default function UserProfile() {
 
   // Derived fields
   const donVi = user?.roles?.[0]?.tenKhoaPhong ?? "—";
-  const vaiTro = user?.roles?.[0]?.tenVaiTro ?? "—";
+  const vaiTro = normalizeRoleName(user?.roles?.[0]?.tenVaiTro);
   const trangThaiLabel = user?.trangThaiHoatDong ? "Hoạt động" : "Bị khóa";
 
   function validatePassword(): boolean {
